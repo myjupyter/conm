@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -45,14 +46,33 @@ to quickly create a Cobra application.`,
 			confs = cfgs
 		}
 
+		clients := config.DetectPGClients()
+		hasClient := false
+		for _, c := range clients {
+			if c.Exists {
+				hasClient = true
+				break
+			}
+		}
+		if !hasClient {
+			return fmt.Errorf("no known postgres client found; install one of: psql, pgcli, usql")
+		}
+
+		postgresCli, chosen, err := ui.SelectPGClient(clients)
+		if err != nil {
+			return err
+		}
+		if !chosen {
+			return fmt.Errorf("no postgres client selected")
+		}
+
 		conmConfigFilePath, err := config.ConmConfigPath()
 		if err != nil {
 			return err
 		}
 
 		err = config.CreateConm(conmConfigFilePath, config.Conm{
-			// TODO: come up with idea how to pass postgres cli
-			PostgresCli: "pgcli",
+			PostgresCli: postgresCli,
 		})
 		if err != nil {
 			return err

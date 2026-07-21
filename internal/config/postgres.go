@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -11,17 +12,30 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-const postgresConfigTemplate = `
-[[postgres]]
-name = "<*>" #required
-tags = [<*>] #optional
-host = "staging-db.example.com" #required
-port = 5432 #required
-database = "" #required
-username = "" #required
-password = "" #required
-sslmode = "require" #optional
-`
+var KnownPGClients = []string{
+	"psql",
+	"pgcli",
+	"usql",
+}
+
+type PGClientInfo struct {
+	Name   string
+	Path   string
+	Exists bool
+}
+
+func DetectPGClients() []PGClientInfo {
+	infos := make([]PGClientInfo, 0, len(KnownPGClients))
+	for _, name := range KnownPGClients {
+		path, err := exec.LookPath(name)
+		infos = append(infos, PGClientInfo{
+			Name:   name,
+			Path:   path,
+			Exists: err == nil,
+		})
+	}
+	return infos
+}
 
 type Postgres struct {
 	Meta       ConnMeta `toml:"meta"`
