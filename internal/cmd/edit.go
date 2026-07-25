@@ -1,5 +1,5 @@
 /*
-Copyright © 2026 NAME HERE <EMAIL ADDRESS>
+Copyright © 2026 Tkachuk Kirill <EMAIL ADDRESS>
 */
 package cmd
 
@@ -28,9 +28,20 @@ to quickly create a Cobra application.`,
 			editorCmd = defaultEditor
 		}
 
-		configPath, err := config.PGFilePath()
-		if err != nil {
-			return err
+		var configPath string
+		switch {
+		case cmd.Flags().Changed("postgres"):
+			cp, err := config.PGFilePath()
+			if err != nil {
+				return err
+			}
+			configPath = cp
+		default:
+			cp, err := config.ConmConfigPath()
+			if err != nil {
+				return err
+			}
+			configPath = cp
 		}
 
 		shellCmd := exec.
@@ -44,7 +55,7 @@ to quickly create a Cobra application.`,
 		shellCmd.Stdout = os.Stdout
 		shellCmd.Stderr = os.Stderr
 
-		if err = shellCmd.Run(); err != nil {
+		if err := shellCmd.Run(); err != nil {
 			return err
 		}
 
@@ -55,13 +66,5 @@ to quickly create a Cobra application.`,
 func init() {
 	rootCmd.AddCommand(editCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// editCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// editCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	editCmd.Flags().Bool("postgres", false, "Edit postgres.toml")
 }
