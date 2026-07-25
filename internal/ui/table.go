@@ -45,18 +45,14 @@ var (
 			MarginTop(1)
 )
 
-// Model is the Bubble Tea model that renders a list of Postgres connections.
 type Model struct {
 	conns  []Connection
 	states []ConnState
 
 	cursor int
 
-	// pinged is set once the user triggers a ping; until then the PING
-	// column is hidden.
 	pinged bool
 
-	// runErr holds the error from the most recent client launch, if any.
 	runErr error
 }
 
@@ -75,7 +71,6 @@ const (
 	pingFailedPingState  = "🔴"
 )
 
-// pingResultMsg is emitted when a single connection finishes pinging.
 type pingResultMsg struct {
 	index int
 	err   error
@@ -85,7 +80,6 @@ type runResultMsg struct {
 	err error
 }
 
-// New creates a Model for the given connections.
 func New(conns []Connection) Model {
 	states := make([]ConnState, len(conns))
 	for i := range states {
@@ -165,7 +159,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// pingCmd pings the connection at index i and reports the result.
 func (m Model) pingCmd(i int) tea.Cmd {
 	conn := m.conns[i]
 	return func() tea.Msg {
@@ -173,9 +166,6 @@ func (m Model) pingCmd(i int) tea.Cmd {
 	}
 }
 
-// runCmd launches the connection's underlying client (psql/pgcli) via
-// tea.Exec, which releases the terminal for the interactive child process
-// and restores the TUI once it exits.
 func (m Model) runCmd(i int) tea.Cmd {
 	conn := m.conns[i]
 	return tea.Exec(
@@ -184,8 +174,6 @@ func (m Model) runCmd(i int) tea.Cmd {
 	)
 }
 
-// runExec adapts a Connection's Run to tea.ExecCommand. Run already wires
-// os.Stdin/Stdout/Stderr, so the stream setters are intentional no-ops.
 type runExec struct {
 	run func() error
 }

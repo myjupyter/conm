@@ -18,17 +18,11 @@ var KnownPGClients = []string{
 	"usql",
 }
 
-type PGClientInfo struct {
-	Name   string
-	Path   string
-	Exists bool
-}
-
-func DetectPGClients() []PGClientInfo {
-	infos := make([]PGClientInfo, 0, len(KnownPGClients))
+func DetectPGClients() []CLIInfo {
+	infos := make([]CLIInfo, 0, len(KnownPGClients))
 	for _, name := range KnownPGClients {
 		path, err := exec.LookPath(name)
-		infos = append(infos, PGClientInfo{
+		infos = append(infos, CLIInfo{
 			Name:   name,
 			Path:   path,
 			Exists: err == nil,

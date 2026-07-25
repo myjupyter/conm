@@ -9,16 +9,10 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-var (
-	inactiveStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#626262")).
-			Padding(0, 1)
+var pathStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("#626262"))
 
-	pathStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#626262"))
-)
-
-func SelectPGClient(clients []config.PGClientInfo) (string, bool, error) {
+func SelectCLI(clients []config.CLIInfo) (string, bool, error) {
 	m, err := tea.NewProgram(newPGClientModel(clients)).Run()
 	if err != nil {
 		return "", false, err
@@ -28,18 +22,18 @@ func SelectPGClient(clients []config.PGClientInfo) (string, bool, error) {
 	if !pm.chosen {
 		return "", false, nil
 	}
-	return pm.clients[pm.cursor].Name, true, nil
+	return pm.clis[pm.cursor].Name, true, nil
 }
 
 type pgClientModel struct {
-	clients []config.PGClientInfo
+	clis []config.CLIInfo
 
 	cursor int
 	chosen bool
 }
 
-func newPGClientModel(clients []config.PGClientInfo) pgClientModel {
-	ordered := make([]config.PGClientInfo, 0, len(clients))
+func newPGClientModel(clients []config.CLIInfo) pgClientModel {
+	ordered := make([]config.CLIInfo, 0, len(clients))
 	for _, c := range clients {
 		if c.Exists {
 			ordered = append(ordered, c)
@@ -52,12 +46,12 @@ func newPGClientModel(clients []config.PGClientInfo) pgClientModel {
 	}
 
 	return pgClientModel{
-		clients: ordered,
-		cursor:  firstSelectable(ordered),
+		clis:   ordered,
+		cursor: firstSelectable(ordered),
 	}
 }
 
-func firstSelectable(clients []config.PGClientInfo) int {
+func firstSelectable(clients []config.CLIInfo) int {
 	for i, c := range clients {
 		if c.Exists {
 			return i
@@ -81,7 +75,7 @@ func (m pgClientModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			m.cursor = m.nextSelectable(m.cursor)
 		case "enter":
-			if m.cursor < len(m.clients) && m.clients[m.cursor].Exists {
+			if m.cursor < len(m.clis) && m.clis[m.cursor].Exists {
 				m.chosen = true
 				return m, tea.Quit
 			}
@@ -93,7 +87,7 @@ func (m pgClientModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m pgClientModel) prevSelectable(from int) int {
 	for i := from - 1; i >= 0; i-- {
-		if m.clients[i].Exists {
+		if m.clis[i].Exists {
 			return i
 		}
 	}
@@ -101,8 +95,8 @@ func (m pgClientModel) prevSelectable(from int) int {
 }
 
 func (m pgClientModel) nextSelectable(from int) int {
-	for i := from + 1; i < len(m.clients); i++ {
-		if m.clients[i].Exists {
+	for i := from + 1; i < len(m.clis); i++ {
+		if m.clis[i].Exists {
 			return i
 		}
 	}
@@ -121,7 +115,7 @@ func (m pgClientModel) render() string {
 	b.WriteString(titleStyle.Render("Choose a Postgres client"))
 	b.WriteByte('\n')
 
-	for i, c := range m.clients {
+	for i, c := range m.clis {
 		if c.Exists {
 			line := c.Name + "  " + pathStyle.Render(c.Path)
 			if i == m.cursor {
@@ -129,6 +123,84 @@ func (m pgClientModel) render() string {
 			} else {
 				b.WriteString(itemStyle.Render("  " + line))
 			}
+		}
+		b.WriteByte('\n')
+	}
+
+	b.WriteString(helpStyle.Render("↑/k up · ↓/j down · enter select · q/esc quit"))
+	return b.String()
+}
+
+func SelectPGPassImport() (bool, bool, error) {
+	m, err := tea.NewProgram(newPGPassModel()).Run()
+	if err != nil {
+		return false, false, err
+	}
+
+	pm := m.(pgPassModel)
+	if !pm.chosen {
+		return false, false, nil
+	}
+	return pm.cursor == 0, true, nil
+}
+
+type pgPassModel struct {
+	options []string
+
+	cursor int
+	chosen bool
+}
+
+func newPGPassModel() pgPassModel {
+	return pgPassModel{
+		options: []string{"Import from .pgpass", "Skip"},
+	}
+}
+
+func (m pgPassModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m pgPassModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		switch msg.String() {
+		case "ctrl+c", "q", "esc":
+			return m, tea.Quit
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.options)-1 {
+				m.cursor++
+			}
+		case "enter":
+			m.chosen = true
+			return m, tea.Quit
+		}
+	}
+
+	return m, nil
+}
+
+func (m pgPassModel) View() tea.View {
+	v := tea.NewView(m.render())
+	v.AltScreen = true
+	return v
+}
+
+func (m pgPassModel) render() string {
+	var b strings.Builder
+
+	b.WriteString(titleStyle.Render("Import connections from .pgpass?"))
+	b.WriteByte('\n')
+
+	for i, opt := range m.options {
+		if i == m.cursor {
+			b.WriteString(selectedStyle.Render("> " + opt))
+		} else {
+			b.WriteString(itemStyle.Render("  " + opt))
 		}
 		b.WriteByte('\n')
 	}

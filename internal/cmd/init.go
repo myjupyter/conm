@@ -34,18 +34,6 @@ to quickly create a Cobra application.`,
 			}
 		}
 
-		var confs []config.Postgres
-		if ok, err := cmd.Flags().GetBool("pgpass"); err != nil {
-			return err
-		} else if ok {
-			cfgs, exists := config.ImportFromPGPass()
-			if !exists {
-				return fmt.Errorf(".pgpass file not found")
-			}
-
-			confs = cfgs
-		}
-
 		clients := config.DetectPGClients()
 		hasClient := false
 		for _, c := range clients {
@@ -58,12 +46,38 @@ to quickly create a Cobra application.`,
 			return fmt.Errorf("no known postgres client found; install one of: psql, pgcli, usql")
 		}
 
-		postgresCli, chosen, err := ui.SelectPGClient(clients)
+		postgresCli, chosen, err := ui.SelectCLI(clients)
 		if err != nil {
 			return err
 		}
 		if !chosen {
 			return fmt.Errorf("no postgres client selected")
+		}
+
+		pgpassFlag, err := cmd.Flags().GetBool("pgpass")
+		if err != nil {
+			return err
+		}
+
+		importPGPass := pgpassFlag
+		if !pgpassFlag {
+			doImport, pgpassChosen, err := ui.SelectPGPassImport()
+			if err != nil {
+				return err
+			}
+			if !pgpassChosen {
+				return fmt.Errorf("init cancelled")
+			}
+			importPGPass = doImport
+		}
+
+		var confs []config.Postgres
+		if importPGPass {
+			cfgs, exists := config.ImportFromPGPass()
+			if !exists {
+				return fmt.Errorf(".pgpass file not found")
+			}
+			confs = cfgs
 		}
 
 		conmConfigFilePath, err := config.ConmConfigPath()
@@ -91,14 +105,4 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 
 	initCmd.Flags().Bool("pgpass", false, "Import from pgpass")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// initCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// initCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

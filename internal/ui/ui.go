@@ -21,7 +21,6 @@ type Connection interface {
 	Close() error
 }
 
-// Run launches the interactive connection list UI.
 func Run(conns []Connection) error {
 	_, err := tea.NewProgram(New(conns)).Run()
 	return err

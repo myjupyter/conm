@@ -18,6 +18,12 @@ type ConnMeta struct {
 	Tags        []string `toml:"tags,omitempty"`
 }
 
+type CLIInfo struct {
+	Name   string
+	Path   string
+	Exists bool
+}
+
 const PostgresCli = "pgcli"
 
 type Conm struct {
