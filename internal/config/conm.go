@@ -55,6 +55,21 @@ func ConmConfigPath() (string, error) {
 	return filepath.Join(conmDirPath, conmConfigFileName), nil
 }
 
+func CreateConmConfigPath() error {
+	conmDirConfigPath, err := ConmDirPath()
+	if err != nil {
+		return err
+	}
+
+	if err := os.Mkdir(conmDirConfigPath, 0744); err != nil {
+		if !os.IsExist(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func PGFilePath() (string, error) {
 	conmDirPath, err := ConmDirPath()
 	if err != nil {
@@ -64,7 +79,12 @@ func PGFilePath() (string, error) {
 	return filepath.Join(conmDirPath, pgConfigFileName), nil
 }
 
-func CreateConm(filename string, conf Conm) error {
+func CreateConm(conf Conm) error {
+	path, err := ConmConfigPath()
+	if err != nil {
+		return err
+	}
+
 	raw, err := toml.Marshal(struct {
 		Conm Conm `toml:"conm"`
 	}{Conm: conf})
@@ -72,7 +92,7 @@ func CreateConm(filename string, conf Conm) error {
 		return err
 	}
 
-	return os.WriteFile(filename, raw, 0600)
+	return os.WriteFile(path, raw, 0600)
 }
 
 func ReadConm(filename string) (Conm, error) {

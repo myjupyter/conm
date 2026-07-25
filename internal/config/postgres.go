@@ -18,7 +18,7 @@ var KnownPGClients = []string{
 	"usql",
 }
 
-func DetectPGClients() []CLIInfo {
+func DetectPGCLI() []CLIInfo {
 	infos := make([]CLIInfo, 0, len(KnownPGClients))
 	for _, name := range KnownPGClients {
 		path, err := exec.LookPath(name)
@@ -90,7 +90,7 @@ func (p *Postgres) URL() string {
 	return u.String()
 }
 
-func ImportFromPGPass() ([]Postgres, bool) {
+func ImportFromPGPass() ([]Postgres, error) {
 	pgPassPath := os.Getenv("PGPASSFILE")
 	if pgPassPath == "" {
 		homeDir := os.Getenv("HOME")
@@ -100,9 +100,7 @@ func ImportFromPGPass() ([]Postgres, bool) {
 
 	raw, err := os.ReadFile(pgPassPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, false
-		}
+		return nil, err
 	}
 
 	lines := strings.Split(string(raw), "\n")
@@ -134,10 +132,16 @@ func ImportFromPGPass() ([]Postgres, bool) {
 		confs = append(confs, conf)
 	}
 
-	return confs, true
+	return confs, nil
 }
 
-func CreatePG(filename string, confs []Postgres) error {
+func CreatePG(confs []Postgres) error {
+	path, err := ConmDirPath()
+	if err != nil {
+		return err
+	}
+
+	filename := filepath.Join(path, "postgres.toml")
 	raw, err := toml.Marshal(struct {
 		Postgres []Postgres `toml:"postgres"`
 	}{Postgres: confs})
