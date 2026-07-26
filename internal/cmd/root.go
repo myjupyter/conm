@@ -23,11 +23,6 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		pgConfigPath, err := config.PGFilePath()
-		if err != nil {
-			return err
-		}
-
 		conmConfigPath, err := config.ConmConfigPath()
 		if err != nil {
 			return err
@@ -38,7 +33,7 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
-		confs, err := config.ReadPG(pgConfigPath)
+		confs, err := config.ReadPG()
 		if err != nil {
 			return err
 		}
