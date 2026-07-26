@@ -1,2 +1,2 @@
 build:
-	@go build -o bin/conm cmd/main.go
+	@go build -o bin/conm main.go 
