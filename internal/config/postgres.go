@@ -18,6 +18,49 @@ var KnownPGClients = []string{
 	"usql",
 }
 
+type Postgres struct {
+	Meta       ConnMeta `toml:"meta"`
+	Hostname   string   `toml:"host" json:"host"`
+	PortNumber int      `toml:"port" json:"port"`
+	User       string   `toml:"username" json:"username"`
+	Password   string   `toml:"password" json:"password"`
+	DBName     string   `toml:"dbname" json:"dbname"`
+	SSLMode    string   `toml:"sslmode,omitempty" json:"sslmode,omitempty"`
+}
+
+type PostgresSSLMode string
+
+const (
+	PostgresSSLModeDisable    PostgresSSLMode = "disable"
+	PostgresSSLModeAllow      PostgresSSLMode = "allow"
+	PostgresSSLModePrefer     PostgresSSLMode = "prefer"
+	PostgresSSLModeRequire    PostgresSSLMode = "require"
+	PostgresSSLModeVerifyCA   PostgresSSLMode = "verify-ca"
+	PostgresSSLModeVerifyFull PostgresSSLMode = "verify-full"
+)
+
+type PostgresFormField = string
+
+const (
+	PostgresFormFieldName        PostgresFormField = "Name"
+	PostgresFormFieldDescription PostgresFormField = "Description"
+	PostgresFormFieldTags        PostgresFormField = "Tags"
+	PostgresFormFieldHost        PostgresFormField = "Host"
+	PostgresFormFieldPort        PostgresFormField = "Port"
+	PostgresFormFieldUsername    PostgresFormField = "Username"
+	PostgresFormFieldPassword    PostgresFormField = "Password"
+	PostgresFormFieldDatabase    PostgresFormField = "Database"
+	PostgresFormFieldSSLMode     PostgresFormField = "SSLMode"
+)
+
+func (p *Postgres) ConnMeta() ConnMeta {
+	return p.Meta
+}
+
+func (p *Postgres) Name() string {
+	return p.Meta.Name
+}
+
 func DetectPGCLI() []CLIInfo {
 	infos := make([]CLIInfo, 0, len(KnownPGClients))
 	for _, name := range KnownPGClients {
@@ -29,65 +72,6 @@ func DetectPGCLI() []CLIInfo {
 		})
 	}
 	return infos
-}
-
-type Postgres struct {
-	Meta       ConnMeta `toml:"meta"`
-	Hostname   string   `toml:"host" json:"host"`
-	PortNumber int      `toml:"port" json:"port"`
-	User       string   `toml:"username" json:"username"`
-	Password   string   `toml:"password" json:"password"`
-	DBName     string   `toml:"dbname" json:"dbname"`
-	SSLMode    string   `toml:"sslmode,omitempty" json:"sslmode,omitempty"`
-}
-
-func (p *Postgres) ConnMeta() ConnMeta {
-	return p.Meta
-}
-
-func (p *Postgres) Name() string {
-	return p.Meta.Name
-}
-
-func (p *Postgres) Description() string {
-	return p.Meta.Description
-}
-
-func (p *Postgres) Tags() []string {
-	return p.Meta.Tags
-}
-
-func (p *Postgres) Host() string {
-	return p.Hostname
-}
-
-func (p *Postgres) Port() int {
-	return p.PortNumber
-}
-
-func (p *Postgres) Database() string {
-	return p.DBName
-}
-
-func (p *Postgres) Username() string {
-	return p.User
-}
-
-func (p *Postgres) URL() string {
-	u := url.URL{
-		Scheme: "postgresql",
-		User:   url.UserPassword(p.User, p.Password),
-		Host:   net.JoinHostPort(p.Hostname, strconv.Itoa(p.PortNumber)),
-		Path:   "/" + p.DBName,
-	}
-
-	if p.SSLMode != "" {
-		q := url.Values{}
-		q.Set("sslmode", p.SSLMode)
-		u.RawQuery = q.Encode()
-	}
-
-	return u.String()
 }
 
 func ImportFromPGPass() ([]Postgres, error) {
@@ -152,7 +136,12 @@ func CreatePG(confs []Postgres) error {
 	return os.WriteFile(filename, raw, 0600)
 }
 
-func ReadPG(filename string) ([]Postgres, error) {
+func ReadPG() ([]Postgres, error) {
+	filename, err := PGFilePath()
+	if err != nil {
+		return nil, err
+	}
+
 	t := struct {
 		Postgres []Postgres `toml:"postgres"`
 	}{}
@@ -168,6 +157,47 @@ func ReadPG(filename string) ([]Postgres, error) {
 	}
 
 	return t.Postgres, err
+}
+
+func (p *Postgres) Description() string {
+	return p.Meta.Description
+}
+
+func (p *Postgres) Tags() []string {
+	return p.Meta.Tags
+}
+
+func (p *Postgres) Host() string {
+	return p.Hostname
+}
+
+func (p *Postgres) Port() int {
+	return p.PortNumber
+}
+
+func (p *Postgres) Database() string {
+	return p.DBName
+}
+
+func (p *Postgres) Username() string {
+	return p.User
+}
+
+func (p *Postgres) URL() string {
+	u := url.URL{
+		Scheme: "postgresql",
+		User:   url.UserPassword(p.User, p.Password),
+		Host:   net.JoinHostPort(p.Hostname, strconv.Itoa(p.PortNumber)),
+		Path:   "/" + p.DBName,
+	}
+
+	if p.SSLMode != "" {
+		q := url.Values{}
+		q.Set("sslmode", p.SSLMode)
+		u.RawQuery = q.Encode()
+	}
+
+	return u.String()
 }
 
 func skipPGPassRow(values []string) bool {

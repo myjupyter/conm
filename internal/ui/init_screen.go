@@ -79,13 +79,22 @@ func RunInitScreen(cfg InitScreenConfig) error {
 			return errors.New("init cancelled")
 		}
 
-		if opt == importSelectPGPass {
+		switch opt {
+		case importSelectPGPass:
 			pgPassCreds, err := config.ImportFromPGPass()
 			if err != nil {
 				return fmt.Errorf("couldn't import from .pgpass: %w", err)
 			}
 
 			confs = pgPassCreds
+		case importSelectAdd:
+			conf, added, err := RunAddForm()
+			if err != nil {
+				return err
+			}
+			if added {
+				confs = append(confs, conf)
+			}
 		}
 	}
 
