@@ -22,15 +22,21 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+	RunE: addPostgresCmd.RunE,
+}
+
+var addPostgresCmd = &cobra.Command{
+	Use:   "postgres",
+	Short: "Add a new postgres connection",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		conmConfigPath, err := config.ConmConfigPath()
+		postgresConfigPath, err := config.PGFilePath()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get postgres config path: %w", err)
 		}
 
-		if _, err := os.Stat(conmConfigPath); err != nil {
+		if _, err := os.Stat(postgresConfigPath); err != nil {
 			if os.IsNotExist(err) {
-				return fmt.Errorf("conm config file not found\nrun 'conm init' first\n")
+				return fmt.Errorf("postgres config file not found\nrun 'conm init' first\n")
 			}
 		}
 
@@ -39,18 +45,23 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
+		// If the user didn't choose to add a new connection, we don't need to do anything
+		// and just exit
 		if !ok {
 			return nil
 		}
 
-		cfgs, err := config.ReadPG()
+		c, err := config.OpenConfig[*config.PostgresConfigWrapper, config.Postgres](postgresConfigPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to open postgres config: %w", err)
 		}
 
-		cfgs = append(cfgs, cfg)
-		if err := config.CreatePG(cfgs); err != nil {
-			return err
+		defer c.Close()
+
+		c.Add(cfg)
+
+		if err := c.Save(); err != nil {
+			return fmt.Errorf("failed to save postgres config: %w", err)
 		}
 
 		return nil
@@ -58,5 +69,10 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
+	addCmd.AddCommand(
+		addPostgresCmd,
+	)
+
 	rootCmd.AddCommand(addCmd)
+
 }

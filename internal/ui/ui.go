@@ -1,27 +1,11 @@
 package ui
 
 import (
-	"context"
-
 	tea "charm.land/bubbletea/v2"
+	"github.com/myjupyter/conm/internal/network"
 )
 
-type Connection interface {
-	Name() string
-	Description() string
-	Tags() []string
-
-	Username() string
-	Host() string
-	Database() string
-	Port() int
-
-	Ping(ctx context.Context) error
-	Run(ctx context.Context) error
-	Close() error
-}
-
-func Run(conns []Connection) error {
+func Run(conns []network.Connection) error {
 	_, err := tea.NewProgram(New(conns)).Run()
 	return err
 }

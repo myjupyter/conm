@@ -24,10 +24,52 @@ type CLIInfo struct {
 	Exists bool
 }
 
-const PostgresCli = "pgcli"
-
 type Conm struct {
 	PostgresCli string `toml:"postgres_cli,omitempty"`
+}
+
+func (c *Conm) SetCLI(t ConnType, cli string) {
+	switch t {
+	case PostgresConnType:
+		c.PostgresCli = cli
+	}
+}
+
+type ConmConfigWrapper struct {
+	Conm Conm `toml:"conm"`
+}
+
+func (w *ConmConfigWrapper) Add(_ Conm) {
+}
+
+func (w *ConmConfigWrapper) Len() int {
+	return 1
+}
+
+func (w *ConmConfigWrapper) Get(_ int) Conm {
+	return w.Conm
+}
+
+func (w *ConmConfigWrapper) Put(_ int, conm Conm) {
+	w.Conm = conm
+}
+
+func (w *ConmConfigWrapper) ConnectionConfigs() []ConnectionConfig {
+	return nil
+}
+
+func (w *ConmConfigWrapper) Remove(_ int) {}
+
+func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	return toml.Unmarshal(data, w)
+}
+
+func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
+	return toml.Marshal(w)
 }
 
 func ConmDirPath() (string, error) {
@@ -46,7 +88,7 @@ func ConmDirPath() (string, error) {
 	return filepath.Join(xdgConfigHomeDir, conmDirName), nil
 }
 
-func ConmConfigPath() (string, error) {
+func ConmFilePath() (string, error) {
 	conmDirPath, err := ConmDirPath()
 	if err != nil {
 		return "", err
@@ -80,7 +122,7 @@ func PGFilePath() (string, error) {
 }
 
 func CreateConm(conf Conm) error {
-	path, err := ConmConfigPath()
+	path, err := ConmFilePath()
 	if err != nil {
 		return err
 	}
@@ -111,7 +153,8 @@ func ReadConm(filename string) (Conm, error) {
 	}
 
 	if t.Conm.PostgresCli == "" {
-		t.Conm.PostgresCli = PostgresCli
+		// TODO
+		t.Conm.PostgresCli = "psql"
 	}
 
 	return t.Conm, nil

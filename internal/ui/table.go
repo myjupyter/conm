@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
+	"github.com/myjupyter/conm/internal/network"
 )
 
 var (
@@ -46,7 +47,7 @@ var (
 )
 
 type Model struct {
-	conns  []Connection
+	conns  []network.Connection
 	states []ConnState
 
 	cursor int
@@ -80,7 +81,7 @@ type runResultMsg struct {
 	err error
 }
 
-func New(conns []Connection) Model {
+func New(conns []network.Connection) Model {
 	states := make([]ConnState, len(conns))
 	for i := range states {
 		s := spinner.New()

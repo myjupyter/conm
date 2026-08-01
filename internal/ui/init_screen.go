@@ -8,9 +8,14 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-type InitScreenConfig struct {
-	CLIFlagValue         string
+type InitPostgresScreenConfig struct {
 	UsePGPassImportValue bool
+}
+
+type InitScreenConfig struct {
+	ConnType       config.ConnType
+	CLIFlagValue   string
+	PostgresConfig *InitPostgresScreenConfig
 }
 
 func RunInitScreen(cfg InitScreenConfig) error {
@@ -18,26 +23,29 @@ func RunInitScreen(cfg InitScreenConfig) error {
 		return err
 	}
 
-	clies := config.DetectPGCLI()
+	if cfg.CLIFlagValue != "" {
+		if err := config.ValidateCLI(cfg.ConnType, cfg.CLIFlagValue); err != nil {
+			return err
+		}
+	}
+
+	clies := config.DetectCLI(cfg.ConnType)
 
 	var conmConfig config.Conm
 	switch {
 	case cfg.CLIFlagValue != "":
-		var finalCLI *config.CLIInfo
-		for _, cli := range clies {
-			if cli.Name == cfg.CLIFlagValue {
-				finalCLI = &cli
-				break
+		finalCLI, found := config.FindCLI(clies, cfg.CLIFlagValue)
+		if !found {
+			cliNames := make([]string, 0, len(clies))
+			for _, cli := range clies {
+				cliNames = append(cliNames, cli.Name)
 			}
-		}
-		if finalCLI == nil {
-			return fmt.Errorf("unknown postgres client %q; choose one of: %s", cfg.CLIFlagValue, strings.Join(config.KnownPGClients, ", "))
+			return fmt.Errorf("unknown %s client %q; choose one of: %s", cfg.ConnType, cfg.CLIFlagValue, strings.Join(cliNames, ", "))
 		}
 		if !finalCLI.Exists {
-			return fmt.Errorf("postgres client %q is not installed", cfg.CLIFlagValue)
+			return fmt.Errorf("%s client %q is not installed", cfg.ConnType, cfg.CLIFlagValue)
 		}
-		conmConfig.PostgresCli = cfg.CLIFlagValue
-
+		conmConfig.SetCLI(cfg.ConnType, cfg.CLIFlagValue)
 	default:
 		hasClient := false
 		for _, cli := range clies {
@@ -47,7 +55,7 @@ func RunInitScreen(cfg InitScreenConfig) error {
 			}
 		}
 		if !hasClient {
-			return fmt.Errorf("no known postgres client found; install one of: %s", strings.Join(config.KnownPGClients, ", "))
+			return fmt.Errorf("no known postgres client found; install one of: %s", strings.Join(config.PGClients, ", "))
 		}
 
 		cli, chosen, err := RunSelectCLIForm(clies)
@@ -61,7 +69,42 @@ func RunInitScreen(cfg InitScreenConfig) error {
 		conmConfig.PostgresCli = cli.Name
 	}
 
-	var confs []config.Postgres
+	if err := runConnTypeSpecificInit(cfg); err != nil {
+		return err
+	}
+
+	conmFilePath, err := config.ConmFilePath()
+	if err != nil {
+		return fmt.Errorf("couldn't get conm config file path: %w", err)
+	}
+
+	c, err := config.OpenConfig[*config.ConmConfigWrapper](conmFilePath)
+	if err != nil {
+		return fmt.Errorf("couldn't open conm config file: %w", err)
+	}
+
+	defer c.Close()
+
+	c.Add(conmConfig)
+
+	if err := c.Save(); err != nil {
+		return fmt.Errorf("couldn't save conm config file: %w", err)
+	}
+
+	return nil
+}
+
+func runConnTypeSpecificInit(cfg InitScreenConfig) error {
+	switch cfg.ConnType {
+	case config.PostgresConnType:
+		return runPostgresInit(cfg.PostgresConfig)
+	default:
+		return fmt.Errorf("unknown connection type %q", cfg.ConnType)
+	}
+}
+
+func runPostgresInit(cfg *InitPostgresScreenConfig) error {
+	var connCfgs []config.Postgres
 	switch cfg.UsePGPassImportValue {
 	case true:
 		pgPassCreds, err := config.ImportFromPGPass()
@@ -69,7 +112,7 @@ func RunInitScreen(cfg InitScreenConfig) error {
 			return fmt.Errorf("couldn't import from .pgpass: %w", err)
 		}
 
-		confs = pgPassCreds
+		connCfgs = pgPassCreds
 	default:
 		opt, chosen, err := RunSelectImport()
 		if err != nil {
@@ -86,21 +129,35 @@ func RunInitScreen(cfg InitScreenConfig) error {
 				return fmt.Errorf("couldn't import from .pgpass: %w", err)
 			}
 
-			confs = pgPassCreds
+			connCfgs = pgPassCreds
 		case importSelectAdd:
 			conf, added, err := RunAddForm()
 			if err != nil {
 				return err
 			}
 			if added {
-				confs = append(confs, conf)
+				connCfgs = append(connCfgs, conf)
 			}
 		}
 	}
 
-	if err := config.CreateConm(conmConfig); err != nil {
-		return err
+	configFilePath, err := config.PGFilePath()
+	if err != nil {
+		return fmt.Errorf("couldn't get postgres config file path: %w", err)
 	}
 
-	return config.CreatePG(confs)
+	c, err := config.OpenConfig[*config.PostgresConfigWrapper](configFilePath)
+	if err != nil {
+		return fmt.Errorf("couldn't open postgres config file: %w", err)
+	}
+
+	defer c.Close()
+
+	c.Add(connCfgs...)
+
+	if err := c.Save(); err != nil {
+		return fmt.Errorf("couldn't save postgres config file: %w", err)
+	}
+
+	return nil
 }

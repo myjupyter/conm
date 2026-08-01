@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/conn"
+	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -23,28 +23,37 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		conmConfigPath, err := config.ConmConfigPath()
+		conmConfigPath, err := config.ConmFilePath()
 		if err != nil {
 			return err
 		}
 
-		conmCfg, err := config.ReadConm(conmConfigPath)
+		c, err := config.OpenConfig[*config.ConmConfigWrapper](conmConfigPath)
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+
+		postgresConfigPath, err := config.PGFilePath()
 		if err != nil {
 			return err
 		}
 
-		confs, err := config.ReadPG()
+		pgConfig, err := config.OpenConfig[*config.PostgresConfigWrapper](postgresConfigPath)
 		if err != nil {
 			return err
 		}
+		defer pgConfig.Close()
 
-		conns := make([]ui.Connection, 0, len(confs))
-		for i := range confs {
-			conn, err := conn.NewPGClient(conmCfg, confs[i])
+		conns := make([]network.Connection, 0, pgConfig.Len())
+		for i := 0; i < pgConfig.Len(); i++ {
+			conn, err := network.NewConnection(
+				c.Get(0),
+				pgConfig.Get(i),
+			)
 			if err != nil {
 				return err
 			}
-
 			conns = append(conns, conn)
 		}
 

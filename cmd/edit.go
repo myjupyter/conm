@@ -37,7 +37,7 @@ to quickly create a Cobra application.`,
 			}
 			configPath = cp
 		default:
-			cp, err := config.ConmConfigPath()
+			cp, err := config.ConmFilePath()
 			if err != nil {
 				return err
 			}

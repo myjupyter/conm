@@ -4,29 +4,12 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
 )
-
-var KnownPGClients = []string{
-	"psql",
-	"pgcli",
-	"usql",
-}
-
-type Postgres struct {
-	Meta       ConnMeta `toml:"meta"`
-	Hostname   string   `toml:"host" json:"host"`
-	PortNumber int      `toml:"port" json:"port"`
-	User       string   `toml:"username" json:"username"`
-	Password   string   `toml:"password" json:"password"`
-	DBName     string   `toml:"dbname" json:"dbname"`
-	SSLMode    string   `toml:"sslmode,omitempty" json:"sslmode,omitempty"`
-}
 
 type PostgresSSLMode string
 
@@ -53,25 +36,18 @@ const (
 	PostgresFormFieldSSLMode     PostgresFormField = "SSLMode"
 )
 
-func (p *Postgres) ConnMeta() ConnMeta {
-	return p.Meta
+type Postgres struct {
+	Meta       ConnMeta `toml:"meta"`
+	Hostname   string   `toml:"host" json:"host"`
+	PortNumber int      `toml:"port" json:"port"`
+	User       string   `toml:"username" json:"username"`
+	Password   string   `toml:"password" json:"password"`
+	DBName     string   `toml:"dbname" json:"dbname"`
+	SSLMode    string   `toml:"sslmode,omitempty" json:"sslmode,omitempty"`
 }
 
-func (p *Postgres) Name() string {
-	return p.Meta.Name
-}
-
-func DetectPGCLI() []CLIInfo {
-	infos := make([]CLIInfo, 0, len(KnownPGClients))
-	for _, name := range KnownPGClients {
-		path, err := exec.LookPath(name)
-		infos = append(infos, CLIInfo{
-			Name:   name,
-			Path:   path,
-			Exists: err == nil,
-		})
-	}
-	return infos
+type PostgresConfigWrapper struct {
+	Conns []Postgres `toml:"postgres"`
 }
 
 func ImportFromPGPass() ([]Postgres, error) {
@@ -119,71 +95,78 @@ func ImportFromPGPass() ([]Postgres, error) {
 	return confs, nil
 }
 
-func CreatePG(confs []Postgres) error {
-	path, err := ConmDirPath()
-	if err != nil {
-		return err
-	}
-
-	filename := filepath.Join(path, "postgres.toml")
-	raw, err := toml.Marshal(struct {
-		Postgres []Postgres `toml:"postgres"`
-	}{Postgres: confs})
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(filename, raw, 0600)
+func (w *PostgresConfigWrapper) Add(conn Postgres) {
+	w.Conns = append(w.Conns, conn)
 }
 
-func ReadPG() ([]Postgres, error) {
-	filename, err := PGFilePath()
-	if err != nil {
-		return nil, err
+func (w *PostgresConfigWrapper) Unmarshal(data []byte) error {
+	if len(data) == 0 {
+		return nil
 	}
 
-	t := struct {
-		Postgres []Postgres `toml:"postgres"`
-	}{}
-
-	raw, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	err = toml.Unmarshal(raw, &t)
-	if err != nil {
-		return nil, err
-	}
-
-	return t.Postgres, err
+	return toml.Unmarshal(data, w)
 }
 
-func (p *Postgres) Description() string {
+func (w *PostgresConfigWrapper) Marshal() ([]byte, error) {
+	return toml.Marshal(w)
+}
+
+func (w *PostgresConfigWrapper) Len() int {
+	return len(w.Conns)
+}
+
+func (w *PostgresConfigWrapper) Get(i int) Postgres {
+	return w.Conns[i]
+}
+
+func (w *PostgresConfigWrapper) Put(i int, conn Postgres) {
+	w.Conns[i] = conn
+}
+
+func (w *PostgresConfigWrapper) Remove(i int) {
+	if i < 0 || i >= len(w.Conns) {
+		return
+	}
+	w.Conns = append(w.Conns[:i], w.Conns[i+1:]...)
+}
+
+func (p Postgres) ConnType() ConnType {
+	return PostgresConnType
+}
+
+func (p Postgres) ConnMeta() ConnMeta {
+	return p.Meta
+}
+
+func (p Postgres) Name() string {
+	return p.Meta.Name
+}
+
+func (p Postgres) Description() string {
 	return p.Meta.Description
 }
 
-func (p *Postgres) Tags() []string {
+func (p Postgres) Tags() []string {
 	return p.Meta.Tags
 }
 
-func (p *Postgres) Host() string {
+func (p Postgres) Host() string {
 	return p.Hostname
 }
 
-func (p *Postgres) Port() int {
+func (p Postgres) Port() int {
 	return p.PortNumber
 }
 
-func (p *Postgres) Database() string {
+func (p Postgres) Database() string {
 	return p.DBName
 }
 
-func (p *Postgres) Username() string {
+func (p Postgres) Username() string {
 	return p.User
 }
 
-func (p *Postgres) URL() string {
+func (p Postgres) URL() string {
 	u := url.URL{
 		Scheme: "postgresql",
 		User:   url.UserPassword(p.User, p.Password),

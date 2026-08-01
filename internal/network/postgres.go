@@ -1,4 +1,4 @@
-package conn
+package network
 
 import (
 	"context"
@@ -13,14 +13,14 @@ import (
 
 type PGClient struct {
 	conmCfg config.Conm
-	cfg     config.Postgres
+	cfg     config.ConnectionConfig
 
 	db *sql.DB
 }
 
 func NewPGClient(
 	conmConfig config.Conm,
-	cfg config.Postgres,
+	cfg config.ConnectionConfig,
 ) (*PGClient, error) {
 	db, err := sql.Open("pgx", cfg.URL())
 	if err != nil {
@@ -32,6 +32,10 @@ func NewPGClient(
 		cfg:     cfg,
 		db:      db,
 	}, nil
+}
+
+func (p *PGClient) ConnType() config.ConnType {
+	return p.cfg.ConnType()
 }
 
 func (p *PGClient) Name() string {
@@ -60,6 +64,10 @@ func (p *PGClient) Port() int {
 
 func (p *PGClient) Database() string {
 	return p.cfg.Database()
+}
+
+func (p *PGClient) URL() string {
+	return p.cfg.URL()
 }
 
 func (p *PGClient) Ping(ctx context.Context) error {
