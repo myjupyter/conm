@@ -131,12 +131,16 @@ func runPostgresInit(cfg *InitPostgresScreenConfig) error {
 
 			connCfgs = pgPassCreds
 		case importSelectAdd:
-			conf, added, err := RunAddForm()
+			conf, added, err := RunAddForm(config.PostgresConnType)
 			if err != nil {
 				return err
 			}
 			if added {
-				connCfgs = append(connCfgs, conf)
+				pg, ok := conf.(config.Postgres)
+				if !ok {
+					return fmt.Errorf("unexpected connection type %T for postgres add form", conf)
+				}
+				connCfgs = append(connCfgs, pg)
 			}
 		}
 	}

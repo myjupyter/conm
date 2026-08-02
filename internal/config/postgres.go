@@ -11,7 +11,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-type PostgresSSLMode string
+type PostgresSSLMode = string
 
 const (
 	PostgresSSLModeDisable    PostgresSSLMode = "disable"

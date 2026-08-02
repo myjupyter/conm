@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"strconv"
+	"fmt"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -10,54 +10,70 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-const (
-	defaultPGPort = 5432
-	inputWidth    = 40
-)
+func RunAddForm(t config.ConnType) (config.ConnectionConfig, bool, error) {
+	spec, ok := formSpecs[t]
+	if !ok {
+		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
+	}
 
-func RunAddForm() (config.Postgres, bool, error) {
-	m, err := tea.NewProgram(newAddModel()).Run()
+	m, err := tea.NewProgram(newAddModel(spec)).Run()
 	if err != nil {
-		return config.Postgres{}, false, err
+		return nil, false, err
 	}
 
 	am := m.(addModel)
 	if !am.submitted {
-		return config.Postgres{}, false, nil
+		return nil, false, nil
 	}
 
-	return am.result(), true, nil
+	conn, err := am.result()
+	if err != nil {
+		return nil, false, err
+	}
+
+	return conn, true, nil
 }
 
 type addModel struct {
-	fields []FormField
+	spec   FormSpec
 	inputs []textinput.Model
 
+	// selects holds the chosen option index for each SelectFieldKind field,
+	// keyed by its position in spec.Fields.
+	selects map[int]int
+
 	focus     int
-	sslCursor int
 	submitted bool
 	err       string
 }
 
-func newAddModel() addModel {
+func newAddModel(spec FormSpec) addModel {
 	m := addModel{
-		fields: PostgresFormFields,
-		inputs: make([]textinput.Model, len(PostgresFormFields)),
+		spec:    spec,
+		inputs:  make([]textinput.Model, len(spec.Fields)),
+		selects: make(map[int]int),
 	}
 
-	for i, f := range m.fields {
+	const inputWidth = 40
+
+	for i, f := range spec.Fields {
+		if f.Kind == SelectFieldKind {
+			m.selects[i] = defaultSelectIndex(f)
+			continue
+		}
+
 		in := textinput.New()
 		in.Prompt = ""
 		in.Placeholder = f.Example
 		in.SetWidth(inputWidth)
 
-		// Highlight the whole field (text + padding) while it is focused.
+		// Highlight the whole field (text + padding) while it is focused
 		st := in.Styles()
 		st.Focused.Text = st.Focused.Text.Foreground(highlightFg).Background(highlightBg)
 		st.Focused.Placeholder = st.Focused.Placeholder.Foreground(highlightPlaceholderFg).Background(highlightBg)
 		in.SetStyles(st)
 
-		if f.Name == config.PostgresFormFieldPassword {
+		if f.Kind == HiddenFieldKind {
 			in.EchoMode = textinput.EchoPassword
 		}
 
@@ -67,6 +83,15 @@ func newAddModel() addModel {
 	m.setFocus(0)
 
 	return m
+}
+
+func defaultSelectIndex(f FormField) int {
+	for i, opt := range f.Options {
+		if opt == f.DefaultValue {
+			return i
+		}
+	}
+	return 0
 }
 
 func (m addModel) Init() tea.Cmd {
@@ -91,19 +116,21 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m.focusNext(), nil
 		case "left":
-			if m.onSSL() {
-				m.sslCursor = (m.sslCursor - 1 + len(SSLModesOrder)) % len(SSLModesOrder)
+			if m.onSelect() {
+				n := len(m.spec.Fields[m.focus].Options)
+				m.selects[m.focus] = (m.selects[m.focus] - 1 + n) % n
 				return m, nil
 			}
 		case "right":
-			if m.onSSL() {
-				m.sslCursor = (m.sslCursor + 1) % len(SSLModesOrder)
+			if m.onSelect() {
+				n := len(m.spec.Fields[m.focus].Options)
+				m.selects[m.focus] = (m.selects[m.focus] + 1) % n
 				return m, nil
 			}
 		}
 	}
 
-	if !m.onSSL() {
+	if !m.onSelect() {
 		var cmd tea.Cmd
 		m.inputs[m.focus], cmd = m.inputs[m.focus].Update(msg)
 		return m, cmd
@@ -112,51 +139,49 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m addModel) onSSL() bool {
-	return m.fields[m.focus].Name == config.PostgresFormFieldSSLMode
+func (m addModel) onSelect() bool {
+	return m.spec.Fields[m.focus].Kind == SelectFieldKind
 }
 
 func (m addModel) isLast() bool {
-	return m.focus == len(m.fields)-1
+	return m.focus == len(m.spec.Fields)-1
 }
 
 func (m addModel) focusNext() addModel {
-	m.setFocus((m.focus + 1) % len(m.fields))
+	m.setFocus((m.focus + 1) % len(m.spec.Fields))
 	return m
 }
 
 func (m addModel) focusPrev() addModel {
-	m.setFocus((m.focus - 1 + len(m.fields)) % len(m.fields))
+	m.setFocus((m.focus - 1 + len(m.spec.Fields)) % len(m.spec.Fields))
 	return m
 }
 
 func (m *addModel) setFocus(next int) {
-	if !m.onSSL() {
+	if m.spec.Fields[m.focus].Kind != SelectFieldKind {
 		m.inputs[m.focus].Blur()
 	}
 	m.focus = next
-	if !m.onSSL() {
+	if m.spec.Fields[next].Kind != SelectFieldKind {
 		m.inputs[next].Focus()
 	}
 }
 
 func (m addModel) submit() (tea.Model, tea.Cmd) {
-	for i, f := range m.fields {
-		if f.Name == config.PostgresFormFieldSSLMode {
-			continue // always has a valid value
-		}
-		if f.Name == config.PostgresFormFieldPort {
-			if port := strings.TrimSpace(m.inputs[i].Value()); port != "" {
-				if _, err := strconv.Atoi(port); err != nil {
-					m.err = "port must be a number"
-					return m, nil
-				}
-			}
-			continue // empty port falls back to the default
-		}
-		if f.Property == RequiredFieldProperty && strings.TrimSpace(m.inputs[i].Value()) == "" {
-			m.err = strings.ToLower(f.Name) + " is required"
+	values := m.values()
+	for _, f := range m.spec.Fields {
+		v := values[f.Key]
+
+		if f.Property == RequiredFieldProperty && strings.TrimSpace(v) == "" {
+			m.err = strings.ToLower(f.Label) + " is required"
 			return m, nil
+		}
+
+		if f.ValidateFunc != nil {
+			if err := f.ValidateFunc(v); err != nil {
+				m.err = err.Error()
+				return m, nil
+			}
 		}
 	}
 
@@ -164,40 +189,31 @@ func (m addModel) submit() (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-func (m addModel) result() config.Postgres {
-	port := defaultPGPort
-	if raw := m.value(config.PostgresFormFieldPort); raw != "" {
-		if p, err := strconv.Atoi(raw); err == nil {
-			port = p
-		}
-	}
-
-	return config.Postgres{
-		Meta: config.ConnMeta{
-			Name:        m.value(config.PostgresFormFieldName),
-			Description: m.value(config.PostgresFormFieldDescription),
-			Tags:        parseTags(m.value(config.PostgresFormFieldTags)),
-		},
-		Hostname:   m.value(config.PostgresFormFieldHost),
-		PortNumber: port,
-		User:       m.value(config.PostgresFormFieldUsername),
-		Password:   m.rawValue(config.PostgresFormFieldPassword),
-		DBName:     m.value(config.PostgresFormFieldDatabase),
-		SSLMode:    string(SSLModesOrder[m.sslCursor]),
-	}
+func (m addModel) result() (config.ConnectionConfig, error) {
+	return m.spec.BuildFunc(m.values())
 }
 
-func (m addModel) value(name string) string {
-	return strings.TrimSpace(m.rawValue(name))
+// values collects the current field values keyed by FormField.Key. Every value
+// is trimmed except hidden fields (passwords), where surrounding whitespace may
+// be meaningful.
+func (m addModel) values() map[FormFieldKey]FormFieldValue {
+	out := make(map[FormFieldKey]FormFieldValue, len(m.spec.Fields))
+	for i, f := range m.spec.Fields {
+		v := m.fieldValue(i)
+		if f.Kind != HiddenFieldKind {
+			v = strings.TrimSpace(v)
+		}
+		out[f.Key] = v
+	}
+	return out
 }
 
-func (m addModel) rawValue(name string) string {
-	for i, f := range m.fields {
-		if f.Name == name {
-			return m.inputs[i].Value()
-		}
+func (m addModel) fieldValue(i int) string {
+	f := m.spec.Fields[i]
+	if f.Kind == SelectFieldKind {
+		return f.Options[m.selects[i]]
 	}
-	return ""
+	return m.inputs[i].Value()
 }
 
 func parseTags(raw string) []string {
@@ -219,13 +235,13 @@ func (m addModel) View() tea.View {
 func (m addModel) render() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("Add a Postgres connection"))
+	b.WriteString(titleStyle.Render(m.spec.Title))
 	b.WriteByte('\n')
 
-	for i, f := range m.fields {
+	for i, f := range m.spec.Fields {
 		focused := m.focus == i
 
-		b.WriteString(" " + labelStyle.Render(f.Name) + requiredMark(f.Property))
+		b.WriteString(" " + labelStyle.Render(f.Label) + requiredMark(f.Property))
 		b.WriteByte('\n')
 
 		if focused {
@@ -233,8 +249,8 @@ func (m addModel) render() string {
 		} else {
 			b.WriteString(" ")
 		}
-		if f.Name == config.PostgresFormFieldSSLMode {
-			b.WriteString(sslModeField(m.sslCursor, focused))
+		if f.Kind == SelectFieldKind {
+			b.WriteString(selectField(f.Options, m.selects[i], focused))
 		} else {
 			b.WriteString(m.inputs[i].View())
 		}
@@ -246,7 +262,7 @@ func (m addModel) render() string {
 		b.WriteByte('\n')
 	}
 
-	b.WriteString(helpStyle.Render("tab/↑↓ move · ←/→ ssl mode · enter/ctrl+s submit · esc cancel"))
+	b.WriteString(helpStyle.Render("tab/↑↓ move · ←/→ select · enter submit · esc cancel"))
 	return b.String()
 }
 
@@ -257,8 +273,8 @@ func requiredMark(p FieldProperty) string {
 	return ""
 }
 
-func sslModeField(cursor int, focused bool) string {
-	value := "‹ " + string(SSLModesOrder[cursor]) + " ›"
+func selectField(options []string, cursor int, focused bool) string {
+	value := "‹ " + options[cursor] + " ›"
 	if focused {
 		return markerStyle.Render(value)
 	}
