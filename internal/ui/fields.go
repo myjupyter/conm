@@ -2,48 +2,13 @@ package ui
 
 import (
 	"fmt"
-	"net"
-	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
 )
 
-// simpleHostRegexp matches DNS hostnames (letters, digits, dot, hyphen,
-// underscore). IP addresses — including IPv6 literals with colons — are
-// validated separately via net.ParseIP.
-var simpleHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
-
-// simpleDatabaseRegexp allows the characters commonly found in real Postgres
-// database names: it may start with a letter, digit or underscore and then
-// also contain dots and hyphens.
-var simpleDatabaseRegexp = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$`)
-
-const (
-	hostMinLength = 1
-	hostMaxLength = 255
-)
-
-const (
-	portMinValue = 1
-	portMaxValue = 65535
-)
-
-const (
-	usernameMinLength = 1
-	usernameMaxLength = 63
-)
-
-const (
-	databaseMaxLength = 63 // Postgres truncates identifiers at 63 bytes
-)
-
-const (
-	nameMaxLength        = 63
-	descriptionMaxLength = 255
-	tagsMaxLength        = 255
-)
+const tagsMaxLength = 255
 
 type FieldProperty int
 
@@ -125,26 +90,10 @@ var SSLModesOrder = []config.PostgresSSLMode{
 var PostgresFormFields = []FormField{
 	// Connection information
 	{
-		Key:     strings.ToLower(config.PostgresFormFieldHost),
-		Label:   config.PostgresFormFieldHost,
-		Example: postgresExampleHost,
-		ValidateFunc: func(value string) error {
-			if value == "" {
-				return fmt.Errorf("hostname can't be empty")
-			}
-			if len(value) < hostMinLength || len(value) > hostMaxLength {
-				return fmt.Errorf("hostname must be between %d and %d characters long", hostMinLength, hostMaxLength)
-			}
-			// Accept any valid IP address as-is (IPv6 literals contain colons
-			// that the hostname regexp intentionally rejects)
-			if net.ParseIP(value) != nil {
-				return nil
-			}
-			if !simpleHostRegexp.MatchString(value) {
-				return fmt.Errorf("hostname is not a valid host or IP address")
-			}
-			return nil
-		},
+		Key:          strings.ToLower(config.PostgresFormFieldHost),
+		Label:        config.PostgresFormFieldHost,
+		Example:      postgresExampleHost,
+		ValidateFunc: config.ValidatePostgresHost,
 	},
 	{
 		Key:          strings.ToLower(config.PostgresFormFieldPort),
@@ -154,33 +103,21 @@ var PostgresFormFields = []FormField{
 		Property:     OptionalFieldProperty,
 		DefaultValue: "5432",
 		ValidateFunc: func(value string) error {
-			// If the value is empty, we consider it valid because the field is optional and will default to 5432
 			if value == "" {
 				return nil
 			}
 			port, err := strconv.Atoi(value)
 			if err != nil {
-				return fmt.Errorf("port must be a number between %d and %d", portMinValue, portMaxValue)
+				return fmt.Errorf("port must be a number")
 			}
-			if port < portMinValue || port > portMaxValue {
-				return fmt.Errorf("port must be between %d and %d", portMinValue, portMaxValue)
-			}
-			return nil
+			return config.ValidatePostgresPort(port)
 		},
 	},
 	{
-		Key:     strings.ToLower(config.PostgresFormFieldUsername),
-		Label:   config.PostgresFormFieldUsername,
-		Example: postgresExampleUsername,
-		ValidateFunc: func(value string) error {
-			if value == "" {
-				return fmt.Errorf("username can't be empty")
-			}
-			if n := len(value); n < usernameMinLength || n > usernameMaxLength {
-				return fmt.Errorf("username must be between %d and %d characters long", usernameMinLength, usernameMaxLength)
-			}
-			return nil
-		},
+		Key:          strings.ToLower(config.PostgresFormFieldUsername),
+		Label:        config.PostgresFormFieldUsername,
+		Example:      postgresExampleUsername,
+		ValidateFunc: config.ValidatePostgresUsername,
 	},
 	{
 		Key:     strings.ToLower(config.PostgresFormFieldPassword),
@@ -192,21 +129,10 @@ var PostgresFormFields = []FormField{
 		},
 	},
 	{
-		Key:     strings.ToLower(config.PostgresFormFieldDatabase),
-		Label:   config.PostgresFormFieldDatabase,
-		Example: postgresExampleDatabase,
-		ValidateFunc: func(value string) error {
-			if value == "" {
-				return fmt.Errorf("database can't be empty")
-			}
-			if len(value) > databaseMaxLength {
-				return fmt.Errorf("database must be at most %d characters long", databaseMaxLength)
-			}
-			if !simpleDatabaseRegexp.MatchString(value) {
-				return fmt.Errorf("database contains invalid characters")
-			}
-			return nil
-		},
+		Key:          strings.ToLower(config.PostgresFormFieldDatabase),
+		Label:        config.PostgresFormFieldDatabase,
+		Example:      postgresExampleDatabase,
+		ValidateFunc: config.ValidatePostgresDatabase,
 	},
 	{
 		Key:          strings.ToLower(config.PostgresFormFieldSSLMode),
@@ -214,39 +140,22 @@ var PostgresFormFields = []FormField{
 		Kind:         SelectFieldKind,
 		DefaultValue: config.PostgresSSLModePrefer,
 		Options:      SSLModesOrder,
-		ValidateFunc: func(value string) error {
-			for _, mode := range SSLModesOrder {
-				if mode == value {
-					return nil
-				}
-			}
-			return fmt.Errorf("invalid SSL mode: %s", value)
-		},
+		ValidateFunc: config.ValidatePostgresSSLMode,
 	},
 	// Meta information (optinal)
 	{
-		Key:      strings.ToLower(config.PostgresFormFieldName),
-		Label:    config.PostgresFormFieldName,
-		Example:  postgresExampleName,
-		Property: OptionalFieldProperty,
-		ValidateFunc: func(value string) error {
-			if len(value) > nameMaxLength {
-				return fmt.Errorf("name must be at most %d characters long", nameMaxLength)
-			}
-			return nil
-		},
+		Key:          strings.ToLower(config.PostgresFormFieldName),
+		Label:        config.PostgresFormFieldName,
+		Example:      postgresExampleName,
+		Property:     OptionalFieldProperty,
+		ValidateFunc: config.ValidatePostgresName,
 	},
 	{
-		Key:      strings.ToLower(config.PostgresFormFieldDescription),
-		Label:    config.PostgresFormFieldDescription,
-		Example:  postgresExampleDescription,
-		Property: OptionalFieldProperty,
-		ValidateFunc: func(value string) error {
-			if len(value) > descriptionMaxLength {
-				return fmt.Errorf("description must be at most %d characters long", descriptionMaxLength)
-			}
-			return nil
-		},
+		Key:          strings.ToLower(config.PostgresFormFieldDescription),
+		Label:        config.PostgresFormFieldDescription,
+		Example:      postgresExampleDescription,
+		Property:     OptionalFieldProperty,
+		ValidateFunc: config.ValidatePostgresDescription,
 	},
 	{
 		Key:      strings.ToLower(config.PostgresFormFieldTags),

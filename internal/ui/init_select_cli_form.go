@@ -9,7 +9,7 @@ import (
 )
 
 func RunSelectCLIForm(clients []config.CLIInfo) (config.CLIInfo, bool, error) {
-	m, err := tea.NewProgram(newPGClientModel(clients)).Run()
+	m, err := tea.NewProgram(newClientModel(clients)).Run()
 	if err != nil {
 		return config.CLIInfo{}, false, err
 	}
@@ -29,7 +29,7 @@ type initCLIModel struct {
 	chosen bool
 }
 
-func newPGClientModel(clients []config.CLIInfo) initCLIModel {
+func newClientModel(clients []config.CLIInfo) initCLIModel {
 	ordered := make([]config.CLIInfo, 0, len(clients))
 	for _, c := range clients {
 		if c.Exists {

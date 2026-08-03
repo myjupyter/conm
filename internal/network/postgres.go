@@ -70,6 +70,14 @@ func (p *PGClient) URL() string {
 	return p.cfg.URL()
 }
 
+func (p *PGClient) IsValid() bool {
+	return p.cfg.IsValid()
+}
+
+func (p *PGClient) ValidationErrs() []error {
+	return p.cfg.ValidationErrs()
+}
+
 func (p *PGClient) Ping(ctx context.Context) error {
 	db, err := sql.Open("pgx", p.cfg.URL())
 	if err != nil {

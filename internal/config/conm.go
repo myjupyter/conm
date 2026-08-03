@@ -60,6 +60,10 @@ func (w *ConmConfigWrapper) ConnectionConfigs() []ConnectionConfig {
 
 func (w *ConmConfigWrapper) Remove(_ int) {}
 
+func (w *ConmConfigWrapper) Validate() {
+	//TODO: validate conm config
+}
+
 func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
 	if len(data) == 0 {
 		return nil

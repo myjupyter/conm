@@ -20,6 +20,9 @@ type ConnectionConfig interface {
 	URL() string
 
 	ConnType() ConnType
+
+	IsValid() bool
+	ValidationErrs() []error
 }
 
 type ConfigWrapper[C any] interface {
@@ -28,6 +31,7 @@ type ConfigWrapper[C any] interface {
 	Get(int) C
 	Put(int, C)
 	Remove(int)
+	Validate()
 
 	Marshal() ([]byte, error)
 	Unmarshal([]byte) error
@@ -58,6 +62,8 @@ func OpenConfig[W ConfigWrapper[C], C any](filepath string) (*Config[W, C], erro
 	if err := w.Unmarshal(data); err != nil {
 		return nil, fmt.Errorf("couldn't parse file %q: %w", filepath, err)
 	}
+
+	w.Validate()
 
 	return &Config[W, C]{
 		w:    w,

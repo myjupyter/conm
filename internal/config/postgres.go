@@ -1,14 +1,42 @@
 package config
 
 import (
+	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/pelletier/go-toml/v2"
+)
+
+var simpleHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+
+var simpleDatabaseRegexp = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$`)
+
+const (
+	hostMinLength = 1
+	hostMaxLength = 255
+)
+
+const (
+	portMinValue = 1
+	portMaxValue = 65535
+)
+
+const (
+	usernameMinLength = 1
+	usernameMaxLength = 63
+)
+
+const databaseMaxLength = 63
+
+const (
+	nameMaxLength        = 63
+	descriptionMaxLength = 255
 )
 
 type PostgresSSLMode = string
@@ -44,6 +72,8 @@ type Postgres struct {
 	Password   string   `toml:"password" json:"password"`
 	DBName     string   `toml:"dbname" json:"dbname"`
 	SSLMode    string   `toml:"sslmode,omitempty" json:"sslmode,omitempty"`
+
+	validationErrs []error
 }
 
 type PostgresConfigWrapper struct {
@@ -95,8 +125,88 @@ func ImportFromPGPass() ([]Postgres, error) {
 	return confs, nil
 }
 
+func ValidatePostgresHost(host string) error {
+	if host == "" {
+		return fmt.Errorf("hostname can't be empty")
+	}
+	if len(host) < hostMinLength || len(host) > hostMaxLength {
+		return fmt.Errorf("hostname must be between %d and %d characters long", hostMinLength, hostMaxLength)
+	}
+	if net.ParseIP(host) != nil {
+		return nil
+	}
+	if !simpleHostRegexp.MatchString(host) {
+		return fmt.Errorf("hostname is not a valid host or IP address")
+	}
+	return nil
+}
+
+func ValidatePostgresPort(port int) error {
+	if port < portMinValue || port > portMaxValue {
+		return fmt.Errorf("port must be between %d and %d", portMinValue, portMaxValue)
+	}
+	return nil
+}
+
+func ValidatePostgresUsername(user string) error {
+	if user == "" {
+		return fmt.Errorf("username can't be empty")
+	}
+	if n := len(user); n < usernameMinLength || n > usernameMaxLength {
+		return fmt.Errorf("username must be between %d and %d characters long", usernameMinLength, usernameMaxLength)
+	}
+	return nil
+}
+
+func ValidatePostgresDatabase(db string) error {
+	if db == "" {
+		return fmt.Errorf("database can't be empty")
+	}
+	if len(db) > databaseMaxLength {
+		return fmt.Errorf("database must be at most %d characters long", databaseMaxLength)
+	}
+	if !simpleDatabaseRegexp.MatchString(db) {
+		return fmt.Errorf("database contains invalid characters")
+	}
+	return nil
+}
+
+func ValidatePostgresSSLMode(mode string) error {
+	switch mode {
+	case "",
+		PostgresSSLModeDisable,
+		PostgresSSLModeAllow,
+		PostgresSSLModePrefer,
+		PostgresSSLModeRequire,
+		PostgresSSLModeVerifyCA,
+		PostgresSSLModeVerifyFull:
+		return nil
+	}
+	return fmt.Errorf("invalid SSL mode: %s", mode)
+}
+
+func ValidatePostgresName(name string) error {
+	if len(name) > nameMaxLength {
+		return fmt.Errorf("name must be at most %d characters long", nameMaxLength)
+	}
+	return nil
+}
+
+func ValidatePostgresDescription(desc string) error {
+	if len(desc) > descriptionMaxLength {
+		return fmt.Errorf("description must be at most %d characters long", descriptionMaxLength)
+	}
+	return nil
+}
+
 func (w *PostgresConfigWrapper) Add(conn Postgres) {
 	w.Conns = append(w.Conns, conn)
+}
+
+func (w *PostgresConfigWrapper) Validate() {
+	for i := range w.Conns {
+		w.Conns[i].validationErrs = w.Conns[i].Validate()
+	}
 }
 
 func (w *PostgresConfigWrapper) Unmarshal(data []byte) error {
@@ -181,6 +291,40 @@ func (p Postgres) URL() string {
 	}
 
 	return u.String()
+}
+
+func (p Postgres) Validate() []error {
+	var errs []error
+	if err := ValidatePostgresHost(p.Hostname); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ValidatePostgresPort(p.PortNumber); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ValidatePostgresUsername(p.User); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ValidatePostgresDatabase(p.DBName); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ValidatePostgresSSLMode(p.SSLMode); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ValidatePostgresName(p.Meta.Name); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ValidatePostgresDescription(p.Meta.Description); err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+func (p Postgres) ValidationErrs() []error {
+	return p.validationErrs
+}
+
+func (p Postgres) IsValid() bool {
+	return len(p.validationErrs) == 0
 }
 
 func skipPGPassRow(values []string) bool {
