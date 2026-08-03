@@ -4,10 +4,13 @@ Copyright © 2026 Tkachuk Kirill <EMAIL ADDRESS>
 package cmd
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -63,8 +66,77 @@ to quickly create a Cobra application.`,
 	},
 }
 
+var editPostgresCmd = &cobra.Command{
+	Use:   "postgres",
+	Short: "Edit an existing postgres connection",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		postgresConfigPath, err := config.PGFilePath()
+		if err != nil {
+			return fmt.Errorf("failed to get postgres config path: %w", err)
+		}
+
+		if _, err := os.Stat(postgresConfigPath); err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("postgres config file not found\nrun 'conm init' first\n")
+			}
+			return err
+		}
+
+		c, err := config.OpenConfig[*config.PostgresConfigWrapper](postgresConfigPath)
+		if err != nil {
+			return fmt.Errorf("failed to open postgres config: %w", err)
+		}
+
+		defer c.Close()
+
+		if c.Len() == 0 {
+			return fmt.Errorf("no postgres connections to edit\nrun 'conm add postgres' first\n")
+		}
+
+		conns := make([]config.ConnectionConfig, c.Len())
+		for i := 0; i < c.Len(); i++ {
+			conns[i] = c.Get(i)
+		}
+
+		idx, ok, err := ui.RunSelectConnForm("Choose a connection to edit", conns)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+
+		cfg, ok, err := ui.RunEditForm(config.PostgresConnType, c.Get(idx))
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+
+		pg, ok := cfg.(config.Postgres)
+		if !ok {
+			return fmt.Errorf("unexpected connection type %T for postgres edit form", cfg)
+		}
+
+		if errs := pg.Validate(); len(errs) > 0 {
+			return fmt.Errorf("connection is invalid: %w", errors.Join(errs...))
+		}
+
+		c.Put(idx, pg)
+
+		if err := c.Save(); err != nil {
+			return fmt.Errorf("failed to save postgres config: %w", err)
+		}
+
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(editCmd)
+
+	editCmd.AddCommand(editPostgresCmd)
 
 	editCmd.Flags().Bool("postgres", false, "Edit postgres.toml")
 }

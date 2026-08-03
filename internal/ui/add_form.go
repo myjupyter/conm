@@ -8,25 +8,30 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
 func RunAddForm(t config.ConnType) (config.ConnectionConfig, bool, error) {
-	spec, ok := formSpecs[t]
+	spec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
 	}
 
-	m, err := tea.NewProgram(newAddModel(spec)).Run()
+	return runForm(newFormModel(spec, spec.AddTitle, nil))
+}
+
+func runForm(model formModel) (config.ConnectionConfig, bool, error) {
+	m, err := tea.NewProgram(model).Run()
 	if err != nil {
 		return nil, false, err
 	}
 
-	am := m.(addModel)
-	if !am.submitted {
+	fm := m.(formModel)
+	if !fm.submitted {
 		return nil, false, nil
 	}
 
-	conn, err := am.result()
+	conn, err := fm.result()
 	if err != nil {
 		return nil, false, err
 	}
@@ -34,8 +39,9 @@ func RunAddForm(t config.ConnType) (config.ConnectionConfig, bool, error) {
 	return conn, true, nil
 }
 
-type addModel struct {
-	spec   FormSpec
+type formModel struct {
+	spec   spec.FormSpec
+	title  string
 	inputs []textinput.Model
 
 	// selects holds the chosen option index for each SelectFieldKind field,
@@ -47,18 +53,19 @@ type addModel struct {
 	err       string
 }
 
-func newAddModel(spec FormSpec) addModel {
-	m := addModel{
-		spec:    spec,
-		inputs:  make([]textinput.Model, len(spec.Fields)),
+func newFormModel(spc spec.FormSpec, title string, initial map[spec.FormFieldKey]spec.FormFieldValue) formModel {
+	m := formModel{
+		spec:    spc,
+		title:   title,
+		inputs:  make([]textinput.Model, len(spc.Fields)),
 		selects: make(map[int]int),
 	}
 
 	const inputWidth = 40
 
-	for i, f := range spec.Fields {
-		if f.Kind == SelectFieldKind {
-			m.selects[i] = defaultSelectIndex(f)
+	for i, f := range spc.Fields {
+		if f.Kind == spec.SelectFieldKind {
+			m.selects[i] = seedSelectIndex(f, initial)
 			continue
 		}
 
@@ -73,8 +80,12 @@ func newAddModel(spec FormSpec) addModel {
 		st.Focused.Placeholder = st.Focused.Placeholder.Foreground(highlightPlaceholderFg).Background(highlightBg)
 		in.SetStyles(st)
 
-		if f.Kind == HiddenFieldKind {
+		if f.Kind == spec.HiddenFieldKind {
 			in.EchoMode = textinput.EchoPassword
+		}
+
+		if v, ok := initial[f.Key]; ok {
+			in.SetValue(v)
 		}
 
 		m.inputs[i] = in
@@ -85,7 +96,7 @@ func newAddModel(spec FormSpec) addModel {
 	return m
 }
 
-func defaultSelectIndex(f FormField) int {
+func defaultSelectIndex(f spec.FormField) int {
 	for i, opt := range f.Options {
 		if opt == f.DefaultValue {
 			return i
@@ -94,11 +105,22 @@ func defaultSelectIndex(f FormField) int {
 	return 0
 }
 
-func (m addModel) Init() tea.Cmd {
+func seedSelectIndex(f spec.FormField, initial map[spec.FormFieldKey]spec.FormFieldValue) int {
+	if v, ok := initial[f.Key]; ok {
+		for i, opt := range f.Options {
+			if opt == v {
+				return i
+			}
+		}
+	}
+	return defaultSelectIndex(f)
+}
+
+func (m formModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -139,40 +161,40 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m addModel) onSelect() bool {
-	return m.spec.Fields[m.focus].Kind == SelectFieldKind
+func (m formModel) onSelect() bool {
+	return m.spec.Fields[m.focus].Kind == spec.SelectFieldKind
 }
 
-func (m addModel) isLast() bool {
+func (m formModel) isLast() bool {
 	return m.focus == len(m.spec.Fields)-1
 }
 
-func (m addModel) focusNext() addModel {
+func (m formModel) focusNext() formModel {
 	m.setFocus((m.focus + 1) % len(m.spec.Fields))
 	return m
 }
 
-func (m addModel) focusPrev() addModel {
+func (m formModel) focusPrev() formModel {
 	m.setFocus((m.focus - 1 + len(m.spec.Fields)) % len(m.spec.Fields))
 	return m
 }
 
-func (m *addModel) setFocus(next int) {
-	if m.spec.Fields[m.focus].Kind != SelectFieldKind {
+func (m *formModel) setFocus(next int) {
+	if m.spec.Fields[m.focus].Kind != spec.SelectFieldKind {
 		m.inputs[m.focus].Blur()
 	}
 	m.focus = next
-	if m.spec.Fields[next].Kind != SelectFieldKind {
+	if m.spec.Fields[next].Kind != spec.SelectFieldKind {
 		m.inputs[next].Focus()
 	}
 }
 
-func (m addModel) submit() (tea.Model, tea.Cmd) {
+func (m formModel) submit() (tea.Model, tea.Cmd) {
 	values := m.values()
 	for _, f := range m.spec.Fields {
 		v := values[f.Key]
 
-		if f.Property == RequiredFieldProperty && strings.TrimSpace(v) == "" {
+		if f.Property == spec.RequiredFieldProperty && strings.TrimSpace(v) == "" {
 			m.err = strings.ToLower(f.Label) + " is required"
 			return m, nil
 		}
@@ -189,18 +211,18 @@ func (m addModel) submit() (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-func (m addModel) result() (config.ConnectionConfig, error) {
+func (m formModel) result() (config.ConnectionConfig, error) {
 	return m.spec.BuildFunc(m.values())
 }
 
 // values collects the current field values keyed by FormField.Key. Every value
 // is trimmed except hidden fields (passwords), where surrounding whitespace may
 // be meaningful.
-func (m addModel) values() map[FormFieldKey]FormFieldValue {
-	out := make(map[FormFieldKey]FormFieldValue, len(m.spec.Fields))
+func (m formModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
+	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.spec.Fields))
 	for i, f := range m.spec.Fields {
 		v := m.fieldValue(i)
-		if f.Kind != HiddenFieldKind {
+		if f.Kind != spec.HiddenFieldKind {
 			v = strings.TrimSpace(v)
 		}
 		out[f.Key] = v
@@ -208,9 +230,9 @@ func (m addModel) values() map[FormFieldKey]FormFieldValue {
 	return out
 }
 
-func (m addModel) fieldValue(i int) string {
+func (m formModel) fieldValue(i int) string {
 	f := m.spec.Fields[i]
-	if f.Kind == SelectFieldKind {
+	if f.Kind == spec.SelectFieldKind {
 		return f.Options[m.selects[i]]
 	}
 	return m.inputs[i].Value()
@@ -226,16 +248,16 @@ func parseTags(raw string) []string {
 	return tags
 }
 
-func (m addModel) View() tea.View {
+func (m formModel) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
 	return v
 }
 
-func (m addModel) render() string {
+func (m formModel) render() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render(m.spec.Title))
+	b.WriteString(titleStyle.Render(m.title))
 	b.WriteByte('\n')
 
 	for i, f := range m.spec.Fields {
@@ -249,7 +271,7 @@ func (m addModel) render() string {
 		} else {
 			b.WriteString(" ")
 		}
-		if f.Kind == SelectFieldKind {
+		if f.Kind == spec.SelectFieldKind {
 			b.WriteString(selectField(f.Options, m.selects[i], focused))
 		} else {
 			b.WriteString(m.inputs[i].View())
@@ -266,8 +288,8 @@ func (m addModel) render() string {
 	return b.String()
 }
 
-func requiredMark(p FieldProperty) string {
-	if p == RequiredFieldProperty {
+func requiredMark(p spec.FieldProperty) string {
+	if p == spec.RequiredFieldProperty {
 		return requiredStyle.Render(" *")
 	}
 	return ""

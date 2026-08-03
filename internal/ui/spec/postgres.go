@@ -1,4 +1,4 @@
-package ui
+package spec
 
 import (
 	"fmt"
@@ -7,62 +7,6 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 )
-
-const tagsMaxLength = 255
-
-type FieldProperty int
-
-type FieldKind int
-
-const (
-	// TextFieldKind is a default kind if isn't set
-	TextFieldKind FieldKind = iota
-	HiddenFieldKind
-	IntFieldKind
-	SelectFieldKind
-)
-
-const (
-	// RequiredFieldProperty is a default property if isn't set
-	RequiredFieldProperty FieldProperty = iota
-	OptionalFieldProperty
-)
-
-func (f FieldProperty) String() string {
-	switch f {
-	case RequiredFieldProperty:
-		return "required"
-	case OptionalFieldProperty:
-		return "optional"
-	default:
-		return ""
-	}
-}
-
-type FormFieldKey = string
-
-type FormFieldValue = string
-
-type FormField struct {
-	Key          string
-	Label        string
-	Kind         FieldKind
-	Example      string
-	Property     FieldProperty
-	DefaultValue string
-	Options      []string // only used for SelectFieldKind
-	ValidateFunc func(string) error
-}
-
-type FormSpec struct {
-	Title     string
-	Fields    []FormField
-	BuildFunc func(map[FormFieldKey]FormFieldValue) (config.ConnectionConfig, error)
-}
-
-var formSpecs = map[config.ConnType]FormSpec{
-	config.PostgresConnType: postgresFormSpec,
-}
 
 const (
 	postgresExampleHost        = "localhost"
@@ -171,9 +115,27 @@ var PostgresFormFields = []FormField{
 	},
 }
 
-var postgresFormSpec = FormSpec{
-	Title:  "Add a new Postgres connection",
-	Fields: PostgresFormFields,
+var PostgresFormSpec = FormSpec{
+	AddTitle:  "Add a new Postgres connection",
+	EditTitle: "Edit a Postgres connection",
+	Fields:    PostgresFormFields,
+	SeedFunc: func(c config.ConnectionConfig) map[FormFieldKey]FormFieldValue {
+		pg, ok := c.(config.Postgres)
+		if !ok {
+			return nil
+		}
+		return map[FormFieldKey]FormFieldValue{
+			strings.ToLower(config.PostgresFormFieldHost):        pg.Hostname,
+			strings.ToLower(config.PostgresFormFieldPort):        strconv.Itoa(pg.PortNumber),
+			strings.ToLower(config.PostgresFormFieldUsername):    pg.User,
+			strings.ToLower(config.PostgresFormFieldPassword):    pg.Password,
+			strings.ToLower(config.PostgresFormFieldDatabase):    pg.DBName,
+			strings.ToLower(config.PostgresFormFieldSSLMode):     pg.SSLMode,
+			strings.ToLower(config.PostgresFormFieldName):        pg.Meta.Name,
+			strings.ToLower(config.PostgresFormFieldDescription): pg.Meta.Description,
+			strings.ToLower(config.PostgresFormFieldTags):        strings.Join(pg.Meta.Tags, ", "),
+		}
+	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.ConnectionConfig, error) {
 		port := 5432 // default port
 		if rawPort, ok := values[strings.ToLower(config.PostgresFormFieldPort)]; ok && rawPort != "" {
