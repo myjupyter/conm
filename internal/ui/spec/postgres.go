@@ -119,6 +119,29 @@ var PostgresFormSpec = FormSpec{
 	AddTitle:  "Add a new Postgres connection",
 	EditTitle: "Edit a Postgres connection",
 	Fields:    PostgresFormFields,
+	Sections: []FormSection{
+		{
+			Title: "connection",
+			Note:  "how conm reaches the server",
+			Fields: []FormFieldKey{
+				strings.ToLower(config.PostgresFormFieldHost),
+				strings.ToLower(config.PostgresFormFieldPort),
+				strings.ToLower(config.PostgresFormFieldUsername),
+				strings.ToLower(config.PostgresFormFieldPassword),
+				strings.ToLower(config.PostgresFormFieldDatabase),
+				strings.ToLower(config.PostgresFormFieldSSLMode),
+			},
+		},
+		{
+			Title: "metadata",
+			Note:  "yours — never sent to the server",
+			Fields: []FormFieldKey{
+				strings.ToLower(config.PostgresFormFieldName),
+				strings.ToLower(config.PostgresFormFieldDescription),
+				strings.ToLower(config.PostgresFormFieldTags),
+			},
+		},
+	},
 	SeedFunc: func(c config.Connection) map[FormFieldKey]FormFieldValue {
 		pg, ok := c.(config.Postgres)
 		if !ok {

@@ -44,6 +44,8 @@ var (
 	cRed      = lipgloss.Color("#e5654a")
 	cAmber    = lipgloss.Color("#e3b34a")
 	cInvFg    = lipgloss.Color("#0f0f0d")
+	cValue    = lipgloss.Color("#c4bcac")
+	cPong     = lipgloss.Color("#b9cdbd")
 	cPostgres = lipgloss.Color("#5aa0d6")
 
 	cErrBorder = lipgloss.Color("#7a3f34")
@@ -129,7 +131,7 @@ func (m Model) render() string {
 	}
 
 	if e := m.currentErr(); e != nil {
-		lines = append(lines, m.errPanelLines(e)...)
+		lines = append(lines, errPanelLinesW(inner, e)...)
 	}
 
 	lines = append(lines,
@@ -141,13 +143,15 @@ func (m Model) render() string {
 	return strings.Join(lines, "\n")
 }
 
-func boxLine(spans []span, bg color.Color) string {
-	w := 0
+func boxLine(spans []span, bg color.Color) string { return boxLineW(inner, spans, bg) }
+
+func boxLineW(w int, spans []span, bg color.Color) string {
+	used := 0
 	for _, s := range spans {
-		w += spanWidth(s)
+		used += spanWidth(s)
 	}
-	if w < inner {
-		spans = append(spans, span{text: strings.Repeat(" ", inner-w), bg: bg})
+	if used < w {
+		spans = append(spans, span{text: strings.Repeat(" ", w-used), bg: bg})
 	}
 	var b strings.Builder
 	b.WriteString(border("│"))
@@ -158,8 +162,10 @@ func boxLine(spans []span, bg color.Color) string {
 	return b.String()
 }
 
-func rule(left, right string) string {
-	return border(left) + border(strings.Repeat("─", inner)) + border(right)
+func rule(left, right string) string { return ruleW(inner, left, right) }
+
+func ruleW(w int, left, right string) string {
+	return border(left) + border(strings.Repeat("─", w)) + border(right)
 }
 
 func (m Model) topLine(n int) string {
@@ -289,11 +295,11 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 	return span{text: " " + truncPad(text, wPing, true), fg: color, bg: bg}
 }
 
-func (m Model) errPanelLines(e *connError) []string {
+func errPanelLinesW(w int, e *connError) []string {
 	tag := " " + strings.ToUpper(e.action) + " FAILED "
 	code := " " + e.code + " "
 	right := " " + e.conn + " "
-	fill := max(inner-1-len([]rune(tag))-len([]rune(code))-len([]rune(right)), 0)
+	fill := max(w-1-len([]rune(tag))-len([]rune(code))-len([]rune(right)), 0)
 
 	var top strings.Builder
 	top.WriteString(border("├"))
@@ -306,20 +312,20 @@ func (m Model) errPanelLines(e *connError) []string {
 
 	lines := []string{top.String()}
 	if e.target != "" {
-		lines = append(lines, errKV("target", e.target, cErrValue))
+		lines = append(lines, errKVW(w, "target", e.target, cErrValue))
 	}
 	if e.op != "" {
-		lines = append(lines, errKV("during", e.op, cErrValue))
+		lines = append(lines, errKVW(w, "during", e.op, cErrValue))
 	}
-	lines = append(lines, errKV("error", e.detail, cErrCode))
+	lines = append(lines, errKVW(w, "error", e.detail, cErrCode))
 	if e.hint != "" {
-		lines = append(lines, boxLine([]span{
+		lines = append(lines, boxLineW(w, []span{
 			{text: "  ", fg: cDim},
 			{text: "→ ", fg: cAmber},
-			{text: truncPad(e.hint, inner-4, false), fg: cHint},
+			{text: truncPad(e.hint, w-4, false), fg: cHint},
 		}, nil))
 	}
-	lines = append(lines, boxLine([]span{
+	lines = append(lines, boxLineW(w, []span{
 		{text: "  ", fg: cDim},
 		{text: "r", fg: cFg, bold: true},
 		{text: " retry · ", fg: cErrMuted},
@@ -329,11 +335,11 @@ func (m Model) errPanelLines(e *connError) []string {
 	return lines
 }
 
-func errKV(label, value string, valColor color.Color) string {
-	return boxLine([]span{
+func errKVW(w int, label, value string, valColor color.Color) string {
+	return boxLineW(w, []span{
 		{text: " ", fg: cDim},
 		{text: " " + truncPad(label, 8, false), fg: cErrMuted},
-		{text: truncPad(value, inner-11, false), fg: valColor},
+		{text: truncPad(value, w-11, false), fg: valColor},
 	}, nil)
 }
 
@@ -376,16 +382,31 @@ func statusGlyph(k statusKind) (string, color.Color) {
 }
 
 func (m Model) keybindLine() string {
+	return strings.Join(keybarLinesW(inner, keybinds), "\n")
+}
+
+// keybarLinesW lays out key/label hints, wrapping onto extra lines rather than
+// spilling past the right border.
+func keybarLinesW(w int, binds []struct{ key, label string }) []string {
+	var lines []string
 	spans := []span{{text: " ", fg: cDim}}
-	for i, b := range keybinds {
+	used := 1
+	for i, b := range binds {
 		sep := " · "
-		if i == len(keybinds)-1 {
+		if i == len(binds)-1 {
 			sep = ""
+		}
+		seg := b.key + " " + b.label + sep
+		if used+len([]rune(seg)) > w && len(spans) > 1 {
+			lines = append(lines, boxLineW(w, spans, nil))
+			spans = []span{{text: " ", fg: cDim}}
+			used = 1
 		}
 		spans = append(spans,
 			span{text: b.key, fg: cFg, bold: true},
 			span{text: " " + b.label + sep, fg: cDim},
 		)
+		used += len([]rune(seg))
 	}
-	return boxLine(spans, nil)
+	return append(lines, boxLineW(w, spans, nil))
 }

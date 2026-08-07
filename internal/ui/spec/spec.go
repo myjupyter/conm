@@ -45,10 +45,17 @@ type FormField struct {
 	ValidateFunc func(string) error
 }
 
+type FormSection struct {
+	Title  string
+	Note   string
+	Fields []FormFieldKey
+}
+
 type FormSpec struct {
 	AddTitle  string
 	EditTitle string
 	Fields    []FormField
+	Sections  []FormSection
 	BuildFunc func(map[FormFieldKey]FormFieldValue) (config.Connection, error)
 	SeedFunc  func(config.Connection) map[FormFieldKey]FormFieldValue
 }
