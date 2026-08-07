@@ -208,6 +208,21 @@ func (m Model) currentErr() *connError {
 	return m.states[m.cursor].connErr
 }
 
+func (m Model) currentPong() string {
+	if m.cursor < 0 || m.cursor >= len(m.states) {
+		return ""
+	}
+	st := m.states[m.cursor]
+	if st.connErr != nil || st.pingStatus != pingOK {
+		return ""
+	}
+	c, ok := m.reg.Get(m.cursor)
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("%s:%d answered in %dms", c.Host(), c.Port(), st.pingResult.PingTime.Milliseconds())
+}
+
 func (m Model) retry() (tea.Model, tea.Cmd) {
 	e := m.currentErr()
 	if e == nil {

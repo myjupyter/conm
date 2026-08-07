@@ -132,6 +132,8 @@ func (m Model) render() string {
 
 	if e := m.currentErr(); e != nil {
 		lines = append(lines, errPanelLinesW(inner, e)...)
+	} else if p := m.currentPong(); p != "" {
+		lines = append(lines, ruleW(inner, "├", "┤"), pongLineW(inner, p))
 	}
 
 	lines = append(lines,
@@ -240,7 +242,7 @@ func (m Model) rowLine(i int) string {
 	var bg, fg, soft, markC color.Color
 	switch {
 	case sel:
-		bg, fg, soft, markC = typeColor(c.ConnType()), cInvFg, cInvFg, cInvFg
+		bg, fg, soft, markC = cAccent, cInvFg, cInvFg, cInvFg
 	case failed:
 		fg, soft, markC = cDead, cSoft, cRed
 	default:
@@ -333,6 +335,14 @@ func errPanelLinesW(w int, e *connError) []string {
 		{text: " dismiss", fg: cErrMuted},
 	}, nil))
 	return lines
+}
+
+func pongLineW(w int, text string) string {
+	return boxLineW(w, []span{
+		{text: " ", fg: cDim},
+		{text: " PONG ", fg: cInvFg, bg: cAccent, bold: true},
+		{text: " " + text, fg: cPong},
+	}, nil)
 }
 
 func errKVW(w int, label, value string, valColor color.Color) string {

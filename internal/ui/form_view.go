@@ -95,7 +95,7 @@ func (m formModel) tabLine() string {
 	spans := []span{{text: "  ", fg: cDim}}
 	for si, s := range m.sections {
 		if si == m.section {
-			spans = append(spans, span{text: " " + s.Title + " ", fg: cInvFg, bg: cPostgres, bold: true})
+			spans = append(spans, span{text: " " + s.Title + " ", fg: cInvFg, bg: cAccent, bold: true})
 		} else {
 			spans = append(spans, span{text: " " + s.Title + " ", fg: cSoft})
 		}
@@ -130,7 +130,7 @@ func (m formModel) fieldRow(i int) string {
 
 	var bg color.Color
 	if active {
-		bg = cPostgres
+		bg = cAccent
 	}
 
 	caret := "   "
@@ -246,7 +246,7 @@ func (m formModel) gutter(i int, active bool) (string, color.Color) {
 	case m.attempted && m.fieldError(i) != "":
 		g, c = "✗", cRed
 	case raw != "" || f.Kind == spec.SelectFieldKind || f.DefaultValue != "":
-		g, c = "●", cPostgres
+		g, c = "●", cAccent
 	default:
 		g, c = "○", cFaint
 	}
@@ -272,11 +272,7 @@ func (m formModel) messageRow(i int) string {
 }
 
 func (m formModel) pongLine() string {
-	return boxLineW(formInner, []span{
-		{text: " ", fg: cDim},
-		{text: " PONG ", fg: cInvFg, bg: cPostgres, bold: true},
-		{text: " " + m.pong, fg: cPong},
-	}, nil)
+	return pongLineW(formInner, m.pong)
 }
 
 func (m formModel) formStatusLine() string {
@@ -320,5 +316,5 @@ func caretColor(active bool) color.Color {
 	if active {
 		return cInvFg
 	}
-	return cPostgres
+	return cAccent
 }
