@@ -100,10 +100,6 @@ func New(reg registry.Registry[config.Postgres]) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	for i := range m.states {
-		m.states[i].pingSpinner.Tick()
-		m.states[i].pingStatus = pingUndefined
-	}
 	return nil
 }
 
@@ -249,15 +245,7 @@ func (m Model) applyPingResult(msg pingResultMsg) Model {
 		code := errCode(msg.err)
 		m.states[msg.index].pingStatus = pingFailed
 		if ok {
-			m.states[msg.index].connErr = &connError{
-				action: "ping",
-				conn:   name,
-				code:   code,
-				target: target(c),
-				op:     "dial tcp " + net.JoinHostPort(c.Host(), strconv.Itoa(c.Port())),
-				detail: msg.err.Error(),
-				hint:   hintFor(code),
-			}
+			m.states[msg.index].connErr = connErrorFor("ping", "dial tcp", code, c, msg.err)
 		}
 		m.status, m.statusKind = "ping failed · "+name+" · "+code, kindErr
 		return m
@@ -279,15 +267,7 @@ func (m Model) applyRunResult(msg runResultMsg) Model {
 		code := errCode(msg.err)
 		if ok {
 			m.states[msg.index].pingStatus = pingFailed
-			m.states[msg.index].connErr = &connError{
-				action: "connect",
-				conn:   name,
-				code:   code,
-				target: target(c),
-				op:     "open session on " + net.JoinHostPort(c.Host(), strconv.Itoa(c.Port())),
-				detail: msg.err.Error(),
-				hint:   hintFor(code),
-			}
+			m.states[msg.index].connErr = connErrorFor("connect", "open session on", code, c, msg.err)
 		}
 		m.status, m.statusKind = "connect failed · "+name+" · "+code, kindErr
 		return m
@@ -351,6 +331,18 @@ func connLabel(c network.Connection) string {
 		return name
 	}
 	return c.Host()
+}
+
+func connErrorFor(action, op, code string, c network.Connection, err error) *connError {
+	return &connError{
+		action: action,
+		conn:   connLabel(c),
+		code:   code,
+		target: target(c),
+		op:     op + " " + net.JoinHostPort(c.Host(), strconv.Itoa(c.Port())),
+		detail: err.Error(),
+		hint:   hintFor(code),
+	}
 }
 
 func target(c network.Connection) string {

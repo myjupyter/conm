@@ -133,7 +133,7 @@ func (m Model) render() string {
 	if e := m.currentErr(); e != nil {
 		lines = append(lines, errPanelLinesW(inner, e)...)
 	} else if p := m.currentPong(); p != "" {
-		lines = append(lines, ruleW(inner, "├", "┤"), pongLineW(inner, p))
+		lines = append(lines, rule("├", "┤"), pongLineW(inner, p))
 	}
 
 	lines = append(lines,
