@@ -27,7 +27,7 @@ func (m Model) runCmd(i int) tea.Cmd {
 	}
 	return tea.Exec(
 		runExec{run: func() error { return conn.Run(context.Background()) }},
-		func(err error) tea.Msg { return runResultMsg{err: err} },
+		func(err error) tea.Msg { return runResultMsg{index: i, err: err} },
 	)
 }
 

@@ -38,14 +38,6 @@ var (
 			Foreground(lipgloss.Color("#CCCCCC")).
 			Padding(0, 1)
 
-	headerStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#336791")).
-			Padding(0, 1)
-
-	borderStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#626262"))
-
 	errorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF5F5F")).
 			MarginTop(1)
