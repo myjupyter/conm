@@ -1,68 +1,14 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/registry"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
-
-func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
-	conn, ok, err := runAddForm(t)
-	if err != nil || !ok {
-		return false, err
-	}
-
-	pg, ok := conn.(config.Postgres)
-	if !ok {
-		return false, fmt.Errorf("unexpected connection type %T for postgres add form", conn)
-	}
-
-	reg, err := registry.NewPostgresRegistry(cfg)
-	if err != nil {
-		return false, err
-	}
-	defer reg.Close()
-
-	if err := reg.Add(pg); err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func runAddForm(t config.ConnType) (config.Connection, bool, error) {
-	formSpec, ok := spec.FormSpecs[t]
-	if !ok {
-		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
-	}
-
-	return runForm(newFormModel(formSpec, formSpec.AddTitle, nil))
-}
-
-func runForm(model formModel) (config.Connection, bool, error) {
-	m, err := tea.NewProgram(model).Run()
-	if err != nil {
-		return nil, false, err
-	}
-
-	fm := m.(formModel)
-	if !fm.submitted {
-		return nil, false, nil
-	}
-
-	conn, err := fm.result()
-	if err != nil {
-		return nil, false, err
-	}
-
-	return conn, true, nil
-}
 
 type formModel struct {
 	spec   spec.FormSpec
@@ -261,59 +207,4 @@ func (m formModel) fieldValue(i int) string {
 		return f.Options[m.selects[i]]
 	}
 	return m.inputs[i].Value()
-}
-
-func (m formModel) View() tea.View {
-	v := tea.NewView(m.render())
-	v.AltScreen = true
-	return v
-}
-
-func (m formModel) render() string {
-	var b strings.Builder
-
-	b.WriteString(titleStyle.Render(m.title))
-	b.WriteByte('\n')
-
-	for i, f := range m.spec.Fields {
-		focused := m.focus == i
-
-		b.WriteString(" " + labelStyle.Render(f.Label) + requiredMark(f.Property))
-		b.WriteByte('\n')
-
-		if focused {
-			b.WriteString(markerStyle.Render(">"))
-		} else {
-			b.WriteString(" ")
-		}
-		if f.Kind == spec.SelectFieldKind {
-			b.WriteString(selectField(f.Options, m.selects[i], focused))
-		} else {
-			b.WriteString(m.inputs[i].View())
-		}
-		b.WriteString("\n\n")
-	}
-
-	if m.err != "" {
-		b.WriteString(errorStyle.Render(m.err))
-		b.WriteByte('\n')
-	}
-
-	b.WriteString(helpStyle.Render("tab/↑↓ move · ←/→ select · enter submit · esc cancel"))
-	return b.String()
-}
-
-func requiredMark(p spec.FieldProperty) string {
-	if p == spec.RequiredFieldProperty {
-		return requiredStyle.Render(" *")
-	}
-	return ""
-}
-
-func selectField(options []string, cursor int, focused bool) string {
-	value := "‹ " + options[cursor] + " ›"
-	if focused {
-		return markerStyle.Render(value)
-	}
-	return value
 }
