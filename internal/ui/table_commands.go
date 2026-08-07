@@ -15,7 +15,8 @@ func (m Model) pingCmd(i int) tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg {
-		return pingResultMsg{index: i, err: conn.Ping(context.Background())}
+		result, err := conn.Ping(context.Background())
+		return pingResultMsg{index: i, result: result, err: err}
 	}
 }
 

@@ -59,8 +59,8 @@ func (n *NoClient) Validate() []error {
 	return n.cfg.Validate()
 }
 
-func (*NoClient) Ping(ctx context.Context) error {
-	return errors.New("invalid connection config")
+func (*NoClient) Ping(ctx context.Context) (PingResult, error) {
+	return PingResult{}, errors.New("invalid connection config")
 }
 
 func (*NoClient) Run(ctx context.Context) error {

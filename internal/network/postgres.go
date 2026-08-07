@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/myjupyter/conm/internal/config"
 
@@ -78,8 +79,15 @@ func (p *PGClient) Validate() []error {
 	return p.cfg.Validate()
 }
 
-func (p *PGClient) Ping(ctx context.Context) error {
-	return p.db.PingContext(ctx)
+func (p *PGClient) Ping(ctx context.Context) (PingResult, error) {
+	now := time.Now()
+	if err := p.db.PingContext(ctx); err != nil {
+		return PingResult{}, err
+	}
+
+	pingTime := time.Since(now)
+
+	return PingResult{PingTime: pingTime}, nil
 }
 
 func (p *PGClient) Run(ctx context.Context) error {

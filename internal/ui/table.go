@@ -4,6 +4,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/registry"
 )
 
@@ -23,21 +24,23 @@ type Model struct {
 type ConnState struct {
 	pingSpinner spinner.Model
 
-	connPing pingState
+	pingStatus pingStatus
+	pingResult network.PingResult
 }
 
-type pingState string
+type pingStatus int
 
 const (
-	undefinedPingState   = "•"
-	pingingPingState     = "…"
-	pingSuccessPingState = "🟢"
-	pingFailedPingState  = "🔴"
+	pingUndefined pingStatus = iota
+	pingPinging
+	pingOK
+	pingFailed
 )
 
 type pingResultMsg struct {
-	index int
-	err   error
+	index  int
+	result network.PingResult
+	err    error
 }
 
 type runResultMsg struct {
@@ -50,10 +53,10 @@ type connChangedMsg struct {
 
 func newConnState() ConnState {
 	s := spinner.New()
-	s.Spinner = spinner.Globe
+	s.Spinner = spinner.MiniDot
 	return ConnState{
 		pingSpinner: s,
-		connPing:    undefinedPingState,
+		pingStatus:  pingUndefined,
 	}
 }
 
@@ -71,7 +74,7 @@ func New(reg registry.Registry[config.Postgres]) Model {
 func (m Model) Init() tea.Cmd {
 	for i := range m.states {
 		m.states[i].pingSpinner.Tick()
-		m.states[i].connPing = undefinedPingState
+		m.states[i].pingStatus = pingUndefined
 	}
 	return nil
 }
@@ -86,7 +89,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case pingResultMsg:
 		if msg.index < len(m.states) {
-			m.states[msg.index].connPing = pingStateForErr(msg.err)
+			if msg.err != nil {
+				m.states[msg.index].pingStatus = pingFailed
+			} else {
+				m.states[msg.index].pingStatus = pingOK
+				m.states[msg.index].pingResult = msg.result
+			}
 		}
 
 	case runResultMsg:
@@ -154,10 +162,10 @@ func (m Model) pingAll() (tea.Model, tea.Cmd) {
 	m.pinged = true
 	var cmds []tea.Cmd
 	for i := range m.states {
-		if m.states[i].connPing == pingingPingState {
+		if m.states[i].pingStatus == pingPinging {
 			continue
 		}
-		m.states[i].connPing = pingingPingState
+		m.states[i].pingStatus = pingPinging
 		cmds = append(cmds, m.states[i].pingSpinner.Tick, m.pingCmd(i))
 	}
 	return m, tea.Batch(cmds...)
@@ -166,7 +174,7 @@ func (m Model) pingAll() (tea.Model, tea.Cmd) {
 func (m Model) tickSpinners(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	for i := range m.states {
-		if m.states[i].connPing != pingingPingState {
+		if m.states[i].pingStatus != pingPinging {
 			continue
 		}
 		var cmd tea.Cmd
@@ -205,11 +213,4 @@ func (m Model) cursorLabel() string {
 		return name
 	}
 	return c.Host()
-}
-
-func pingStateForErr(err error) pingState {
-	if err != nil {
-		return pingFailedPingState
-	}
-	return pingSuccessPingState
 }

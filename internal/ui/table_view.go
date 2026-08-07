@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
+	"github.com/myjupyter/conm/internal/network"
 )
 
 const tableHelp = "↑/k up · ↓/j down · enter · a add · e edit · d del · p ping · q/esc quit"
@@ -89,10 +90,47 @@ func (m Model) renderTable() string {
 }
 
 func (m Model) pingCell(i int) string {
-	if m.states[i].connPing == pingingPingState {
-		return m.states[i].pingSpinner.View()
+	st := m.states[i]
+	switch st.pingStatus {
+	case pingPinging:
+		return st.pingSpinner.View()
+	case pingOK:
+		return formatPing(st.pingResult)
+	case pingFailed:
+		return pingFailedMark
+	default:
+		return pingUndefinedMark
 	}
-	return string(m.states[i].connPing)
+}
+
+const (
+	pingUndefinedMark = "•"
+	pingFailedMark    = "✗"
+	pingBarsTotal     = 4
+)
+
+func formatPing(r network.PingResult) string {
+	return fmt.Sprintf("%dms %s", r.PingTime.Milliseconds(), pingBars(r.Bars()))
+}
+
+var pingBarLevels = [pingBarsTotal]rune{'▁', '▃', '▅', '▇'}
+
+func pingBars(n int) string {
+	if n < 0 {
+		n = 0
+	}
+	if n > pingBarsTotal {
+		n = pingBarsTotal
+	}
+	var b strings.Builder
+	for i, r := range pingBarLevels {
+		if i < n {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte(' ')
+		}
+	}
+	return b.String()
 }
 
 func (m Model) writeErrors(b *strings.Builder) {
