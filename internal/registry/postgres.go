@@ -9,6 +9,8 @@ import (
 	"github.com/myjupyter/conm/internal/network"
 )
 
+var _ Registry[config.Postgres] = (*CommonRegistry[config.Postgres])(nil)
+
 type CommonRegistry[C config.Connection] struct {
 	cfg  config.Conm
 	file config.File[C]
@@ -17,7 +19,7 @@ type CommonRegistry[C config.Connection] struct {
 	mx *sync.RWMutex
 }
 
-func newPostgresRegistry(cfg config.Conm) (*CommonRegistry[config.Postgres], error) {
+func NewPostgresRegistry(cfg config.Conm) (*CommonRegistry[config.Postgres], error) {
 	configPath, err := config.PGFilePath()
 	if err != nil {
 		return nil, err
@@ -50,6 +52,7 @@ func newPostgresRegistry(cfg config.Conm) (*CommonRegistry[config.Postgres], err
 	}
 
 	return &CommonRegistry[config.Postgres]{
+		cfg:  cfg,
 		file: file,
 		mx:   &sync.RWMutex{},
 		ncs:  ncs,
@@ -89,6 +92,10 @@ func (r *CommonRegistry[C]) Add(cfg C) error {
 
 	r.ncs = append(r.ncs, conn)
 	r.file.Add(cfg)
+
+	if err := r.file.Save(); err != nil {
+		return fmt.Errorf("add: %w", err)
+	}
 
 	return nil
 }

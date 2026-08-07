@@ -8,16 +8,41 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/registry"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-func RunAddForm(t config.ConnType) (config.Connection, bool, error) {
-	spec, ok := spec.FormSpecs[t]
+func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
+	conn, ok, err := runAddForm(t)
+	if err != nil || !ok {
+		return false, err
+	}
+
+	pg, ok := conn.(config.Postgres)
+	if !ok {
+		return false, fmt.Errorf("unexpected connection type %T for postgres add form", conn)
+	}
+
+	reg, err := registry.NewPostgresRegistry(cfg)
+	if err != nil {
+		return false, err
+	}
+	defer reg.Close()
+
+	if err := reg.Add(pg); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func runAddForm(t config.ConnType) (config.Connection, bool, error) {
+	formSpec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
 	}
 
-	return runForm(newFormModel(spec, spec.AddTitle, nil))
+	return runForm(newFormModel(formSpec, formSpec.AddTitle, nil))
 }
 
 func runForm(model formModel) (config.Connection, bool, error) {
@@ -236,16 +261,6 @@ func (m formModel) fieldValue(i int) string {
 		return f.Options[m.selects[i]]
 	}
 	return m.inputs[i].Value()
-}
-
-func parseTags(raw string) []string {
-	var tags []string
-	for t := range strings.SplitSeq(raw, ",") {
-		if t = strings.TrimSpace(t); t != "" {
-			tags = append(tags, t)
-		}
-	}
-	return tags
 }
 
 func (m formModel) View() tea.View {

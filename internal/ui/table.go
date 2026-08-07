@@ -10,7 +10,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
-	"github.com/myjupyter/conm/internal/network"
+	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/registry"
 )
 
 var (
@@ -47,7 +48,7 @@ var (
 )
 
 type Model struct {
-	conns  []network.Connection
+	reg    registry.Registry[config.Postgres]
 	states []ConnState
 
 	cursor int
@@ -81,8 +82,8 @@ type runResultMsg struct {
 	err error
 }
 
-func New(conns []network.Connection) Model {
-	states := make([]ConnState, len(conns))
+func New(reg registry.Registry[config.Postgres]) Model {
+	states := make([]ConnState, reg.Len())
 	for i := range states {
 		s := spinner.New()
 		s.Spinner = spinner.Globe
@@ -91,7 +92,7 @@ func New(conns []network.Connection) Model {
 		}
 	}
 	return Model{
-		conns:  conns,
+		reg:    reg,
 		states: states,
 	}
 }
@@ -115,7 +116,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor--
 			}
 		case "down", "j":
-			if m.cursor < len(m.conns)-1 {
+			if m.cursor < m.reg.Len()-1 {
 				m.cursor++
 			}
 		case "enter":
@@ -161,14 +162,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) pingCmd(i int) tea.Cmd {
-	conn := m.conns[i]
+	conn, ok := m.reg.Get(i)
+	if !ok {
+		return nil
+	}
 	return func() tea.Msg {
 		return pingResultMsg{index: i, err: conn.Ping(context.Background())}
 	}
 }
 
 func (m Model) runCmd(i int) tea.Cmd {
-	conn := m.conns[i]
+	conn, ok := m.reg.Get(i)
+	if !ok {
+		return nil
+	}
 	return tea.Exec(
 		runExec{run: func() error { return conn.Run(context.Background()) }},
 		func(err error) tea.Msg { return runResultMsg{err: err} },
@@ -196,7 +203,7 @@ func (m Model) render() string {
 	b.WriteString(titleStyle.Render("Postgres connections"))
 	b.WriteByte('\n')
 
-	if len(m.conns) == 0 {
+	if m.reg.Len() == 0 {
 		b.WriteString(itemStyle.Render("No connections found."))
 		b.WriteByte('\n')
 		b.WriteString(helpStyle.Render("q/esc: quit"))
@@ -223,7 +230,11 @@ func (m Model) render() string {
 			}
 		})
 
-	for i, c := range m.conns {
+	for i := 0; i < m.reg.Len(); i++ {
+		c, ok := m.reg.Get(i)
+		if !ok {
+			continue
+		}
 		row := []string{
 			c.Name(),
 			c.Username(),

@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -34,30 +33,7 @@ to quickly create a Cobra application.`,
 		}
 		defer c.Close()
 
-		postgresConfigPath, err := config.PGFilePath()
-		if err != nil {
-			return err
-		}
-
-		pgConfig, err := config.OpenConfig[*config.PostgresConfigWrapper](postgresConfigPath)
-		if err != nil {
-			return err
-		}
-		defer pgConfig.Close()
-
-		conns := make([]network.Connection, 0, pgConfig.Len())
-		for i := 0; i < pgConfig.Len(); i++ {
-			conn, err := network.NewConnection(
-				c.Get(0),
-				pgConfig.Get(i),
-			)
-			if err != nil {
-				return err
-			}
-			conns = append(conns, conn)
-		}
-
-		return ui.Run(conns)
+		return ui.Run(c.Get(0))
 	},
 }
 

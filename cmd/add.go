@@ -40,33 +40,19 @@ var addPostgresCmd = &cobra.Command{
 			}
 		}
 
-		cfg, ok, err := ui.RunAddForm(config.PostgresConnType)
+		conmConfigPath, err := config.ConmFilePath()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get conm config path: %w", err)
 		}
 
-		// If the user didn't choose to add a new connection, we don't need to do anything
-		// and just exit
-		if !ok {
-			return nil
-		}
-
-		pg, ok := cfg.(config.Postgres)
-		if !ok {
-			return fmt.Errorf("unexpected connection type %T for postgres add form", cfg)
-		}
-
-		c, err := config.OpenConfig[*config.PostgresConfigWrapper](postgresConfigPath)
+		c, err := config.OpenConfig[*config.ConmConfigWrapper](conmConfigPath)
 		if err != nil {
-			return fmt.Errorf("failed to open postgres config: %w", err)
+			return fmt.Errorf("failed to open conm config: %w", err)
 		}
-
 		defer c.Close()
 
-		c.Add(pg)
-
-		if err := c.Save(); err != nil {
-			return fmt.Errorf("failed to save postgres config: %w", err)
+		if _, err := ui.RunAddForm(c.Get(0), config.PostgresConnType); err != nil {
+			return err
 		}
 
 		return nil
