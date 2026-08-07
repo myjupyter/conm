@@ -77,6 +77,18 @@ func (r *CommonRegistry[C]) Get(i int) (network.Connection, bool) {
 	return r.ncs[i], true
 }
 
+func (r *CommonRegistry[C]) Config(i int) (C, bool) {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	if i < 0 || i >= len(r.ncs) {
+		var zero C
+		return zero, false
+	}
+
+	return r.file.Get(i), true
+}
+
 func (r *CommonRegistry[C]) Add(cfg C) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()

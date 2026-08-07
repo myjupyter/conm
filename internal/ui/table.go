@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -55,7 +56,8 @@ type Model struct {
 
 	pinged bool
 
-	runErr error
+	runErr    error
+	changeErr error
 }
 
 type ConnState struct {
@@ -82,14 +84,23 @@ type runResultMsg struct {
 	err error
 }
 
+type connChangedMsg struct {
+	err error
+}
+
+func newConnState() ConnState {
+	s := spinner.New()
+	s.Spinner = spinner.Globe
+	return ConnState{
+		pingSpinner: s,
+		connPing:    undefinedPingState,
+	}
+}
+
 func New(reg registry.Registry[config.Postgres]) Model {
 	states := make([]ConnState, reg.Len())
 	for i := range states {
-		s := spinner.New()
-		s.Spinner = spinner.Globe
-		states[i] = ConnState{
-			pingSpinner: s,
-		}
+		states[i] = newConnState()
 	}
 	return Model{
 		reg:    reg,
@@ -122,6 +133,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.runErr = nil
 			return m, m.runCmd(m.cursor)
+		case "a":
+			m.changeErr = nil
+			return m, m.addCmd()
+		case "e":
+			if m.reg.Len() == 0 {
+				return m, nil
+			}
+			m.changeErr = nil
+			return m, m.editCmd(m.cursor)
 		case "p":
 			m.pinged = true
 			var cmds []tea.Cmd
@@ -144,6 +164,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case runResultMsg:
 		m.runErr = msg.err
+
+	case connChangedMsg:
+		m.changeErr = msg.err
+		m = m.syncStates()
+		if m.cursor > m.reg.Len()-1 {
+			m.cursor = max(m.reg.Len()-1, 0)
+		}
 
 	case spinner.TickMsg:
 		var cmds []tea.Cmd
@@ -182,6 +209,55 @@ func (m Model) runCmd(i int) tea.Cmd {
 	)
 }
 
+func (m Model) addCmd() tea.Cmd {
+	return tea.Exec(
+		runExec{run: func() error {
+			conn, ok, err := runAddForm(config.PostgresConnType)
+			if err != nil || !ok {
+				return err
+			}
+			pg, ok := conn.(config.Postgres)
+			if !ok {
+				return fmt.Errorf("unexpected connection type %T for postgres add form", conn)
+			}
+			return m.reg.Add(pg)
+		}},
+		func(err error) tea.Msg { return connChangedMsg{err: err} },
+	)
+}
+
+func (m Model) editCmd(i int) tea.Cmd {
+	cfg, ok := m.reg.Config(i)
+	if !ok {
+		return nil
+	}
+	return tea.Exec(
+		runExec{run: func() error {
+			conn, ok, err := RunEditForm(config.PostgresConnType, cfg)
+			if err != nil || !ok {
+				return err
+			}
+			pg, ok := conn.(config.Postgres)
+			if !ok {
+				return fmt.Errorf("unexpected connection type %T for postgres edit form", conn)
+			}
+			return m.reg.Edit(i, pg)
+		}},
+		func(err error) tea.Msg { return connChangedMsg{err: err} },
+	)
+}
+
+func (m Model) syncStates() Model {
+	n := m.reg.Len()
+	for len(m.states) < n {
+		m.states = append(m.states, newConnState())
+	}
+	if len(m.states) > n {
+		m.states = m.states[:n]
+	}
+	return m
+}
+
 type runExec struct {
 	run func() error
 }
@@ -206,7 +282,11 @@ func (m Model) render() string {
 	if m.reg.Len() == 0 {
 		b.WriteString(itemStyle.Render("No connections found."))
 		b.WriteByte('\n')
-		b.WriteString(helpStyle.Render("q/esc: quit"))
+		if m.changeErr != nil {
+			b.WriteString(errorStyle.Render(m.changeErr.Error()))
+			b.WriteByte('\n')
+		}
+		b.WriteString(helpStyle.Render("a add · q/esc quit"))
 		return b.String()
 	}
 
@@ -261,6 +341,10 @@ func (m Model) render() string {
 		b.WriteString(errorStyle.Render("run failed: " + m.runErr.Error()))
 		b.WriteByte('\n')
 	}
-	b.WriteString(helpStyle.Render("↑/k up · ↓/j down · enter · p ping · q/esc quit"))
+	if m.changeErr != nil {
+		b.WriteString(errorStyle.Render(m.changeErr.Error()))
+		b.WriteByte('\n')
+	}
+	b.WriteString(helpStyle.Render("↑/k up · ↓/j down · enter · a add · e edit · p ping · q/esc quit"))
 	return b.String()
 }

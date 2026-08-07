@@ -8,6 +8,7 @@ import (
 type Registry[C config.Connection] interface {
 	Len() int
 	Get(int) (network.Connection, bool)
+	Config(int) (C, bool)
 
 	Add(cfg C) error
 	Edit(int, C) error
