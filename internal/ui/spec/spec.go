@@ -49,8 +49,8 @@ type FormSpec struct {
 	AddTitle  string
 	EditTitle string
 	Fields    []FormField
-	BuildFunc func(map[FormFieldKey]FormFieldValue) (config.ConnectionConfig, error)
-	SeedFunc  func(config.ConnectionConfig) map[FormFieldKey]FormFieldValue
+	BuildFunc func(map[FormFieldKey]FormFieldValue) (config.Connection, error)
+	SeedFunc  func(config.Connection) map[FormFieldKey]FormFieldValue
 }
 
 func (f FieldProperty) String() string {

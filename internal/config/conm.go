@@ -24,14 +24,20 @@ type CLIInfo struct {
 	Exists bool
 }
 
+type ConmPostgresSection struct {
+	CLI string `toml:"cli"`
+}
+
 type Conm struct {
-	PostgresCli string `toml:"postgres_cli,omitempty"`
+	Postgres ConmPostgresSection `toml:"postgres"`
 }
 
 func (c *Conm) SetCLI(t ConnType, cli string) {
 	switch t {
 	case PostgresConnType:
-		c.PostgresCli = cli
+		c.Postgres = ConmPostgresSection{
+			CLI: cli,
+		}
 	}
 }
 
@@ -54,7 +60,7 @@ func (w *ConmConfigWrapper) Put(_ int, conm Conm) {
 	w.Conm = conm
 }
 
-func (w *ConmConfigWrapper) ConnectionConfigs() []ConnectionConfig {
+func (w *ConmConfigWrapper) ConnectionConfigs() []Connection {
 	return nil
 }
 
@@ -156,10 +162,60 @@ func ReadConm(filename string) (Conm, error) {
 		return Conm{}, err
 	}
 
-	if t.Conm.PostgresCli == "" {
+	if t.Conm.Postgres.CLI == "" {
 		// TODO
-		t.Conm.PostgresCli = "psql"
+		t.Conm.Postgres.CLI = "psql"
 	}
 
 	return t.Conm, nil
+}
+
+func (c Conm) ConnType() ConnType {
+	var connType ConnType
+	return connType
+}
+
+func (c Conm) ConnMeta() ConnMeta {
+	var meta ConnMeta
+	return meta
+}
+
+func (c Conm) Name() string {
+	return ""
+}
+
+func (c Conm) Description() string {
+	return ""
+}
+
+func (c Conm) Tags() []string {
+	return nil
+}
+
+func (c Conm) Host() string {
+	return ""
+}
+
+func (c Conm) Port() int {
+	return 0
+}
+
+func (c Conm) Database() string {
+	return ""
+}
+
+func (c Conm) Username() string {
+	return ""
+}
+
+func (c Conm) URL() string {
+	return ""
+}
+
+func (c Conm) Validate() []error {
+	return nil
+}
+
+func (c Conm) IsValid() bool {
+	return true
 }

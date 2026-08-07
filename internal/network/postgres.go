@@ -13,14 +13,14 @@ import (
 
 type PGClient struct {
 	conmCfg config.Conm
-	cfg     config.ConnectionConfig
+	cfg     config.Connection
 
 	db *sql.DB
 }
 
 func NewPGClient(
 	conmConfig config.Conm,
-	cfg config.ConnectionConfig,
+	cfg config.Connection,
 ) (*PGClient, error) {
 	db, err := sql.Open("pgx", cfg.URL())
 	if err != nil {
@@ -74,8 +74,8 @@ func (p *PGClient) IsValid() bool {
 	return p.cfg.IsValid()
 }
 
-func (p *PGClient) ValidationErrs() []error {
-	return p.cfg.ValidationErrs()
+func (p *PGClient) Validate() []error {
+	return p.cfg.Validate()
 }
 
 func (p *PGClient) Ping(ctx context.Context) error {
@@ -90,7 +90,7 @@ func (p *PGClient) Ping(ctx context.Context) error {
 
 func (p *PGClient) Run(ctx context.Context) error {
 
-	executor := exec.CommandContext(ctx, p.conmCfg.PostgresCli, p.cfg.URL())
+	executor := exec.CommandContext(ctx, p.conmCfg.Postgres.CLI, p.cfg.URL())
 
 	executor.Stdin = os.Stdin
 	executor.Stdout = os.Stdout

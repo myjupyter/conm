@@ -7,7 +7,7 @@ import (
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-func RunEditForm(t config.ConnType, existing config.ConnectionConfig) (config.ConnectionConfig, bool, error) {
+func RunEditForm(t config.ConnType, existing config.Connection) (config.Connection, bool, error) {
 	spec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("edit form is not implemented for connection type %q", t)

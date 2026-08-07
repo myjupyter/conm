@@ -11,7 +11,7 @@ import (
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-func RunAddForm(t config.ConnType) (config.ConnectionConfig, bool, error) {
+func RunAddForm(t config.ConnType) (config.Connection, bool, error) {
 	spec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
@@ -20,7 +20,7 @@ func RunAddForm(t config.ConnType) (config.ConnectionConfig, bool, error) {
 	return runForm(newFormModel(spec, spec.AddTitle, nil))
 }
 
-func runForm(model formModel) (config.ConnectionConfig, bool, error) {
+func runForm(model formModel) (config.Connection, bool, error) {
 	m, err := tea.NewProgram(model).Run()
 	if err != nil {
 		return nil, false, err
@@ -211,7 +211,7 @@ func (m formModel) submit() (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-func (m formModel) result() (config.ConnectionConfig, error) {
+func (m formModel) result() (config.Connection, error) {
 	return m.spec.BuildFunc(m.values())
 }
 

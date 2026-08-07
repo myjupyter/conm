@@ -66,7 +66,7 @@ func RunInitScreen(cfg InitScreenConfig) error {
 			return errors.New("no postgres client selected")
 		}
 
-		conmConfig.PostgresCli = cli.Name
+		conmConfig.Postgres.CLI = cli.Name
 	}
 
 	if err := runConnTypeSpecificInit(cfg); err != nil {

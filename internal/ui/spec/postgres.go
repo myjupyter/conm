@@ -119,7 +119,7 @@ var PostgresFormSpec = FormSpec{
 	AddTitle:  "Add a new Postgres connection",
 	EditTitle: "Edit a Postgres connection",
 	Fields:    PostgresFormFields,
-	SeedFunc: func(c config.ConnectionConfig) map[FormFieldKey]FormFieldValue {
+	SeedFunc: func(c config.Connection) map[FormFieldKey]FormFieldValue {
 		pg, ok := c.(config.Postgres)
 		if !ok {
 			return nil
@@ -136,7 +136,7 @@ var PostgresFormSpec = FormSpec{
 			strings.ToLower(config.PostgresFormFieldTags):        strings.Join(pg.Meta.Tags, ", "),
 		}
 	},
-	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.ConnectionConfig, error) {
+	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
 		port := 5432 // default port
 		if rawPort, ok := values[strings.ToLower(config.PostgresFormFieldPort)]; ok && rawPort != "" {
 			p, err := strconv.Atoi(rawPort)

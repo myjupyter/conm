@@ -7,7 +7,7 @@ import (
 	"reflect"
 )
 
-type ConnectionConfig interface {
+type Connection interface {
 	Name() string
 	Description() string
 	Tags() []string
@@ -22,10 +22,10 @@ type ConnectionConfig interface {
 	ConnType() ConnType
 
 	IsValid() bool
-	ValidationErrs() []error
+	Validate() []error
 }
 
-type ConfigWrapper[C any] interface {
+type ConfigWrapper[C Connection] interface {
 	Add(C)
 	Len() int
 	Get(int) C
@@ -37,13 +37,23 @@ type ConfigWrapper[C any] interface {
 	Unmarshal([]byte) error
 }
 
-type Config[W ConfigWrapper[C], C any] struct {
+type File[C Connection] interface {
+	Add(...C)
+	Len() int
+	Get(int) C
+	Put(int, C)
+	Remove(int)
+	Save() error
+	Close() error
+}
+
+type Config[W ConfigWrapper[C], C Connection] struct {
 	w W
 
 	file *os.File
 }
 
-func OpenConfig[W ConfigWrapper[C], C any](filepath string) (*Config[W, C], error) {
+func OpenConfig[W ConfigWrapper[C], C Connection](filepath string) (*Config[W, C], error) {
 	f, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't open file %q: %w", filepath, err)

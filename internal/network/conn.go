@@ -8,7 +8,7 @@ import (
 )
 
 type Connection interface {
-	config.ConnectionConfig
+	config.Connection
 
 	Ping(ctx context.Context) error
 	Run(ctx context.Context) error
@@ -17,7 +17,7 @@ type Connection interface {
 
 func NewConnection(
 	conmConfig config.Conm,
-	cfg config.ConnectionConfig,
+	cfg config.Connection,
 ) (Connection, error) {
 	switch cfg.ConnType() {
 	case config.PostgresConnType:

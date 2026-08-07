@@ -9,7 +9,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-func RunSelectConnForm(title string, conns []config.ConnectionConfig) (int, bool, error) {
+func RunSelectConnForm(title string, conns []config.Connection) (int, bool, error) {
 	m, err := tea.NewProgram(newSelectConnModel(title, conns)).Run()
 	if err != nil {
 		return 0, false, err
@@ -25,13 +25,13 @@ func RunSelectConnForm(title string, conns []config.ConnectionConfig) (int, bool
 
 type selectConnModel struct {
 	title string
-	conns []config.ConnectionConfig
+	conns []config.Connection
 
 	cursor int
 	chosen bool
 }
 
-func newSelectConnModel(title string, conns []config.ConnectionConfig) selectConnModel {
+func newSelectConnModel(title string, conns []config.Connection) selectConnModel {
 	return selectConnModel{
 		title: title,
 		conns: conns,
@@ -93,7 +93,7 @@ func (m selectConnModel) render() string {
 	return b.String()
 }
 
-func connLabel(c config.ConnectionConfig) string {
+func connLabel(c config.Connection) string {
 	label := c.Name()
 	if label == "" {
 		label = fmt.Sprintf("%s:%d/%s", c.Host(), c.Port(), c.Database())
