@@ -10,19 +10,20 @@ import (
 )
 
 type CommonRegistry[C config.Connection] struct {
+	cfg  config.Conm
 	file config.File[C]
 	ncs  []network.Connection
 
 	mx *sync.RWMutex
 }
 
-func newPostgresRegistry() (*CommonRegistry[config.Postgres], error) {
+func newPostgresRegistry(cfg config.Conm) (*CommonRegistry[config.Postgres], error) {
 	configPath, err := config.PGFilePath()
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := config.OpenConfig[*config.PostgresConfigWrapper, config.Postgres](configPath)
+	file, err := config.OpenConfig[*config.PostgresConfigWrapper](configPath)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +38,7 @@ func newPostgresRegistry() (*CommonRegistry[config.Postgres], error) {
 			err  error
 		)
 		if c.IsValid() {
-			conn, err = network.NewPGClient(config.Conm{}, c)
+			conn, err = network.NewPGClient(cfg, c)
 		} else {
 			conn, err = network.NewNoClient(c)
 		}
@@ -55,14 +56,14 @@ func newPostgresRegistry() (*CommonRegistry[config.Postgres], error) {
 	}, nil
 }
 
-func (r CommonRegistry[C]) Len() int {
+func (r *CommonRegistry[C]) Len() int {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return len(r.ncs)
 }
 
-func (r CommonRegistry[C]) Get(i int) (network.Connection, bool) {
+func (r *CommonRegistry[C]) Get(i int) (network.Connection, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
@@ -73,18 +74,17 @@ func (r CommonRegistry[C]) Get(i int) (network.Connection, bool) {
 	return r.ncs[i], true
 }
 
-func (r CommonRegistry[C]) Add(cfg C) error {
+func (r *CommonRegistry[C]) Add(cfg C) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
 	if errs := cfg.Validate(); errs != nil {
-		return fmt.Errorf("add: %w", errors.Join(errs...))
+		return fmt.Errorf("add: validation error: %w", errors.Join(errs...))
 	}
 
-	// TODO
-	conn, err := network.NewConnection(config.Conm{}, cfg)
+	conn, err := network.NewConnection(r.cfg, cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("add: open new connection error: %w", err)
 	}
 
 	r.ncs = append(r.ncs, conn)
@@ -92,30 +92,38 @@ func (r CommonRegistry[C]) Add(cfg C) error {
 
 	return nil
 }
-func (r CommonRegistry[C]) Edit(i int, cfg C) error {
+func (r *CommonRegistry[C]) Edit(i int, cfg C) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
 	if errs := cfg.Validate(); errs != nil {
-		return fmt.Errorf("edit: %w", errors.Join(errs...))
+		return fmt.Errorf("edit: validation error: %w", errors.Join(errs...))
 	}
 
 	if i < 0 || i >= len(r.ncs) {
 		return fmt.Errorf("edit: connection index %d is out of range", i)
 	}
 
-	conn, err := network.NewConnection(config.Conm{}, cfg)
+	conn, err := network.NewConnection(r.cfg, cfg)
 	if err != nil {
-		return err
+		return fmt.Errorf("edit: open new connection error: %w", err)
 	}
 
+	oldNC := r.ncs[i]
 	r.ncs[i] = conn
 	r.file.Put(i, cfg)
 
-	return r.file.Save()
+	if err := r.file.Save(); err != nil {
+		return fmt.Errorf("edit: %w", err)
+	}
+
+	// TODO: log error
+	_ = oldNC.Close()
+
+	return nil
 }
 
-func (r CommonRegistry[C]) Remove(i int) error {
+func (r *CommonRegistry[C]) Remove(i int) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -123,21 +131,44 @@ func (r CommonRegistry[C]) Remove(i int) error {
 		return fmt.Errorf("remove: connection index %d is out of range", i)
 	}
 
+	oldNC := r.ncs[i]
+	r.ncs[i] = nil
 	r.ncs = append(r.ncs[:i], r.ncs[i+1:]...)
 	r.file.Remove(i)
 
-	return r.file.Save()
+	if err := r.file.Save(); err != nil {
+		return fmt.Errorf("remove: %w", err)
+	}
+
+	// TODO: log error
+	_ = oldNC.Close()
+
+	return nil
 }
 
-func (r CommonRegistry[C]) Save() error {
+func (r *CommonRegistry[C]) Save() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	return r.file.Save()
+	if err := r.file.Save(); err != nil {
+		return fmt.Errorf("save: %w", err)
+	}
+
+	return nil
 }
-func (r CommonRegistry[C]) Close() error {
+func (r *CommonRegistry[C]) Close() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	return r.file.Close()
+	for _, c := range r.ncs {
+		// silently close connections even if it fails
+		// TODO: log error
+		_ = c.Close()
+	}
+
+	if err := r.file.Close(); err != nil {
+		return fmt.Errorf("close: %w", err)
+	}
+
+	return nil
 }

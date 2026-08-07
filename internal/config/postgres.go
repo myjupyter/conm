@@ -205,7 +205,7 @@ func (w *PostgresConfigWrapper) Add(conn Postgres) {
 
 func (w *PostgresConfigWrapper) Validate() {
 	for i := range w.Conns {
-		_ = w.Conns[i].Validate()
+		w.Conns[i].validationErrs = w.Conns[i].Validate()
 	}
 }
 

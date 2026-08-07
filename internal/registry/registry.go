@@ -5,16 +5,12 @@ import (
 	"github.com/myjupyter/conm/internal/network"
 )
 
-type Registry interface {
-	Search(string)
-
-	RestoreState()
-
+type Registry[C config.Connection] interface {
 	Len() int
 	Get(int) (network.Connection, bool)
 
-	Add(cfg config.Connection) error
-	Edit(int, config.Connection) error
+	Add(cfg C) error
+	Edit(int, C) error
 	Remove(int) error
 
 	Save() error

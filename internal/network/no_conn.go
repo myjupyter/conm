@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -59,11 +60,11 @@ func (n *NoClient) Validate() []error {
 }
 
 func (*NoClient) Ping(ctx context.Context) error {
-	return nil
+	return errors.New("invalid connection config")
 }
 
 func (*NoClient) Run(ctx context.Context) error {
-	return nil
+	return errors.New("invalid connection config")
 }
 
 func (*NoClient) Close() error {

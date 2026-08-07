@@ -79,13 +79,7 @@ func (p *PGClient) Validate() []error {
 }
 
 func (p *PGClient) Ping(ctx context.Context) error {
-	db, err := sql.Open("pgx", p.cfg.URL())
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	return db.PingContext(ctx)
+	return p.db.PingContext(ctx)
 }
 
 func (p *PGClient) Run(ctx context.Context) error {
