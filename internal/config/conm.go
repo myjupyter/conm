@@ -204,6 +204,10 @@ func (c Conm) Database() string {
 	return ""
 }
 
+func (c Conm) Schema() string {
+	return ""
+}
+
 func (c Conm) Username() string {
 	return ""
 }

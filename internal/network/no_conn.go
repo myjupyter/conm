@@ -47,6 +47,10 @@ func (n *NoClient) Database() string {
 	return n.cfg.Database()
 }
 
+func (n *NoClient) Schema() string {
+	return n.cfg.Schema()
+}
+
 func (n *NoClient) URL() string {
 	return n.cfg.URL()
 }

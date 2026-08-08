@@ -67,6 +67,10 @@ func (p *PGClient) Database() string {
 	return p.cfg.Database()
 }
 
+func (p *PGClient) Schema() string {
+	return p.cfg.Schema()
+}
+
 func (p *PGClient) URL() string {
 	return p.cfg.URL()
 }
@@ -91,7 +95,6 @@ func (p *PGClient) Ping(ctx context.Context) (PingResult, error) {
 }
 
 func (p *PGClient) Run(ctx context.Context) error {
-
 	executor := exec.CommandContext(ctx, p.conmCfg.Postgres.CLI, p.cfg.URL())
 
 	executor.Stdin = os.Stdin

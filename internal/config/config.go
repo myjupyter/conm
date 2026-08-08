@@ -15,6 +15,7 @@ type Connection interface {
 	Username() string
 	Host() string
 	Database() string
+	Schema() string
 	Port() int
 
 	URL() string

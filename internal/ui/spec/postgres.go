@@ -14,6 +14,7 @@ const (
 	postgresExampleUsername    = "postgres"
 	postgresExamplePassword    = "4^@CP^S8\\le9"
 	postgresExampleDatabase    = "master"
+	postgresExampleSchema      = "public"
 	postgresExampleName        = "prod-primary"
 	postgresExampleDescription = "Production primary database"
 	postgresExampleTags        = "prod,eu-west,primary"
@@ -79,6 +80,13 @@ var PostgresFormFields = []FormField{
 		ValidateFunc: config.ValidatePostgresDatabase,
 	},
 	{
+		Key:          strings.ToLower(config.PostgresFormFieldSchema),
+		Label:        config.PostgresFormFieldSchema,
+		Example:      postgresExampleSchema,
+		Property:     OptionalFieldProperty,
+		ValidateFunc: config.ValidatePostgresSchema,
+	},
+	{
 		Key:          strings.ToLower(config.PostgresFormFieldSSLMode),
 		Label:        config.PostgresFormFieldSSLMode,
 		Kind:         SelectFieldKind,
@@ -129,6 +137,7 @@ var PostgresFormSpec = FormSpec{
 				strings.ToLower(config.PostgresFormFieldUsername),
 				strings.ToLower(config.PostgresFormFieldPassword),
 				strings.ToLower(config.PostgresFormFieldDatabase),
+				strings.ToLower(config.PostgresFormFieldSchema),
 				strings.ToLower(config.PostgresFormFieldSSLMode),
 			},
 		},
@@ -153,6 +162,7 @@ var PostgresFormSpec = FormSpec{
 			strings.ToLower(config.PostgresFormFieldUsername):    pg.User,
 			strings.ToLower(config.PostgresFormFieldPassword):    pg.Password,
 			strings.ToLower(config.PostgresFormFieldDatabase):    pg.DBName,
+			strings.ToLower(config.PostgresFormFieldSchema):      pg.SchemaName,
 			strings.ToLower(config.PostgresFormFieldSSLMode):     pg.SSLMode,
 			strings.ToLower(config.PostgresFormFieldName):        pg.Meta.Name,
 			strings.ToLower(config.PostgresFormFieldDescription): pg.Meta.Description,
@@ -180,6 +190,7 @@ var PostgresFormSpec = FormSpec{
 			User:       values[strings.ToLower(config.PostgresFormFieldUsername)],
 			Password:   values[strings.ToLower(config.PostgresFormFieldPassword)],
 			DBName:     values[strings.ToLower(config.PostgresFormFieldDatabase)],
+			SchemaName: values[strings.ToLower(config.PostgresFormFieldSchema)],
 			SSLMode:    values[strings.ToLower(config.PostgresFormFieldSSLMode)],
 		}, nil
 	},

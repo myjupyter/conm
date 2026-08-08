@@ -17,6 +17,8 @@ var simpleHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 var simpleDatabaseRegexp = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$`)
 
+var simpleSchemaRegexp = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_$]*$`)
+
 const (
 	hostMinLength = 1
 	hostMaxLength = 255
@@ -33,6 +35,8 @@ const (
 )
 
 const databaseMaxLength = 63
+
+const schemaMaxLength = 63
 
 const (
 	nameMaxLength        = 63
@@ -61,6 +65,7 @@ const (
 	PostgresFormFieldUsername    PostgresFormField = "Username"
 	PostgresFormFieldPassword    PostgresFormField = "Password"
 	PostgresFormFieldDatabase    PostgresFormField = "Database"
+	PostgresFormFieldSchema      PostgresFormField = "Schema"
 	PostgresFormFieldSSLMode     PostgresFormField = "SSLMode"
 )
 
@@ -71,6 +76,7 @@ type Postgres struct {
 	User       string   `toml:"username" json:"username"`
 	Password   string   `toml:"password" json:"password"`
 	DBName     string   `toml:"dbname" json:"dbname"`
+	SchemaName string   `toml:"schema,omitempty" json:"schema,omitempty"`
 	SSLMode    string   `toml:"sslmode,omitempty" json:"sslmode,omitempty"`
 
 	validationErrs []error
@@ -167,6 +173,19 @@ func ValidatePostgresDatabase(db string) error {
 	}
 	if !simpleDatabaseRegexp.MatchString(db) {
 		return fmt.Errorf("database contains invalid characters")
+	}
+	return nil
+}
+
+func ValidatePostgresSchema(schema string) error {
+	if schema == "" {
+		return nil
+	}
+	if len(schema) > schemaMaxLength {
+		return fmt.Errorf("schema must be at most %d characters long", schemaMaxLength)
+	}
+	if !simpleSchemaRegexp.MatchString(schema) {
+		return fmt.Errorf("schema contains invalid characters")
 	}
 	return nil
 }
@@ -272,22 +291,35 @@ func (p Postgres) Database() string {
 	return p.DBName
 }
 
+func (p Postgres) Schema() string {
+	return p.SchemaName
+}
+
 func (p Postgres) Username() string {
 	return p.User
 }
 
 func (p Postgres) URL() string {
+	host := p.Hostname
+	if p.PortNumber != 0 {
+		host = net.JoinHostPort(p.Hostname, strconv.Itoa(p.PortNumber))
+	}
 	u := url.URL{
 		Scheme: "postgresql",
 		User:   url.UserPassword(p.User, p.Password),
-		Host:   net.JoinHostPort(p.Hostname, strconv.Itoa(p.PortNumber)),
+		Host:   host,
 		Path:   "/" + p.DBName,
 	}
 
+	q := url.Values{}
 	if p.SSLMode != "" {
-		q := url.Values{}
 		q.Set("sslmode", p.SSLMode)
-		u.RawQuery = q.Encode()
+	}
+	if p.SchemaName != "" {
+		q.Set("options", "-c search_path="+p.SchemaName)
+	}
+	if len(q) > 0 {
+		u.RawQuery = strings.ReplaceAll(q.Encode(), "+", "%20")
 	}
 
 	return u.String()
@@ -305,6 +337,9 @@ func (p Postgres) Validate() []error {
 		errs = append(errs, err)
 	}
 	if err := ValidatePostgresDatabase(p.DBName); err != nil {
+		errs = append(errs, err)
+	}
+	if err := ValidatePostgresSchema(p.SchemaName); err != nil {
 		errs = append(errs, err)
 	}
 	if err := ValidatePostgresSSLMode(p.SSLMode); err != nil {
