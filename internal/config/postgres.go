@@ -304,9 +304,14 @@ func (p Postgres) URL() string {
 	if p.PortNumber != 0 {
 		host = net.JoinHostPort(p.Hostname, strconv.Itoa(p.PortNumber))
 	}
+	userInfo := url.User(p.User)
+	if p.Password != "" {
+		userInfo = url.UserPassword(p.User, p.Password)
+	}
+
 	u := url.URL{
 		Scheme: "postgresql",
-		User:   url.UserPassword(p.User, p.Password),
+		User:   userInfo,
 		Host:   host,
 		Path:   "/" + p.DBName,
 	}

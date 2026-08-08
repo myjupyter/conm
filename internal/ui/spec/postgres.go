@@ -65,10 +65,11 @@ var PostgresFormFields = []FormField{
 		ValidateFunc: config.ValidatePostgresUsername,
 	},
 	{
-		Key:     strings.ToLower(config.PostgresFormFieldPassword),
-		Label:   config.PostgresFormFieldPassword,
-		Kind:    HiddenFieldKind,
-		Example: postgresExamplePassword,
+		Key:      strings.ToLower(config.PostgresFormFieldPassword),
+		Label:    config.PostgresFormFieldPassword,
+		Kind:     HiddenFieldKind,
+		Example:  postgresExamplePassword,
+		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			return nil // no specific validation for password
 		},
