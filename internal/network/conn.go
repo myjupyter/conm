@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
 // connection quality intervals
@@ -31,10 +32,11 @@ type PingResult struct {
 func NewConnection(
 	conmConfig config.Conm,
 	cfg config.Connection,
+	sec secret.Provider,
 ) (Connection, error) {
 	switch cfg.ConnType() {
 	case config.PostgresConnType:
-		return NewPGClient(conmConfig, cfg)
+		return NewPGClient(conmConfig, cfg, sec)
 	default:
 		return nil, fmt.Errorf("unsupported connection type %q", cfg.ConnType())
 	}

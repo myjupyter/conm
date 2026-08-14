@@ -3,11 +3,13 @@ package network
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"os/exec"
 	"time"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 
 	_ "github.com/jackc/pgx/stdlib"
 )
@@ -15,24 +17,34 @@ import (
 type PGClient struct {
 	conmCfg config.Conm
 	cfg     config.Connection
-
-	db *sql.DB
+	secret  secret.Secretable
+	sec     secret.Provider
 }
 
 func NewPGClient(
 	conmConfig config.Conm,
 	cfg config.Connection,
+	sec secret.Provider,
 ) (*PGClient, error) {
-	db, err := sql.Open("pgx", cfg.URL())
-	if err != nil {
-		return nil, err
+	secret, ok := cfg.(secret.Secretable)
+	if !ok {
+		return nil, fmt.Errorf("connection %q does not support secrets", cfg.Name())
 	}
 
 	return &PGClient{
 		conmCfg: conmConfig,
 		cfg:     cfg,
-		db:      db,
+		secret:  secret,
+		sec:     sec,
 	}, nil
+}
+
+func (p *PGClient) dsn(ctx context.Context) (string, error) {
+	password, err := p.sec.Resolve(ctx, p.secret)
+	if err != nil {
+		return "", err
+	}
+	return p.cfg.ConnectionString(password), nil
 }
 
 func (p *PGClient) ConnType() config.ConnType {
@@ -71,8 +83,8 @@ func (p *PGClient) Schema() string {
 	return p.cfg.Schema()
 }
 
-func (p *PGClient) URL() string {
-	return p.cfg.URL()
+func (p *PGClient) ConnectionString(secret string) string {
+	return p.cfg.ConnectionString(secret)
 }
 
 func (p *PGClient) IsValid() bool {
@@ -84,18 +96,32 @@ func (p *PGClient) Validate() []error {
 }
 
 func (p *PGClient) Ping(ctx context.Context) (PingResult, error) {
-	now := time.Now()
-	if err := p.db.PingContext(ctx); err != nil {
+	dsn, err := p.dsn(ctx)
+	if err != nil {
 		return PingResult{}, err
 	}
 
-	pingTime := time.Since(now)
+	db, err := sql.Open("pgx", dsn)
+	if err != nil {
+		return PingResult{}, err
+	}
+	defer db.Close()
 
-	return PingResult{PingTime: pingTime}, nil
+	now := time.Now()
+	if err := db.PingContext(ctx); err != nil {
+		return PingResult{}, err
+	}
+
+	return PingResult{PingTime: time.Since(now)}, nil
 }
 
 func (p *PGClient) Run(ctx context.Context) error {
-	executor := exec.CommandContext(ctx, p.conmCfg.Postgres.CLI, p.cfg.URL())
+	dsn, err := p.dsn(ctx)
+	if err != nil {
+		return err
+	}
+
+	executor := exec.CommandContext(ctx, p.conmCfg.Postgres.CLI, dsn)
 
 	executor.Stdin = os.Stdin
 	executor.Stdout = os.Stdout
@@ -109,5 +135,5 @@ func (p *PGClient) Run(ctx context.Context) error {
 }
 
 func (p *PGClient) Close() error {
-	return p.db.Close()
+	return nil
 }

@@ -13,6 +13,8 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
+var _ Connection = Postgres{}
+
 var simpleHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 var simpleDatabaseRegexp = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$`)
@@ -299,14 +301,22 @@ func (p Postgres) Username() string {
 	return p.User
 }
 
-func (p Postgres) URL() string {
+func (p Postgres) Secret() string {
+	return p.Password
+}
+
+func (p Postgres) ConnectionString(secret string) string {
+	return p.buildDSN(secret)
+}
+
+func (p Postgres) buildDSN(password string) string {
 	host := p.Hostname
 	if p.PortNumber != 0 {
 		host = net.JoinHostPort(p.Hostname, strconv.Itoa(p.PortNumber))
 	}
 	userInfo := url.User(p.User)
-	if p.Password != "" {
-		userInfo = url.UserPassword(p.User, p.Password)
+	if password != "" {
+		userInfo = url.UserPassword(p.User, password)
 	}
 
 	u := url.URL{

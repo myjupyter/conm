@@ -11,6 +11,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
+	"github.com/myjupyter/conm/internal/secret"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -301,7 +302,7 @@ func (m formModel) pingForm() (tea.Model, tea.Cmd) {
 
 func pingFormCmd(conn config.Connection) tea.Cmd {
 	return func() tea.Msg {
-		client, err := network.NewConnection(config.Conm{}, conn)
+		client, err := network.NewConnection(config.Conm{}, conn, secret.Default())
 		if err != nil {
 			return formPingMsg{conn: conn, err: err}
 		}

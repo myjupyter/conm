@@ -51,8 +51,8 @@ func (n *NoClient) Schema() string {
 	return n.cfg.Schema()
 }
 
-func (n *NoClient) URL() string {
-	return n.cfg.URL()
+func (n *NoClient) ConnectionString(secret string) string {
+	return n.cfg.ConnectionString(secret)
 }
 
 func (n *NoClient) IsValid() bool {

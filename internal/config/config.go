@@ -18,7 +18,7 @@ type Connection interface {
 	Schema() string
 	Port() int
 
-	URL() string
+	ConnectionString(string) string
 
 	ConnType() ConnType
 

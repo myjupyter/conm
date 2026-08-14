@@ -212,7 +212,7 @@ func (c Conm) Username() string {
 	return ""
 }
 
-func (c Conm) URL() string {
+func (c Conm) ConnectionString(_ string) string {
 	return ""
 }
 
