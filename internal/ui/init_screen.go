@@ -73,12 +73,7 @@ func RunInitScreen(cfg InitScreenConfig) error {
 		return err
 	}
 
-	conmFilePath, err := config.ConmFilePath()
-	if err != nil {
-		return fmt.Errorf("couldn't get conm config file path: %w", err)
-	}
-
-	c, err := config.OpenConfig[*config.ConmConfigWrapper](conmFilePath)
+	c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
 	if err != nil {
 		return fmt.Errorf("couldn't open conm config file: %w", err)
 	}
@@ -145,12 +140,7 @@ func runPostgresInit(cfg *InitPostgresScreenConfig) error {
 		}
 	}
 
-	configFilePath, err := config.PGFilePath()
-	if err != nil {
-		return fmt.Errorf("couldn't get postgres config file path: %w", err)
-	}
-
-	c, err := config.OpenConfig[*config.PostgresConfigWrapper](configFilePath)
+	c, err := config.OpenConfig[*config.PostgresConfigWrapper](config.PostgresPath())
 	if err != nil {
 		return fmt.Errorf("couldn't open postgres config file: %w", err)
 	}

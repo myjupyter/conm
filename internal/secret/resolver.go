@@ -30,64 +30,43 @@ func (r *Resolver) Scheme() (Scheme, SchemeMethods) {
 	return Global, Resolve | Store | Remove | Usages
 }
 
-func (r *Resolver) Resolve(ctx context.Context, spec Secretable) (string, error) {
-	raw := spec.Secret()
+func (r *Resolver) Resolve(ctx context.Context, ref Reference) (string, error) {
+	raw := ref.SecretRef()
 
-	p, ref, ok := r.provider(raw)
+	p, parsed, ok := r.provider(raw)
 	if !ok {
 		return raw, nil
 	}
 
-	password, err := p.Resolve(ctx, spec)
+	password, err := p.Resolve(ctx, ref)
 	if err != nil {
-		return "", fmt.Errorf("resolve %q secret: %w", ref.scheme, err)
+		return "", fmt.Errorf("resolve %q secret: %w", parsed.scheme, err)
 	}
 	return password, nil
 }
 
-func (r *Resolver) Store(ctx context.Context, spec Secretable, password string) error {
-	p, ref, ok := r.provider(spec.Secret())
+func (r *Resolver) Store(ctx context.Context, ref Reference, password string) error {
+	p, parsed, ok := r.provider(ref.SecretRef())
 	if !ok {
 		return nil
 	}
 
-	if err := p.Store(ctx, spec, password); err != nil {
-		return fmt.Errorf("store %q secret: %w", ref.scheme, err)
+	if err := p.Store(ctx, ref, password); err != nil {
+		return fmt.Errorf("store %q secret: %w", parsed.scheme, err)
 	}
 	return nil
 }
 
-func (r *Resolver) Remove(ctx context.Context, spec Secretable) error {
-	p, ref, ok := r.provider(spec.Secret())
+func (r *Resolver) Remove(ctx context.Context, ref Reference) error {
+	p, parsed, ok := r.provider(ref.SecretRef())
 	if !ok {
 		return nil
 	}
 
-	if err := p.Remove(ctx, spec); err != nil {
-		return fmt.Errorf("remove %q secret: %w", ref.scheme, err)
+	if err := p.Remove(ctx, ref); err != nil {
+		return fmt.Errorf("remove %q secret: %w", parsed.scheme, err)
 	}
 	return nil
-}
-
-func (r *Resolver) Track(spec Secretable) {
-	if p, _, ok := r.provider(spec.Secret()); ok {
-		p.Track(spec)
-	}
-}
-
-func (r *Resolver) Untrack(s Secretable) {
-	if p, _, ok := r.provider(s.Secret()); ok {
-		p.Untrack(s)
-	}
-}
-
-func (r *Resolver) Usages(scheme Scheme) []Usage {
-	p, ok := r.providers[scheme]
-	if !ok {
-		return nil
-	}
-
-	return p.Usages(scheme)
 }
 
 func (r *Resolver) provider(raw string) (Provider, ref, bool) {

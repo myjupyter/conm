@@ -221,6 +221,7 @@ func ValidatePostgresDescription(desc string) error {
 }
 
 func (w *PostgresConfigWrapper) Add(conn Postgres) {
+	// TODO: validate collisions
 	w.Conns = append(w.Conns, conn)
 }
 
@@ -251,6 +252,7 @@ func (w *PostgresConfigWrapper) Get(i int) Postgres {
 }
 
 func (w *PostgresConfigWrapper) Put(i int, conn Postgres) {
+	// TODO: validate collisions
 	w.Conns[i] = conn
 }
 
@@ -301,8 +303,12 @@ func (p Postgres) Username() string {
 	return p.User
 }
 
-func (p Postgres) Secret() string {
+func (p Postgres) SecretRef() string {
 	return p.Password
+}
+
+func (p *Postgres) SetSecretRef(secret string) {
+	p.Password = secret
 }
 
 func (p Postgres) ConnectionString(secret string) string {

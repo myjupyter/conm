@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 )
 
@@ -26,10 +27,12 @@ type Connection interface {
 	Validate() []error
 }
 
-type ConfigWrapper[C Connection] interface {
+type ConfigWrapper[C any] interface {
+	// TODO: Add method to return error
 	Add(C)
 	Len() int
 	Get(int) C
+	// TODO: Put method to return error
 	Put(int, C)
 	Remove(int)
 	Validate()
@@ -38,7 +41,7 @@ type ConfigWrapper[C Connection] interface {
 	Unmarshal([]byte) error
 }
 
-type File[C Connection] interface {
+type File[C any] interface {
 	Add(...C)
 	Len() int
 	Get(int) C
@@ -48,16 +51,21 @@ type File[C Connection] interface {
 	Close() error
 }
 
-type Config[W ConfigWrapper[C], C Connection] struct {
+type Config[W ConfigWrapper[C], C any] struct {
 	w W
 
 	file *os.File
 }
 
-func OpenConfig[W ConfigWrapper[C], C Connection](filepath string) (*Config[W, C], error) {
-	f, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE, 0600)
+func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
+	// Config and data dirs live under different XDG roots; either may be missing.
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return nil, fmt.Errorf("couldn't create dir for %q: %w", path, err)
+	}
+
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't open file %q: %w", filepath, err)
+		return nil, fmt.Errorf("couldn't open file %q: %w", path, err)
 	}
 
 	var w W
@@ -67,11 +75,11 @@ func OpenConfig[W ConfigWrapper[C], C Connection](filepath string) (*Config[W, C
 
 	data, err := io.ReadAll(f)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't read file %q: %w", filepath, err)
+		return nil, fmt.Errorf("couldn't read file %q: %w", path, err)
 	}
 
 	if err := w.Unmarshal(data); err != nil {
-		return nil, fmt.Errorf("couldn't parse file %q: %w", filepath, err)
+		return nil, fmt.Errorf("couldn't parse file %q: %w", path, err)
 	}
 
 	w.Validate()

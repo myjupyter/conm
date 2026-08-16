@@ -19,23 +19,13 @@ var addPostgresCmd = &cobra.Command{
 	Use:   "postgres",
 	Short: "Add a new postgres connection",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		postgresConfigPath, err := config.PGFilePath()
-		if err != nil {
-			return fmt.Errorf("failed to get postgres config path: %w", err)
-		}
-
-		if _, err := os.Stat(postgresConfigPath); err != nil {
+		if _, err := os.Stat(config.PostgresPath()); err != nil {
 			if os.IsNotExist(err) {
 				return fmt.Errorf("postgres config file not found\nrun 'conm init' first\n")
 			}
 		}
 
-		conmConfigPath, err := config.ConmFilePath()
-		if err != nil {
-			return fmt.Errorf("failed to get conm config path: %w", err)
-		}
-
-		c, err := config.OpenConfig[*config.ConmConfigWrapper](conmConfigPath)
+		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
 		if err != nil {
 			return fmt.Errorf("failed to open conm config: %w", err)
 		}

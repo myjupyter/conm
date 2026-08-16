@@ -1,16 +1,11 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/pelletier/go-toml/v2"
 )
-
-const conmDirName = "conm"
-const pgConfigFileName = "postgres.toml"
-const conmConfigFileName = "conm.toml"
 
 type ConnMeta struct {
 	Name        string   `toml:"name,omitempty"`
@@ -82,39 +77,12 @@ func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
 	return toml.Marshal(w)
 }
 
-func ConmDirPath() (string, error) {
-	homeDir := os.Getenv("HOME")
-	if homeDir == "" {
-		return "", fmt.Errorf("$HOME is not set")
-	}
-
-	defaultXdgConfigHomeDir := filepath.Join(homeDir, ".config")
-
-	var xdgConfigHomeDir string
-	if xdgConfigHomeDir = os.Getenv("XDG_CONFIG_HOME"); xdgConfigHomeDir == "" {
-		xdgConfigHomeDir = defaultXdgConfigHomeDir
-	}
-
-	return filepath.Join(xdgConfigHomeDir, conmDirName), nil
-}
-
-func ConmFilePath() (string, error) {
-	conmDirPath, err := ConmDirPath()
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(conmDirPath, conmConfigFileName), nil
-}
-
+// CreateConmConfigPath creates both the config dir (conm.toml, postgres.toml)
+// and the data dir (secret.toml); XDG may place them under different roots.
 func CreateConmConfigPath() error {
-	conmDirConfigPath, err := ConmDirPath()
-	if err != nil {
-		return err
-	}
-
-	if err := os.Mkdir(conmDirConfigPath, 0744); err != nil {
-		if !os.IsExist(err) {
+	dirs := []string{filepath.Dir(conmConfigPath), filepath.Dir(secretConfigPath)}
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0700); err != nil {
 			return err
 		}
 	}
@@ -122,21 +90,7 @@ func CreateConmConfigPath() error {
 	return nil
 }
 
-func PGFilePath() (string, error) {
-	conmDirPath, err := ConmDirPath()
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(conmDirPath, pgConfigFileName), nil
-}
-
 func CreateConm(conf Conm) error {
-	path, err := ConmFilePath()
-	if err != nil {
-		return err
-	}
-
 	raw, err := toml.Marshal(struct {
 		Conm Conm `toml:"conm"`
 	}{Conm: conf})
@@ -144,7 +98,7 @@ func CreateConm(conf Conm) error {
 		return err
 	}
 
-	return os.WriteFile(path, raw, 0600)
+	return os.WriteFile(ConmPath(), raw, 0600)
 }
 
 func ReadConm(filename string) (Conm, error) {
@@ -168,58 +122,4 @@ func ReadConm(filename string) (Conm, error) {
 	}
 
 	return t.Conm, nil
-}
-
-func (c Conm) ConnType() ConnType {
-	var connType ConnType
-	return connType
-}
-
-func (c Conm) ConnMeta() ConnMeta {
-	var meta ConnMeta
-	return meta
-}
-
-func (c Conm) Name() string {
-	return ""
-}
-
-func (c Conm) Description() string {
-	return ""
-}
-
-func (c Conm) Tags() []string {
-	return nil
-}
-
-func (c Conm) Host() string {
-	return ""
-}
-
-func (c Conm) Port() int {
-	return 0
-}
-
-func (c Conm) Database() string {
-	return ""
-}
-
-func (c Conm) Schema() string {
-	return ""
-}
-
-func (c Conm) Username() string {
-	return ""
-}
-
-func (c Conm) ConnectionString(_ string) string {
-	return ""
-}
-
-func (c Conm) Validate() []error {
-	return nil
-}
-
-func (c Conm) IsValid() bool {
-	return true
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-type Registry[C config.Connection] interface {
+type Connections[C config.Connection] interface {
 	Len() int
 	Get(int) (network.Connection, bool)
 	Config(int) (C, bool)
@@ -18,12 +18,9 @@ type Registry[C config.Connection] interface {
 	Add(cfg C) error
 	Edit(int, C) error
 	Remove(int) error
-
-	Save() error
-	Close() error
 }
 
-type CommonRegistry[C config.Connection] struct {
+type ConnectionRegistry[C config.Connection] struct {
 	cfg  config.Conm
 	file config.File[C]
 	ncs  []network.Connection
@@ -32,14 +29,14 @@ type CommonRegistry[C config.Connection] struct {
 	mx *sync.RWMutex
 }
 
-func (r *CommonRegistry[C]) Len() int {
+func (r *ConnectionRegistry[C]) Len() int {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return len(r.ncs)
 }
 
-func (r *CommonRegistry[C]) Get(i int) (network.Connection, bool) {
+func (r *ConnectionRegistry[C]) Get(i int) (network.Connection, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
@@ -50,7 +47,7 @@ func (r *CommonRegistry[C]) Get(i int) (network.Connection, bool) {
 	return r.ncs[i], true
 }
 
-func (r *CommonRegistry[C]) Config(i int) (C, bool) {
+func (r *ConnectionRegistry[C]) Config(i int) (C, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
@@ -62,7 +59,7 @@ func (r *CommonRegistry[C]) Config(i int) (C, bool) {
 	return r.file.Get(i), true
 }
 
-func (r *CommonRegistry[C]) Add(cfg C) error {
+func (r *ConnectionRegistry[C]) Add(cfg C) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -84,7 +81,7 @@ func (r *CommonRegistry[C]) Add(cfg C) error {
 
 	return nil
 }
-func (r *CommonRegistry[C]) Edit(i int, cfg C) error {
+func (r *ConnectionRegistry[C]) Edit(i int, cfg C) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -115,7 +112,7 @@ func (r *CommonRegistry[C]) Edit(i int, cfg C) error {
 	return nil
 }
 
-func (r *CommonRegistry[C]) Remove(i int) error {
+func (r *ConnectionRegistry[C]) Remove(i int) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -138,7 +135,23 @@ func (r *CommonRegistry[C]) Remove(i int) error {
 	return nil
 }
 
-func (r *CommonRegistry[C]) Save() error {
+// SecretRefs returns every connection that points at a secret, so a
+// SecretRegistry can count how many of them use each stored secret.
+func (r *ConnectionRegistry[C]) SecretRefs() []secret.Reference {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	refs := make([]secret.Reference, 0, r.file.Len())
+	for i := range r.file.Len() {
+		if ref, ok := any(r.file.Get(i)).(secret.Reference); ok {
+			refs = append(refs, ref)
+		}
+	}
+
+	return refs
+}
+
+func (r *ConnectionRegistry[C]) Save() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -148,7 +161,7 @@ func (r *CommonRegistry[C]) Save() error {
 
 	return nil
 }
-func (r *CommonRegistry[C]) Close() error {
+func (r *ConnectionRegistry[C]) Close() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 

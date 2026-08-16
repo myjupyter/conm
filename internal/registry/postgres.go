@@ -9,27 +9,21 @@ import (
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-var _ Registry[config.Postgres] = (*CommonRegistry[config.Postgres])(nil)
+var _ Connections[config.Postgres] = (*ConnectionRegistry[config.Postgres])(nil)
 
-func NewPostgresRegistry(cfg config.Conm) (*CommonRegistry[config.Postgres], error) {
-	configPath, err := config.PGFilePath()
+func NewPostgresRegistry(cfg config.Conm) (*ConnectionRegistry[config.Postgres], error) {
+	file, err := config.OpenConfig[*config.PostgresConfigWrapper](config.PostgresPath())
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := config.OpenConfig[*config.PostgresConfigWrapper](configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	sec := secret.Default()
+	var sec secret.Provider
+	sec = secret.Default()
 
 	n := file.Len()
 	ncs := make([]network.Connection, 0, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		c := file.Get(i)
-
-		sec.Track(c)
 
 		var (
 			conn network.Connection
@@ -47,7 +41,7 @@ func NewPostgresRegistry(cfg config.Conm) (*CommonRegistry[config.Postgres], err
 		ncs = append(ncs, conn)
 	}
 
-	return &CommonRegistry[config.Postgres]{
+	return &ConnectionRegistry[config.Postgres]{
 		cfg:  cfg,
 		file: file,
 		mx:   &sync.RWMutex{},

@@ -15,16 +15,14 @@ var errEmptyKeyringAccount = errors.New("keyring spec must be [service/]account"
 
 var _ Provider = (*KeyringProvider)(nil)
 
-type KeyringProvider struct {
-	usages usageSet
-}
+type KeyringProvider struct{}
 
 func (*KeyringProvider) Scheme() (Scheme, SchemeMethods) {
 	return Keyring, Resolve | Store | Remove | Usages
 }
 
-func (*KeyringProvider) Resolve(_ context.Context, spec Secretable) (string, error) {
-	service, account := parseKeyringSpec(keyringSpec(spec))
+func (*KeyringProvider) Resolve(_ context.Context, ref Reference) (string, error) {
+	service, account := parseKeyringSpec(keyringSpec(ref))
 	if account == "" {
 		return "", errEmptyKeyringAccount
 	}
@@ -40,8 +38,8 @@ func (*KeyringProvider) Resolve(_ context.Context, spec Secretable) (string, err
 	return password, nil
 }
 
-func (p *KeyringProvider) Store(_ context.Context, spec Secretable, password string) error {
-	raw := keyringSpec(spec)
+func (p *KeyringProvider) Store(_ context.Context, ref Reference, password string) error {
+	raw := keyringSpec(ref)
 
 	service, account := parseKeyringSpec(raw)
 	if account == "" {
@@ -52,23 +50,15 @@ func (p *KeyringProvider) Store(_ context.Context, spec Secretable, password str
 		return err
 	}
 
-	p.usages.track(raw)
-
 	return nil
 }
 
-func (p *KeyringProvider) Remove(_ context.Context, spec Secretable) error {
-	raw := keyringSpec(spec)
+func (p *KeyringProvider) Remove(_ context.Context, ref Reference) error {
+	raw := keyringSpec(ref)
 
 	service, account := parseKeyringSpec(raw)
 	if account == "" {
 		return errEmptyKeyringAccount
-	}
-
-	p.usages.untrack(raw)
-
-	if _, shared := p.usages.refs[raw]; shared {
-		return nil
 	}
 
 	err := keyring.Delete(service, account)
@@ -78,14 +68,8 @@ func (p *KeyringProvider) Remove(_ context.Context, spec Secretable) error {
 	return err
 }
 
-func (p *KeyringProvider) Track(spec Secretable) { p.usages.track(keyringSpec(spec)) }
-
-func (p *KeyringProvider) Untrack(spec Secretable) { p.usages.untrack(keyringSpec(spec)) }
-
-func (p *KeyringProvider) Usages(_ Scheme) []Usage { return p.usages.list() }
-
-func keyringSpec(spec Secretable) string {
-	return strings.TrimPrefix(spec.Secret(), string(Keyring)+":")
+func keyringSpec(ref Reference) string {
+	return strings.TrimPrefix(ref.SecretRef(), string(Keyring)+":")
 }
 
 func parseKeyringSpec(spec string) (service, account string) {

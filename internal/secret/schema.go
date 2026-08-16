@@ -1,6 +1,6 @@
 package secret
 
-type Scheme string
+type Scheme = string
 
 const (
 	Global  Scheme = "global"

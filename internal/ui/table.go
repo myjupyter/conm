@@ -14,7 +14,7 @@ import (
 )
 
 type Model struct {
-	reg    registry.Registry[config.Postgres]
+	reg    registry.Connections[config.Postgres]
 	states []ConnState
 
 	cursor     int
@@ -86,7 +86,7 @@ func newConnState() ConnState {
 	}
 }
 
-func New(reg registry.Registry[config.Postgres]) Model {
+func New(reg registry.Connections[config.Postgres]) Model {
 	states := make([]ConnState, reg.Len())
 	for i := range states {
 		states[i] = newConnState()

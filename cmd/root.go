@@ -12,12 +12,7 @@ var rootCmd = &cobra.Command{
 	Use:   "conm",
 	Short: "Terminal connection manager",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		conmConfigPath, err := config.ConmFilePath()
-		if err != nil {
-			return err
-		}
-
-		c, err := config.OpenConfig[*config.ConmConfigWrapper](conmConfigPath)
+		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
 		if err != nil {
 			return err
 		}

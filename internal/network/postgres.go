@@ -17,7 +17,7 @@ import (
 type PGClient struct {
 	conmCfg config.Conm
 	cfg     config.Connection
-	secret  secret.Secretable
+	ref     secret.Reference
 	sec     secret.Provider
 }
 
@@ -26,7 +26,7 @@ func NewPGClient(
 	cfg config.Connection,
 	sec secret.Provider,
 ) (*PGClient, error) {
-	secret, ok := cfg.(secret.Secretable)
+	ref, ok := cfg.(secret.Reference)
 	if !ok {
 		return nil, fmt.Errorf("connection %q does not support secrets", cfg.Name())
 	}
@@ -34,13 +34,13 @@ func NewPGClient(
 	return &PGClient{
 		conmCfg: conmConfig,
 		cfg:     cfg,
-		secret:  secret,
+		ref:     ref,
 		sec:     sec,
 	}, nil
 }
 
 func (p *PGClient) dsn(ctx context.Context) (string, error) {
-	password, err := p.sec.Resolve(ctx, p.secret)
+	password, err := p.sec.Resolve(ctx, p.ref)
 	if err != nil {
 		return "", err
 	}

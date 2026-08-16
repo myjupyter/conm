@@ -21,17 +21,9 @@ var editCmd = &cobra.Command{
 		var configPath string
 		switch {
 		case cmd.Flags().Changed("postgres"):
-			cp, err := config.PGFilePath()
-			if err != nil {
-				return err
-			}
-			configPath = cp
+			configPath = config.PostgresPath()
 		default:
-			cp, err := config.ConmFilePath()
-			if err != nil {
-				return err
-			}
-			configPath = cp
+			configPath = config.ConmPath()
 		}
 
 		shellCmd := exec.
