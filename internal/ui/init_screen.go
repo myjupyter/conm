@@ -66,7 +66,7 @@ func RunInitScreen(cfg InitScreenConfig) error {
 			return errors.New("no postgres client selected")
 		}
 
-		conmConfig.Postgres.CLI = cli.Name
+		conmConfig.SetCLI(cfg.ConnType, cli.Name)
 	}
 
 	if err := runConnTypeSpecificInit(cfg); err != nil {
@@ -80,7 +80,8 @@ func RunInitScreen(cfg InitScreenConfig) error {
 
 	defer c.Close()
 
-	c.Add(conmConfig)
+	// conm.toml holds a single [conm] section, not a list.
+	c.Put(0, conmConfig)
 
 	if err := c.Save(); err != nil {
 		return fmt.Errorf("couldn't save conm config file: %w", err)
