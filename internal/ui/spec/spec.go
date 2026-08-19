@@ -22,7 +22,7 @@ const (
 	OptionalFieldProperty
 )
 
-var FormSpecs = map[config.ConnType]FormSpec{
+var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
 	config.PostgresConnType: PostgresFormSpec,
 }
 
@@ -51,13 +51,13 @@ type FormSection struct {
 	Fields []FormFieldKey
 }
 
-type FormSpec struct {
+type FormSpec[T any] struct {
 	AddTitle  string
 	EditTitle string
 	Fields    []FormField
 	Sections  []FormSection
-	BuildFunc func(map[FormFieldKey]FormFieldValue) (config.Connection, error)
-	SeedFunc  func(config.Connection) map[FormFieldKey]FormFieldValue
+	BuildFunc func(map[FormFieldKey]FormFieldValue) (T, error)
+	SeedFunc  func(T) map[FormFieldKey]FormFieldValue
 }
 
 func (f FieldProperty) String() string {

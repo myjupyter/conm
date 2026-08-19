@@ -124,7 +124,7 @@ var PostgresFormFields = []FormField{
 	},
 }
 
-var PostgresFormSpec = FormSpec{
+var PostgresFormSpec = FormSpec[config.Connection]{
 	AddTitle:  "Add a new Postgres connection",
 	EditTitle: "Edit a Postgres connection",
 	Fields:    PostgresFormFields,

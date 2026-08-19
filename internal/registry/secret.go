@@ -4,19 +4,13 @@ package registry
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-var _ Secrets[config.SecretSpec] = (*SecretRegistry[config.SecretSpec])(nil)
-
-var (
-	ErrSecretExists = errors.New("secret already exists")
-	ErrSecretInUse  = errors.New("secret is still in use")
-)
+var _ Secrets[config.Secret] = (*SecretRegistry[config.Secret])(nil)
 
 // Secrets is the mutation surface the UI uses for the secret store.
 type Secrets[S config.Secret] interface {
@@ -39,20 +33,6 @@ type SecretRegistry[S config.Secret] struct {
 	mx   sync.RWMutex
 	file config.File[S]
 	refs secretUsageSet
-}
-
-func NewSecretRegistry(refs ...secret.Reference) (*SecretRegistry[config.SecretSpec], error) {
-	file, err := config.OpenConfig[*config.SecretConfigWrapper](config.SecretConfigPath())
-	if err != nil {
-		return nil, err
-	}
-
-	r := &SecretRegistry[config.SecretSpec]{file: file}
-	for _, ref := range refs {
-		r.refs.link(ref.SecretRef())
-	}
-
-	return r, nil
 }
 
 func (r *SecretRegistry[S]) Len() int {
@@ -78,7 +58,7 @@ func (r *SecretRegistry[S]) Add(s S) error {
 	}
 
 	if _, found := r.indexOf(makeSecRef(s)); found {
-		return fmt.Errorf("add secret %q: %w", s.ID(), ErrSecretExists)
+		return fmt.Errorf("add secret %q: secret already exists", s.ID())
 	}
 
 	r.file.Add(s)
@@ -106,7 +86,7 @@ func (r *SecretRegistry[S]) Edit(i int, s S) error {
 	// Re-pointing a secret would orphan every connection referencing it.
 	if key := makeSecRef(old); key != makeSecRef(s) {
 		if n := r.refs.count(key); n > 0 {
-			return fmt.Errorf("edit secret %q: %w by %d connection(s)", old.ID(), ErrSecretInUse, n)
+			return fmt.Errorf("edit secret %q: secret is still in use by %d connection(s)", old.ID(), n)
 		}
 	}
 
@@ -129,7 +109,7 @@ func (r *SecretRegistry[S]) Remove(i int) error {
 	}
 
 	if n := r.refs.count(makeSecRef(old)); n > 0 {
-		return fmt.Errorf("remove secret %q: %w by %d connection(s)", old.ID(), ErrSecretInUse, n)
+		return fmt.Errorf("remove secret %q: secret is still in use by %d connection(s)", old.ID(), n)
 	}
 
 	r.file.Remove(i)
@@ -163,8 +143,6 @@ func (r *SecretRegistry[S]) Close() error {
 	return nil
 }
 
-// at and indexOf expect the caller to hold the lock.
-
 func (r *SecretRegistry[S]) at(i int) (S, bool) {
 	if i < 0 || i >= r.file.Len() {
 		var zero S
@@ -194,7 +172,8 @@ type secretUsageSet struct {
 
 func (s *secretUsageSet) link(rawRef string) {
 	// No need to track literal secrets
-	if strings.HasPrefix(rawRef, secret.Literal) {
+	scheme, _, ok := secret.ParseRef(rawRef)
+	if !ok || scheme == secret.Literal {
 		return
 	}
 

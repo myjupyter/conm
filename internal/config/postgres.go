@@ -13,7 +13,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-var _ Connection = Postgres{}
+var _ Connection = (*Postgres)(nil)
 
 var simpleHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 

@@ -11,14 +11,14 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Inits conm",
-	Long:  `Inits conm. It will create a conm directory, conm.toml and postgres.toml files.`,
+	Long:  `Inits conm. It will create a conm directory.`,
 	RunE:  initPostgresCmd.RunE,
 }
 
 var initPostgresCmd = &cobra.Command{
 	Use:   "postgres",
 	Short: "Inits postgres config",
-	Long:  `Inits postgres config. It will create a postgres.toml file.`,
+	Long:  `Inits postgres config. It will create postgres.toml`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cliValue, err := cmd.Flags().GetString("cli")
 		if err != nil {

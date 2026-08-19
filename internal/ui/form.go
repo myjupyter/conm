@@ -16,7 +16,7 @@ import (
 )
 
 type formModel struct {
-	spec     spec.FormSpec
+	spec     spec.FormSpec[config.Connection]
 	title    string
 	isEdit   bool
 	sections []spec.FormSection
@@ -44,7 +44,7 @@ type formPingMsg struct {
 	err    error
 }
 
-func newFormModel(spc spec.FormSpec, title string, initial map[spec.FormFieldKey]spec.FormFieldValue) formModel {
+func newFormModel(spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue) formModel {
 	m := formModel{
 		spec:       spc,
 		title:      title,

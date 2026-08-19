@@ -40,7 +40,8 @@ type ConmConfigWrapper struct {
 	Conm Conm `toml:"conm"`
 }
 
-func (w *ConmConfigWrapper) Add(_ Conm) {
+func (w *ConmConfigWrapper) Add(conm Conm) {
+	w.Conm = conm
 }
 
 func (w *ConmConfigWrapper) Len() int {

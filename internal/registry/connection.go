@@ -51,12 +51,7 @@ func (r *ConnectionRegistry[C]) Config(i int) (C, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
-	if i < 0 || i >= len(r.ncs) {
-		var zero C
-		return zero, false
-	}
-
-	return r.file.Get(i), true
+	return r.at(i)
 }
 
 func (r *ConnectionRegistry[C]) Add(cfg C) error {
@@ -135,22 +130,6 @@ func (r *ConnectionRegistry[C]) Remove(i int) error {
 	return nil
 }
 
-// SecretRefs returns every connection that points at a secret, so a
-// SecretRegistry can count how many of them use each stored secret.
-func (r *ConnectionRegistry[C]) SecretRefs() []secret.Reference {
-	r.mx.RLock()
-	defer r.mx.RUnlock()
-
-	refs := make([]secret.Reference, 0, r.file.Len())
-	for i := range r.file.Len() {
-		if ref, ok := any(r.file.Get(i)).(secret.Reference); ok {
-			refs = append(refs, ref)
-		}
-	}
-
-	return refs
-}
-
 func (r *ConnectionRegistry[C]) Save() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
@@ -161,6 +140,7 @@ func (r *ConnectionRegistry[C]) Save() error {
 
 	return nil
 }
+
 func (r *ConnectionRegistry[C]) Close() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
@@ -176,4 +156,13 @@ func (r *ConnectionRegistry[C]) Close() error {
 	}
 
 	return nil
+}
+
+func (r *ConnectionRegistry[S]) at(i int) (S, bool) {
+	if i < 0 || i >= r.file.Len() {
+		var zero S
+		return zero, false
+	}
+
+	return r.file.Get(i), true
 }
