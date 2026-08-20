@@ -7,8 +7,8 @@ import (
 )
 
 type Workspace struct {
-	Postgres *ConnectionRepository[config.Postgres]
-	Keyring  *SecretRepository[config.Keyring]
+	Postgres *ConnectionRepository
+	Keyring  *SecretRepository
 }
 
 func NewWorkspace(cfg config.Conm) (*Workspace, error) {

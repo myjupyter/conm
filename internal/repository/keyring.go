@@ -2,17 +2,19 @@ package repository
 
 import (
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
-var _ Secrets[config.Keyring] = (*SecretRepository[config.Keyring])(nil)
+var _ Secrets = (*SecretRepository)(nil)
 
-func NewKeyringRepository(usage UsageLookup) (*SecretRepository[config.Keyring], error) {
+func NewKeyringRepository(usage UsageLookup) (*SecretRepository, error) {
 	file, err := config.OpenConfig[*config.KeyringConfigWrapper](config.SecretConfigPath())
 	if err != nil {
 		return nil, err
 	}
 
-	return &SecretRepository[config.Keyring]{
+	return &SecretRepository{
+		kind:  secret.Keyring,
 		file:  file,
 		usage: usage,
 	}, nil

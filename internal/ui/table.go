@@ -8,13 +8,12 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	registry "github.com/myjupyter/conm/internal/repository"
 )
 
 type Model struct {
-	reg    registry.Connections[config.Postgres]
+	reg    registry.Connections
 	states []ConnState
 
 	cursor     int
@@ -86,7 +85,7 @@ func newConnState() ConnState {
 	}
 }
 
-func New(reg registry.Connections[config.Postgres]) Model {
+func New(reg registry.Connections) Model {
 	states := make([]ConnState, reg.Len())
 	for i := range states {
 		states[i] = newConnState()

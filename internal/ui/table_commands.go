@@ -2,11 +2,9 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/myjupyter/conm/internal/config"
 )
 
 func (m Model) pingCmd(i int) tea.Cmd {
@@ -33,15 +31,11 @@ func (m Model) runCmd(i int) tea.Cmd {
 
 func (m Model) addCmd() tea.Cmd {
 	return changeExec(func() error {
-		conn, ok, err := runAddForm(config.PostgresConnType)
+		conn, ok, err := runAddForm(m.reg.Kind())
 		if err != nil || !ok {
 			return err
 		}
-		pg, err := toPostgres(conn)
-		if err != nil {
-			return err
-		}
-		return m.reg.Add(pg)
+		return m.reg.Add(conn)
 	})
 }
 
@@ -51,15 +45,11 @@ func (m Model) editCmd(i int) tea.Cmd {
 		return nil
 	}
 	return changeExec(func() error {
-		conn, ok, err := RunEditForm(config.PostgresConnType, cfg)
+		conn, ok, err := RunEditForm(m.reg.Kind(), cfg)
 		if err != nil || !ok {
 			return err
 		}
-		pg, err := toPostgres(conn)
-		if err != nil {
-			return err
-		}
-		return m.reg.Edit(i, pg)
+		return m.reg.Edit(i, conn)
 	})
 }
 
@@ -74,14 +64,6 @@ func changeExec(fn func() error) tea.Cmd {
 		runExec{run: fn},
 		func(err error) tea.Msg { return connChangedMsg{err: err} },
 	)
-}
-
-func toPostgres(conn config.Connection) (config.Postgres, error) {
-	pg, ok := conn.(config.Postgres)
-	if !ok {
-		return config.Postgres{}, fmt.Errorf("unexpected connection type %T for postgres form", conn)
-	}
-	return pg, nil
 }
 
 type runExec struct {

@@ -84,6 +84,8 @@ type Postgres struct {
 	validationErrs []error
 }
 
+var _ ConfigWrapper[Connection] = (*PostgresConfigWrapper)(nil)
+
 type PostgresConfigWrapper struct {
 	Conns []Postgres `toml:"postgres"`
 }
@@ -220,9 +222,14 @@ func ValidatePostgresDescription(desc string) error {
 	return nil
 }
 
-func (w *PostgresConfigWrapper) Add(conn Postgres) {
+func (w *PostgresConfigWrapper) Add(conn Connection) {
 	// TODO: validate collisions
-	w.Conns = append(w.Conns, conn)
+	pg, ok := conn.(Postgres)
+	if !ok {
+		return
+	}
+
+	w.Conns = append(w.Conns, pg)
 }
 
 func (w *PostgresConfigWrapper) Validate() {
@@ -247,13 +254,18 @@ func (w *PostgresConfigWrapper) Len() int {
 	return len(w.Conns)
 }
 
-func (w *PostgresConfigWrapper) Get(i int) Postgres {
+func (w *PostgresConfigWrapper) Get(i int) Connection {
 	return w.Conns[i]
 }
 
-func (w *PostgresConfigWrapper) Put(i int, conn Postgres) {
+func (w *PostgresConfigWrapper) Put(i int, conn Connection) {
 	// TODO: validate collisions
-	w.Conns[i] = conn
+	pg, ok := conn.(Postgres)
+	if !ok {
+		return
+	}
+
+	w.Conns[i] = pg
 }
 
 func (w *PostgresConfigWrapper) Remove(i int) {

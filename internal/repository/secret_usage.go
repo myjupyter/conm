@@ -5,11 +5,12 @@ import (
 	"iter"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
 
 type SecretUser interface {
-	Kind() string
+	Kind() config.ConnType
 	SecretRefs() iter.Seq2[string, secret.Reference]
 }
 
@@ -41,7 +42,7 @@ func (ix *Index) Usages(ref string) []Usage {
 	for _, u := range ix.users {
 		for owner, r := range u.SecretRefs() {
 			if r.SecretRef() == ref {
-				used = append(used, Usage{Kind: u.Kind(), Owner: owner})
+				used = append(used, Usage{Kind: u.Kind().String(), Owner: owner})
 			}
 		}
 	}

@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	_ Connections[config.Postgres] = (*ConnectionRepository[config.Postgres])(nil)
-	_ SecretUser                   = (*ConnectionRepository[config.Postgres])(nil)
+	_ Connections = (*ConnectionRepository)(nil)
+	_ SecretUser  = (*ConnectionRepository)(nil)
 )
 
-func NewPostgresRepository(cfg config.Conm) (*ConnectionRepository[config.Postgres], error) {
+func NewPostgresRepository(cfg config.Conm) (*ConnectionRepository, error) {
 	file, err := config.OpenConfig[*config.PostgresConfigWrapper](config.PostgresPath())
 	if err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func NewPostgresRepository(cfg config.Conm) (*ConnectionRepository[config.Postgr
 		ncs = append(ncs, conn)
 	}
 
-	return &ConnectionRepository[config.Postgres]{
+	return &ConnectionRepository{
 		cfg:  cfg,
 		kind: config.PostgresConnType,
 		file: file,

@@ -7,7 +7,7 @@ import (
 )
 
 var _ Secret = (*Keyring)(nil)
-var _ ConfigWrapper[Keyring] = (*KeyringConfigWrapper)(nil)
+var _ ConfigWrapper[Secret] = (*KeyringConfigWrapper)(nil)
 
 const (
 	secretIDMaxLength          = 63
@@ -66,8 +66,13 @@ func ValidateSecretDescription(desc string) error {
 	return nil
 }
 
-func (w *KeyringConfigWrapper) Add(spec Keyring) {
-	w.Secrets = append(w.Secrets, spec)
+func (w *KeyringConfigWrapper) Add(spec Secret) {
+	k, ok := spec.(Keyring)
+	if !ok {
+		return
+	}
+
+	w.Secrets = append(w.Secrets, k)
 }
 
 func (w *KeyringConfigWrapper) Validate() {
@@ -92,12 +97,17 @@ func (w *KeyringConfigWrapper) Len() int {
 	return len(w.Secrets)
 }
 
-func (w *KeyringConfigWrapper) Get(i int) Keyring {
+func (w *KeyringConfigWrapper) Get(i int) Secret {
 	return w.Secrets[i]
 }
 
-func (w *KeyringConfigWrapper) Put(i int, spec Keyring) {
-	w.Secrets[i] = spec
+func (w *KeyringConfigWrapper) Put(i int, spec Secret) {
+	k, ok := spec.(Keyring)
+	if !ok {
+		return
+	}
+
+	w.Secrets[i] = k
 }
 
 func (w *KeyringConfigWrapper) Remove(i int) {

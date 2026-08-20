@@ -11,31 +11,35 @@ import (
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-type Connections[C config.Connection] interface {
+type Connections interface {
+	Kind() config.ConnType
+
 	Len() int
 	ConnectionAt(int) (network.Connection, bool)
-	ConfigAt(int) (C, bool)
+	ConfigAt(int) (config.Connection, bool)
 
-	Add(cfg C) error
-	Edit(int, C) error
+	Add(cfg config.Connection) error
+	Edit(int, config.Connection) error
 	Remove(int) error
 }
 
-type ConnectionRepository[C config.Connection] struct {
+type ConnectionRepository struct {
 	cfg  config.Conm
 	kind config.ConnType
-	file config.File[C]
+	file config.File[config.Connection]
 	ncs  []network.Connection
 	sec  secret.Provider
 
 	mx *sync.RWMutex
 }
 
-func (r *ConnectionRepository[C]) Kind() string {
-	return r.kind.String()
+// Kind is the connection type every config in this repository has; it is what
+// callers type-assert ConfigAt's result against.
+func (r *ConnectionRepository) Kind() config.ConnType {
+	return r.kind
 }
 
-func (r *ConnectionRepository[C]) SecretRefs() iter.Seq2[string, secret.Reference] {
+func (r *ConnectionRepository) SecretRefs() iter.Seq2[string, secret.Reference] {
 	return func(yield func(string, secret.Reference) bool) {
 		r.mx.RLock()
 		defer r.mx.RUnlock()
@@ -43,9 +47,10 @@ func (r *ConnectionRepository[C]) SecretRefs() iter.Seq2[string, secret.Referenc
 		for i := range r.file.Len() {
 			c := r.file.Get(i)
 
-			ref, ok := any(c).(secret.Reference)
+			ref, ok := c.(secret.Reference)
 			if !ok {
-				return
+				// TODO: log and maybe action
+				continue
 			}
 
 			if !yield(c.Name(), ref) {
@@ -55,14 +60,14 @@ func (r *ConnectionRepository[C]) SecretRefs() iter.Seq2[string, secret.Referenc
 	}
 }
 
-func (r *ConnectionRepository[C]) Len() int {
+func (r *ConnectionRepository) Len() int {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return len(r.ncs)
 }
 
-func (r *ConnectionRepository[C]) ConnectionAt(i int) (network.Connection, bool) {
+func (r *ConnectionRepository) ConnectionAt(i int) (network.Connection, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
@@ -73,16 +78,20 @@ func (r *ConnectionRepository[C]) ConnectionAt(i int) (network.Connection, bool)
 	return r.ncs[i], true
 }
 
-func (r *ConnectionRepository[C]) ConfigAt(i int) (C, bool) {
+func (r *ConnectionRepository) ConfigAt(i int) (config.Connection, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return r.at(i)
 }
 
-func (r *ConnectionRepository[C]) Add(cfg C) error {
+func (r *ConnectionRepository) Add(cfg config.Connection) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
+
+	if err := r.check(cfg); err != nil {
+		return fmt.Errorf("add: %w", err)
+	}
 
 	if errs := cfg.Validate(); errs != nil {
 		return fmt.Errorf("add: validation error: %w", errors.Join(errs...))
@@ -102,9 +111,13 @@ func (r *ConnectionRepository[C]) Add(cfg C) error {
 
 	return nil
 }
-func (r *ConnectionRepository[C]) Edit(i int, cfg C) error {
+func (r *ConnectionRepository) Edit(i int, cfg config.Connection) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
+
+	if err := r.check(cfg); err != nil {
+		return fmt.Errorf("edit: %w", err)
+	}
 
 	if errs := cfg.Validate(); errs != nil {
 		return fmt.Errorf("edit: validation error: %w", errors.Join(errs...))
@@ -133,7 +146,7 @@ func (r *ConnectionRepository[C]) Edit(i int, cfg C) error {
 	return nil
 }
 
-func (r *ConnectionRepository[C]) Remove(i int) error {
+func (r *ConnectionRepository) Remove(i int) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -156,7 +169,7 @@ func (r *ConnectionRepository[C]) Remove(i int) error {
 	return nil
 }
 
-func (r *ConnectionRepository[C]) Save() error {
+func (r *ConnectionRepository) Save() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -167,7 +180,7 @@ func (r *ConnectionRepository[C]) Save() error {
 	return nil
 }
 
-func (r *ConnectionRepository[C]) Close() error {
+func (r *ConnectionRepository) Close() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -184,10 +197,19 @@ func (r *ConnectionRepository[C]) Close() error {
 	return nil
 }
 
-func (r *ConnectionRepository[S]) at(i int) (S, bool) {
+// check rejects a config the underlying file can't store: without the generic
+// parameter the compiler no longer does it for us.
+func (r *ConnectionRepository) check(cfg config.Connection) error {
+	if cfg.ConnType() != r.kind {
+		return fmt.Errorf("connection type %q doesn't belong to the %q repository", cfg.ConnType(), r.kind)
+	}
+
+	return nil
+}
+
+func (r *ConnectionRepository) at(i int) (config.Connection, bool) {
 	if i < 0 || i >= r.file.Len() {
-		var zero S
-		return zero, false
+		return nil, false
 	}
 
 	return r.file.Get(i), true

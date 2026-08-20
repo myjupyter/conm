@@ -16,18 +16,13 @@ func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
 		return false, err
 	}
 
-	pg, ok := conn.(config.Postgres)
-	if !ok {
-		return false, fmt.Errorf("unexpected connection type %T for postgres add form", conn)
-	}
-
 	reg, err := repository.NewPostgresRepository(cfg)
 	if err != nil {
 		return false, err
 	}
 	defer reg.Close()
 
-	if err := reg.Add(pg); err != nil {
+	if err := reg.Add(conn); err != nil {
 		return false, err
 	}
 

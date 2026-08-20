@@ -9,44 +9,55 @@ import (
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-var _ Secrets[config.Secret] = (*SecretRepository[config.Secret])(nil)
+type Secrets interface {
+	Kind() secret.Scheme
 
-type Secrets[S config.Secret] interface {
 	Len() int
-	Get(int) (S, bool)
+	Get(int) (config.Secret, bool)
 	UsagesAt(int) []Usage
 
-	Add(S) error
-	Edit(int, S) error
+	Add(config.Secret) error
+	Edit(int, config.Secret) error
 	Remove(int) error
 
 	Save() error
 	Close() error
 }
 
-type SecretRepository[S config.Secret] struct {
+type SecretRepository struct {
 	mx    sync.RWMutex
-	file  config.File[S]
+	kind  secret.Scheme
+	file  config.File[config.Secret]
 	usage UsageLookup
 }
 
-func (r *SecretRepository[S]) Len() int {
+// Kind is the provider every secret in this repository is stored under; it is
+// what callers type-assert Get's result against.
+func (r *SecretRepository) Kind() secret.Scheme {
+	return r.kind
+}
+
+func (r *SecretRepository) Len() int {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return r.file.Len()
 }
 
-func (r *SecretRepository[S]) Get(i int) (S, bool) {
+func (r *SecretRepository) Get(i int) (config.Secret, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return r.at(i)
 }
 
-func (r *SecretRepository[S]) Add(s S) error {
+func (r *SecretRepository) Add(s config.Secret) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
+
+	if err := r.check(s); err != nil {
+		return fmt.Errorf("add secret: %w", err)
+	}
 
 	if errs := s.Validate(); errs != nil {
 		return fmt.Errorf("add secret: validation error: %w", errors.Join(errs...))
@@ -65,9 +76,13 @@ func (r *SecretRepository[S]) Add(s S) error {
 	return nil
 }
 
-func (r *SecretRepository[S]) Edit(i int, s S) error {
+func (r *SecretRepository) Edit(i int, s config.Secret) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
+
+	if err := r.check(s); err != nil {
+		return fmt.Errorf("edit secret: %w", err)
+	}
 
 	if errs := s.Validate(); errs != nil {
 		return fmt.Errorf("edit secret: validation error: %w", errors.Join(errs...))
@@ -94,7 +109,7 @@ func (r *SecretRepository[S]) Edit(i int, s S) error {
 	return nil
 }
 
-func (r *SecretRepository[S]) Remove(i int) error {
+func (r *SecretRepository) Remove(i int) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -116,7 +131,7 @@ func (r *SecretRepository[S]) Remove(i int) error {
 	return nil
 }
 
-func (r *SecretRepository[S]) Save() error {
+func (r *SecretRepository) Save() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -127,7 +142,7 @@ func (r *SecretRepository[S]) Save() error {
 	return nil
 }
 
-func (r *SecretRepository[S]) Close() error {
+func (r *SecretRepository) Close() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -138,7 +153,7 @@ func (r *SecretRepository[S]) Close() error {
 	return nil
 }
 
-func (r *SecretRepository[S]) UsagesAt(i int) []Usage {
+func (r *SecretRepository) UsagesAt(i int) []Usage {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
@@ -150,7 +165,17 @@ func (r *SecretRepository[S]) UsagesAt(i int) []Usage {
 	return r.usages(makeSecRef(s))
 }
 
-func (r *SecretRepository[S]) usages(ref string) []Usage {
+// check rejects a secret the underlying file can't store: without the generic
+// parameter the compiler no longer does it for us.
+func (r *SecretRepository) check(s config.Secret) error {
+	if s.Provider() != r.kind {
+		return fmt.Errorf("secret provider %q doesn't belong to the %q repository", s.Provider(), r.kind)
+	}
+
+	return nil
+}
+
+func (r *SecretRepository) usages(ref string) []Usage {
 	if r.usage == nil {
 		return nil
 	}
@@ -158,16 +183,15 @@ func (r *SecretRepository[S]) usages(ref string) []Usage {
 	return r.usage.Usages(ref)
 }
 
-func (r *SecretRepository[S]) at(i int) (S, bool) {
+func (r *SecretRepository) at(i int) (config.Secret, bool) {
 	if i < 0 || i >= r.file.Len() {
-		var zero S
-		return zero, false
+		return nil, false
 	}
 
 	return r.file.Get(i), true
 }
 
-func (r *SecretRepository[S]) indexOf(key string) (int, bool) {
+func (r *SecretRepository) indexOf(key string) (int, bool) {
 	for i := range r.file.Len() {
 		if makeSecRef(r.file.Get(i)) == key {
 			return i, true

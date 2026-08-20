@@ -148,7 +148,9 @@ func runPostgresInit(cfg *InitPostgresScreenConfig) error {
 
 	defer c.Close()
 
-	c.Add(connCfgs...)
+	for _, connCfg := range connCfgs {
+		c.Add(connCfg)
+	}
 
 	if err := c.Save(); err != nil {
 		return fmt.Errorf("couldn't save postgres config file: %w", err)
