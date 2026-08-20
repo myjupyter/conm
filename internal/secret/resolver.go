@@ -26,9 +26,9 @@ func new(providers ...Provider) *Resolver {
 	return r
 }
 
-func (r *Resolver) Scheme() (Scheme, SchemeMethods) {
-	return Global, Resolve | Store | Remove | Usages
-}
+// Scheme is empty: the resolver is not addressable by a scheme of its own, it
+// dispatches to the provider a reference names.
+func (r *Resolver) Scheme() Scheme { return "" }
 
 func (r *Resolver) Resolve(ctx context.Context, ref Reference) (string, error) {
 	raw := ref.SecretRef()
@@ -85,6 +85,12 @@ func (r *Resolver) provider(raw string) (Provider, ref, bool) {
 }
 
 func (r *Resolver) register(p Provider) {
-	scheme, _ := p.Scheme()
+	scheme := p.Scheme()
+	if scheme == "" {
+		// A provider without a scheme of its own (another Resolver) is not
+		// reachable through a reference; registering it would shadow nothing.
+		return
+	}
+
 	r.providers[scheme] = p
 }

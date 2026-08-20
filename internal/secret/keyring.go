@@ -17,9 +17,7 @@ var _ Provider = (*KeyringProvider)(nil)
 
 type KeyringProvider struct{}
 
-func (*KeyringProvider) Scheme() (Scheme, SchemeMethods) {
-	return Keyring, Resolve | Store | Remove | Usages
-}
+func (*KeyringProvider) Scheme() Scheme { return Keyring }
 
 func (*KeyringProvider) Resolve(_ context.Context, ref Reference) (string, error) {
 	service, account := parseKeyringSpec(keyringSpec(ref))

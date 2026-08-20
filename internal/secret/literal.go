@@ -9,7 +9,7 @@ var _ Provider = (*LiteralProvider)(nil)
 
 type LiteralProvider struct{}
 
-func (*LiteralProvider) Scheme() (Scheme, SchemeMethods) { return Literal, Resolve }
+func (*LiteralProvider) Scheme() Scheme { return Literal }
 
 func (*LiteralProvider) Resolve(_ context.Context, ref Reference) (string, error) {
 	return strings.TrimPrefix(ref.SecretRef(), "literal:"), nil
