@@ -1,4 +1,4 @@
-package registry
+package repository
 
 import (
 	"fmt"
@@ -9,9 +9,12 @@ import (
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-var _ Connections[config.Postgres] = (*ConnectionRegistry[config.Postgres])(nil)
+var (
+	_ Connections[config.Postgres] = (*ConnectionRepository[config.Postgres])(nil)
+	_ SecretUser                   = (*ConnectionRepository[config.Postgres])(nil)
+)
 
-func NewPostgresRegistry(cfg config.Conm) (*ConnectionRegistry[config.Postgres], error) {
+func NewPostgresRepository(cfg config.Conm) (*ConnectionRepository[config.Postgres], error) {
 	file, err := config.OpenConfig[*config.PostgresConfigWrapper](config.PostgresPath())
 	if err != nil {
 		return nil, err
@@ -41,8 +44,9 @@ func NewPostgresRegistry(cfg config.Conm) (*ConnectionRegistry[config.Postgres],
 		ncs = append(ncs, conn)
 	}
 
-	return &ConnectionRegistry[config.Postgres]{
+	return &ConnectionRepository[config.Postgres]{
 		cfg:  cfg,
+		kind: config.PostgresConnType,
 		file: file,
 		mx:   &sync.RWMutex{},
 		ncs:  ncs,

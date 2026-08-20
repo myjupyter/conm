@@ -10,7 +10,7 @@ import (
 )
 
 func (m Model) pingCmd(i int) tea.Cmd {
-	conn, ok := m.reg.Get(i)
+	conn, ok := m.reg.ConnectionAt(i)
 	if !ok {
 		return nil
 	}
@@ -21,7 +21,7 @@ func (m Model) pingCmd(i int) tea.Cmd {
 }
 
 func (m Model) runCmd(i int) tea.Cmd {
-	conn, ok := m.reg.Get(i)
+	conn, ok := m.reg.ConnectionAt(i)
 	if !ok {
 		return nil
 	}
@@ -46,7 +46,7 @@ func (m Model) addCmd() tea.Cmd {
 }
 
 func (m Model) editCmd(i int) tea.Cmd {
-	cfg, ok := m.reg.Config(i)
+	cfg, ok := m.reg.ConnectionAt(i)
 	if !ok {
 		return nil
 	}

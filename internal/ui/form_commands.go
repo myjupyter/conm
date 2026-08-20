@@ -6,7 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/registry"
+	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -21,7 +21,7 @@ func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
 		return false, fmt.Errorf("unexpected connection type %T for postgres add form", conn)
 	}
 
-	reg, err := registry.NewPostgresRegistry(cfg)
+	reg, err := repository.NewPostgresRepository(cfg)
 	if err != nil {
 		return false, err
 	}

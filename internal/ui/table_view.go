@@ -231,7 +231,7 @@ func (m Model) headerLine() string {
 }
 
 func (m Model) rowLine(i int) string {
-	c, ok := m.reg.Get(i)
+	c, ok := m.reg.ConnectionAt(i)
 	if !ok {
 		return boxLine(nil, nil)
 	}

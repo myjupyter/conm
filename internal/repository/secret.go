@@ -1,5 +1,4 @@
-// TODO: complete it
-package registry
+package repository
 
 import (
 	"errors"
@@ -10,46 +9,42 @@ import (
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-var _ Secrets[config.Secret] = (*SecretRegistry[config.Secret])(nil)
+var _ Secrets[config.Secret] = (*SecretRepository[config.Secret])(nil)
 
-// Secrets is the mutation surface the UI uses for the secret store.
 type Secrets[S config.Secret] interface {
 	Len() int
 	Get(int) (S, bool)
+	UsagesAt(int) []Usage
 
 	Add(S) error
 	Edit(int, S) error
 	Remove(int) error
 
-	// TODO
-	// Link()
-	// Unlink()
-
 	Save() error
 	Close() error
 }
 
-type SecretRegistry[S config.Secret] struct {
-	mx   sync.RWMutex
-	file config.File[S]
-	refs secretUsageSet
+type SecretRepository[S config.Secret] struct {
+	mx    sync.RWMutex
+	file  config.File[S]
+	usage UsageLookup
 }
 
-func (r *SecretRegistry[S]) Len() int {
+func (r *SecretRepository[S]) Len() int {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return r.file.Len()
 }
 
-func (r *SecretRegistry[S]) Get(i int) (S, bool) {
+func (r *SecretRepository[S]) Get(i int) (S, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return r.at(i)
 }
 
-func (r *SecretRegistry[S]) Add(s S) error {
+func (r *SecretRepository[S]) Add(s S) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -70,7 +65,7 @@ func (r *SecretRegistry[S]) Add(s S) error {
 	return nil
 }
 
-func (r *SecretRegistry[S]) Edit(i int, s S) error {
+func (r *SecretRepository[S]) Edit(i int, s S) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -85,8 +80,8 @@ func (r *SecretRegistry[S]) Edit(i int, s S) error {
 
 	// Re-pointing a secret would orphan every connection referencing it.
 	if key := makeSecRef(old); key != makeSecRef(s) {
-		if n := r.refs.count(key); n > 0 {
-			return fmt.Errorf("edit secret %q: secret is still in use by %d connection(s)", old.ID(), n)
+		if used := r.usages(key); len(used) > 0 {
+			return fmt.Errorf("edit secret: %w", &ErrSecretInUse{ID: old.ID(), By: used})
 		}
 	}
 
@@ -99,7 +94,7 @@ func (r *SecretRegistry[S]) Edit(i int, s S) error {
 	return nil
 }
 
-func (r *SecretRegistry[S]) Remove(i int) error {
+func (r *SecretRepository[S]) Remove(i int) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -108,8 +103,8 @@ func (r *SecretRegistry[S]) Remove(i int) error {
 		return fmt.Errorf("remove secret: index %d is out of range", i)
 	}
 
-	if n := r.refs.count(makeSecRef(old)); n > 0 {
-		return fmt.Errorf("remove secret %q: secret is still in use by %d connection(s)", old.ID(), n)
+	if used := r.usages(makeSecRef(old)); len(used) > 0 {
+		return fmt.Errorf("remove secret: %w", &ErrSecretInUse{ID: old.ID(), By: used})
 	}
 
 	r.file.Remove(i)
@@ -121,7 +116,7 @@ func (r *SecretRegistry[S]) Remove(i int) error {
 	return nil
 }
 
-func (r *SecretRegistry[S]) Save() error {
+func (r *SecretRepository[S]) Save() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -132,7 +127,7 @@ func (r *SecretRegistry[S]) Save() error {
 	return nil
 }
 
-func (r *SecretRegistry[S]) Close() error {
+func (r *SecretRepository[S]) Close() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -143,7 +138,27 @@ func (r *SecretRegistry[S]) Close() error {
 	return nil
 }
 
-func (r *SecretRegistry[S]) at(i int) (S, bool) {
+func (r *SecretRepository[S]) UsagesAt(i int) []Usage {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	s, ok := r.at(i)
+	if !ok {
+		return nil
+	}
+
+	return r.usages(makeSecRef(s))
+}
+
+func (r *SecretRepository[S]) usages(ref string) []Usage {
+	if r.usage == nil {
+		return nil
+	}
+
+	return r.usage.Usages(ref)
+}
+
+func (r *SecretRepository[S]) at(i int) (S, bool) {
 	if i < 0 || i >= r.file.Len() {
 		var zero S
 		return zero, false
@@ -152,7 +167,7 @@ func (r *SecretRegistry[S]) at(i int) (S, bool) {
 	return r.file.Get(i), true
 }
 
-func (r *SecretRegistry[S]) indexOf(key string) (int, bool) {
+func (r *SecretRepository[S]) indexOf(key string) (int, bool) {
 	for i := range r.file.Len() {
 		if makeSecRef(r.file.Get(i)) == key {
 			return i, true
@@ -165,22 +180,3 @@ func (r *SecretRegistry[S]) indexOf(key string) (int, bool) {
 func makeSecRef(s config.Secret) string {
 	return secret.Ref(s.Provider(), s.Location())
 }
-
-type secretUsageSet struct {
-	refs map[string]int
-}
-
-func (s *secretUsageSet) link(rawRef string) {
-	// No need to track literal secrets
-	scheme, _, ok := secret.ParseRef(rawRef)
-	if !ok || scheme == secret.Literal {
-		return
-	}
-
-	if s.refs == nil {
-		s.refs = make(map[string]int)
-	}
-	s.refs[rawRef]++
-}
-
-func (s *secretUsageSet) count(key string) int { return s.refs[key] }

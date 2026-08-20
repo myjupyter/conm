@@ -10,7 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
-	"github.com/myjupyter/conm/internal/registry"
+	registry "github.com/myjupyter/conm/internal/repository"
 )
 
 type Model struct {
@@ -187,7 +187,7 @@ func (m Model) handleConfirmKey(key string) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) pingOne(i int) (tea.Model, tea.Cmd) {
-	c, ok := m.reg.Get(i)
+	c, ok := m.reg.ConnectionAt(i)
 	if !ok {
 		return m, nil
 	}
@@ -212,7 +212,7 @@ func (m Model) currentPong() string {
 	if st.connErr != nil || st.pingStatus != pingOK {
 		return ""
 	}
-	c, ok := m.reg.Get(m.cursor)
+	c, ok := m.reg.ConnectionAt(m.cursor)
 	if !ok {
 		return ""
 	}
@@ -238,7 +238,7 @@ func (m Model) applyPingResult(msg pingResultMsg) Model {
 	if msg.index >= len(m.states) {
 		return m
 	}
-	c, ok := m.reg.Get(msg.index)
+	c, ok := m.reg.ConnectionAt(msg.index)
 	name := connLabel(c)
 
 	if msg.err != nil {
@@ -260,7 +260,7 @@ func (m Model) applyPingResult(msg pingResultMsg) Model {
 }
 
 func (m Model) applyRunResult(msg runResultMsg) Model {
-	c, ok := m.reg.Get(msg.index)
+	c, ok := m.reg.ConnectionAt(msg.index)
 	name := connLabel(c)
 
 	if msg.err != nil {
@@ -316,7 +316,7 @@ func (m Model) syncStates() Model {
 }
 
 func (m Model) cursorLabel() string {
-	c, ok := m.reg.Get(m.cursor)
+	c, ok := m.reg.ConnectionAt(m.cursor)
 	if !ok {
 		return ""
 	}

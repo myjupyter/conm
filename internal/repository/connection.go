@@ -1,8 +1,9 @@
-package registry
+package repository
 
 import (
 	"errors"
 	"fmt"
+	"iter"
 	"sync"
 
 	"github.com/myjupyter/conm/internal/config"
@@ -12,16 +13,17 @@ import (
 
 type Connections[C config.Connection] interface {
 	Len() int
-	Get(int) (network.Connection, bool)
-	Config(int) (C, bool)
+	ConnectionAt(int) (network.Connection, bool)
+	ConfigAt(int) (C, bool)
 
 	Add(cfg C) error
 	Edit(int, C) error
 	Remove(int) error
 }
 
-type ConnectionRegistry[C config.Connection] struct {
+type ConnectionRepository[C config.Connection] struct {
 	cfg  config.Conm
+	kind config.ConnType
 	file config.File[C]
 	ncs  []network.Connection
 	sec  secret.Provider
@@ -29,14 +31,38 @@ type ConnectionRegistry[C config.Connection] struct {
 	mx *sync.RWMutex
 }
 
-func (r *ConnectionRegistry[C]) Len() int {
+func (r *ConnectionRepository[C]) Kind() string {
+	return r.kind.String()
+}
+
+func (r *ConnectionRepository[C]) SecretRefs() iter.Seq2[string, secret.Reference] {
+	return func(yield func(string, secret.Reference) bool) {
+		r.mx.RLock()
+		defer r.mx.RUnlock()
+
+		for i := range r.file.Len() {
+			c := r.file.Get(i)
+
+			ref, ok := any(c).(secret.Reference)
+			if !ok {
+				return
+			}
+
+			if !yield(c.Name(), ref) {
+				return
+			}
+		}
+	}
+}
+
+func (r *ConnectionRepository[C]) Len() int {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return len(r.ncs)
 }
 
-func (r *ConnectionRegistry[C]) Get(i int) (network.Connection, bool) {
+func (r *ConnectionRepository[C]) ConnectionAt(i int) (network.Connection, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
@@ -47,14 +73,14 @@ func (r *ConnectionRegistry[C]) Get(i int) (network.Connection, bool) {
 	return r.ncs[i], true
 }
 
-func (r *ConnectionRegistry[C]) Config(i int) (C, bool) {
+func (r *ConnectionRepository[C]) ConfigAt(i int) (C, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
 	return r.at(i)
 }
 
-func (r *ConnectionRegistry[C]) Add(cfg C) error {
+func (r *ConnectionRepository[C]) Add(cfg C) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -76,7 +102,7 @@ func (r *ConnectionRegistry[C]) Add(cfg C) error {
 
 	return nil
 }
-func (r *ConnectionRegistry[C]) Edit(i int, cfg C) error {
+func (r *ConnectionRepository[C]) Edit(i int, cfg C) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -107,7 +133,7 @@ func (r *ConnectionRegistry[C]) Edit(i int, cfg C) error {
 	return nil
 }
 
-func (r *ConnectionRegistry[C]) Remove(i int) error {
+func (r *ConnectionRepository[C]) Remove(i int) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -130,7 +156,7 @@ func (r *ConnectionRegistry[C]) Remove(i int) error {
 	return nil
 }
 
-func (r *ConnectionRegistry[C]) Save() error {
+func (r *ConnectionRepository[C]) Save() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -141,7 +167,7 @@ func (r *ConnectionRegistry[C]) Save() error {
 	return nil
 }
 
-func (r *ConnectionRegistry[C]) Close() error {
+func (r *ConnectionRepository[C]) Close() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -158,7 +184,7 @@ func (r *ConnectionRegistry[C]) Close() error {
 	return nil
 }
 
-func (r *ConnectionRegistry[S]) at(i int) (S, bool) {
+func (r *ConnectionRepository[S]) at(i int) (S, bool) {
 	if i < 0 || i >= r.file.Len() {
 		var zero S
 		return zero, false

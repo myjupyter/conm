@@ -3,23 +3,16 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/registry"
+	"github.com/myjupyter/conm/internal/repository"
 )
 
 func Run(cfg config.Conm) error {
-	reg, err := registry.NewPostgresRegistry(cfg)
+	ws, err := repository.NewWorkspace(cfg)
 	if err != nil {
 		return err
 	}
-	defer reg.Close()
+	defer ws.Close()
 
-	// The secret registry counts its references from every connection registry.
-	// secrets, err := registry.NewSecretRegistry(reg.SecretRefs()...)
-	// if err != nil {
-	// 	return err
-	// }
-	// defer secrets.Close()
-
-	_, err = tea.NewProgram(New(reg)).Run()
+	_, err = tea.NewProgram(New(ws.Postgres)).Run()
 	return err
 }
