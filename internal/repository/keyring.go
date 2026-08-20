@@ -13,9 +13,5 @@ func NewKeyringRepository(usage UsageLookup) (*SecretRepository, error) {
 		return nil, err
 	}
 
-	return &SecretRepository{
-		kind:  secret.Keyring,
-		file:  file,
-		usage: usage,
-	}, nil
+	return newSecretRepository(&secret.KeyringProvider{}, file, usage)
 }

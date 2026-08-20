@@ -33,8 +33,6 @@ type ConnectionRepository struct {
 	mx *sync.RWMutex
 }
 
-// Kind is the connection type every config in this repository has; it is what
-// callers type-assert ConfigAt's result against.
 func (r *ConnectionRepository) Kind() config.ConnType {
 	return r.kind
 }
@@ -197,8 +195,6 @@ func (r *ConnectionRepository) Close() error {
 	return nil
 }
 
-// check rejects a config the underlying file can't store: without the generic
-// parameter the compiler no longer does it for us.
 func (r *ConnectionRepository) check(cfg config.Connection) error {
 	if cfg.ConnType() != r.kind {
 		return fmt.Errorf("connection type %q doesn't belong to the %q repository", cfg.ConnType(), r.kind)
