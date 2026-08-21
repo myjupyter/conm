@@ -56,21 +56,6 @@ const (
 	PostgresSSLModeVerifyFull PostgresSSLMode = "verify-full"
 )
 
-type PostgresFormField = string
-
-const (
-	PostgresFormFieldName        PostgresFormField = "Name"
-	PostgresFormFieldDescription PostgresFormField = "Description"
-	PostgresFormFieldTags        PostgresFormField = "Tags"
-	PostgresFormFieldHost        PostgresFormField = "Host"
-	PostgresFormFieldPort        PostgresFormField = "Port"
-	PostgresFormFieldUsername    PostgresFormField = "Username"
-	PostgresFormFieldPassword    PostgresFormField = "Password"
-	PostgresFormFieldDatabase    PostgresFormField = "Database"
-	PostgresFormFieldSchema      PostgresFormField = "Schema"
-	PostgresFormFieldSSLMode     PostgresFormField = "SSLMode"
-)
-
 type Postgres struct {
 	Meta       ConnMeta `toml:"meta"`
 	Hostname   string   `toml:"host" json:"host"`

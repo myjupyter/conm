@@ -12,12 +12,26 @@ const (
 	postgresExampleHost        = "localhost"
 	postgresExamplePort        = "5432"
 	postgresExampleUsername    = "postgres"
-	postgresExamplePassword    = "4^@CP^S8\\le9"
 	postgresExampleDatabase    = "master"
 	postgresExampleSchema      = "public"
 	postgresExampleName        = "prod-primary"
 	postgresExampleDescription = "Production primary database"
 	postgresExampleTags        = "prod,eu-west,primary"
+)
+
+type postgresFormField = string
+
+const (
+	postgresFormFieldName        postgresFormField = "Name"
+	postgresFormFieldDescription postgresFormField = "Description"
+	postgresFormFieldTags        postgresFormField = "Tags"
+	postgresFormFieldHost        postgresFormField = "Host"
+	postgresFormFieldPort        postgresFormField = "Port"
+	postgresFormFieldUsername    postgresFormField = "Username"
+	postgresFormFieldPassword    postgresFormField = "Password"
+	postgresFormFieldDatabase    postgresFormField = "Database"
+	postgresFormFieldSchema      postgresFormField = "Schema"
+	postgresFormFieldSSLMode     postgresFormField = "SSLMode"
 )
 
 // SSLModesOrder lists the selectable values for the SSL mode field, in the
@@ -35,14 +49,14 @@ var SSLModesOrder = []config.PostgresSSLMode{
 var PostgresFormFields = []FormField{
 	// Connection information
 	{
-		Key:          strings.ToLower(config.PostgresFormFieldHost),
-		Label:        config.PostgresFormFieldHost,
+		Key:          strings.ToLower(postgresFormFieldHost),
+		Label:        postgresFormFieldHost,
 		Example:      postgresExampleHost,
 		ValidateFunc: config.ValidatePostgresHost,
 	},
 	{
-		Key:          strings.ToLower(config.PostgresFormFieldPort),
-		Label:        config.PostgresFormFieldPort,
+		Key:          strings.ToLower(postgresFormFieldPort),
+		Label:        postgresFormFieldPort,
 		Example:      postgresExamplePort,
 		Kind:         IntFieldKind,
 		Property:     OptionalFieldProperty,
@@ -59,37 +73,29 @@ var PostgresFormFields = []FormField{
 		},
 	},
 	{
-		Key:          strings.ToLower(config.PostgresFormFieldUsername),
-		Label:        config.PostgresFormFieldUsername,
+		Key:          strings.ToLower(postgresFormFieldUsername),
+		Label:        postgresFormFieldUsername,
 		Example:      postgresExampleUsername,
 		ValidateFunc: config.ValidatePostgresUsername,
 	},
+	secretProviderField,
+	passwordField,
 	{
-		Key:      strings.ToLower(config.PostgresFormFieldPassword),
-		Label:    config.PostgresFormFieldPassword,
-		Kind:     HiddenFieldKind,
-		Example:  postgresExamplePassword,
-		Property: OptionalFieldProperty,
-		ValidateFunc: func(value string) error {
-			return nil // no specific validation for password
-		},
-	},
-	{
-		Key:          strings.ToLower(config.PostgresFormFieldDatabase),
-		Label:        config.PostgresFormFieldDatabase,
+		Key:          strings.ToLower(postgresFormFieldDatabase),
+		Label:        postgresFormFieldDatabase,
 		Example:      postgresExampleDatabase,
 		ValidateFunc: config.ValidatePostgresDatabase,
 	},
 	{
-		Key:          strings.ToLower(config.PostgresFormFieldSchema),
-		Label:        config.PostgresFormFieldSchema,
+		Key:          strings.ToLower(postgresFormFieldSchema),
+		Label:        postgresFormFieldSchema,
 		Example:      postgresExampleSchema,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidatePostgresSchema,
 	},
 	{
-		Key:          strings.ToLower(config.PostgresFormFieldSSLMode),
-		Label:        config.PostgresFormFieldSSLMode,
+		Key:          strings.ToLower(postgresFormFieldSSLMode),
+		Label:        postgresFormFieldSSLMode,
 		Kind:         SelectFieldKind,
 		DefaultValue: config.PostgresSSLModePrefer,
 		Options:      SSLModesOrder,
@@ -97,22 +103,22 @@ var PostgresFormFields = []FormField{
 	},
 	// Meta information (optinal)
 	{
-		Key:          strings.ToLower(config.PostgresFormFieldName),
-		Label:        config.PostgresFormFieldName,
+		Key:          strings.ToLower(postgresFormFieldName),
+		Label:        postgresFormFieldName,
 		Example:      postgresExampleName,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidatePostgresName,
 	},
 	{
-		Key:          strings.ToLower(config.PostgresFormFieldDescription),
-		Label:        config.PostgresFormFieldDescription,
+		Key:          strings.ToLower(postgresFormFieldDescription),
+		Label:        postgresFormFieldDescription,
 		Example:      postgresExampleDescription,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidatePostgresDescription,
 	},
 	{
-		Key:      strings.ToLower(config.PostgresFormFieldTags),
-		Label:    config.PostgresFormFieldTags,
+		Key:      strings.ToLower(postgresFormFieldTags),
+		Label:    postgresFormFieldTags,
 		Example:  postgresExampleTags,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
@@ -133,22 +139,23 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 			Title: "connection",
 			Note:  "how conm reaches the server",
 			Fields: []FormFieldKey{
-				strings.ToLower(config.PostgresFormFieldHost),
-				strings.ToLower(config.PostgresFormFieldPort),
-				strings.ToLower(config.PostgresFormFieldUsername),
-				strings.ToLower(config.PostgresFormFieldPassword),
-				strings.ToLower(config.PostgresFormFieldDatabase),
-				strings.ToLower(config.PostgresFormFieldSchema),
-				strings.ToLower(config.PostgresFormFieldSSLMode),
+				strings.ToLower(postgresFormFieldHost),
+				strings.ToLower(postgresFormFieldPort),
+				strings.ToLower(postgresFormFieldUsername),
+				SecretProviderKey,
+				SecretValueKey,
+				strings.ToLower(postgresFormFieldDatabase),
+				strings.ToLower(postgresFormFieldSchema),
+				strings.ToLower(postgresFormFieldSSLMode),
 			},
 		},
 		{
 			Title: "metadata",
 			Note:  "yours — never sent to the server",
 			Fields: []FormFieldKey{
-				strings.ToLower(config.PostgresFormFieldName),
-				strings.ToLower(config.PostgresFormFieldDescription),
-				strings.ToLower(config.PostgresFormFieldTags),
+				strings.ToLower(postgresFormFieldName),
+				strings.ToLower(postgresFormFieldDescription),
+				strings.ToLower(postgresFormFieldTags),
 			},
 		},
 	},
@@ -157,22 +164,24 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 		if !ok {
 			return nil
 		}
+		mode, value := SplitSecret(pg.Password)
 		return map[FormFieldKey]FormFieldValue{
-			strings.ToLower(config.PostgresFormFieldHost):        pg.Hostname,
-			strings.ToLower(config.PostgresFormFieldPort):        strconv.Itoa(pg.PortNumber),
-			strings.ToLower(config.PostgresFormFieldUsername):    pg.User,
-			strings.ToLower(config.PostgresFormFieldPassword):    pg.Password,
-			strings.ToLower(config.PostgresFormFieldDatabase):    pg.DBName,
-			strings.ToLower(config.PostgresFormFieldSchema):      pg.SchemaName,
-			strings.ToLower(config.PostgresFormFieldSSLMode):     pg.SSLMode,
-			strings.ToLower(config.PostgresFormFieldName):        pg.Meta.Name,
-			strings.ToLower(config.PostgresFormFieldDescription): pg.Meta.Description,
-			strings.ToLower(config.PostgresFormFieldTags):        strings.Join(pg.Meta.Tags, ", "),
+			strings.ToLower(postgresFormFieldHost):        pg.Hostname,
+			strings.ToLower(postgresFormFieldPort):        strconv.Itoa(pg.PortNumber),
+			strings.ToLower(postgresFormFieldUsername):    pg.User,
+			SecretProviderKey:                             mode,
+			SecretValueKey:                                value,
+			strings.ToLower(postgresFormFieldDatabase):    pg.DBName,
+			strings.ToLower(postgresFormFieldSchema):      pg.SchemaName,
+			strings.ToLower(postgresFormFieldSSLMode):     pg.SSLMode,
+			strings.ToLower(postgresFormFieldName):        pg.Meta.Name,
+			strings.ToLower(postgresFormFieldDescription): pg.Meta.Description,
+			strings.ToLower(postgresFormFieldTags):        strings.Join(pg.Meta.Tags, ", "),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
 		port := 5432 // default port
-		if rawPort, ok := values[strings.ToLower(config.PostgresFormFieldPort)]; ok && rawPort != "" {
+		if rawPort, ok := values[strings.ToLower(postgresFormFieldPort)]; ok && rawPort != "" {
 			p, err := strconv.Atoi(rawPort)
 			if err != nil {
 				return nil, fmt.Errorf("invalid port value: %v", err)
@@ -182,17 +191,20 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 
 		return config.Postgres{
 			Meta: config.ConnMeta{
-				Name:        values[strings.ToLower(config.PostgresFormFieldName)],
-				Description: values[strings.ToLower(config.PostgresFormFieldDescription)],
-				Tags:        parseTags(values[strings.ToLower(config.PostgresFormFieldTags)]),
+				Name:        values[strings.ToLower(postgresFormFieldName)],
+				Description: values[strings.ToLower(postgresFormFieldDescription)],
+				Tags:        parseTags(values[strings.ToLower(postgresFormFieldTags)]),
 			},
-			Hostname:   values[strings.ToLower(config.PostgresFormFieldHost)],
+			Hostname:   values[strings.ToLower(postgresFormFieldHost)],
 			PortNumber: port,
-			User:       values[strings.ToLower(config.PostgresFormFieldUsername)],
-			Password:   values[strings.ToLower(config.PostgresFormFieldPassword)],
-			DBName:     values[strings.ToLower(config.PostgresFormFieldDatabase)],
-			SchemaName: values[strings.ToLower(config.PostgresFormFieldSchema)],
-			SSLMode:    values[strings.ToLower(config.PostgresFormFieldSSLMode)],
+			User:       values[strings.ToLower(postgresFormFieldUsername)],
+			Password: JoinSecret(
+				values[SecretProviderKey],
+				values[SecretValueKey],
+			),
+			DBName:     values[strings.ToLower(postgresFormFieldDatabase)],
+			SchemaName: values[strings.ToLower(postgresFormFieldSchema)],
+			SSLMode:    values[strings.ToLower(postgresFormFieldSSLMode)],
 		}, nil
 	},
 }

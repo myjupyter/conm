@@ -25,22 +25,6 @@ type Secrets interface {
 	Close() error
 }
 
-// SecretRepository owns both halves of a secret: the record — a reference plus
-// metadata, persisted as TOML — and the material it points at, held by the
-// provider. A password only ever crosses this API as an argument; it is never
-// part of a config.Secret and never stored on the repository.
-//
-// Every operation touches the provider first and the file second. A record
-// that outlives its material is visible and can be fixed; material without a
-// record is invisible, and is reclaimed by Add adopting it.
-//
-// Nothing here is specific to a provider: one repository serves one scheme,
-// whichever it is, and the provider is the only thing that knows where the
-// material actually lives.
-//
-// TODO: type the material errors (material already exists at ref / no material
-// found at ref) so callers can tell them apart from a failed add: both are
-// returned after the record is saved, not instead of saving it.
 type SecretRepository struct {
 	mx       sync.RWMutex
 	file     config.File[config.Secret]
@@ -48,9 +32,6 @@ type SecretRepository struct {
 	usage    UsageLookup
 }
 
-// newSecretRepository binds a file to the provider that backs it. The scheme
-// is taken from the provider rather than passed alongside it, so a repository
-// cannot be built that stores one scheme and resolves another.
 func newSecretRepository(p secret.Provider, file config.File[config.Secret], usage UsageLookup) (*SecretRepository, error) {
 	if p.Scheme() == "" {
 		return nil, fmt.Errorf("secret provider has no scheme of its own")
@@ -74,8 +55,6 @@ func (r *SecretRepository) Len() int {
 	return r.file.Len()
 }
 
-// Get returns the record only. The material behind it is write-only from here;
-// reading it is the resolver's job, on the connection path.
 func (r *SecretRepository) Get(i int) (config.Secret, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
@@ -83,13 +62,6 @@ func (r *SecretRepository) Get(i int) (config.Secret, bool) {
 	return r.at(i)
 }
 
-// Add registers s and, when password is not empty, writes it to the provider.
-//
-// An empty password means the material already lives in the backend and only
-// needs a record. If material is found where a password was given, the record
-// is still saved — so the entry becomes visible and manageable — but the
-// password is discarded rather than overwriting what is already there, and the
-// returned error says so.
 func (r *SecretRepository) Add(ctx context.Context, s config.Secret, password string) error {
 	ref, err := r.checkAdd(s)
 	if err != nil {
@@ -122,12 +94,6 @@ func (r *SecretRepository) Add(ctx context.Context, s config.Secret, password st
 	return nil
 }
 
-// Edit replaces the record at i and, when password is not empty, writes it to
-// the provider. Overwriting the material of an unchanged reference is the
-// point of the call, so it happens without complaint; a reference that moves
-// is treated like Add — pre-existing material at the new location is adopted,
-// not clobbered. The material at the old location is left alone: nothing
-// points at it anymore, but the user did not ask for it to be deleted.
 func (r *SecretRepository) Edit(ctx context.Context, i int, s config.Secret, password string) error {
 	old, ref, err := r.checkEdit(i, s)
 	if err != nil {
@@ -159,8 +125,6 @@ func (r *SecretRepository) Edit(ctx context.Context, i int, s config.Secret, pas
 	return nil
 }
 
-// Remove drops the material first and the record second, so a failure in
-// between leaves a record the user can see and retry on.
 func (r *SecretRepository) Remove(ctx context.Context, i int) error {
 	old, ref, err := r.checkRemove(i)
 	if err != nil {
@@ -212,19 +176,12 @@ func (r *SecretRepository) UsagesAt(i int) []Usage {
 	return r.usages(makeSecRef(s))
 }
 
-// hasMaterial reports whether the provider already holds a password at ref.
-//
-// TODO: a failed Resolve reads as "nothing there", which also swallows a
-// backend that is merely unreachable or locked. Providers have no shared way
-// to say "absent" yet; give secret a not-found sentinel and split the two.
 func (r *SecretRepository) hasMaterial(ctx context.Context, ref secretRef) bool {
 	_, err := r.provider.Resolve(ctx, ref)
 
 	return err == nil
 }
 
-// checkAdd validates s and returns its reference. It holds the read lock only:
-// the provider call that follows must not run under the write lock.
 func (r *SecretRepository) checkAdd(s config.Secret) (secretRef, error) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
@@ -294,9 +251,6 @@ func (r *SecretRepository) checkRemove(i int) (config.Secret, secretRef, error) 
 
 	return old, ref, nil
 }
-
-// The commit half of each operation re-reads what the check half saw: the lock
-// was dropped for the provider call, so the list may have moved underneath.
 
 func (r *SecretRepository) commitAdd(s config.Secret, ref secretRef) error {
 	r.mx.Lock()
@@ -373,8 +327,6 @@ func (r *SecretRepository) indexOf(key secretRef) (int, bool) {
 	return 0, false
 }
 
-// secretRef adapts a record to secret.Reference: what the config model holds is
-// the pointer to the material, never the material itself.
 type secretRef string
 
 func (r secretRef) SecretRef() string { return string(r) }

@@ -127,7 +127,7 @@ func runPostgresInit(cfg *InitPostgresScreenConfig) error {
 
 			connCfgs = pgPassCreds
 		case importSelectAdd:
-			conf, added, err := runAddForm(config.PostgresConnType)
+			conf, added, err := runAddForm(config.PostgresConnType, nil)
 			if err != nil {
 				return err
 			}

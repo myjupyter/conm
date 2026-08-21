@@ -5,11 +5,11 @@ import (
 	"os/exec"
 )
 
-type ConnType int
-
-const (
-	PostgresConnType ConnType = iota + 1
-)
+type CLIInfo struct {
+	Name   string
+	Path   string
+	Exists bool
+}
 
 var (
 	PGClients = []string{
@@ -66,13 +66,4 @@ func FindCLI(clies []CLIInfo, name string) (CLIInfo, bool) {
 		}
 	}
 	return CLIInfo{}, false
-}
-
-func (t ConnType) String() string {
-	switch t {
-	case PostgresConnType:
-		return "postgres"
-	default:
-		return "unknown"
-	}
 }

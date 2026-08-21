@@ -55,24 +55,7 @@ func (m formModel) formTopLine() string {
 	if m.isEdit {
 		crumb = "edit connection"
 	}
-	left := []span{
-		{text: "─ ", fg: cBorder},
-		{text: "conm", fg: cFg, bold: true},
-		{text: " · " + crumb + " ", fg: cDim},
-	}
-	used := 0
-	for _, s := range left {
-		used += spanWidth(s)
-	}
-
-	var b strings.Builder
-	b.WriteString(border("┌"))
-	for _, s := range left {
-		b.WriteString(s.render())
-	}
-	b.WriteString(border(strings.Repeat("─", max(formInner-used, 0))))
-	b.WriteString(border("┐"))
-	return b.String()
+	return topLineW(formInner, crumb, "")
 }
 
 func (m formModel) badgeLine() string {
@@ -218,6 +201,16 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 func (m formModel) display(i int, active bool) (string, bool) {
 	f := m.spec.Fields[i]
 	raw := m.vals[f.Key]
+
+	// A reference is a name, not a password: it is shown as typed, never
+	// masked, because hiding which entry is attached helps nobody.
+	if m.isSecretField(i) && m.isRef() {
+		if raw == "" {
+			return "no entry — ←/→ to pick", true
+		}
+		return raw, false
+	}
+
 	if raw != "" {
 		if f.Kind == spec.HiddenFieldKind && !m.reveal {
 			return strings.Repeat("•", len([]rune(raw))), false
@@ -245,6 +238,8 @@ func (m formModel) gutter(i int, active bool) (string, color.Color) {
 	switch {
 	case m.attempted && m.fieldError(i) != "":
 		g, c = "✗", cRed
+	case m.isSecretField(i) && m.isRef() && raw == "":
+		g, c = "○", cFaint
 	case raw != "" || f.Kind == spec.SelectFieldKind || f.DefaultValue != "":
 		g, c = "●", cAccent
 	default:
@@ -298,7 +293,10 @@ func (m formModel) formBinds() []struct{ key, label string } {
 	binds := []struct{ key, label string }{
 		{"↑↓/jk", "move"}, {"tab", "section"}, {"←/→", "select"}, {"e", "edit"},
 	}
-	if m.spec.Fields[m.currentField()].Kind == spec.HiddenFieldKind {
+	switch cur := m.currentField(); {
+	case m.isProviderField(cur) && m.isRef():
+		binds = append(binds, struct{ key, label string }{"s", m.storeLabel()})
+	case m.spec.Fields[cur].Kind == spec.HiddenFieldKind && !m.isRef():
 		label := "show"
 		if m.reveal {
 			label = "hide"

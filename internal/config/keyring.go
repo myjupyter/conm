@@ -14,13 +14,6 @@ const (
 	secretDescriptionMaxLength = 255
 )
 
-type KeyringFormField = string
-
-const (
-	KeyringFormFieldLocation    KeyringFormField = "location"
-	KeyringFormFieldDescription KeyringFormField = "description"
-)
-
 type Keyring struct {
 	SecretID    string `toml:"id"`
 	ProviderID  string `toml:"provider"`

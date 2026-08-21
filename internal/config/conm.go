@@ -13,11 +13,11 @@ type ConnMeta struct {
 	Tags        []string `toml:"tags,omitempty"`
 }
 
-type CLIInfo struct {
-	Name   string
-	Path   string
-	Exists bool
-}
+type ConnType int
+
+const (
+	PostgresConnType ConnType = iota + 1
+)
 
 type ConmPostgresSection struct {
 	CLI string `toml:"cli"`
@@ -33,6 +33,15 @@ func (c *Conm) SetCLI(t ConnType, cli string) {
 		c.Postgres = ConmPostgresSection{
 			CLI: cli,
 		}
+	}
+}
+
+func (t ConnType) String() string {
+	switch t {
+	case PostgresConnType:
+		return "postgres"
+	default:
+		return "unknown"
 	}
 }
 

@@ -60,7 +60,7 @@ var (
 var keybinds = []struct{ key, label string }{
 	{"↑/k", "up"}, {"↓/j", "down"}, {"enter", "connect"},
 	{"a", "add"}, {"e", "edit"}, {"d", "del"},
-	{"p", "ping"}, {"q/esc", "quit"},
+	{"p", "ping"}, {"s", "keyring"}, {"q/esc", "quit"},
 }
 
 type span struct {
@@ -171,25 +171,29 @@ func ruleW(w int, left, right string) string {
 }
 
 func (m Model) topLine(n int) string {
+	return topLineW(inner, "connections", fmt.Sprintf(" %d %s ─", n, plural(n, "connection", "connections")))
+}
+
+// topLineW draws the top border with the app name, the screen's breadcrumb on
+// the left and an optional summary pushed against the right corner.
+func topLineW(w int, crumb, right string) string {
 	left := []span{
 		{text: "─ ", fg: cBorder},
 		{text: "conm", fg: cFg, bold: true},
-		{text: " · connections ", fg: cDim},
+		{text: " · " + crumb + " ", fg: cDim},
 	}
-	right := fmt.Sprintf(" %d %s ─", n, plural(n, "connection", "connections"))
 
 	used := len([]rune(right))
 	for _, s := range left {
 		used += spanWidth(s)
 	}
-	fill := max(inner-used, 0)
 
 	var b strings.Builder
 	b.WriteString(border("┌"))
 	for _, s := range left {
 		b.WriteString(s.render())
 	}
-	b.WriteString(border(strings.Repeat("─", fill)))
+	b.WriteString(border(strings.Repeat("─", max(w-used, 0))))
 	b.WriteString((span{text: right, fg: cDim}).render())
 	b.WriteString(border("┐"))
 	return b.String()

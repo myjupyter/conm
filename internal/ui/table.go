@@ -13,8 +13,9 @@ import (
 )
 
 type Model struct {
-	reg    registry.Connections
-	states []ConnState
+	reg     registry.Connections
+	secrets registry.Secrets
+	states  []ConnState
 
 	cursor     int
 	confirming bool
@@ -85,13 +86,14 @@ func newConnState() ConnState {
 	}
 }
 
-func New(reg registry.Connections) Model {
+func New(reg registry.Connections, secrets registry.Secrets) Model {
 	states := make([]ConnState, reg.Len())
 	for i := range states {
 		states[i] = newConnState()
 	}
 	return Model{
 		reg:        reg,
+		secrets:    secrets,
 		states:     states,
 		status:     fmt.Sprintf("ready · %d %s", reg.Len(), plural(reg.Len(), "connection", "connections")),
 		statusKind: kindIdle,
@@ -168,6 +170,8 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		if m.reg.Len() > 0 {
 			return m.pingOne(m.cursor)
 		}
+	case "s":
+		return m, m.secretsCmd()
 	}
 	return m, nil
 }

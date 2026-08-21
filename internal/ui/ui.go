@@ -13,6 +13,6 @@ func Run(cfg config.Conm) error {
 	}
 	defer ws.Close()
 
-	_, err = tea.NewProgram(New(ws.Postgres)).Run()
+	_, err = tea.NewProgram(New(ws.Postgres, ws.Keyring)).Run()
 	return err
 }

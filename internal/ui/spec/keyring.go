@@ -1,62 +1,101 @@
 package spec
 
 import (
-	"strings"
-
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
-// KeyringFormFields is the order in which the fields are displayed
+const (
+	keyringExampleID          = "prod-orders-rw"
+	keyringExampleLocation    = "conm/prod-orders-rw"
+	keyringExamplePassword    = "hunter2hunter2"
+	keyringExampleDescription = "Order write path credentials"
+)
+
+type keyringFormField = string
+
+const (
+	keyringFormFieldID          keyringFormField = "id"
+	keyringFormFieldLocation    keyringFormField = "location"
+	keyringFormFieldPassword    keyringFormField = "password"
+	keyringFormFieldDescription keyringFormField = "description"
+)
+
+// KeyringIDKey and KeyringPasswordKey name the two fields the keyring screens
+// read back off the form: the entry's id, and the password typed for it.
+const (
+	KeyringIDKey       FormFieldKey = keyringFormFieldID
+	KeyringPasswordKey FormFieldKey = keyringFormFieldPassword
+)
+
 var KeyringFormFields = []FormField{
-	// Secret information
 	{
-		Key:          strings.ToLower(config.KeyringFormFieldLocation),
-		Label:        config.KeyringFormFieldLocation,
-		Kind:         TextFieldKind,
-		Example:      "/path/to/keyring/secret",
-		DefaultValue: "",
+		Key:          keyringFormFieldID,
+		Label:        keyringFormFieldID,
+		Example:      keyringExampleID,
+		ValidateFunc: config.ValidateSecretID,
+	},
+	{
+		Key:          keyringFormFieldLocation,
+		Label:        keyringFormFieldLocation,
+		Example:      keyringExampleLocation,
 		ValidateFunc: config.ValidateSecretLocation,
 	},
 	{
-		Key:          strings.ToLower(config.KeyringFormFieldDescription),
-		Label:        config.KeyringFormFieldDescription,
-		Kind:         TextFieldKind,
-		Example:      "",
-		DefaultValue: "",
+		Key:      keyringFormFieldPassword,
+		Label:    keyringFormFieldPassword,
+		Kind:     HiddenFieldKind,
+		Example:  keyringExamplePassword,
+		Property: OptionalFieldProperty,
+		ValidateFunc: func(string) error {
+			return nil // empty keeps whatever the keyring already holds
+		},
+	},
+	{
+		Key:          keyringFormFieldDescription,
+		Label:        keyringFormFieldDescription,
+		Example:      keyringExampleDescription,
+		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateSecretDescription,
 	},
 }
 
-var KeyringFormSpec = FormSpec[config.Keyring]{
-	AddTitle:  "Add a new Postgres connection",
-	EditTitle: "Edit a Postgres connection",
-	Fields:    PostgresFormFields,
+// KeyringFormSpec drives both the add and the edit keyring form. It is a single
+// section: an entry is four fields, too few to be worth splitting into tabs.
+var KeyringFormSpec = FormSpec[config.Secret]{
+	AddTitle:  "new entry",
+	EditTitle: "editing an entry",
+	Fields:    KeyringFormFields,
 	Sections: []FormSection{
 		{
 			Title: "secret",
-			Note:  "secret location",
+			Note:  "where the password lives · conm never writes it to disk",
 			Fields: []FormFieldKey{
-				strings.ToLower(config.KeyringFormFieldLocation),
-			},
-		},
-		{
-			Title: "metadata",
-			Note:  "secret metadata",
-			Fields: []FormFieldKey{
-				strings.ToLower(config.KeyringFormFieldDescription),
+				keyringFormFieldID,
+				keyringFormFieldLocation,
+				keyringFormFieldPassword,
+				keyringFormFieldDescription,
 			},
 		},
 	},
-	SeedFunc: func(k config.Keyring) map[FormFieldKey]FormFieldValue {
+	SeedFunc: func(s config.Secret) map[FormFieldKey]FormFieldValue {
+		k, ok := s.(config.Keyring)
+		if !ok {
+			return nil
+		}
 		return map[FormFieldKey]FormFieldValue{
-			strings.ToLower(config.KeyringFormFieldLocation):    k.Location(),
-			strings.ToLower(config.KeyringFormFieldDescription): k.Description(),
+			keyringFormFieldID:          k.SecretID,
+			keyringFormFieldLocation:    k.LocationRef,
+			keyringFormFieldPassword:    "",
+			keyringFormFieldDescription: k.Desc,
 		}
 	},
-	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Keyring, error) {
+	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Secret, error) {
 		return config.Keyring{
-			LocationRef: values[strings.ToLower(config.KeyringFormFieldLocation)],
-			Desc:        values[strings.ToLower(config.KeyringFormFieldDescription)],
+			SecretID:    values[keyringFormFieldID],
+			ProviderID:  secret.Keyring,
+			LocationRef: values[keyringFormFieldLocation],
+			Desc:        values[keyringFormFieldDescription],
 		}, nil
 	},
 }

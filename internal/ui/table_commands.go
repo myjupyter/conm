@@ -31,7 +31,7 @@ func (m Model) runCmd(i int) tea.Cmd {
 
 func (m Model) addCmd() tea.Cmd {
 	return changeExec(func() error {
-		conn, ok, err := runAddForm(m.reg.Kind())
+		conn, ok, err := runAddForm(m.reg.Kind(), m.secrets)
 		if err != nil || !ok {
 			return err
 		}
@@ -40,17 +40,30 @@ func (m Model) addCmd() tea.Cmd {
 }
 
 func (m Model) editCmd(i int) tea.Cmd {
-	cfg, ok := m.reg.ConnectionAt(i)
+	// ConfigAt, not ConnectionAt: the form seeds from the stored config value,
+	// and a live network.Connection satisfies config.Connection without being
+	// the concrete type the spec's SeedFunc asserts on.
+	cfg, ok := m.reg.ConfigAt(i)
 	if !ok {
 		return nil
 	}
 	return changeExec(func() error {
-		conn, ok, err := RunEditForm(m.reg.Kind(), cfg)
+		conn, ok, err := RunEditForm(m.reg.Kind(), cfg, m.secrets)
 		if err != nil || !ok {
 			return err
 		}
 		return m.reg.Edit(i, conn)
 	})
+}
+
+// secretsCmd hands the terminal to the secrets screen and comes back with the
+// connection list resynced: a secret that moved changes nothing on this side,
+// but an entry added while over there may now be referenced from a form.
+func (m Model) secretsCmd() tea.Cmd {
+	if m.secrets == nil {
+		return nil
+	}
+	return changeExec(func() error { return runSecretTable(m.secrets) })
 }
 
 func (m Model) removeCmd(i int) tea.Cmd {

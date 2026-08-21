@@ -11,34 +11,36 @@ import (
 )
 
 func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
-	conn, ok, err := runAddForm(t)
+	// The workspace, not just the connection repository: the form offers the
+	// secret stores as password modes, so it needs them open too.
+	ws, err := repository.NewWorkspace(cfg)
+	if err != nil {
+		return false, err
+	}
+	defer ws.Close()
+
+	conn, ok, err := runAddForm(t, ws.Keyring)
 	if err != nil || !ok {
 		return false, err
 	}
 
-	reg, err := repository.NewPostgresRepository(cfg)
-	if err != nil {
-		return false, err
-	}
-	defer reg.Close()
-
-	if err := reg.Add(conn); err != nil {
+	if err := ws.Postgres.Add(conn); err != nil {
 		return false, err
 	}
 
 	return true, nil
 }
 
-func runAddForm(t config.ConnType) (config.Connection, bool, error) {
+func runAddForm(t config.ConnType, secrets repository.Secrets) (config.Connection, bool, error) {
 	formSpec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
 	}
 
-	return runForm(newFormModel(formSpec, formSpec.AddTitle, nil))
+	return runForm(newFormModel(formSpec, formSpec.AddTitle, nil, secrets))
 }
 
-func RunEditForm(t config.ConnType, existing config.Connection) (config.Connection, bool, error) {
+func RunEditForm(t config.ConnType, existing config.Connection, secrets repository.Secrets) (config.Connection, bool, error) {
 	formSpec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("edit form is not implemented for connection type %q", t)
@@ -47,7 +49,35 @@ func RunEditForm(t config.ConnType, existing config.Connection) (config.Connecti
 		return nil, false, fmt.Errorf("edit form is not seedable for connection type %q", t)
 	}
 
-	return runForm(newFormModel(formSpec, formSpec.EditTitle, formSpec.SeedFunc(existing)))
+	// A nil seed would make newFormModel read the form as an add — silently
+	// showing "new connection" instead of the entry the user picked.
+	initial := formSpec.SeedFunc(existing)
+	if initial == nil {
+		return nil, false, fmt.Errorf("edit form cannot seed a %T as connection type %q", existing, t)
+	}
+
+	return runForm(newFormModel(formSpec, formSpec.EditTitle, initial, secrets))
+}
+
+// pickSecretCmd hands the terminal to the keyring screen and folds the chosen
+// location back into the field.
+func (m formModel) pickSecretCmd() tea.Cmd {
+	if m.secrets == nil {
+		return nil
+	}
+
+	var picked string
+	var ok bool
+	current := m.vals[spec.SecretValueKey]
+
+	return tea.Exec(
+		runExec{run: func() error {
+			var err error
+			picked, ok, err = runSecretPicker(m.secrets, current)
+			return err
+		}},
+		func(err error) tea.Msg { return secretPickedMsg{ref: picked, ok: ok, err: err} },
+	)
 }
 
 func runForm(model formModel) (config.Connection, bool, error) {

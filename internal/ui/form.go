@@ -11,6 +11,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
+	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/secret"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
@@ -20,6 +21,17 @@ type formModel struct {
 	title    string
 	isEdit   bool
 	sections []spec.FormSection
+
+	// secrets backs the store modes of the secret field. It is nil on the
+	// setup path, where no repository exists yet — there the form is
+	// literal-only.
+	secrets repository.Secrets
+
+	// The value field is shared by both modes, so each mode's value is kept
+	// aside while the other is showing: cycling through the modes must not
+	// throw away a password that was already typed.
+	literalStash string
+	refStash     string
 
 	vals map[string]string
 
@@ -44,12 +56,20 @@ type formPingMsg struct {
 	err    error
 }
 
-func newFormModel(spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue) formModel {
+// secretPickedMsg carries a location back from the keyring screen.
+type secretPickedMsg struct {
+	ref string
+	ok  bool
+	err error
+}
+
+func newFormModel(spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue, secrets repository.Secrets) formModel {
 	m := formModel{
 		spec:       spc,
 		title:      title,
 		isEdit:     initial != nil,
 		sections:   spc.Sections,
+		secrets:    secrets,
 		vals:       make(map[string]string, len(spc.Fields)),
 		status:     "ready",
 		statusKind: kindIdle,
@@ -91,8 +111,135 @@ func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.navKey(msg)
 	case formPingMsg:
 		return m.applyPing(msg), nil
+	case secretPickedMsg:
+		return m.applyPicked(msg), nil
 	}
 	return m, nil
+}
+
+// isRef reports whether the password field currently points at a secret store
+// rather than holding the password itself.
+func (m formModel) isRef() bool {
+	mode := m.vals[spec.SecretProviderKey]
+	return mode != "" && mode != secret.Literal
+}
+
+// isSecretField reports whether field i is the one the secret mode governs.
+func (m formModel) isSecretField(i int) bool {
+	return m.spec.Fields[i].Key == spec.SecretValueKey && m.hasSecretMode()
+}
+
+// isProviderField reports whether field i is the secret mode selector.
+func (m formModel) isProviderField(i int) bool {
+	return m.spec.Fields[i].Key == spec.SecretProviderKey
+}
+
+func (m formModel) hasSecretMode() bool {
+	for _, f := range m.spec.Fields {
+		if f.Key == spec.SecretProviderKey {
+			return true
+		}
+	}
+	return false
+}
+
+func (m formModel) storeLabel() string {
+	if mode := m.vals[spec.SecretProviderKey]; mode != "" {
+		return mode
+	}
+	return secret.Literal
+}
+
+// refEntries lists the locations selectable in the current store. A repository
+// serving a different scheme contributes nothing: the mode names the store, and
+// only that store's entries can satisfy it.
+func (m formModel) refEntries() []string {
+	if m.secrets == nil || m.secrets.Kind() != m.vals[spec.SecretProviderKey] {
+		return nil
+	}
+	out := make([]string, 0, m.secrets.Len())
+	for i := range m.secrets.Len() {
+		if s, ok := m.secrets.Get(i); ok {
+			out = append(out, s.Location())
+		}
+	}
+	return out
+}
+
+// cycleRef steps through the store's entries in place of the character input
+// the field would otherwise take.
+func (m *formModel) cycleRef(dir int) {
+	list := m.refEntries()
+	if len(list) == 0 {
+		m.setStatus(m.storeLabel()+" is empty · s on provider to add an entry", kindWarn)
+		return
+	}
+
+	at := -1
+	for j, loc := range list {
+		if loc == m.vals[spec.SecretValueKey] {
+			at = j
+			break
+		}
+	}
+	if at < 0 {
+		at = -1
+		if dir < 0 {
+			at = 0
+		}
+	}
+
+	next := list[(at+dir+len(list))%len(list)]
+	m.vals[spec.SecretValueKey] = next
+	m.setStatus(next+" · "+m.storeLabel()+" entry", kindIdle)
+}
+
+// onSecretModeChange keeps the value field consistent with the mode it just
+// moved to: a literal password and a store location are not interchangeable,
+// so each is parked in its own stash while the other is on screen.
+func (m *formModel) onSecretModeChange(was string) {
+	if was == "" || was == secret.Literal {
+		m.literalStash = m.vals[spec.SecretValueKey]
+	} else {
+		m.refStash = m.vals[spec.SecretValueKey]
+	}
+
+	if !m.isRef() {
+		m.vals[spec.SecretValueKey] = m.literalStash
+		m.setStatus("literal · password stored as plain text", kindWarn)
+		return
+	}
+
+	m.vals[spec.SecretValueKey] = m.refStash
+
+	list := m.refEntries()
+	found := false
+	for _, loc := range list {
+		if loc == m.vals[spec.SecretValueKey] {
+			found = true
+			break
+		}
+	}
+	if !found {
+		m.vals[spec.SecretValueKey] = ""
+		if len(list) > 0 {
+			m.vals[spec.SecretValueKey] = list[0]
+		}
+	}
+	m.setStatus(m.storeLabel()+" · pick an entry with ←/→, or s on provider to manage", kindIdle)
+}
+
+func (m formModel) applyPicked(msg secretPickedMsg) formModel {
+	switch {
+	case msg.err != nil:
+		m.setStatus(msg.err.Error(), kindErr)
+	case msg.ok:
+		m.vals[spec.SecretValueKey] = msg.ref
+		m.setStatus("attached "+msg.ref+" from "+m.storeLabel(), kindOK)
+	default:
+		m.setStatus("nothing picked", kindIdle)
+	}
+	return m
 }
 
 func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -112,29 +259,54 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "down", "j":
 		m.idx = (m.idx + 1) % n
-	case "up", "k":
+	case "up":
 		m.idx = (m.idx - 1 + n) % n
 	case "tab":
 		m.switchSection(1)
 	case "shift+tab":
 		m.switchSection(-1)
 	case "right", "l":
-		if cur.Kind == spec.SelectFieldKind {
+		switch {
+		case m.isSecretField(fields[m.idx]) && m.isRef():
+			m.cycleRef(1)
+		case cur.Kind == spec.SelectFieldKind:
+			was := m.vals[spec.SecretProviderKey]
 			m.cycle(fields[m.idx], 1)
+			if cur.Key == spec.SecretProviderKey {
+				m.onSecretModeChange(was)
+			}
 		}
 	case "left", "h":
-		if cur.Kind == spec.SelectFieldKind {
+		switch {
+		case m.isSecretField(fields[m.idx]) && m.isRef():
+			m.cycleRef(-1)
+		case cur.Kind == spec.SelectFieldKind:
+			was := m.vals[spec.SecretProviderKey]
 			m.cycle(fields[m.idx], -1)
+			if cur.Key == spec.SecretProviderKey {
+				m.onSecretModeChange(was)
+			}
 		}
+	case "k":
+		m.idx = (m.idx - 1 + n) % n
 	case "e":
-		if cur.Kind == spec.SelectFieldKind {
+		switch {
+		case m.isSecretField(fields[m.idx]) && m.isRef():
+			m.setStatus(m.storeLabel()+" entries are picked, not typed · use ←/→", kindWarn)
+		case cur.Kind == spec.SelectFieldKind:
 			m.setStatus(strings.ToLower(cur.Label)+" is a list · use ←/→", kindWarn)
-		} else {
+		default:
 			m.insert = true
 			m.setStatus("editing "+strings.ToLower(cur.Label)+" · esc when done", kindIdle)
 		}
 	case "s":
-		if cur.Kind == spec.HiddenFieldKind {
+		// On the provider field, s opens the store itself: an entry can be
+		// added there and picked, and the form resumes where it left off.
+		// On a literal password field s is the reveal toggle.
+		switch {
+		case m.isProviderField(fields[m.idx]) && m.isRef():
+			return m, m.pickSecretCmd()
+		case cur.Kind == spec.HiddenFieldKind && !m.isRef():
 			m.reveal = !m.reveal
 			if m.reveal {
 				m.setStatus("password visible · s to hide", kindIdle)
@@ -236,6 +408,13 @@ func (m formModel) currentField() int {
 
 func (m formModel) fieldError(i int) string {
 	f := m.spec.Fields[i]
+
+	// In a store mode the field holds a location, so it is checked against the
+	// entries that exist rather than against the password validator.
+	if m.isSecretField(i) && m.isRef() {
+		return m.refError()
+	}
+
 	v := m.vals[f.Key]
 	if f.Kind != spec.HiddenFieldKind {
 		v = strings.TrimSpace(v)
@@ -250,6 +429,24 @@ func (m formModel) fieldError(i int) string {
 		}
 	}
 	return ""
+}
+
+// refError validates the picked location: an empty one is not a blank password
+// but an unfinished choice, and a stale one would resolve to nothing at connect
+// time.
+func (m formModel) refError() string {
+	ref := strings.TrimSpace(m.vals[spec.SecretValueKey])
+	store := m.storeLabel()
+
+	if ref == "" {
+		return "pick a " + store + " entry — ←/→ or k"
+	}
+	for _, loc := range m.refEntries() {
+		if loc == ref {
+			return ""
+		}
+	}
+	return ref + " is not in " + store
 }
 
 func (m formModel) sectionErrCount(si int) int {
@@ -354,7 +551,9 @@ func (m formModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
 	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.spec.Fields))
 	for _, f := range m.spec.Fields {
 		v := m.vals[f.Key]
-		if f.Kind != spec.HiddenFieldKind {
+		// A location is trimmed like any other field; only a literal password
+		// keeps its surrounding whitespace.
+		if f.Kind != spec.HiddenFieldKind || m.isRef() {
 			v = strings.TrimSpace(v)
 		}
 		out[f.Key] = v
