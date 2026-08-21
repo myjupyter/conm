@@ -31,7 +31,11 @@ func (m secretFormModel) render() string {
 		frameRule(formInner, gTeeL, gTeeR),
 		m.secretFormStatusLine(),
 	)
-	lines = append(lines, frameKeybar(formInner, m.secretFormBinds())...)
+	if m.insert {
+		lines = append(lines, keyhintBar(formInner, m.keyhints())...)
+	} else {
+		lines = append(lines, keyhintLines(formInner, m.keyhints(), m.help)...)
+	}
 	lines = append(lines, frameBottom(formInner))
 	return strings.Join(lines, "\n")
 }
@@ -175,27 +179,4 @@ func (m secretFormModel) secretMessageRow(i int) string {
 func (m secretFormModel) secretFormStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	return frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.spec.Fields)))
-}
-
-func (m secretFormModel) secretFormBinds() []keybind {
-	if m.insert {
-		return []keybind{
-			{"esc", "done"}, {"enter", "next field"},
-		}
-	}
-
-	binds := []keybind{
-		{"↑↓/jk", "move"}, {"e", "edit"},
-	}
-	if m.spec.Fields[m.idx].Kind == spec.HiddenFieldKind {
-		label := "show"
-		if m.reveal {
-			label = "hide"
-		}
-		binds = append(binds, keybind{"s", label})
-	}
-	return append(binds,
-		keybind{"enter", "store"},
-		keybind{"esc", "cancel"},
-	)
 }

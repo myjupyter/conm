@@ -19,18 +19,6 @@ const (
 	wSecDesc = 22
 )
 
-func (m secretModel) secretBinds() []keybind {
-	use := "info"
-	if m.picking {
-		use = "use"
-	}
-	return []keybind{
-		{"↑/k", "up"}, {"↓/j", "down"}, {"enter", use},
-		{"n", "new"}, {"e", "edit"}, {"d", "del"},
-		{"esc", "back"},
-	}
-}
-
 func (m secretModel) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
@@ -50,7 +38,7 @@ func (m secretModel) render() string {
 
 	if n == 0 {
 		lines = append(lines, frameLine(secretInner, []span{
-			{text: truncPad("   keyring is empty · press n to add an entry", secretInner, false), fg: cFaint},
+			{text: truncPad("   keyring is empty · press a to add an entry", secretInner, false), fg: cFaint},
 		}, nil))
 	} else {
 		for i := range n {
@@ -62,7 +50,7 @@ func (m secretModel) render() string {
 		frameRule(secretInner, gTeeL, gTeeR),
 		m.secretStatusLine(n),
 	)
-	lines = append(lines, frameKeybar(secretInner, m.secretBinds())...)
+	lines = append(lines, keyhintLines(secretInner, m.keyhints(), m.help)...)
 	lines = append(lines, frameBottom(secretInner))
 	return strings.Join(lines, "\n")
 }

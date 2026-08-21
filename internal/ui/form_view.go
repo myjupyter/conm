@@ -46,7 +46,11 @@ func (m formModel) render() string {
 	}
 
 	lines = append(lines, frameRule(formInner, gTeeL, gTeeR), m.formStatusLine())
-	lines = append(lines, frameKeybar(formInner, m.formBinds())...)
+	if m.insert {
+		lines = append(lines, keyhintBar(formInner, m.keyhints())...)
+	} else {
+		lines = append(lines, keyhintLines(formInner, m.keyhints(), m.help)...)
+	}
 	lines = append(lines, frameBottom(formInner))
 	return strings.Join(lines, "\n")
 }
@@ -270,33 +274,6 @@ func (m formModel) pongLine() string {
 func (m formModel) formStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	return frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.sectionFields(m.section))))
-}
-
-func (m formModel) formBinds() []keybind {
-	if m.insert {
-		return []keybind{
-			{"esc", "done"}, {"enter", "next field"}, {"tab", "section"},
-		}
-	}
-
-	binds := []keybind{
-		{"↑↓/jk", "move"}, {"tab", "section"}, {"←/→", "select"}, {"e", "edit"},
-	}
-	switch cur := m.currentField(); {
-	case m.isProviderField(cur) && m.isRef():
-		binds = append(binds, keybind{"s", m.storeLabel()})
-	case m.spec.Fields[cur].Kind == spec.HiddenFieldKind && !m.isRef():
-		label := "show"
-		if m.reveal {
-			label = "hide"
-		}
-		binds = append(binds, keybind{"s", label})
-	}
-	return append(binds,
-		keybind{"enter", "submit"},
-		keybind{"p", "ping"},
-		keybind{"esc", "cancel"},
-	)
 }
 
 func caretColor(active bool) color.Color {

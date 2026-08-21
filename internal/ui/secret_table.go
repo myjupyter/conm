@@ -21,6 +21,7 @@ type secretModel struct {
 
 	cursor     int
 	confirming bool
+	help       bool // the key hints table, expanded over the key bar
 
 	status     string
 	statusKind statusKind
@@ -51,7 +52,7 @@ func newSecretPicker(repo repository.Secrets, current string) secretModel {
 		}
 	}
 	if repo.Len() == 0 {
-		m.setSecretStatus(fmt.Sprintf("%s is empty · press n to add an entry", repo.Kind()), kindWarn)
+		m.setSecretStatus(fmt.Sprintf("%s is empty · press a to add an entry", repo.Kind()), kindWarn)
 	} else {
 		m.setSecretStatus("pick an entry · enter to attach it", kindIdle)
 	}
@@ -103,7 +104,7 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.describe(), nil
-	case "n", "a":
+	case "a":
 		return m, m.addSecretCmd()
 	case "e":
 		if m.repo.Len() > 0 {
@@ -113,6 +114,9 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 		if m.repo.Len() > 0 {
 			m.confirming = true
 		}
+	case keyhintKey:
+		m.help = !m.help
+		m.setSecretStatus(keyhintStatus(m.help), kindIdle)
 	}
 	return m, nil
 }

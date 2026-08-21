@@ -19,6 +19,7 @@ type Model struct {
 
 	cursor     int
 	confirming bool
+	help       bool
 
 	status     string
 	statusKind statusKind
@@ -152,6 +153,9 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		}
 	case "s":
 		return m, m.secretsCmd()
+	case keyhintKey:
+		m.help = !m.help
+		m.status, m.statusKind = keyhintStatus(m.help), kindIdle
 	}
 	return m, nil
 }

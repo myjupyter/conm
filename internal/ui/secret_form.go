@@ -10,9 +10,6 @@ import (
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-// secretFormModel is the add/edit form for a single secret record. It mirrors
-// formModel, minus the parts a secret has no use for: there is nothing to ping,
-// and the four fields fit in one section, so there are no tabs to switch.
 type secretFormModel struct {
 	spec   spec.FormSpec[config.Secret]
 	title  string
@@ -23,6 +20,7 @@ type secretFormModel struct {
 	idx    int
 	insert bool
 	reveal bool
+	help   bool
 
 	attempted bool
 	submitted bool
@@ -107,6 +105,9 @@ func (m secretFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "enter":
 		return m.submit()
+	case keyhintKey:
+		m.help = !m.help
+		m.setStatus(keyhintStatus(m.help), kindIdle)
 	}
 	return m, nil
 }

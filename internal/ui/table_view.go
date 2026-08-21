@@ -25,12 +25,6 @@ const (
 	wPing = 9
 )
 
-var keybinds = []keybind{
-	{"↑/k", "up"}, {"↓/j", "down"}, {"enter", "connect"},
-	{"a", "add"}, {"e", "edit"}, {"d", "del"},
-	{"p", "ping"}, {"s", "keyring"}, {"q/esc", "quit"},
-}
-
 func (m Model) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
@@ -65,7 +59,7 @@ func (m Model) render() string {
 	}
 
 	lines = append(lines, frameRule(tableInner, gTeeL, gTeeR), m.statusLine(n))
-	lines = append(lines, frameKeybar(tableInner, keybinds)...)
+	lines = append(lines, keyhintLines(tableInner, m.keyhints(), m.help)...)
 	lines = append(lines, frameBottom(tableInner))
 	return strings.Join(lines, "\n")
 }

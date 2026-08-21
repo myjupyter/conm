@@ -39,6 +39,7 @@ type formModel struct {
 	idx     int
 	insert  bool
 	reveal  bool
+	help    bool // the key hints table, expanded over the key bar
 
 	attempted bool
 	submitted bool
@@ -132,6 +133,14 @@ func (m formModel) isSecretField(i int) bool {
 // isProviderField reports whether field i is the secret mode selector.
 func (m formModel) isProviderField(i int) bool {
 	return m.spec.Fields[i].Key == spec.SecretProviderKey
+}
+
+// isSelector reports whether field i is a list the cursor can cycle: a select
+// with options to cycle through. A select declared without options has nothing
+// to change, so ←/→ stays inert there rather than pretending to be a control.
+func (m formModel) isSelector(i int) bool {
+	f := m.spec.Fields[i]
+	return f.Kind == spec.SelectFieldKind && len(f.Options) > 0
 }
 
 func (m formModel) hasSecretMode() bool {
@@ -269,7 +278,7 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case m.isSecretField(fields[m.idx]) && m.isRef():
 			m.cycleRef(1)
-		case cur.Kind == spec.SelectFieldKind:
+		case m.isSelector(fields[m.idx]):
 			was := m.vals[spec.SecretProviderKey]
 			m.cycle(fields[m.idx], 1)
 			if cur.Key == spec.SecretProviderKey {
@@ -280,7 +289,7 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case m.isSecretField(fields[m.idx]) && m.isRef():
 			m.cycleRef(-1)
-		case cur.Kind == spec.SelectFieldKind:
+		case m.isSelector(fields[m.idx]):
 			was := m.vals[spec.SecretProviderKey]
 			m.cycle(fields[m.idx], -1)
 			if cur.Key == spec.SecretProviderKey {
@@ -293,8 +302,10 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case m.isSecretField(fields[m.idx]) && m.isRef():
 			m.setStatus(m.storeLabel()+" entries are picked, not typed · use ←/→", kindWarn)
-		case cur.Kind == spec.SelectFieldKind:
+		case m.isSelector(fields[m.idx]):
 			m.setStatus(strings.ToLower(cur.Label)+" is a list · use ←/→", kindWarn)
+		case cur.Kind == spec.SelectFieldKind:
+			m.setStatus(strings.ToLower(cur.Label)+" has no options to pick from", kindWarn)
 		default:
 			m.insert = true
 			m.setStatus("editing "+strings.ToLower(cur.Label)+" · esc when done", kindIdle)
@@ -322,6 +333,9 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "enter":
 		return m.submit()
+	case keyhintKey:
+		m.help = !m.help
+		m.setStatus(keyhintStatus(m.help), kindIdle)
 	}
 	return m, nil
 }
