@@ -33,6 +33,8 @@ func (c *Conm) SetCLI(t ConnType, cli string) {
 		c.Postgres = ConmPostgresSection{
 			CLI: cli,
 		}
+	default:
+		// No other connection type carries a CLI section yet.
 	}
 }
 
@@ -92,7 +94,7 @@ func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
 func CreateConmConfigPath() error {
 	dirs := []string{filepath.Dir(conmConfigPath), filepath.Dir(secretConfigPath)}
 	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0700); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return err
 		}
 	}
@@ -108,7 +110,7 @@ func CreateConm(conf Conm) error {
 		return err
 	}
 
-	return os.WriteFile(ConmPath(), raw, 0600)
+	return os.WriteFile(ConmPath(), raw, 0o600)
 }
 
 func ReadConm(filename string) (Conm, error) {
@@ -127,7 +129,7 @@ func ReadConm(filename string) (Conm, error) {
 	}
 
 	if t.Conm.Postgres.CLI == "" {
-		// TODO
+		// TODO: pick the default per connection type once more than postgres exists.
 		t.Conm.Postgres.CLI = "psql"
 	}
 

@@ -55,12 +55,12 @@ func trackable(raw string) bool {
 	return ok && scheme != secret.Literal
 }
 
-type ErrSecretInUse struct {
+type SecretInUseError struct {
 	ID string
 	By []Usage
 }
 
-func (e *ErrSecretInUse) Error() string {
+func (e *SecretInUseError) Error() string {
 	owners := make([]string, 0, len(e.By))
 	for _, u := range e.By {
 		owners = append(owners, u.String())

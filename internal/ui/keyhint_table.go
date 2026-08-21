@@ -17,6 +17,11 @@ const (
 	keyhintKey      = "?"
 	keyhintKeyLabel = "shift + ?"
 
+	// Group titles shared by every screen's keyhint table.
+	keyhintNavigation = "navigation"
+	keyhintAction     = "action"
+	keyhintScreen     = "screen"
+
 	keyhintRows   = 2
 	keyhintIndent = 2
 	keyhintGap    = 1
@@ -45,7 +50,7 @@ func keyhintStatus(open bool) string {
 	if open {
 		return "all keys for this screen · " + keyhintKeyLabel + " to close"
 	}
-	return "ready"
+	return statusReady
 }
 
 func keyhintTable(w int, groups []keyhintGroup) []string {
@@ -109,14 +114,14 @@ func flattenKeyhints(groups []keyhintGroup) []keybind {
 func (m Model) keyhints() []keyhintGroup {
 	return []keyhintGroup{
 		{
-			title: "navigation",
+			title: keyhintNavigation,
 			binds: []keybind{
 				{"↑/k", "up"},
 				{"↓/j", "down"},
 			},
 		},
 		{
-			title: "action",
+			title: keyhintAction,
 			binds: []keybind{
 				{"enter", "connect"},
 				{"p", "ping"},
@@ -126,7 +131,7 @@ func (m Model) keyhints() []keyhintGroup {
 			},
 		},
 		{
-			title: "screen",
+			title: keyhintScreen,
 			binds: []keybind{
 				{"s", "secrets"},
 				{"q/esc", "quit"},
@@ -176,9 +181,9 @@ func (m formModel) keyhints() []keyhintGroup {
 	)
 
 	return []keyhintGroup{
-		{title: "navigation", binds: nav},
-		{title: "action", binds: action},
-		{title: "screen", binds: []keybind{{"esc", "cancel"}}},
+		{title: keyhintNavigation, binds: nav},
+		{title: keyhintAction, binds: action},
+		{title: keyhintScreen, binds: []keybind{{"esc", "cancel"}}},
 	}
 }
 
@@ -188,17 +193,17 @@ func (m secretModel) keyhints() []keyhintGroup {
 		use, back = "attach to connection", "back to form"
 	}
 	return []keyhintGroup{
-		{title: "navigation", binds: []keybind{
+		{title: keyhintNavigation, binds: []keybind{
 			{"↑↓/jk", "move"},
 			{"tab/←→", "switch store"},
 		}},
-		{title: "action", binds: []keybind{
+		{title: keyhintAction, binds: []keybind{
 			{"enter", use},
 			{"a", "add new"},
 			{"e", "edit entry"},
 			{"d", "delete entry"},
 		}},
-		{title: "screen", binds: []keybind{{"esc", back}}},
+		{title: keyhintScreen, binds: []keybind{{"esc", back}}},
 	}
 }
 
@@ -223,8 +228,8 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 	action = append(action, keybind{"enter", "store entry"})
 
 	return []keyhintGroup{
-		{title: "navigation", binds: []keybind{{"↑↓/jk", "move between fields"}}},
-		{title: "action", binds: action},
-		{title: "screen", binds: []keybind{{"esc", "cancel"}}},
+		{title: keyhintNavigation, binds: []keybind{{"↑↓/jk", "move between fields"}}},
+		{title: keyhintAction, binds: action},
+		{title: keyhintScreen, binds: []keybind{{"esc", "cancel"}}},
 	}
 }

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -63,6 +64,9 @@ func runSecretPicker(repo repository.Secrets, current string) (string, bool, err
 		return "", false, err
 	}
 
-	picked := m.(secretModel).picked
-	return picked, picked != "", nil
+	sm, ok := m.(secretModel)
+	if !ok {
+		return "", false, fmt.Errorf("secret picker returned an unexpected model %T", m)
+	}
+	return sm.picked, sm.picked != "", nil
 }

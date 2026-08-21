@@ -34,7 +34,7 @@ type SecretRepository struct {
 
 func newSecretRepository(p secret.Provider, file config.File[config.Secret], usage UsageLookup) (*SecretRepository, error) {
 	if p.Scheme() == "" {
-		return nil, fmt.Errorf("secret provider has no scheme of its own")
+		return nil, errors.New("secret provider has no scheme of its own")
 	}
 
 	return &SecretRepository{
@@ -224,7 +224,7 @@ func (r *SecretRepository) checkEdit(i int, s config.Secret) (config.Secret, sec
 	if key := makeSecRef(old); key != ref {
 		// Re-pointing a secret would orphan every connection referencing it.
 		if used := r.usages(key); len(used) > 0 {
-			return nil, "", &ErrSecretInUse{ID: old.ID(), By: used}
+			return nil, "", &SecretInUseError{ID: old.ID(), By: used}
 		}
 
 		if j, found := r.indexOf(ref); found && j != i {
@@ -246,7 +246,7 @@ func (r *SecretRepository) checkRemove(i int) (config.Secret, secretRef, error) 
 
 	ref := makeSecRef(old)
 	if used := r.usages(ref); len(used) > 0 {
-		return nil, "", &ErrSecretInUse{ID: old.ID(), By: used}
+		return nil, "", &SecretInUseError{ID: old.ID(), By: used}
 	}
 
 	return old, ref, nil

@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui"
-	"github.com/spf13/cobra"
 )
 
 var addCmd = &cobra.Command{
@@ -21,7 +23,7 @@ var addPostgresCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if _, err := os.Stat(config.PostgresPath()); err != nil {
 			if os.IsNotExist(err) {
-				return fmt.Errorf("postgres config file not found\nrun 'conm init' first\n")
+				return errors.New("postgres config file not found\nrun 'conm init' first")
 			}
 		}
 

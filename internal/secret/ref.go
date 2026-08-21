@@ -2,10 +2,6 @@ package secret
 
 import "strings"
 
-// Reference is a config pointing at a secret: a bare password, or a
-// "<scheme>:<location>" spec. Value receivers have to satisfy it — connection
-// configs are stored and passed around by value, so SetSecretRef (pointer
-// receiver) can't be part of it.
 type Reference interface {
 	SecretRef() string
 }
@@ -31,5 +27,5 @@ func parseRef(raw string) (ref, bool) {
 		return ref{}, false
 	}
 
-	return ref{scheme: Scheme(scheme), spec: spec, raw: raw}, true
+	return ref{scheme: scheme, spec: spec, raw: raw}, true
 }

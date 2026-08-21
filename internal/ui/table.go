@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+
 	"github.com/myjupyter/conm/internal/network"
 	registry "github.com/myjupyter/conm/internal/repository"
 )
@@ -114,7 +115,7 @@ func (m Model) handleKeyMsg(key string) (tea.Model, tea.Cmd) {
 		switch key {
 		case "esc":
 			m.states[m.cursor].connErr = nil
-			m.status, m.statusKind = "ready", kindIdle
+			m.status, m.statusKind = statusReady, kindIdle
 			return m, nil
 		case "r", "R":
 			return m.retry()

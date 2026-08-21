@@ -49,7 +49,10 @@ func runSecretForm(model secretFormModel) (config.Secret, string, bool, error) {
 		return nil, "", false, err
 	}
 
-	fm := m.(secretFormModel)
+	fm, ok := m.(secretFormModel)
+	if !ok {
+		return nil, "", false, fmt.Errorf("secret form returned an unexpected model %T", m)
+	}
 	if !fm.submitted {
 		return nil, "", false, nil
 	}

@@ -4,8 +4,9 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/myjupyter/conm/internal/config"
 	"github.com/spf13/cobra"
+
+	"github.com/myjupyter/conm/internal/config"
 )
 
 var editCmd = &cobra.Command{

@@ -2,6 +2,7 @@ package ui
 
 import (
 	tea "charm.land/bubbletea/v2"
+
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/repository"
 )

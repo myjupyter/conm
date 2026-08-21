@@ -19,6 +19,9 @@ import (
 // keybind is one hint in the key bar at the bottom of a screen.
 type keybind struct{ key, label string }
 
+// statusReady is the resting status message every screen falls back to.
+const statusReady = "ready"
+
 // statusKind picks the glyph and colour of the status line; the message itself
 // is free text the screen sets.
 type statusKind int
@@ -197,8 +200,13 @@ func cursorPos(cur, n int) string {
 // frameKeybar lays out key/label hints, wrapping onto extra lines rather than
 // spilling past the right border.
 func frameKeybar(w int, binds []keybind) []string {
+	// One indent span plus a key/label pair per bind, if nothing wraps.
+	newLine := func() []span {
+		return append(make([]span, 0, 1+2*len(binds)), span{text: " ", fg: cDim})
+	}
+
 	var lines []string
-	spans := []span{{text: " ", fg: cDim}}
+	spans := newLine()
 	used := 1
 	for i, b := range binds {
 		sep := " · "
@@ -208,7 +216,7 @@ func frameKeybar(w int, binds []keybind) []string {
 		seg := b.key + " " + b.label + sep
 		if used+len([]rune(seg)) > w && len(spans) > 1 {
 			lines = append(lines, frameLine(w, spans, nil))
-			spans = []span{{text: " ", fg: cDim}}
+			spans = newLine()
 			used = 1
 		}
 		spans = append(spans,

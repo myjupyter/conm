@@ -126,6 +126,8 @@ func runPostgresInit(cfg *InitPostgresScreenConfig) error {
 			}
 
 			connCfgs = pgPassCreds
+		case importSelectSkip:
+			// Nothing to import; the config file is created empty.
 		case importSelectAdd:
 			conf, added, err := runAddForm(config.PostgresConnType, nil)
 			if err != nil {
@@ -148,8 +150,8 @@ func runPostgresInit(cfg *InitPostgresScreenConfig) error {
 
 	defer c.Close()
 
-	for _, connCfg := range connCfgs {
-		c.Add(connCfg)
+	for i := range connCfgs {
+		c.Add(connCfgs[i])
 	}
 
 	if err := c.Save(); err != nil {

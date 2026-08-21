@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -45,7 +46,7 @@ var SSLModesOrder = []config.PostgresSSLMode{
 	config.PostgresSSLModeVerifyFull,
 }
 
-// PostgresFormFields is the order in which the fields are displayed
+// PostgresFormFields is the order in which the fields are displayed.
 var PostgresFormFields = []FormField{
 	// Connection information
 	{
@@ -67,7 +68,7 @@ var PostgresFormFields = []FormField{
 			}
 			port, err := strconv.Atoi(value)
 			if err != nil {
-				return fmt.Errorf("port must be a number")
+				return errors.New("port must be a number")
 			}
 			return config.ValidatePostgresPort(port)
 		},
@@ -184,7 +185,7 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 		if rawPort, ok := values[strings.ToLower(postgresFormFieldPort)]; ok && rawPort != "" {
 			p, err := strconv.Atoi(rawPort)
 			if err != nil {
-				return nil, fmt.Errorf("invalid port value: %v", err)
+				return nil, fmt.Errorf("invalid port value: %w", err)
 			}
 			port = p
 		}

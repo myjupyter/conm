@@ -1,6 +1,8 @@
 package spec
 
 import (
+	"slices"
+
 	"github.com/myjupyter/conm/internal/secret"
 )
 
@@ -71,10 +73,8 @@ func SplitSecret(raw string) (mode, value string) {
 	if scheme == secret.Literal {
 		return secret.Literal, location
 	}
-	for _, p := range SecretProvidersOrder {
-		if p == scheme {
-			return scheme, location
-		}
+	if slices.Contains(SecretProvidersOrder, scheme) {
+		return scheme, location
 	}
 	return secret.Literal, raw
 }

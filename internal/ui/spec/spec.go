@@ -9,7 +9,7 @@ import (
 const tagsMaxLength = 255
 
 const (
-	// TextFieldKind is a default kind if isn't set
+	// TextFieldKind is a default kind if isn't set.
 	TextFieldKind FieldKind = iota
 	HiddenFieldKind
 	IntFieldKind
@@ -17,7 +17,7 @@ const (
 )
 
 const (
-	// RequiredFieldProperty is a default property if isn't set
+	// RequiredFieldProperty is a default property if isn't set.
 	RequiredFieldProperty FieldProperty = iota
 	OptionalFieldProperty
 )

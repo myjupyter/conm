@@ -13,7 +13,7 @@ const (
 	secretConfigFileName   = "secret.toml"
 )
 
-// Connection configs
+// Connection configs.
 var (
 	postgresPath   = filepath.Join(xdg.ConfigHome, conmDirName, postgresConfigFileName)
 	PostgresPath   = pathGetter(postgresPath)
@@ -21,7 +21,7 @@ var (
 	ConmPath       = pathGetter(conmConfigPath)
 )
 
-// Stored data
+// Stored data.
 var (
 	secretConfigPath = filepath.Join(xdg.DataHome, conmDirName, secretConfigFileName)
 	SecretConfigPath = pathGetter(secretConfigPath)

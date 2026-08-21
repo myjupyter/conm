@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -122,7 +123,7 @@ func ImportFromPGPass() ([]Postgres, error) {
 
 func ValidatePostgresHost(host string) error {
 	if host == "" {
-		return fmt.Errorf("hostname can't be empty")
+		return errors.New("hostname can't be empty")
 	}
 	if len(host) < hostMinLength || len(host) > hostMaxLength {
 		return fmt.Errorf("hostname must be between %d and %d characters long", hostMinLength, hostMaxLength)
@@ -131,7 +132,7 @@ func ValidatePostgresHost(host string) error {
 		return nil
 	}
 	if !simpleHostRegexp.MatchString(host) {
-		return fmt.Errorf("hostname is not a valid host or IP address")
+		return errors.New("hostname is not a valid host or IP address")
 	}
 	return nil
 }
@@ -145,7 +146,7 @@ func ValidatePostgresPort(port int) error {
 
 func ValidatePostgresUsername(user string) error {
 	if user == "" {
-		return fmt.Errorf("username can't be empty")
+		return errors.New("username can't be empty")
 	}
 	if n := len(user); n < usernameMinLength || n > usernameMaxLength {
 		return fmt.Errorf("username must be between %d and %d characters long", usernameMinLength, usernameMaxLength)
@@ -155,13 +156,13 @@ func ValidatePostgresUsername(user string) error {
 
 func ValidatePostgresDatabase(db string) error {
 	if db == "" {
-		return fmt.Errorf("database can't be empty")
+		return errors.New("database can't be empty")
 	}
 	if len(db) > databaseMaxLength {
 		return fmt.Errorf("database must be at most %d characters long", databaseMaxLength)
 	}
 	if !simpleDatabaseRegexp.MatchString(db) {
-		return fmt.Errorf("database contains invalid characters")
+		return errors.New("database contains invalid characters")
 	}
 	return nil
 }
@@ -174,7 +175,7 @@ func ValidatePostgresSchema(schema string) error {
 		return fmt.Errorf("schema must be at most %d characters long", schemaMaxLength)
 	}
 	if !simpleSchemaRegexp.MatchString(schema) {
-		return fmt.Errorf("schema contains invalid characters")
+		return errors.New("schema contains invalid characters")
 	}
 	return nil
 }

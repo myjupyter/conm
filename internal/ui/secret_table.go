@@ -52,7 +52,7 @@ func newSecretPicker(repo repository.Secrets, current string) secretModel {
 		}
 	}
 	if repo.Len() == 0 {
-		m.setSecretStatus(fmt.Sprintf("%s is empty · press a to add an entry", repo.Kind()), kindWarn)
+		m.setSecretStatus(repo.Kind()+" is empty · press a to add an entry", kindWarn)
 	} else {
 		m.setSecretStatus("pick an entry · enter to attach it", kindIdle)
 	}
@@ -94,7 +94,7 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 		}
 	case "tab", "shift+tab", "left", "h", "right", "l":
 		// One store is configured, so switching is a no-op worth saying out loud.
-		m.setSecretStatus(fmt.Sprintf("%s is the only store configured", m.repo.Kind()), kindIdle)
+		m.setSecretStatus(m.repo.Kind()+" is the only store configured", kindIdle)
 	case "enter":
 		if m.picking {
 			if s, ok := m.repo.Get(m.cursor); ok {

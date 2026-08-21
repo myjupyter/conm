@@ -134,11 +134,10 @@ func (m secretModel) secretRowLine(i int) string {
 }
 
 func (m secretModel) secretStatusLine(n int) string {
-	icon, col, text := gStatusIdle, cDim, m.status
+	icon, col := statusGlyph(m.statusKind)
+	text := m.status
 	if m.confirming {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q from the keyring? y/n", m.cursorSecretLabel())
-	} else {
-		icon, col = statusGlyph(m.statusKind)
 	}
 	return frameStatus(secretInner, icon, col, text, cursorPos(m.cursor, n))
 }

@@ -146,32 +146,31 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 		return span{text: strings.Repeat(" ", wPing+1), raw: raw}
 	}
 
-	text, color := gEmpty, cFaint
+	text, fg := gEmpty, cFaint
 	switch {
 	case st.connErr != nil:
-		text, color = st.connErr.code, cRed
+		text, fg = st.connErr.code, cRed
 	case st.pingStatus == pingFailed:
-		text, color = "timeout", cRed
+		text, fg = "timeout", cRed
 	case st.pingStatus == pingOK:
 		ms := st.pingResult.PingTime.Milliseconds()
 		text = fmt.Sprintf("%dms", ms)
-		color = cAmber
+		fg = cAmber
 		if ms < 40 {
-			color = cAccent
+			fg = cAccent
 		}
 	}
 	if sel {
-		color = cInvFg
+		fg = cInvFg
 	}
-	return span{text: " " + truncPad(text, wPing, true), fg: color, bg: bg}
+	return span{text: " " + truncPad(text, wPing, true), fg: fg, bg: bg}
 }
 
 func (m Model) statusLine(n int) string {
-	icon, col, text := gStatusIdle, cDim, m.status
+	icon, col := statusGlyph(m.statusKind)
+	text := m.status
 	if m.confirming {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q? y/n", m.cursorLabel())
-	} else {
-		icon, col = statusGlyph(m.statusKind)
 	}
 	return frameStatus(tableInner, icon, col, text, cursorPos(m.cursor, n))
 }

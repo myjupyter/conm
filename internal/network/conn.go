@@ -9,7 +9,7 @@ import (
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-// connection quality intervals
+// connection quality intervals.
 const (
 	Slowest = 500 * time.Millisecond
 	Slow    = 250 * time.Millisecond

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/pelletier/go-toml/v2"
@@ -29,7 +30,7 @@ type KeyringConfigWrapper struct {
 
 func ValidateSecretID(id string) error {
 	if id == "" {
-		return fmt.Errorf("secret id can't be empty")
+		return errors.New("secret id can't be empty")
 	}
 	if len(id) > secretIDMaxLength {
 		return fmt.Errorf("secret id must be at most %d characters long", secretIDMaxLength)
@@ -39,7 +40,7 @@ func ValidateSecretID(id string) error {
 
 func ValidateSecretProvider(provider string) error {
 	if provider == "" {
-		return fmt.Errorf("secret provider can't be empty")
+		return errors.New("secret provider can't be empty")
 	}
 	return nil
 }
@@ -47,7 +48,7 @@ func ValidateSecretProvider(provider string) error {
 func ValidateSecretLocation(location string) error {
 	// TODO: validate location properly
 	if location == "" {
-		return fmt.Errorf("secret location can't be empty")
+		return errors.New("secret location can't be empty")
 	}
 	return nil
 }

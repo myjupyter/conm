@@ -67,7 +67,7 @@ func (p *KeyringProvider) Remove(_ context.Context, ref Reference) error {
 }
 
 func keyringSpec(ref Reference) string {
-	return strings.TrimPrefix(ref.SecretRef(), string(Keyring)+":")
+	return strings.TrimPrefix(ref.SecretRef(), Keyring+":")
 }
 
 func parseKeyringSpec(spec string) (service, account string) {

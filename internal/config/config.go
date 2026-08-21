@@ -59,18 +59,23 @@ type Config[W ConfigWrapper[C], C any] struct {
 
 func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
 	// Config and data dirs live under different XDG roots; either may be missing.
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("couldn't create dir for %q: %w", path, err)
 	}
 
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0600)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't open file %q: %w", path, err)
 	}
 
 	var w W
 	if t := reflect.TypeOf(w); t != nil && t.Kind() == reflect.Pointer {
-		w = reflect.New(t.Elem()).Interface().(W)
+		alloc, ok := reflect.TypeAssert[W](reflect.New(t.Elem()))
+		if !ok {
+			f.Close()
+			return nil, fmt.Errorf("couldn't allocate a %T wrapper for %q", w, path)
+		}
+		w = alloc
 	}
 
 	data, err := io.ReadAll(f)

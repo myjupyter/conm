@@ -35,7 +35,7 @@ func newSecretFormModel(spc spec.FormSpec[config.Secret], title string, initial 
 		title:      title,
 		isEdit:     initial != nil,
 		vals:       make(map[string]string, len(spc.Fields)),
-		status:     "ready",
+		status:     statusReady,
 		statusKind: kindIdle,
 	}
 

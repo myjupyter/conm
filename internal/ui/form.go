@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -72,7 +73,7 @@ func newFormModel(spc spec.FormSpec[config.Connection], title string, initial ma
 		sections:   spc.Sections,
 		secrets:    secrets,
 		vals:       make(map[string]string, len(spc.Fields)),
-		status:     "ready",
+		status:     statusReady,
 		statusKind: kindIdle,
 	}
 
@@ -222,14 +223,7 @@ func (m *formModel) onSecretModeChange(was string) {
 	m.vals[spec.SecretValueKey] = m.refStash
 
 	list := m.refEntries()
-	found := false
-	for _, loc := range list {
-		if loc == m.vals[spec.SecretValueKey] {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !slices.Contains(list, m.vals[spec.SecretValueKey]) {
 		m.vals[spec.SecretValueKey] = ""
 		if len(list) > 0 {
 			m.vals[spec.SecretValueKey] = list[0]
@@ -262,7 +256,7 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		if m.pong != "" || m.ping != nil {
 			m.pong, m.ping = "", nil
-			m.setStatus("ready", kindIdle)
+			m.setStatus(statusReady, kindIdle)
 			return m, nil
 		}
 		return m, tea.Quit
@@ -275,55 +269,16 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "shift+tab":
 		m.switchSection(-1)
 	case "right", "l":
-		switch {
-		case m.isSecretField(fields[m.idx]) && m.isRef():
-			m.cycleRef(1)
-		case m.isSelector(fields[m.idx]):
-			was := m.vals[spec.SecretProviderKey]
-			m.cycle(fields[m.idx], 1)
-			if cur.Key == spec.SecretProviderKey {
-				m.onSecretModeChange(was)
-			}
-		}
+		m.navCycle(fields[m.idx], cur, 1)
 	case "left", "h":
-		switch {
-		case m.isSecretField(fields[m.idx]) && m.isRef():
-			m.cycleRef(-1)
-		case m.isSelector(fields[m.idx]):
-			was := m.vals[spec.SecretProviderKey]
-			m.cycle(fields[m.idx], -1)
-			if cur.Key == spec.SecretProviderKey {
-				m.onSecretModeChange(was)
-			}
-		}
+		m.navCycle(fields[m.idx], cur, -1)
 	case "k":
 		m.idx = (m.idx - 1 + n) % n
 	case "e":
-		switch {
-		case m.isSecretField(fields[m.idx]) && m.isRef():
-			m.setStatus(m.storeLabel()+" entries are picked, not typed · use ←/→", kindWarn)
-		case m.isSelector(fields[m.idx]):
-			m.setStatus(strings.ToLower(cur.Label)+" is a list · use ←/→", kindWarn)
-		case cur.Kind == spec.SelectFieldKind:
-			m.setStatus(strings.ToLower(cur.Label)+" has no options to pick from", kindWarn)
-		default:
-			m.insert = true
-			m.setStatus("editing "+strings.ToLower(cur.Label)+" · esc when done", kindIdle)
-		}
+		m.navEdit(fields[m.idx], cur)
 	case "s":
-		// On the provider field, s opens the store itself: an entry can be
-		// added there and picked, and the form resumes where it left off.
-		// On a literal password field s is the reveal toggle.
-		switch {
-		case m.isProviderField(fields[m.idx]) && m.isRef():
-			return m, m.pickSecretCmd()
-		case cur.Kind == spec.HiddenFieldKind && !m.isRef():
-			m.reveal = !m.reveal
-			if m.reveal {
-				m.setStatus("password visible · s to hide", kindIdle)
-			} else {
-				m.setStatus("password hidden", kindIdle)
-			}
+		if cmd, handled := m.navSecret(fields[m.idx], cur); handled {
+			return m, cmd
 		}
 	case "p":
 		return m.pingForm()
@@ -338,6 +293,56 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.setStatus(keyhintStatus(m.help), kindIdle)
 	}
 	return m, nil
+}
+
+// navCycle steps the field under the cursor one option in dir: a store entry
+// for a secret reference, otherwise the selector's own options.
+func (m *formModel) navCycle(i int, cur spec.FormField, dir int) {
+	switch {
+	case m.isSecretField(i) && m.isRef():
+		m.cycleRef(dir)
+	case m.isSelector(i):
+		was := m.vals[spec.SecretProviderKey]
+		m.cycle(i, dir)
+		if cur.Key == spec.SecretProviderKey {
+			m.onSecretModeChange(was)
+		}
+	}
+}
+
+// navEdit enters insert mode, or explains why the field under the cursor is
+// not typed into.
+func (m *formModel) navEdit(i int, cur spec.FormField) {
+	switch {
+	case m.isSecretField(i) && m.isRef():
+		m.setStatus(m.storeLabel()+" entries are picked, not typed · use ←/→", kindWarn)
+	case m.isSelector(i):
+		m.setStatus(strings.ToLower(cur.Label)+" is a list · use ←/→", kindWarn)
+	case cur.Kind == spec.SelectFieldKind:
+		m.setStatus(strings.ToLower(cur.Label)+" has no options to pick from", kindWarn)
+	default:
+		m.insert = true
+		m.setStatus("editing "+strings.ToLower(cur.Label)+" · esc when done", kindIdle)
+	}
+}
+
+// navSecret handles s on a secret field. On the provider field it opens the
+// store itself: an entry can be added there and picked, and the form resumes
+// where it left off. On a literal password field s is the reveal toggle.
+// handled reports whether the returned cmd should be dispatched.
+func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled bool) {
+	switch {
+	case m.isProviderField(i) && m.isRef():
+		return m.pickSecretCmd(), true
+	case cur.Kind == spec.HiddenFieldKind && !m.isRef():
+		m.reveal = !m.reveal
+		if m.reveal {
+			m.setStatus("password visible · s to hide", kindIdle)
+		} else {
+			m.setStatus("password hidden", kindIdle)
+		}
+	}
+	return nil, false
 }
 
 func (m formModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
@@ -455,10 +460,8 @@ func (m formModel) refError() string {
 	if ref == "" {
 		return "pick a " + store + " entry — ←/→, or s on provider"
 	}
-	for _, loc := range m.refEntries() {
-		if loc == ref {
-			return ""
-		}
+	if slices.Contains(m.refEntries(), ref) {
+		return ""
 	}
 	return ref + " is not in " + store
 }

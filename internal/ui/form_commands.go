@@ -86,7 +86,10 @@ func runForm(model formModel) (config.Connection, bool, error) {
 		return nil, false, err
 	}
 
-	fm := m.(formModel)
+	fm, ok := m.(formModel)
+	if !ok {
+		return nil, false, fmt.Errorf("connection form returned an unexpected model %T", m)
+	}
 	if !fm.submitted {
 		return nil, false, nil
 	}

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os/exec"
+	"slices"
 )
 
 type CLIInfo struct {
@@ -28,10 +29,8 @@ func ValidateCLI(t ConnType, cli string) error {
 		return fmt.Errorf("unknown connection type %q", t)
 	}
 
-	for _, c := range clies {
-		if c == cli {
-			return nil
-		}
+	if slices.Contains(clies, cli) {
+		return nil
 	}
 
 	return fmt.Errorf("invalid CLI %q for connection type %q", cli, t)

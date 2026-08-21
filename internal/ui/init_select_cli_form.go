@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -14,7 +15,10 @@ func RunSelectCLIForm(clients []config.CLIInfo) (config.CLIInfo, bool, error) {
 		return config.CLIInfo{}, false, err
 	}
 
-	pm := m.(initCLIModel)
+	pm, ok := m.(initCLIModel)
+	if !ok {
+		return config.CLIInfo{}, false, fmt.Errorf("CLI form returned an unexpected model %T", m)
+	}
 	if !pm.chosen {
 		return config.CLIInfo{}, false, nil
 	}
@@ -62,20 +66,22 @@ func (m initCLIModel) Init() tea.Cmd {
 }
 
 func (m initCLIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "q", "esc":
+	key, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return m, nil
+	}
+
+	switch key.String() {
+	case "ctrl+c", "q", "esc":
+		return m, tea.Quit
+	case "up", "k":
+		m.cursor = m.prevSelectable(m.cursor)
+	case "down", "j":
+		m.cursor = m.nextSelectable(m.cursor)
+	case "enter":
+		if m.cursor < len(m.clis) && m.clis[m.cursor].Exists {
+			m.chosen = true
 			return m, tea.Quit
-		case "up", "k":
-			m.cursor = m.prevSelectable(m.cursor)
-		case "down", "j":
-			m.cursor = m.nextSelectable(m.cursor)
-		case "enter":
-			if m.cursor < len(m.clis) && m.clis[m.cursor].Exists {
-				m.chosen = true
-				return m, tea.Quit
-			}
 		}
 	}
 

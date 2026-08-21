@@ -83,8 +83,8 @@ func (p *PGClient) Schema() string {
 	return p.cfg.Schema()
 }
 
-func (p *PGClient) ConnectionString(secret string) string {
-	return p.cfg.ConnectionString(secret)
+func (p *PGClient) ConnectionString(password string) string {
+	return p.cfg.ConnectionString(password)
 }
 
 func (p *PGClient) IsValid() bool {

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -33,7 +34,10 @@ func RunSelectImport() (importSelectOption, bool, error) {
 		return 0, false, err
 	}
 
-	pm := m.(pgPassModel)
+	pm, ok := m.(pgPassModel)
+	if !ok {
+		return 0, false, fmt.Errorf("import form returned an unexpected model %T", m)
+	}
 	if !pm.chosen {
 		return 0, false, nil
 	}
@@ -63,23 +67,25 @@ func (m pgPassModel) Init() tea.Cmd {
 }
 
 func (m pgPassModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "q", "esc":
-			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.options)-1 {
-				m.cursor++
-			}
-		case "enter":
-			m.chosen = true
-			return m, tea.Quit
+	key, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return m, nil
+	}
+
+	switch key.String() {
+	case "ctrl+c", "q", "esc":
+		return m, tea.Quit
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
 		}
+	case "down", "j":
+		if m.cursor < len(m.options)-1 {
+			m.cursor++
+		}
+	case "enter":
+		m.chosen = true
+		return m, tea.Quit
 	}
 
 	return m, nil

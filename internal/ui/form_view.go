@@ -132,12 +132,14 @@ func (m formModel) fieldRow(i int) string {
 		labelFg = cInvFg
 	}
 
-	spans := []span{
-		{text: caret, fg: caretColor(active), bg: bg, bold: true},
-		{text: gutter + " ", fg: gc, bg: bg},
-		{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
-	}
-	spans = append(spans, m.inputBox(i, active, bg)...)
+	box := m.inputBox(i, active, bg)
+	spans := make([]span, 0, 3+len(box))
+	spans = append(spans,
+		span{text: caret, fg: caretColor(active), bg: bg, bold: true},
+		span{text: gutter + " ", fg: gc, bg: bg},
+		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
+	)
+	spans = append(spans, box...)
 	return frameLine(formInner, spans, bg)
 }
 

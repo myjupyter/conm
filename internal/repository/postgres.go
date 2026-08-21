@@ -20,8 +20,7 @@ func NewPostgresRepository(cfg config.Conm) (*ConnectionRepository, error) {
 		return nil, err
 	}
 
-	var sec secret.Provider
-	sec = secret.Default()
+	var sec secret.Provider = secret.Default()
 
 	n := file.Len()
 	ncs := make([]network.Connection, 0, n)

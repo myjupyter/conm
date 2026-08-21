@@ -12,13 +12,13 @@ type Resolver struct {
 }
 
 func Default() *Resolver {
-	return new(
+	return newResolver(
 		&KeyringProvider{},
 		&LiteralProvider{},
 	)
 }
 
-func new(providers ...Provider) *Resolver {
+func newResolver(providers ...Provider) *Resolver {
 	r := &Resolver{providers: make(map[Scheme]Provider, len(providers))}
 	for _, p := range providers {
 		r.register(p)
