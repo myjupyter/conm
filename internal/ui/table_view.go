@@ -7,20 +7,13 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
+
 	"github.com/myjupyter/conm/internal/config"
 )
 
-func typeColor(t config.ConnType) color.Color {
-	switch t {
-	case config.PostgresConnType:
-		return cPostgres
-	default:
-		return cAccent
-	}
-}
-
-const inner = 108
+// The connections table is the widest screen: six columns plus the live ping
+// state on the right.
+const tableInner = 108
 
 const (
 	wMark = 2
@@ -32,81 +25,10 @@ const (
 	wPing = 9
 )
 
-var (
-	cBorder   = lipgloss.Color("#3a362e")
-	cDim      = lipgloss.Color("#6d6759")
-	cMuted    = lipgloss.Color("#5f594c")
-	cFaint    = lipgloss.Color("#4d483e")
-	cSoft     = lipgloss.Color("#8b8474")
-	cFg       = lipgloss.Color("#ddd6c8")
-	cDead     = lipgloss.Color("#7d7668")
-	cAccent   = lipgloss.Color("#63d18a")
-	cRed      = lipgloss.Color("#e5654a")
-	cAmber    = lipgloss.Color("#e3b34a")
-	cInvFg    = lipgloss.Color("#0f0f0d")
-	cValue    = lipgloss.Color("#c4bcac")
-	cPong     = lipgloss.Color("#b9cdbd")
-	cPostgres = lipgloss.Color("#5aa0d6")
-
-	cErrBorder = lipgloss.Color("#7a3f34")
-	cErrTagBg  = lipgloss.Color("#9e3b2a")
-	cErrTagFg  = lipgloss.Color("#fdf3f1")
-	cErrCode   = lipgloss.Color("#f0a48f")
-	cErrMuted  = lipgloss.Color("#8d7a76")
-	cErrValue  = lipgloss.Color("#c8b8b4")
-	cHint      = lipgloss.Color("#a2938f")
-)
-
-var keybinds = []struct{ key, label string }{
+var keybinds = []keybind{
 	{"↑/k", "up"}, {"↓/j", "down"}, {"enter", "connect"},
 	{"a", "add"}, {"e", "edit"}, {"d", "del"},
 	{"p", "ping"}, {"s", "keyring"}, {"q/esc", "quit"},
-}
-
-type span struct {
-	text string
-	fg   color.Color
-	bg   color.Color
-	bold bool
-	raw  string
-}
-
-func (s span) render() string {
-	if s.raw != "" {
-		return s.raw
-	}
-	st := lipgloss.NewStyle().Foreground(s.fg)
-	if s.bg != nil {
-		st = st.Background(s.bg)
-	}
-	if s.bold {
-		st = st.Bold(true)
-	}
-	return st.Render(s.text)
-}
-
-func spanWidth(s span) int { return len([]rune(s.text)) }
-
-func border(s string) string {
-	return lipgloss.NewStyle().Foreground(cBorder).Render(s)
-}
-
-func truncPad(s string, w int, right bool) string {
-	if w <= 0 {
-		return ""
-	}
-	r := []rune(s)
-	switch {
-	case len(r) > w:
-		if w == 1 {
-			return string(r[:1])
-		}
-		return string(r[:w-1]) + "…"
-	case right:
-		return strings.Repeat(" ", w-len(r)) + s
-	default:
-		return s + strings.Repeat(" ", w-len(r))
-	}
 }
 
 func (m Model) View() tea.View {
@@ -118,11 +40,17 @@ func (m Model) View() tea.View {
 func (m Model) render() string {
 	n := m.reg.Len()
 
-	lines := []string{m.topLine(n), m.tabsLine(n), rule("├", "┤"), m.headerLine(), rule("├", "┤")}
+	lines := []string{
+		frameTop(tableInner, "connections", fmt.Sprintf(" %d %s "+gLineH, n, plural(n, "connection", "connections"))),
+		m.tabsLine(n),
+		frameRule(tableInner, gTeeL, gTeeR),
+		m.headerLine(),
+		frameRule(tableInner, gTeeL, gTeeR),
+	}
 
 	if n == 0 {
-		lines = append(lines, boxLine([]span{
-			{text: truncPad("  no connections · press a to add one", inner, false), fg: cDim},
+		lines = append(lines, frameLine(tableInner, []span{
+			{text: truncPad("  no connections · press a to add one", tableInner, false), fg: cDim},
 		}, nil))
 	} else {
 		for i := range n {
@@ -131,72 +59,15 @@ func (m Model) render() string {
 	}
 
 	if e := m.currentErr(); e != nil {
-		lines = append(lines, errPanelLinesW(inner, e)...)
+		lines = append(lines, frameErrPanel(tableInner, e)...)
 	} else if p := m.currentPong(); p != "" {
-		lines = append(lines, rule("├", "┤"), pongLineW(inner, p))
+		lines = append(lines, frameRule(tableInner, gTeeL, gTeeR), framePong(tableInner, p))
 	}
 
-	lines = append(lines,
-		rule("├", "┤"),
-		m.statusLine(n),
-		m.keybindLine(),
-		border("└")+border(strings.Repeat("─", inner))+border("┘"),
-	)
+	lines = append(lines, frameRule(tableInner, gTeeL, gTeeR), m.statusLine(n))
+	lines = append(lines, frameKeybar(tableInner, keybinds)...)
+	lines = append(lines, frameBottom(tableInner))
 	return strings.Join(lines, "\n")
-}
-
-func boxLine(spans []span, bg color.Color) string { return boxLineW(inner, spans, bg) }
-
-func boxLineW(w int, spans []span, bg color.Color) string {
-	used := 0
-	for _, s := range spans {
-		used += spanWidth(s)
-	}
-	if used < w {
-		spans = append(spans, span{text: strings.Repeat(" ", w-used), bg: bg})
-	}
-	var b strings.Builder
-	b.WriteString(border("│"))
-	for _, s := range spans {
-		b.WriteString(s.render())
-	}
-	b.WriteString(border("│"))
-	return b.String()
-}
-
-func rule(left, right string) string { return ruleW(inner, left, right) }
-
-func ruleW(w int, left, right string) string {
-	return border(left) + border(strings.Repeat("─", w)) + border(right)
-}
-
-func (m Model) topLine(n int) string {
-	return topLineW(inner, "connections", fmt.Sprintf(" %d %s ─", n, plural(n, "connection", "connections")))
-}
-
-// topLineW draws the top border with the app name, the screen's breadcrumb on
-// the left and an optional summary pushed against the right corner.
-func topLineW(w int, crumb, right string) string {
-	left := []span{
-		{text: "─ ", fg: cBorder},
-		{text: "conm", fg: cFg, bold: true},
-		{text: " · " + crumb + " ", fg: cDim},
-	}
-
-	used := len([]rune(right))
-	for _, s := range left {
-		used += spanWidth(s)
-	}
-
-	var b strings.Builder
-	b.WriteString(border("┌"))
-	for _, s := range left {
-		b.WriteString(s.render())
-	}
-	b.WriteString(border(strings.Repeat("─", max(w-used, 0))))
-	b.WriteString((span{text: right, fg: cDim}).render())
-	b.WriteString(border("┐"))
-	return b.String()
 }
 
 func (m Model) tabsLine(n int) string {
@@ -219,11 +90,11 @@ func (m Model) tabsLine(n int) string {
 		}
 		spans = append(spans, span{text: " ", fg: cDim})
 	}
-	return boxLine(spans, nil)
+	return frameLine(tableInner, spans, nil)
 }
 
 func (m Model) headerLine() string {
-	return boxLine([]span{
+	return frameLine(tableInner, []span{
 		{text: truncPad("", wMark, false), fg: cDim},
 		{text: " " + truncPad("NAME", wName, false), fg: cDim},
 		{text: " " + truncPad("USERNAME", wUser, false), fg: cDim},
@@ -237,7 +108,7 @@ func (m Model) headerLine() string {
 func (m Model) rowLine(i int) string {
 	c, ok := m.reg.ConnectionAt(i)
 	if !ok {
-		return boxLine(nil, nil)
+		return frameLine(tableInner, nil, nil)
 	}
 	sel := i == m.cursor
 	st := m.states[i]
@@ -255,11 +126,11 @@ func (m Model) rowLine(i int) string {
 
 	caret := " "
 	if sel {
-		caret = "❯"
+		caret = gCaret
 	}
-	mark := "○"
+	mark := gDotOff
 	if failed {
-		mark = "✕"
+		mark = gDotFail
 	}
 
 	spans := []span{
@@ -271,7 +142,7 @@ func (m Model) rowLine(i int) string {
 		{text: " " + truncPad(c.Database(), wDB, false), fg: fg, bg: bg},
 		m.pingSpan(i, bg, sel),
 	}
-	return boxLine(spans, bg)
+	return frameLine(tableInner, spans, bg)
 }
 
 func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
@@ -281,7 +152,7 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 		return span{text: strings.Repeat(" ", wPing+1), raw: raw}
 	}
 
-	text, color := "—", cFaint
+	text, color := gEmpty, cFaint
 	switch {
 	case st.connErr != nil:
 		text, color = st.connErr.code, cRed
@@ -301,126 +172,12 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 	return span{text: " " + truncPad(text, wPing, true), fg: color, bg: bg}
 }
 
-func errPanelLinesW(w int, e *connError) []string {
-	tag := " " + strings.ToUpper(e.action) + " FAILED "
-	code := " " + e.code + " "
-	right := " " + e.conn + " "
-	fill := max(w-1-len([]rune(tag))-len([]rune(code))-len([]rune(right)), 0)
-
-	var top strings.Builder
-	top.WriteString(border("├"))
-	top.WriteString((span{text: "─", fg: cErrBorder}).render())
-	top.WriteString((span{text: tag, fg: cErrTagFg, bg: cErrTagBg, bold: true}).render())
-	top.WriteString((span{text: code, fg: cErrCode, bold: true}).render())
-	top.WriteString((span{text: strings.Repeat("─", fill), fg: cErrBorder}).render())
-	top.WriteString((span{text: right, fg: cErrMuted}).render())
-	top.WriteString(border("┤"))
-
-	lines := []string{top.String()}
-	if e.target != "" {
-		lines = append(lines, errKVW(w, "target", e.target, cErrValue))
-	}
-	if e.op != "" {
-		lines = append(lines, errKVW(w, "during", e.op, cErrValue))
-	}
-	lines = append(lines, errKVW(w, "error", e.detail, cErrCode))
-	if e.hint != "" {
-		lines = append(lines, boxLineW(w, []span{
-			{text: "  ", fg: cDim},
-			{text: "→ ", fg: cAmber},
-			{text: truncPad(e.hint, w-4, false), fg: cHint},
-		}, nil))
-	}
-	lines = append(lines, boxLineW(w, []span{
-		{text: "  ", fg: cDim},
-		{text: "r", fg: cFg, bold: true},
-		{text: " retry · ", fg: cErrMuted},
-		{text: "esc", fg: cFg, bold: true},
-		{text: " dismiss", fg: cErrMuted},
-	}, nil))
-	return lines
-}
-
-func pongLineW(w int, text string) string {
-	return boxLineW(w, []span{
-		{text: " ", fg: cDim},
-		{text: " PONG ", fg: cInvFg, bg: cAccent, bold: true},
-		{text: " " + text, fg: cPong},
-	}, nil)
-}
-
-func errKVW(w int, label, value string, valColor color.Color) string {
-	return boxLineW(w, []span{
-		{text: " ", fg: cDim},
-		{text: " " + truncPad(label, 8, false), fg: cErrMuted},
-		{text: truncPad(value, w-11, false), fg: valColor},
-	}, nil)
-}
-
 func (m Model) statusLine(n int) string {
-	icon, color, text := "›", cDim, m.status
-	switch {
-	case m.confirming:
-		icon, color, text = "!", cAmber, fmt.Sprintf("delete %q? y/n", m.cursorLabel())
-	default:
-		icon, color = statusGlyph(m.statusKind)
+	icon, col, text := gStatusIdle, cDim, m.status
+	if m.confirming {
+		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q? y/n", m.cursorLabel())
+	} else {
+		icon, col = statusGlyph(m.statusKind)
 	}
-
-	pos := "0/0"
-	if n > 0 {
-		pos = fmt.Sprintf("%d/%d", m.cursor+1, n)
-	}
-	textW := max(inner-4-len([]rune(pos)), 0)
-
-	return boxLine([]span{
-		{text: " ", fg: cDim},
-		{text: icon, fg: color},
-		{text: " " + truncPad(text, textW, false), fg: color},
-		{text: pos + " ", fg: cMuted},
-	}, nil)
-}
-
-func statusGlyph(k statusKind) (string, color.Color) {
-	switch k {
-	case kindOK:
-		return "✓", cAccent
-	case kindPending:
-		return "◐", cAmber
-	case kindWarn:
-		return "!", cAmber
-	case kindErr:
-		return "✗", cRed
-	default:
-		return "›", cDim
-	}
-}
-
-func (m Model) keybindLine() string {
-	return strings.Join(keybarLinesW(inner, keybinds), "\n")
-}
-
-// keybarLinesW lays out key/label hints, wrapping onto extra lines rather than
-// spilling past the right border.
-func keybarLinesW(w int, binds []struct{ key, label string }) []string {
-	var lines []string
-	spans := []span{{text: " ", fg: cDim}}
-	used := 1
-	for i, b := range binds {
-		sep := " · "
-		if i == len(binds)-1 {
-			sep = ""
-		}
-		seg := b.key + " " + b.label + sep
-		if used+len([]rune(seg)) > w && len(spans) > 1 {
-			lines = append(lines, boxLineW(w, spans, nil))
-			spans = []span{{text: " ", fg: cDim}}
-			used = 1
-		}
-		spans = append(spans,
-			span{text: b.key, fg: cFg, bold: true},
-			span{text: " " + b.label + sep, fg: cDim},
-		)
-		used += len([]rune(seg))
-	}
-	return append(lines, boxLineW(w, spans, nil))
+	return frameStatus(tableInner, icon, col, text, cursorPos(m.cursor, n))
 }

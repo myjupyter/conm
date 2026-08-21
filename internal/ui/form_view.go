@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -26,7 +27,7 @@ func (m formModel) render() string {
 	lines := []string{
 		m.formTopLine(),
 		m.badgeLine(),
-		boxLineW(formInner, nil, nil),
+		frameLine(formInner, nil, nil),
 		m.tabLine(),
 		m.dividerLine(),
 		m.noteLine(),
@@ -35,18 +36,18 @@ func (m formModel) render() string {
 	for _, i := range m.sectionFields(m.section) {
 		lines = append(lines, m.fieldRow(i), m.messageRow(i))
 	}
-	lines = append(lines, boxLineW(formInner, nil, nil))
+	lines = append(lines, frameLine(formInner, nil, nil))
 
 	if m.pong != "" {
-		lines = append(lines, ruleW(formInner, "├", "┤"), m.pongLine())
+		lines = append(lines, frameRule(formInner, gTeeL, gTeeR), m.pongLine())
 	}
 	if m.ping != nil {
-		lines = append(lines, errPanelLinesW(formInner, m.ping)...)
+		lines = append(lines, frameErrPanel(formInner, m.ping)...)
 	}
 
-	lines = append(lines, ruleW(formInner, "├", "┤"), m.formStatusLine())
-	lines = append(lines, keybarLinesW(formInner, m.formBinds())...)
-	lines = append(lines, border("└")+border(strings.Repeat("─", formInner))+border("┘"))
+	lines = append(lines, frameRule(formInner, gTeeL, gTeeR), m.formStatusLine())
+	lines = append(lines, frameKeybar(formInner, m.formBinds())...)
+	lines = append(lines, frameBottom(formInner))
 	return strings.Join(lines, "\n")
 }
 
@@ -55,7 +56,7 @@ func (m formModel) formTopLine() string {
 	if m.isEdit {
 		crumb = "edit connection"
 	}
-	return topLineW(formInner, crumb, "")
+	return frameTop(formInner, crumb, "")
 }
 
 func (m formModel) badgeLine() string {
@@ -67,11 +68,7 @@ func (m formModel) badgeLine() string {
 		}
 		title = "editing " + name
 	}
-	return boxLineW(formInner, []span{
-		{text: "  ", fg: cDim},
-		{text: " postgres ", fg: cInvFg, bg: cPostgres, bold: true},
-		{text: "  " + title, fg: cFg},
-	}, nil)
+	return frameBadge(formInner, "postgres", typeColor(config.PostgresConnType), title)
 }
 
 func (m formModel) tabLine() string {
@@ -90,18 +87,18 @@ func (m formModel) tabLine() string {
 		spans = append(spans, span{text: "  ", fg: cDim})
 	}
 	spans = append(spans, span{text: "tab to switch", fg: cFaint})
-	return boxLineW(formInner, spans, nil)
+	return frameLine(formInner, spans, nil)
 }
 
 func (m formModel) dividerLine() string {
-	return boxLineW(formInner, []span{
+	return frameLine(formInner, []span{
 		{text: "  ", fg: cDim},
-		{text: strings.Repeat("─", formInner-4), fg: cBorder},
+		{text: strings.Repeat(gLineH, formInner-4), fg: cBorder},
 	}, nil)
 }
 
 func (m formModel) noteLine() string {
-	return boxLineW(formInner, []span{
+	return frameLine(formInner, []span{
 		{text: "  ", fg: cDim},
 		{text: m.sections[m.section].Note, fg: cFaint},
 	}, nil)
@@ -118,7 +115,7 @@ func (m formModel) fieldRow(i int) string {
 
 	caret := "   "
 	if active {
-		caret = " ❯ "
+		caret = " " + gCaret + " "
 	}
 	gutter, gc := m.gutter(i, active)
 
@@ -137,7 +134,7 @@ func (m formModel) fieldRow(i int) string {
 		{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
 	}
 	spans = append(spans, m.inputBox(i, active, bg)...)
-	return boxLineW(formInner, spans, bg)
+	return frameLine(formInner, spans, bg)
 }
 
 func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
@@ -171,18 +168,18 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 			valFg, posFg = cInvFg, cInvFg
 		}
 		return []span{
-			{text: "│ < ", fg: borderFg, bg: bg},
+			{text: gLineV + " " + gSelectPrev + " ", fg: borderFg, bg: bg},
 			{text: strings.Repeat(" ", left), bg: bg},
 			{text: value, fg: valFg, bg: bg, bold: true},
 			{text: strings.Repeat(" ", right), bg: bg},
 			{text: pos + " ", fg: posFg, bg: bg},
-			{text: "> │", fg: borderFg, bg: bg},
+			{text: gSelectNext + " " + gLineV, fg: borderFg, bg: bg},
 		}
 	}
 
 	disp, ghost := m.display(i, active)
 	if active && m.insert {
-		disp += "█"
+		disp += gInputCursor
 	}
 	valFg := cValue
 	if ghost {
@@ -192,9 +189,9 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 		valFg = cInvFg
 	}
 	return []span{
-		{text: "│", fg: borderFg, bg: bg},
+		{text: gLineV, fg: borderFg, bg: bg},
 		{text: truncPad(disp, formBoxW-2, false), fg: valFg, bg: bg},
-		{text: "│", fg: borderFg, bg: bg},
+		{text: gLineV, fg: borderFg, bg: bg},
 	}
 }
 
@@ -213,7 +210,7 @@ func (m formModel) display(i int, active bool) (string, bool) {
 
 	if raw != "" {
 		if f.Kind == spec.HiddenFieldKind && !m.reveal {
-			return strings.Repeat("•", len([]rune(raw))), false
+			return strings.Repeat(gInputMask, len([]rune(raw))), false
 		}
 		return raw, false
 	}
@@ -225,7 +222,7 @@ func (m formModel) display(i int, active bool) (string, bool) {
 	case f.Property == spec.RequiredFieldProperty:
 		return "", true
 	default:
-		return "—", true
+		return gEmpty, true
 	}
 }
 
@@ -237,13 +234,13 @@ func (m formModel) gutter(i int, active bool) (string, color.Color) {
 	var c color.Color
 	switch {
 	case m.attempted && m.fieldError(i) != "":
-		g, c = "✗", cRed
+		g, c = gFieldBad, cRed
 	case m.isSecretField(i) && m.isRef() && raw == "":
-		g, c = "○", cFaint
+		g, c = gDotOff, cFaint
 	case raw != "" || f.Kind == spec.SelectFieldKind || f.DefaultValue != "":
-		g, c = "●", cAccent
+		g, c = gDotOn, cAccent
 	default:
-		g, c = "○", cFaint
+		g, c = gDotOff, cFaint
 	}
 	if active {
 		c = cInvFg
@@ -256,57 +253,49 @@ func (m formModel) messageRow(i int) string {
 	col := cRed
 	if m.attempted {
 		if e := m.fieldError(i); e != "" {
-			text = "✗ " + e
+			text = gFieldBad + " " + e
 		}
 	}
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return boxLineW(formInner, []span{
+	return frameLine(formInner, []span{
 		{text: prefix, fg: cDim},
 		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: col},
 	}, nil)
 }
 
 func (m formModel) pongLine() string {
-	return pongLineW(formInner, m.pong)
+	return framePong(formInner, m.pong)
 }
 
 func (m formModel) formStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
-	pos := fmt.Sprintf("%d/%d", m.idx+1, len(m.sectionFields(m.section)))
-	textW := max(formInner-4-len([]rune(pos)), 0)
-
-	return boxLineW(formInner, []span{
-		{text: " ", fg: cDim},
-		{text: icon, fg: col},
-		{text: " " + truncPad(m.status, textW, false), fg: col},
-		{text: pos + " ", fg: cMuted},
-	}, nil)
+	return frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.sectionFields(m.section))))
 }
 
-func (m formModel) formBinds() []struct{ key, label string } {
+func (m formModel) formBinds() []keybind {
 	if m.insert {
-		return []struct{ key, label string }{
+		return []keybind{
 			{"esc", "done"}, {"enter", "next field"}, {"tab", "section"},
 		}
 	}
 
-	binds := []struct{ key, label string }{
+	binds := []keybind{
 		{"↑↓/jk", "move"}, {"tab", "section"}, {"←/→", "select"}, {"e", "edit"},
 	}
 	switch cur := m.currentField(); {
 	case m.isProviderField(cur) && m.isRef():
-		binds = append(binds, struct{ key, label string }{"s", m.storeLabel()})
+		binds = append(binds, keybind{"s", m.storeLabel()})
 	case m.spec.Fields[cur].Kind == spec.HiddenFieldKind && !m.isRef():
 		label := "show"
 		if m.reveal {
 			label = "hide"
 		}
-		binds = append(binds, struct{ key, label string }{"s", label})
+		binds = append(binds, keybind{"s", label})
 	}
 	return append(binds,
-		struct{ key, label string }{"enter", "submit"},
-		struct{ key, label string }{"p", "ping"},
-		struct{ key, label string }{"esc", "cancel"},
+		keybind{"enter", "submit"},
+		keybind{"p", "ping"},
+		keybind{"esc", "cancel"},
 	)
 }
 

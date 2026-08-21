@@ -19,12 +19,12 @@ const (
 	wSecDesc = 22
 )
 
-func (m secretModel) secretBinds() []struct{ key, label string } {
+func (m secretModel) secretBinds() []keybind {
 	use := "info"
 	if m.picking {
 		use = "use"
 	}
-	return []struct{ key, label string }{
+	return []keybind{
 		{"↑/k", "up"}, {"↓/j", "down"}, {"enter", use},
 		{"n", "new"}, {"e", "edit"}, {"d", "del"},
 		{"esc", "back"},
@@ -41,15 +41,15 @@ func (m secretModel) render() string {
 	n := m.repo.Len()
 
 	lines := []string{
-		topLineW(secretInner, m.crumb(), fmt.Sprintf(" %d %s ─", n, plural(n, "entry", "entries"))),
+		frameTop(secretInner, m.crumb(), fmt.Sprintf(" %d %s "+gLineH, n, plural(n, "entry", "entries"))),
 		m.storeTabsLine(n),
-		ruleW(secretInner, "├", "┤"),
+		frameRule(secretInner, gTeeL, gTeeR),
 		m.secretHeaderLine(),
-		ruleW(secretInner, "├", "┤"),
+		frameRule(secretInner, gTeeL, gTeeR),
 	}
 
 	if n == 0 {
-		lines = append(lines, boxLineW(secretInner, []span{
+		lines = append(lines, frameLine(secretInner, []span{
 			{text: truncPad("   keyring is empty · press n to add an entry", secretInner, false), fg: cFaint},
 		}, nil))
 	} else {
@@ -59,11 +59,11 @@ func (m secretModel) render() string {
 	}
 
 	lines = append(lines,
-		ruleW(secretInner, "├", "┤"),
+		frameRule(secretInner, gTeeL, gTeeR),
 		m.secretStatusLine(n),
 	)
-	lines = append(lines, keybarLinesW(secretInner, m.secretBinds())...)
-	lines = append(lines, border("└")+border(strings.Repeat("─", secretInner))+border("┘"))
+	lines = append(lines, frameKeybar(secretInner, m.secretBinds())...)
+	lines = append(lines, frameBottom(secretInner))
 	return strings.Join(lines, "\n")
 }
 
@@ -76,7 +76,7 @@ func (m secretModel) crumb() string {
 
 func (m secretModel) storeTabsLine(n int) string {
 	label := fmt.Sprintf(" %s %d ", m.repo.Kind(), n)
-	return boxLineW(secretInner, []span{
+	return frameLine(secretInner, []span{
 		{text: " ", fg: cDim},
 		{text: label, fg: cInvFg, bg: cAccent, bold: true},
 		{text: "  ", fg: cDim},
@@ -85,7 +85,7 @@ func (m secretModel) storeTabsLine(n int) string {
 }
 
 func (m secretModel) secretHeaderLine() string {
-	return boxLineW(secretInner, []span{
+	return frameLine(secretInner, []span{
 		{text: truncPad("", wMark, false), fg: cDim},
 		{text: " " + truncPad("ID", wSecID, false), fg: cDim},
 		{text: " " + truncPad("LOCATION", wSecLoc, false), fg: cDim},
@@ -97,7 +97,7 @@ func (m secretModel) secretHeaderLine() string {
 func (m secretModel) secretRowLine(i int) string {
 	s, ok := m.repo.Get(i)
 	if !ok {
-		return boxLineW(secretInner, nil, nil)
+		return frameLine(secretInner, nil, nil)
 	}
 	sel := i == m.cursor
 	used := len(m.repo.UsagesAt(i))
@@ -116,14 +116,14 @@ func (m secretModel) secretRowLine(i int) string {
 
 	caret := " "
 	if sel {
-		caret = "❯"
+		caret = gCaret
 	}
-	mark := "○"
+	mark := gDotOff
 	switch {
 	case !s.IsValid():
-		mark = "✕"
+		mark = gDotFail
 	case used > 0:
-		mark = "●"
+		mark = gDotOn
 	}
 
 	usedText := "unused"
@@ -136,7 +136,7 @@ func (m secretModel) secretRowLine(i int) string {
 		}
 	}
 
-	return boxLineW(secretInner, []span{
+	return frameLine(secretInner, []span{
 		{text: caret + mark, fg: markC, bg: bg},
 		{text: " " + truncPad(s.ID(), wSecID, false), fg: fg, bg: bg},
 		{text: " " + truncPad(s.Location(), wSecLoc, false), fg: soft, bg: bg},
@@ -146,23 +146,11 @@ func (m secretModel) secretRowLine(i int) string {
 }
 
 func (m secretModel) secretStatusLine(n int) string {
-	icon, col, text := "›", cDim, m.status
+	icon, col, text := gStatusIdle, cDim, m.status
 	if m.confirming {
-		icon, col, text = "!", cAmber, fmt.Sprintf("delete %q from the keyring? y/n", m.cursorSecretLabel())
+		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q from the keyring? y/n", m.cursorSecretLabel())
 	} else {
 		icon, col = statusGlyph(m.statusKind)
 	}
-
-	pos := "0/0"
-	if n > 0 {
-		pos = fmt.Sprintf("%d/%d", m.cursor+1, n)
-	}
-	textW := max(secretInner-4-len([]rune(pos)), 0)
-
-	return boxLineW(secretInner, []span{
-		{text: " ", fg: cDim},
-		{text: icon, fg: col},
-		{text: " " + truncPad(text, textW, false), fg: col},
-		{text: pos + " ", fg: cMuted},
-	}, nil)
+	return frameStatus(secretInner, icon, col, text, cursorPos(m.cursor, n))
 }

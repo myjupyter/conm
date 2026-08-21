@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 
@@ -20,7 +19,7 @@ func (m secretFormModel) render() string {
 	lines := []string{
 		m.secretFormTopLine(),
 		m.secretBadgeLine(),
-		boxLineW(formInner, nil, nil),
+		frameLine(formInner, nil, nil),
 	}
 
 	for i := range m.spec.Fields {
@@ -28,12 +27,12 @@ func (m secretFormModel) render() string {
 	}
 
 	lines = append(lines,
-		boxLineW(formInner, nil, nil),
-		ruleW(formInner, "├", "┤"),
+		frameLine(formInner, nil, nil),
+		frameRule(formInner, gTeeL, gTeeR),
 		m.secretFormStatusLine(),
 	)
-	lines = append(lines, keybarLinesW(formInner, m.secretFormBinds())...)
-	lines = append(lines, border("└")+border(strings.Repeat("─", formInner))+border("┘"))
+	lines = append(lines, frameKeybar(formInner, m.secretFormBinds())...)
+	lines = append(lines, frameBottom(formInner))
 	return strings.Join(lines, "\n")
 }
 
@@ -42,7 +41,7 @@ func (m secretFormModel) secretFormTopLine() string {
 	if m.isEdit {
 		crumb = "edit keyring entry"
 	}
-	return topLineW(formInner, crumb, "")
+	return frameTop(formInner, crumb, "")
 }
 
 func (m secretFormModel) secretBadgeLine() string {
@@ -52,11 +51,7 @@ func (m secretFormModel) secretBadgeLine() string {
 			title = "editing " + id
 		}
 	}
-	return boxLineW(formInner, []span{
-		{text: "  ", fg: cDim},
-		{text: " keyring ", fg: cInvFg, bg: cAccent, bold: true},
-		{text: "  " + title, fg: cFg},
-	}, nil)
+	return frameBadge(formInner, "keyring", cAccent, title)
 }
 
 func (m secretFormModel) secretFieldRow(i int) string {
@@ -70,7 +65,7 @@ func (m secretFormModel) secretFieldRow(i int) string {
 
 	caret := "   "
 	if active {
-		caret = " ❯ "
+		caret = " " + gCaret + " "
 	}
 	gutter, gc := m.secretGutter(i, active)
 
@@ -89,7 +84,7 @@ func (m secretFormModel) secretFieldRow(i int) string {
 		{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
 	}
 	spans = append(spans, m.secretInputBox(i, active, bg)...)
-	return boxLineW(formInner, spans, bg)
+	return frameLine(formInner, spans, bg)
 }
 
 func (m secretFormModel) secretInputBox(i int, active bool, bg color.Color) []span {
@@ -103,7 +98,7 @@ func (m secretFormModel) secretInputBox(i int, active bool, bg color.Color) []sp
 
 	disp, ghost := m.secretDisplay(i, active)
 	if active && m.insert {
-		disp += "█"
+		disp += gInputCursor
 	}
 	valFg := cValue
 	if ghost {
@@ -113,9 +108,9 @@ func (m secretFormModel) secretInputBox(i int, active bool, bg color.Color) []sp
 		valFg = cInvFg
 	}
 	return []span{
-		{text: "│", fg: borderFg, bg: bg},
+		{text: gLineV, fg: borderFg, bg: bg},
 		{text: truncPad(disp, formBoxW-2, false), fg: valFg, bg: bg},
-		{text: "│", fg: borderFg, bg: bg},
+		{text: gLineV, fg: borderFg, bg: bg},
 	}
 }
 
@@ -124,7 +119,7 @@ func (m secretFormModel) secretDisplay(i int, active bool) (string, bool) {
 	raw := m.vals[f.Key]
 	if raw != "" {
 		if f.Kind == spec.HiddenFieldKind && !m.reveal {
-			return strings.Repeat("•", len([]rune(raw))), false
+			return strings.Repeat(gInputMask, len([]rune(raw))), false
 		}
 		return raw, false
 	}
@@ -140,7 +135,7 @@ func (m secretFormModel) secretDisplay(i int, active bool) (string, bool) {
 	case f.Property == spec.RequiredFieldProperty:
 		return "", true
 	default:
-		return "—", true
+		return gEmpty, true
 	}
 }
 
@@ -151,11 +146,11 @@ func (m secretFormModel) secretGutter(i int, active bool) (string, color.Color) 
 	var c color.Color
 	switch {
 	case m.attempted && m.fieldError(i) != "":
-		g, c = "✗", cRed
+		g, c = gFieldBad, cRed
 	case m.vals[f.Key] != "":
-		g, c = "●", cAccent
+		g, c = gDotOn, cAccent
 	default:
-		g, c = "○", cFaint
+		g, c = gDotOff, cFaint
 	}
 	if active {
 		c = cInvFg
@@ -167,11 +162,11 @@ func (m secretFormModel) secretMessageRow(i int) string {
 	text := ""
 	if m.attempted {
 		if e := m.fieldError(i); e != "" {
-			text = "✗ " + e
+			text = gFieldBad + " " + e
 		}
 	}
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return boxLineW(formInner, []span{
+	return frameLine(formInner, []span{
 		{text: prefix, fg: cDim},
 		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: cRed},
 	}, nil)
@@ -179,25 +174,17 @@ func (m secretFormModel) secretMessageRow(i int) string {
 
 func (m secretFormModel) secretFormStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
-	pos := fmt.Sprintf("%d/%d", m.idx+1, len(m.spec.Fields))
-	textW := max(formInner-4-len([]rune(pos)), 0)
-
-	return boxLineW(formInner, []span{
-		{text: " ", fg: cDim},
-		{text: icon, fg: col},
-		{text: " " + truncPad(m.status, textW, false), fg: col},
-		{text: pos + " ", fg: cMuted},
-	}, nil)
+	return frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.spec.Fields)))
 }
 
-func (m secretFormModel) secretFormBinds() []struct{ key, label string } {
+func (m secretFormModel) secretFormBinds() []keybind {
 	if m.insert {
-		return []struct{ key, label string }{
+		return []keybind{
 			{"esc", "done"}, {"enter", "next field"},
 		}
 	}
 
-	binds := []struct{ key, label string }{
+	binds := []keybind{
 		{"↑↓/jk", "move"}, {"e", "edit"},
 	}
 	if m.spec.Fields[m.idx].Kind == spec.HiddenFieldKind {
@@ -205,10 +192,10 @@ func (m secretFormModel) secretFormBinds() []struct{ key, label string } {
 		if m.reveal {
 			label = "hide"
 		}
-		binds = append(binds, struct{ key, label string }{"s", label})
+		binds = append(binds, keybind{"s", label})
 	}
 	return append(binds,
-		struct{ key, label string }{"enter", "store"},
-		struct{ key, label string }{"esc", "cancel"},
+		keybind{"enter", "store"},
+		keybind{"esc", "cancel"},
 	)
 }

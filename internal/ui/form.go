@@ -439,7 +439,7 @@ func (m formModel) refError() string {
 	store := m.storeLabel()
 
 	if ref == "" {
-		return "pick a " + store + " entry — ←/→ or k"
+		return "pick a " + store + " entry — ←/→, or s on provider"
 	}
 	for _, loc := range m.refEntries() {
 		if loc == ref {

@@ -24,16 +24,6 @@ type Model struct {
 	statusKind statusKind
 }
 
-type statusKind int
-
-const (
-	kindIdle statusKind = iota
-	kindOK
-	kindPending
-	kindWarn
-	kindErr
-)
-
 type ConnState struct {
 	pingSpinner spinner.Model
 
@@ -51,16 +41,6 @@ const (
 	pingOK
 	pingFailed
 )
-
-type connError struct {
-	action string
-	conn   string
-	code   string
-	target string
-	op     string
-	detail string
-	hint   string
-}
 
 type pingResultMsg struct {
 	index  int
