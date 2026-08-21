@@ -1,0 +1,293 @@
+version: "2"
+
+run:
+  # No test suite yet, but lint them the moment they appear.
+  tests: true
+  timeout: 5m
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  default: standard
+  enable:
+    # correctness
+    - errorlint # errors.Is/As and %w wrapping
+    - nilerr # `return nil` on a non-nil err
+    - nilnesserr # nil-error checks that can never fire
+    - forcetypeassert # type assertion without comma-ok
+    - errname # ErrFoo / FooError naming
+    - durationcheck # time.Duration * time.Duration
+    - copyloopvar # leftover loop-variable copies
+    - reassign # reassigning package-level vars of other packages
+    - exhaustive # switches over config.ConnType / secret schemes
+    - makezero # make([]T, n) followed by append
+    - contextcheck # ctx not propagated into a call chain
+    - fatcontext # context built up inside a loop
+    - containedctx # context.Context stashed in a struct field
+    # resources — pgx/database/sql
+    - sqlclosecheck # unclosed sql.Rows / sql.Stmt
+    - rowserrcheck # missing rows.Err()
+    # security
+    - gosec
+    - bidichk
+    - asciicheck
+    # style
+    - gocritic
+    - revive
+    - godot
+    - misspell
+    - dupword
+    - predeclared
+    - whitespace
+    - nolintlint
+    # complexity
+    - gocyclo
+    - nestif
+    - funlen
+    - dupl
+    # performance
+    - perfsprint
+    - unconvert
+    - goconst
+    - prealloc
+    # architecture — enforces the layering rules in CLAUDE.md
+    - depguard
+    # modernization
+    - modernize
+    - intrange
+    - usestdlibvars
+    - exptostd
+    # testing (no tests today; these guard the ones that get added)
+    - thelper
+    - usetesting
+
+  disable:
+    - ireturn # constructors deliberately return network.Connection / config.Connection
+    - exhaustruct # config structs rely on zero values
+    - varnamelen # short receivers/locals are the house style
+    - wrapcheck # too noisy; errorlint covers the wrapping that matters
+    - err113 # sentinel-error-only policy does not fit the validators
+    - mnd # TUI layout code is full of intentional literal widths
+    - lll # gofmt decides line breaks here
+    - wsl_v5 # blank-line policing fights the Bubble Tea reducer style
+    - nlreturn # same
+    - gochecknoglobals # theme/glyph palettes and cobra commands are globals by design
+    - gochecknoinits # cobra command registration uses init()
+    - nonamedreturns
+    - noinlineerr # `if err := f(); err != nil` is idiomatic
+    - gocognit # covered by gocyclo + nestif
+    - cyclop # covered by gocyclo
+    - funcorder
+    - godoclint # overlaps godot + revive
+    - testpackage
+    - paralleltest
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+      exclude-functions:
+        # Bubble Tea / lipgloss writers to a terminal: nothing actionable on failure.
+        - (io.Writer).Write
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+    exhaustive:
+      default-signifies-exhaustive: true
+
+    goconst:
+      min-len: 3
+      min-occurrences: 4
+      ignore-tests: true
+      # Bubble Tea matches keys by their literal name; hoisting these into
+      # constants buys nothing and hides what the reducer is matching on.
+      ignore-string-values:
+        - '^(esc|enter|tab|shift\+tab|space|backspace|delete)$'
+        - '^(up|down|left|right|home|end|pgup|pgdown)$'
+        - '^(ctrl|alt)\+.$'
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - hugeParam # value receivers on small config structs are fine
+        - unnamedResult
+
+    gocyclo:
+      # Bubble Tea Update() switches run long by nature: a screen's flat
+      # key-dispatch switch lands around 16 with nothing worth extracting.
+      min-complexity: 20
+
+    nestif:
+      min-complexity: 5
+
+    funlen:
+      lines: 120
+      statements: 60
+
+    dupl:
+      threshold: 150 # the *_view.go frame builders repeat by design
+
+    godot:
+      scope: declarations
+      capital: false
+
+    gosec:
+      excludes:
+        - G115 # int conversions in terminal width/height math
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+    revive:
+      rules:
+        - name: exported
+          disabled: true # unexported-heavy internal packages; godot covers comment shape
+        - name: var-naming
+        - name: indent-error-flow
+        - name: errorf
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: unreachable-code
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: unexported-return
+          disabled: true # NewPGClient & friends intentionally return interfaces
+
+    # Dependencies point inward toward `config`. One rule per layer; a rule's
+    # `files` globs select the layer, `deny` lists the layers it may not reach.
+    depguard:
+      rules:
+        config:
+          files:
+            - "**/internal/config/**"
+          deny:
+            - pkg: github.com/myjupyter/conm/internal/secret
+              desc: config is the leaf package — it imports no other internal package
+            - pkg: github.com/myjupyter/conm/internal/network
+              desc: config is the leaf package — it imports no other internal package
+            - pkg: github.com/myjupyter/conm/internal/repository
+              desc: config is the leaf package — it imports no other internal package
+            - pkg: github.com/myjupyter/conm/internal/ui
+              desc: config is the leaf package — it imports no other internal package
+            - pkg: github.com/myjupyter/conm/cmd
+              desc: config is the leaf package — it imports no other internal package
+
+        secret:
+          files:
+            - "**/internal/secret/**"
+          deny:
+            - pkg: github.com/myjupyter/conm/internal/network
+              desc: secret points inward — it may import only config
+            - pkg: github.com/myjupyter/conm/internal/repository
+              desc: secret points inward — it may import only config
+            - pkg: github.com/myjupyter/conm/internal/ui
+              desc: secret points inward — it may import only config
+            - pkg: github.com/myjupyter/conm/cmd
+              desc: secret points inward — it may import only config
+
+        network:
+          files:
+            - "**/internal/network/**"
+          deny:
+            - pkg: github.com/myjupyter/conm/internal/repository
+              desc: network depends on the data model, not on orchestration
+            - pkg: github.com/myjupyter/conm/internal/ui
+              desc: network depends on the data model, not on orchestration
+            - pkg: github.com/myjupyter/conm/cmd
+              desc: network depends on the data model, not on orchestration
+
+        repository:
+          files:
+            - "**/internal/repository/**"
+          deny:
+            - pkg: github.com/myjupyter/conm/internal/ui
+              desc: the repository is the composition root below the UI, not above it
+            - pkg: github.com/myjupyter/conm/cmd
+              desc: the repository is the composition root below the UI, not above it
+
+        ui-spec:
+          files:
+            - "**/internal/ui/spec/**"
+          deny:
+            - pkg: github.com/myjupyter/conm/internal/network
+              desc: ui/spec is declarative — config and secret only
+            - pkg: github.com/myjupyter/conm/internal/repository
+              desc: ui/spec is declarative — config and secret only
+            - pkg: github.com/myjupyter/conm/internal/ui
+              desc: ui/spec is declarative — config and secret only
+            - pkg: github.com/myjupyter/conm/cmd
+              desc: ui/spec is declarative — config and secret only
+
+        ui:
+          files:
+            - "**/internal/ui/*.go"
+          deny:
+            - pkg: github.com/myjupyter/conm/cmd
+              desc: cmd wires the UI, never the other way round
+
+        cmd:
+          files:
+            - "**/cmd/**"
+          deny:
+            - pkg: github.com/myjupyter/conm/internal/network
+              desc: cmd talks to config and ui only
+            - pkg: github.com/myjupyter/conm/internal/repository
+              desc: cmd talks to config and ui only
+
+  exclusions:
+    generated: lax
+    # Several rules below only bite once tests/other paths exist; do not warn
+    # about them sitting idle.
+    warn-unused: false
+    presets:
+      - comments
+      - std-error-handling
+      - common-false-positives
+      - legacy
+    rules:
+      # The DB CLI (psql/pgcli/usql) is user-configured by design; execing it
+      # with a variable path is the feature, not a finding.
+      - path: internal/(network|config)/
+        text: "G204"
+        linters:
+          - gosec
+
+      # A DSN carries the resolved password, and the form spec ships a literal
+      # example password: that is what those strings are for.
+      - path: internal/(config|network|secret|ui)/
+        text: "G101"
+        linters:
+          - gosec
+
+      # ImportFromPGPass reads $PGPASSFILE / ~/.pgpass — a user-supplied path
+      # into the user's own home directory is the whole point of the feature.
+      - path: internal/config/postgres\.go
+        text: "G703"
+        linters:
+          - gosec
+
+      - path: _test\.go
+        linters:
+          - dupl
+          - funlen
+          - gocyclo
+          - gosec
+          - goconst
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/myjupyter/conm
+  exclusions:
+    generated: lax
