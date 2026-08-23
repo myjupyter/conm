@@ -25,7 +25,12 @@ func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
 		return false, err
 	}
 
-	if err := ws.Postgres.Add(conn); err != nil {
+	repo, ok := ws.ConnectionsOf(conn.ConnType())
+	if !ok {
+		return false, fmt.Errorf("no repository for connection type %q", conn.ConnType())
+	}
+
+	if err := repo.Add(conn); err != nil {
 		return false, err
 	}
 
@@ -38,7 +43,7 @@ func runAddForm(t config.ConnType, secrets *view.Secrets) (config.Connection, bo
 		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
 	}
 
-	return runForm(newFormModel(formSpec, formSpec.AddTitle, nil, secrets))
+	return runForm(newFormModel(t, formSpec, formSpec.AddTitle, nil, secrets))
 }
 
 func RunEditForm(t config.ConnType, existing config.Connection, secrets *view.Secrets) (config.Connection, bool, error) {
@@ -57,7 +62,7 @@ func RunEditForm(t config.ConnType, existing config.Connection, secrets *view.Se
 		return nil, false, fmt.Errorf("edit form cannot seed a %T as connection type %q", existing, t)
 	}
 
-	return runForm(newFormModel(formSpec, formSpec.EditTitle, initial, secrets))
+	return runForm(newFormModel(t, formSpec, formSpec.EditTitle, initial, secrets))
 }
 
 // pickSecretCmd hands the terminal to the keyring screen and folds the chosen

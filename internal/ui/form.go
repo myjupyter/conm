@@ -17,6 +17,7 @@ import (
 
 type formModel struct {
 	spec     spec.FormSpec[config.Connection]
+	kind     config.ConnType
 	title    string
 	isEdit   bool
 	sections []spec.FormSection
@@ -63,9 +64,10 @@ type secretPickedMsg struct {
 	err error
 }
 
-func newFormModel(spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue, secrets *view.Secrets) formModel {
+func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue, secrets *view.Secrets) formModel {
 	m := formModel{
 		spec:       spc,
+		kind:       kind,
 		title:      title,
 		isEdit:     initial != nil,
 		sections:   spc.Sections,

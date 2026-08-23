@@ -51,7 +51,7 @@ func hintFor(code network.ErrorCode) string {
 	case network.AuthErrorCode:
 		return "credentials were rejected · press " + keyMap.Edit.hint + " to update the username or password"
 	case network.TLSErrorCode:
-		return "TLS handshake failed · check sslmode and the CA certificate"
+		return "TLS handshake failed · check the connection's SSL settings and the CA certificate"
 	case network.InvalidErrorCode:
 		return "this connection has validation errors · press " + keyMap.Edit.hint + " to fix the config"
 	case network.UnknownErrorCode:

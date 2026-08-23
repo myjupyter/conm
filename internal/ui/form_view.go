@@ -7,7 +7,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -72,7 +71,7 @@ func (m formModel) badgeLine() string {
 		}
 		title = "editing " + name
 	}
-	return frameBadge(formInner, "postgres", typeColor(config.PostgresConnType), title)
+	return frameBadge(formInner, m.kind.String(), typeColor(m.kind), title)
 }
 
 func (m formModel) tabLine() string {
