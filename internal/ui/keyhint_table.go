@@ -12,11 +12,6 @@ type keyhintGroup struct {
 }
 
 const (
-	// keyhintKey is matched, keyhintKeyLabel is shown: a terminal reports the
-	// character it produced, "?", never a "shift+…" keystroke.
-	keyhintKey      = "?"
-	keyhintKeyLabel = "shift + ?"
-
 	// Group titles shared by every screen's keyhint table.
 	keyhintNavigation = "navigation"
 	keyhintAction     = "action"
@@ -37,9 +32,26 @@ func keyhintLines(w int, groups []keyhintGroup, open bool) []string {
 func keyhintPrompt(w int) string {
 	return frameLine(w, []span{
 		{text: " ", fg: cDim},
-		{text: keyhintKeyLabel, fg: cAccent, bold: true},
+		{text: keyMap.Help.hint, fg: cAccent, bold: true},
 		{text: " help", fg: cDim},
 	}, nil)
+}
+
+// initKeyhintLine spells the same hints for the init screens, which are not
+// framed and so get one plain line instead of a key bar.
+func initKeyhintLine() string {
+	binds := []keybind{
+		{keyMap.Up.hint, "up"},
+		{keyMap.Down.hint, "down"},
+		{keyMap.Confirm.hint, "select"},
+		{keyMap.Quit.hint, "quit"},
+	}
+
+	parts := make([]string, 0, len(binds))
+	for _, b := range binds {
+		parts = append(parts, b.key+" "+b.label)
+	}
+	return strings.Join(parts, " · ")
 }
 
 func keyhintBar(w int, groups []keyhintGroup) []string {
@@ -48,7 +60,7 @@ func keyhintBar(w int, groups []keyhintGroup) []string {
 
 func keyhintStatus(open bool) string {
 	if open {
-		return "all keys for this screen · " + keyhintKeyLabel + " to close"
+		return "all keys for this screen · " + keyMap.Help.hint + " to close"
 	}
 	return statusReady
 }
@@ -116,25 +128,25 @@ func (m Model) keyhints() []keyhintGroup {
 		{
 			title: keyhintNavigation,
 			binds: []keybind{
-				{"↑/k", "up"},
-				{"↓/j", "down"},
+				{keyMap.Up.hint, "up"},
+				{keyMap.Down.hint, "down"},
 			},
 		},
 		{
 			title: keyhintAction,
 			binds: []keybind{
-				{"enter", "connect"},
-				{"p", "ping"},
-				{"a", "add new"},
-				{"e", "edit"},
-				{"d", "delete"},
+				{keyMap.Confirm.hint, "connect"},
+				{keyMap.Ping.hint, "ping"},
+				{keyMap.Add.hint, "add new"},
+				{keyMap.Edit.hint, "edit"},
+				{keyMap.Delete.hint, "delete"},
 			},
 		},
 		{
 			title: keyhintScreen,
 			binds: []keybind{
-				{"s", "secrets"},
-				{"q/esc", "quit"},
+				{keyMap.Secret.hint, "secrets"},
+				{keyMap.Quit.hint, "quit"},
 			},
 		},
 	}
@@ -146,9 +158,9 @@ func (m formModel) keyhints() []keyhintGroup {
 			{
 				title: "editing",
 				binds: []keybind{
-					{"esc", "stop editing"},
-					{"enter", "confirm and next"},
-					{"tab", "switch section"},
+					{keyMap.Cancel.hint, "stop editing"},
+					{keyMap.Confirm.hint, "confirm and next"},
+					{keyMap.NextSection.hint, "switch section"},
 				},
 			},
 		}
@@ -156,34 +168,34 @@ func (m formModel) keyhints() []keyhintGroup {
 
 	cur := m.currentField()
 
-	nav := []keybind{{"↑↓/jk", "move between fields"}, {"tab", "switch section"}}
+	nav := []keybind{{keyMap.MoveVertical.hint, "move between fields"}, {keyMap.NextSection.hint, "switch section"}}
 	switch {
 	case m.isSelector(cur):
-		nav = append(nav, keybind{"←/→", "change a selector"})
+		nav = append(nav, keybind{keyMap.Cycle.hint, "change a selector"})
 	case m.isSecretField(cur) && m.isRef():
-		nav = append(nav, keybind{"←/→", "pick an entry"})
+		nav = append(nav, keybind{keyMap.Cycle.hint, "pick an entry"})
 	}
 
-	action := []keybind{{"e", "edit field"}}
+	action := []keybind{{keyMap.Edit.hint, "edit field"}}
 	switch {
 	case m.isProviderField(cur) && m.isRef():
-		action = append(action, keybind{"s", "open " + m.storeLabel()})
+		action = append(action, keybind{keyMap.Secret.hint, "open " + m.storeLabel()})
 	case m.spec.Fields[cur].Kind == spec.HiddenFieldKind && !m.isRef():
 		label := "show password"
 		if m.reveal {
 			label = "hide password"
 		}
-		action = append(action, keybind{"s", label})
+		action = append(action, keybind{keyMap.Secret.hint, label})
 	}
 	action = append(action,
-		keybind{"p", "test the connection"},
-		keybind{"enter", "validate and save"},
+		keybind{keyMap.Ping.hint, "test the connection"},
+		keybind{keyMap.Confirm.hint, "validate and save"},
 	)
 
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: nav},
 		{title: keyhintAction, binds: action},
-		{title: keyhintScreen, binds: []keybind{{"esc", "cancel"}}},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "cancel"}}},
 	}
 }
 
@@ -194,16 +206,16 @@ func (m secretModel) keyhints() []keyhintGroup {
 	}
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: []keybind{
-			{"↑↓/jk", "move"},
-			{"tab/←→", "switch store"},
+			{keyMap.MoveVertical.hint, "move"},
+			{keyMap.SwitchStore.hint, "switch store"},
 		}},
 		{title: keyhintAction, binds: []keybind{
-			{"enter", use},
-			{"a", "add new"},
-			{"e", "edit entry"},
-			{"d", "delete entry"},
+			{keyMap.Confirm.hint, use},
+			{keyMap.Add.hint, "add new"},
+			{keyMap.Edit.hint, "edit entry"},
+			{keyMap.Delete.hint, "delete entry"},
 		}},
-		{title: keyhintScreen, binds: []keybind{{"esc", back}}},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, back}}},
 	}
 }
 
@@ -211,25 +223,25 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 	if m.insert {
 		return []keyhintGroup{
 			{title: "editing", binds: []keybind{
-				{"esc", "stop editing"},
-				{"enter", "confirm and next"},
+				{keyMap.Cancel.hint, "stop editing"},
+				{keyMap.Confirm.hint, "confirm and next"},
 			}},
 		}
 	}
 
-	action := []keybind{{"e", "edit field"}}
+	action := []keybind{{keyMap.Edit.hint, "edit field"}}
 	if m.spec.Fields[m.idx].Kind == spec.HiddenFieldKind {
 		label := "show password"
 		if m.reveal {
 			label = "hide password"
 		}
-		action = append(action, keybind{"s", label})
+		action = append(action, keybind{keyMap.Secret.hint, label})
 	}
-	action = append(action, keybind{"enter", "store entry"})
+	action = append(action, keybind{keyMap.Confirm.hint, "store entry"})
 
 	return []keyhintGroup{
-		{title: keyhintNavigation, binds: []keybind{{"↑↓/jk", "move between fields"}}},
+		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, "move between fields"}}},
 		{title: keyhintAction, binds: action},
-		{title: keyhintScreen, binds: []keybind{{"esc", "cancel"}}},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "cancel"}}},
 	}
 }

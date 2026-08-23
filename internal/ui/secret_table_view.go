@@ -38,7 +38,7 @@ func (m secretModel) render() string {
 
 	if n == 0 {
 		lines = append(lines, frameLine(secretInner, []span{
-			{text: truncPad("   keyring is empty · press a to add an entry", secretInner, false), fg: cFaint},
+			{text: truncPad("   keyring is empty · press "+keyMap.Add.hint+" to add an entry", secretInner, false), fg: cFaint},
 		}, nil))
 	} else {
 		for i := range n {

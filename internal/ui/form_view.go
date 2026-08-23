@@ -209,7 +209,7 @@ func (m formModel) display(i int, active bool) (string, bool) {
 	// masked, because hiding which entry is attached helps nobody.
 	if m.isSecretField(i) && m.isRef() {
 		if raw == "" {
-			return "no entry — ←/→ to pick", true
+			return "no entry — " + keyMap.Cycle.hint + " to pick", true
 		}
 		return raw, false
 	}

@@ -44,7 +44,7 @@ func (m Model) render() string {
 
 	if n == 0 {
 		lines = append(lines, frameLine(tableInner, []span{
-			{text: truncPad("  no connections · press a to add one", tableInner, false), fg: cDim},
+			{text: truncPad("  no connections · press "+keyMap.Add.hint+" to add one", tableInner, false), fg: cDim},
 		}, nil))
 	} else {
 		for i := range n {

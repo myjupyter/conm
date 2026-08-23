@@ -40,9 +40,10 @@ var (
 // the TUI looks like, not how a line is put together — swapping this block for
 // a rounded or an ASCII set restyles the whole app without touching frame.go.
 //
-// Prose keeps its own punctuation: the "·" inside a status message and the
-// arrows inside a key hint ("↑/k", "←/→") are copy, not chrome, and read better
-// written out where they are used.
+// Prose keeps its own punctuation: the "·" inside a status message is copy, not
+// chrome, and reads better written out where it is used. The arrows inside a
+// key hint ("↑/k", "←/→") are neither — they spell a key, so they come from the
+// binding's hint in keybinding.go.
 const (
 	// The box every screen is framed in.
 	gCornerTL = "┌"

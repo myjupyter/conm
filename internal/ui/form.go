@@ -229,7 +229,7 @@ func (m *formModel) onSecretModeChange(was string) {
 			m.vals[spec.SecretValueKey] = list[0]
 		}
 	}
-	m.setStatus(m.storeLabel()+" · pick an entry with ←/→, or s on provider to manage", kindIdle)
+	m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Secret.hint+" on provider to manage", kindIdle)
 }
 
 func (m formModel) applyPicked(msg secretPickedMsg) formModel {
@@ -250,45 +250,45 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	n := len(fields)
 	cur := m.spec.Fields[fields[m.idx]]
 
-	switch msg.String() {
-	case "ctrl+c":
+	key := msg.String()
+
+	switch {
+	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
-	case "esc":
+	case keyMap.Cancel.matches(key):
 		if m.pong != "" || m.ping != nil {
 			m.pong, m.ping = "", nil
 			m.setStatus(statusReady, kindIdle)
 			return m, nil
 		}
 		return m, tea.Quit
-	case "down", "j":
+	case keyMap.Down.matches(key):
 		m.idx = (m.idx + 1) % n
-	case "up":
+	case keyMap.Up.matches(key):
 		m.idx = (m.idx - 1 + n) % n
-	case "tab":
+	case keyMap.NextSection.matches(key):
 		m.switchSection(1)
-	case "shift+tab":
+	case keyMap.PrevSection.matches(key):
 		m.switchSection(-1)
-	case "right", "l":
+	case keyMap.Right.matches(key):
 		m.navCycle(fields[m.idx], cur, 1)
-	case "left", "h":
+	case keyMap.Left.matches(key):
 		m.navCycle(fields[m.idx], cur, -1)
-	case "k":
-		m.idx = (m.idx - 1 + n) % n
-	case "e":
+	case keyMap.Edit.matches(key):
 		m.navEdit(fields[m.idx], cur)
-	case "s":
+	case keyMap.Secret.matches(key):
 		if cmd, handled := m.navSecret(fields[m.idx], cur); handled {
 			return m, cmd
 		}
-	case "p":
+	case keyMap.Ping.matches(key):
 		return m.pingForm()
-	case "r":
+	case keyMap.Retry.matches(key):
 		if m.ping != nil {
 			return m.pingForm()
 		}
-	case "enter":
+	case keyMap.Confirm.matches(key):
 		return m.submit()
-	case keyhintKey:
+	case keyMap.Help.matches(key):
 		m.help = !m.help
 		m.setStatus(keyhintStatus(m.help), kindIdle)
 	}
@@ -315,14 +315,14 @@ func (m *formModel) navCycle(i int, cur spec.FormField, dir int) {
 func (m *formModel) navEdit(i int, cur spec.FormField) {
 	switch {
 	case m.isSecretField(i) && m.isRef():
-		m.setStatus(m.storeLabel()+" entries are picked, not typed · use ←/→", kindWarn)
+		m.setStatus(m.storeLabel()+" entries are picked, not typed · use "+keyMap.Cycle.hint, kindWarn)
 	case m.isSelector(i):
-		m.setStatus(strings.ToLower(cur.Label)+" is a list · use ←/→", kindWarn)
+		m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
 	case cur.Kind == spec.SelectFieldKind:
 		m.setStatus(strings.ToLower(cur.Label)+" has no options to pick from", kindWarn)
 	default:
 		m.insert = true
-		m.setStatus("editing "+strings.ToLower(cur.Label)+" · esc when done", kindIdle)
+		m.setStatus("editing "+strings.ToLower(cur.Label)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
 	}
 }
 
@@ -337,7 +337,7 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 	case cur.Kind == spec.HiddenFieldKind && !m.isRef():
 		m.reveal = !m.reveal
 		if m.reveal {
-			m.setStatus("password visible · s to hide", kindIdle)
+			m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)
 		} else {
 			m.setStatus("password hidden", kindIdle)
 		}
@@ -349,24 +349,26 @@ func (m formModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	fields := m.sectionFields(m.section)
 	cur := m.spec.Fields[fields[m.idx]]
 
-	switch msg.String() {
-	case "ctrl+c":
+	key := msg.String()
+
+	switch {
+	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
-	case "esc":
+	case keyMap.Cancel.matches(key):
 		m.insert = false
-		m.setStatus("done editing · hjkl to move", kindIdle)
+		m.setStatus("done editing · "+keyMap.MoveVertical.hint+" to move", kindIdle)
 		return m, nil
-	case "enter":
+	case keyMap.Confirm.matches(key):
 		m.insert = false
 		if m.idx < len(fields)-1 {
 			m.idx++
 		}
 		return m, nil
-	case "tab":
+	case keyMap.NextSection.matches(key):
 		m.insert = false
 		m.switchSection(1)
 		return m, nil
-	case "backspace":
+	case keyMap.Backspace.matches(key):
 		if r := []rune(m.vals[cur.Key]); len(r) > 0 {
 			m.vals[cur.Key] = string(r[:len(r)-1])
 		}
@@ -458,7 +460,7 @@ func (m formModel) refError() string {
 	store := m.storeLabel()
 
 	if ref == "" {
-		return "pick a " + store + " entry — ←/→, or s on provider"
+		return "pick a " + store + " entry — " + keyMap.Cycle.hint + ", or " + keyMap.Secret.hint + " on provider"
 	}
 	if slices.Contains(m.refEntries(), ref) {
 		return ""

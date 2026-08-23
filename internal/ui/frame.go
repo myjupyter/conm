@@ -270,9 +270,9 @@ func frameErrPanel(w int, e *connError) []string {
 	}
 	return append(lines, frameLine(w, []span{
 		{text: "  ", fg: cDim},
-		{text: "r", fg: cFg, bold: true},
+		{text: keyMap.Retry.hint, fg: cFg, bold: true},
 		{text: " retry · ", fg: cErrMuted},
-		{text: "esc", fg: cFg, bold: true},
+		{text: keyMap.Cancel.hint, fg: cFg, bold: true},
 		{text: " dismiss", fg: cErrMuted},
 	}, nil))
 }

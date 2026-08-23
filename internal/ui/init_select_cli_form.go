@@ -71,14 +71,14 @@ func (m initCLIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	switch key.String() {
-	case "ctrl+c", "q", "esc":
+	switch k := key.String(); {
+	case keyMap.Quit.matches(k):
 		return m, tea.Quit
-	case "up", "k":
+	case keyMap.Up.matches(k):
 		m.cursor = m.prevSelectable(m.cursor)
-	case "down", "j":
+	case keyMap.Down.matches(k):
 		m.cursor = m.nextSelectable(m.cursor)
-	case "enter":
+	case keyMap.Confirm.matches(k):
 		if m.cursor < len(m.clis) && m.clis[m.cursor].Exists {
 			m.chosen = true
 			return m, tea.Quit
@@ -130,6 +130,6 @@ func (m initCLIModel) render() string {
 		b.WriteByte('\n')
 	}
 
-	b.WriteString(helpStyle.Render("↑/k up · ↓/j down · enter select · q/esc quit"))
+	b.WriteString(helpStyle.Render(initKeyhintLine()))
 	return b.String()
 }

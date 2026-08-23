@@ -72,18 +72,18 @@ func (m pgPassModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	switch key.String() {
-	case "ctrl+c", "q", "esc":
+	switch k := key.String(); {
+	case keyMap.Quit.matches(k):
 		return m, tea.Quit
-	case "up", "k":
+	case keyMap.Up.matches(k):
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case "down", "j":
+	case keyMap.Down.matches(k):
 		if m.cursor < len(m.options)-1 {
 			m.cursor++
 		}
-	case "enter":
+	case keyMap.Confirm.matches(k):
 		m.chosen = true
 		return m, tea.Quit
 	}
@@ -112,6 +112,6 @@ func (m pgPassModel) render() string {
 		b.WriteByte('\n')
 	}
 
-	b.WriteString(helpStyle.Render("↑/k up · ↓/j down · enter select · q/esc quit"))
+	b.WriteString(helpStyle.Render(initKeyhintLine()))
 	return b.String()
 }

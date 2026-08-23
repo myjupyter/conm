@@ -72,40 +72,42 @@ func (m secretFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	n := len(m.spec.Fields)
 	cur := m.spec.Fields[m.idx]
 
-	switch msg.String() {
-	case "ctrl+c", "esc":
+	key := msg.String()
+
+	switch {
+	case keyMap.Interrupt.matches(key), keyMap.Cancel.matches(key):
 		return m, tea.Quit
-	case "down", "j":
+	case keyMap.Down.matches(key):
 		m.idx = (m.idx + 1) % n
-	case "up", "k":
+	case keyMap.Up.matches(key):
 		m.idx = (m.idx - 1 + n) % n
-	case "right", "l":
+	case keyMap.Right.matches(key):
 		if cur.Kind == spec.SelectFieldKind {
 			m.cycle(m.idx, 1)
 		}
-	case "left", "h":
+	case keyMap.Left.matches(key):
 		if cur.Kind == spec.SelectFieldKind {
 			m.cycle(m.idx, -1)
 		}
-	case "e":
+	case keyMap.Edit.matches(key):
 		if cur.Kind == spec.SelectFieldKind {
-			m.setStatus(strings.ToLower(cur.Label)+" is a list · use ←/→", kindWarn)
+			m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
 		} else {
 			m.insert = true
-			m.setStatus("editing "+strings.ToLower(cur.Label)+" · esc when done", kindIdle)
+			m.setStatus("editing "+strings.ToLower(cur.Label)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
 		}
-	case "s":
+	case keyMap.Secret.matches(key):
 		if cur.Kind == spec.HiddenFieldKind {
 			m.reveal = !m.reveal
 			if m.reveal {
-				m.setStatus("password visible · s to hide", kindIdle)
+				m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)
 			} else {
 				m.setStatus("password hidden", kindIdle)
 			}
 		}
-	case "enter":
+	case keyMap.Confirm.matches(key):
 		return m.submit()
-	case keyhintKey:
+	case keyMap.Help.matches(key):
 		m.help = !m.help
 		m.setStatus(keyhintStatus(m.help), kindIdle)
 	}
@@ -115,20 +117,22 @@ func (m secretFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m secretFormModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	cur := m.spec.Fields[m.idx]
 
-	switch msg.String() {
-	case "ctrl+c":
+	key := msg.String()
+
+	switch {
+	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
-	case "esc":
+	case keyMap.Cancel.matches(key):
 		m.insert = false
-		m.setStatus("done editing · jk to move", kindIdle)
+		m.setStatus("done editing · "+keyMap.MoveVertical.hint+" to move", kindIdle)
 		return m, nil
-	case "enter":
+	case keyMap.Confirm.matches(key):
 		m.insert = false
 		if m.idx < len(m.spec.Fields)-1 {
 			m.idx++
 		}
 		return m, nil
-	case "backspace":
+	case keyMap.Backspace.matches(key):
 		if r := []rune(m.vals[cur.Key]); len(r) > 0 {
 			m.vals[cur.Key] = string(r[:len(r)-1])
 		}

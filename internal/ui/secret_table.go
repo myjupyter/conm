@@ -52,9 +52,9 @@ func newSecretPicker(repo repository.Secrets, current string) secretModel {
 		}
 	}
 	if repo.Len() == 0 {
-		m.setSecretStatus(repo.Kind()+" is empty · press a to add an entry", kindWarn)
+		m.setSecretStatus(repo.Kind()+" is empty · press "+keyMap.Add.hint+" to add an entry", kindWarn)
 	} else {
-		m.setSecretStatus("pick an entry · enter to attach it", kindIdle)
+		m.setSecretStatus("pick an entry · "+keyMap.Confirm.hint+" to attach it", kindIdle)
 	}
 	return m
 }
@@ -81,21 +81,21 @@ func (m secretModel) handleSecretKeyMsg(key string) (tea.Model, tea.Cmd) {
 }
 
 func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
-	switch key {
-	case "ctrl+c", "q", "esc":
+	switch {
+	case keyMap.Quit.matches(key):
 		return m, tea.Quit
-	case "up", "k":
+	case keyMap.Up.matches(key):
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case "down", "j":
+	case keyMap.Down.matches(key):
 		if m.cursor < m.repo.Len()-1 {
 			m.cursor++
 		}
-	case "tab", "shift+tab", "left", "h", "right", "l":
+	case keyMap.SwitchStore.matches(key):
 		// One store is configured, so switching is a no-op worth saying out loud.
 		m.setSecretStatus(m.repo.Kind()+" is the only store configured", kindIdle)
-	case "enter":
+	case keyMap.Confirm.matches(key):
 		if m.picking {
 			if s, ok := m.repo.Get(m.cursor); ok {
 				m.picked = s.Location()
@@ -104,17 +104,17 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.describe(), nil
-	case "a":
+	case keyMap.Add.matches(key):
 		return m, m.addSecretCmd()
-	case "e":
+	case keyMap.Edit.matches(key):
 		if m.repo.Len() > 0 {
 			return m, m.editSecretCmd(m.cursor)
 		}
-	case "d":
+	case keyMap.Delete.matches(key):
 		if m.repo.Len() > 0 {
 			m.confirming = true
 		}
-	case keyhintKey:
+	case keyMap.Help.matches(key):
 		m.help = !m.help
 		m.setSecretStatus(keyhintStatus(m.help), kindIdle)
 	}
@@ -122,13 +122,13 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 }
 
 func (m secretModel) handleSecretConfirmKey(key string) (tea.Model, tea.Cmd) {
-	switch key {
-	case "ctrl+c":
+	switch {
+	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
-	case "y":
+	case keyMap.Yes.matches(key):
 		m.confirming = false
 		return m, m.removeSecretCmd(m.cursor)
-	case "n", "esc":
+	case keyMap.No.matches(key):
 		m.confirming = false
 	}
 	return m, nil

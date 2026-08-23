@@ -112,12 +112,12 @@ func (m Model) handleKeyMsg(key string) (tea.Model, tea.Cmd) {
 		return m.handleConfirmKey(key)
 	}
 	if m.currentErr() != nil {
-		switch key {
-		case "esc":
+		switch {
+		case keyMap.Cancel.matches(key):
 			m.states[m.cursor].connErr = nil
 			m.status, m.statusKind = statusReady, kindIdle
 			return m, nil
-		case "r", "R":
+		case keyMap.Retry.matches(key):
 			return m.retry()
 		}
 	}
@@ -125,36 +125,36 @@ func (m Model) handleKeyMsg(key string) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
-	switch key {
-	case "ctrl+c", "q", "esc":
+	switch {
+	case keyMap.Quit.matches(key):
 		return m, tea.Quit
-	case "up", "k":
+	case keyMap.Up.matches(key):
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case "down", "j":
+	case keyMap.Down.matches(key):
 		if m.cursor < m.reg.Len()-1 {
 			m.cursor++
 		}
-	case "enter":
+	case keyMap.Confirm.matches(key):
 		return m, m.runCmd(m.cursor)
-	case "a":
+	case keyMap.Add.matches(key):
 		return m, m.addCmd()
-	case "e":
+	case keyMap.Edit.matches(key):
 		if m.reg.Len() > 0 {
 			return m, m.editCmd(m.cursor)
 		}
-	case "d":
+	case keyMap.Delete.matches(key):
 		if m.reg.Len() > 0 {
 			m.confirming = true
 		}
-	case "p":
+	case keyMap.Ping.matches(key):
 		if m.reg.Len() > 0 {
 			return m.pingOne(m.cursor)
 		}
-	case "s":
+	case keyMap.Secret.matches(key):
 		return m, m.secretsCmd()
-	case keyhintKey:
+	case keyMap.Help.matches(key):
 		m.help = !m.help
 		m.status, m.statusKind = keyhintStatus(m.help), kindIdle
 	}
@@ -162,13 +162,13 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleConfirmKey(key string) (tea.Model, tea.Cmd) {
-	switch key {
-	case "ctrl+c":
+	switch {
+	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
-	case "y":
+	case keyMap.Yes.matches(key):
 		m.confirming = false
 		return m, m.removeCmd(m.cursor)
-	case "n", "esc":
+	case keyMap.No.matches(key):
 		m.confirming = false
 	}
 	return m, nil
