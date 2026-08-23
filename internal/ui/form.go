@@ -3,9 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
-	"net"
 	"slices"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -530,18 +528,10 @@ func (m formModel) applyPing(msg formPingMsg) formModel {
 	}
 
 	if msg.err != nil {
-		code := errCode(msg.err)
-		m.ping = &connError{
-			action: "ping",
-			conn:   label,
-			code:   code,
-			target: fmt.Sprintf("postgres://%s@%s:%d/%s", c.Username(), c.Host(), c.Port(), c.Database()),
-			op:     "dial tcp " + net.JoinHostPort(c.Host(), strconv.Itoa(c.Port())),
-			detail: msg.err.Error(),
-			hint:   hintFor(code),
-		}
+		e := newConnError(msg.err, network.PingOperation, label)
+		m.ping = e
 		m.pong = ""
-		m.setStatus("ping failed · "+label+" · "+code, kindErr)
+		m.setStatus("ping failed · "+label+" · "+e.code, kindErr)
 		return m
 	}
 

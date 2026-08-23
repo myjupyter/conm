@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/myjupyter/conm/internal/config"
@@ -98,18 +99,18 @@ func (p *PGClient) Validate() []error {
 func (p *PGClient) Ping(ctx context.Context) (PingResult, error) {
 	dsn, err := p.dsn(ctx)
 	if err != nil {
-		return PingResult{}, err
+		return PingResult{}, p.fail(PingOperation, SecretErrorCode, err)
 	}
 
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		return PingResult{}, err
+		return PingResult{}, p.fail(PingOperation, InvalidErrorCode, err)
 	}
 	defer db.Close()
 
 	now := time.Now()
 	if err := db.PingContext(ctx); err != nil {
-		return PingResult{}, err
+		return PingResult{}, p.fail(PingOperation, pgErrorCode(err), err)
 	}
 
 	return PingResult{PingTime: time.Since(now)}, nil
@@ -118,7 +119,7 @@ func (p *PGClient) Ping(ctx context.Context) (PingResult, error) {
 func (p *PGClient) Run(ctx context.Context) error {
 	dsn, err := p.dsn(ctx)
 	if err != nil {
-		return err
+		return p.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
 	executor := exec.CommandContext(ctx, p.conmCfg.Postgres.CLI, dsn)
@@ -128,7 +129,7 @@ func (p *PGClient) Run(ctx context.Context) error {
 	executor.Stderr = os.Stderr
 
 	if err := executor.Run(); err != nil {
-		return err
+		return p.fail(ConnectOperation, pgErrorCode(err), err)
 	}
 
 	return nil
@@ -136,4 +137,34 @@ func (p *PGClient) Run(ctx context.Context) error {
 
 func (p *PGClient) Close() error {
 	return nil
+}
+
+func (p *PGClient) fail(op Operation, code ErrorCode, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	return &OpError{
+		Op:     op,
+		Code:   code,
+		Target: pgTarget(p.cfg),
+		During: during(op, p.cfg),
+		Err:    err,
+	}
+}
+
+func pgErrorCode(err error) ErrorCode {
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "password authentication"), strings.Contains(msg, "authentication failed"):
+		return AuthErrorCode
+	case strings.Contains(msg, "sslmode"), strings.Contains(msg, "ssl is not enabled"):
+		return TLSErrorCode
+	}
+
+	return transportErrorCode(err)
+}
+
+func pgTarget(cfg config.Connection) string {
+	return fmt.Sprintf("postgres://%s@%s:%d/%s", cfg.Username(), cfg.Host(), cfg.Port(), cfg.Database())
 }

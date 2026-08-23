@@ -2,9 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"net"
-	"strconv"
-	"strings"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -246,10 +243,10 @@ func (m Model) retry() (tea.Model, tea.Cmd) {
 	if e == nil {
 		return m, nil
 	}
-	switch e.action {
-	case "ping":
+	switch e.op {
+	case network.PingOperation:
 		return m.pingOne()
-	case "connect":
+	case network.ConnectOperation:
 		m.status, m.statusKind = "reconnecting …", kindPending
 		return m, m.runCmd()
 	}
@@ -265,12 +262,12 @@ func (m Model) applyPingResult(msg pingResultMsg) Model {
 	name := connLabel(c)
 
 	if msg.err != nil {
-		code := errCode(msg.err)
+		e := newConnError(msg.err, network.PingOperation, name)
 		st.pingStatus = pingFailed
 		if live {
-			st.connErr = connErrorFor("ping", "dial tcp", code, c, msg.err)
+			st.connErr = e
 		}
-		m.status, m.statusKind = "ping failed · "+name+" · "+code, kindErr
+		m.status, m.statusKind = "ping failed · "+name+" · "+e.code, kindErr
 		return m
 	}
 
@@ -288,12 +285,12 @@ func (m Model) applyRunResult(msg runResultMsg) Model {
 	st := m.pings[msg.ref]
 
 	if msg.err != nil {
-		code := errCode(msg.err)
+		e := newConnError(msg.err, network.ConnectOperation, name)
 		if live && st != nil {
 			st.pingStatus = pingFailed
-			st.connErr = connErrorFor("connect", "open session on", code, c, msg.err)
+			st.connErr = e
 		}
-		m.status, m.statusKind = "connect failed · "+name+" · "+code, kindErr
+		m.status, m.statusKind = "connect failed · "+name+" · "+e.code, kindErr
 		return m
 	}
 
@@ -358,60 +355,6 @@ func connLabel(c network.Connection) string {
 		return name
 	}
 	return c.Host()
-}
-
-func connErrorFor(action, op, code string, c network.Connection, err error) *connError {
-	return &connError{
-		action: action,
-		conn:   connLabel(c),
-		code:   code,
-		target: target(c),
-		op:     op + " " + net.JoinHostPort(c.Host(), strconv.Itoa(c.Port())),
-		detail: err.Error(),
-		hint:   hintFor(code),
-	}
-}
-
-func target(c network.Connection) string {
-	if c == nil {
-		return ""
-	}
-	return fmt.Sprintf("postgres://%s@%s:%d/%s", c.Username(), c.Host(), c.Port(), c.Database())
-}
-
-func errCode(err error) string {
-	msg := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(msg, "connection refused"):
-		return "ECONNREFUSED"
-	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline exceeded"):
-		return "ETIMEDOUT"
-	case strings.Contains(msg, "no such host"), strings.Contains(msg, "no route to host"):
-		return "EHOSTUNREACH"
-	case strings.Contains(msg, "password authentication"), strings.Contains(msg, "authentication failed"):
-		return "EAUTH"
-	case strings.Contains(msg, "certificate"), strings.Contains(msg, "x509"), strings.Contains(msg, "tls"):
-		return "ETLS"
-	case strings.Contains(msg, "invalid connection config"):
-		return "EINVALID"
-	}
-	return "ECONN"
-}
-
-func hintFor(code string) string {
-	switch code {
-	case "ECONNREFUSED":
-		return "is the server running and accepting connections on that host and port?"
-	case "ETIMEDOUT", "EHOSTUNREACH":
-		return "host unreachable from this network · check the address, VPN, or firewall"
-	case "EAUTH":
-		return "credentials were rejected · press e to update the username or password"
-	case "ETLS":
-		return "TLS handshake failed · check sslmode and the CA certificate"
-	case "EINVALID":
-		return "this connection has validation errors · press e to fix the config"
-	}
-	return ""
 }
 
 func plural(n int, one, many string) string {

@@ -34,19 +34,6 @@ const (
 	kindErr
 )
 
-// connError is what the error panel renders: a failure already boiled down to
-// display strings. Building one from a live failure is the caller's job (see
-// connErrorFor), so the panel never has to know about the network layer.
-type connError struct {
-	action string
-	conn   string
-	code   string
-	target string
-	op     string
-	detail string
-	hint   string
-}
-
 // span is a run of text with a single style. Content lines are built from
 // spans so a line can mix colours and still be padded to an exact width.
 type span struct {
@@ -260,7 +247,7 @@ func framePong(w int, text string) string {
 // frameErrPanel draws the failure panel: a titled rule, the key/value lines
 // describing what went wrong, an optional hint and the way out.
 func frameErrPanel(w int, e *connError) []string {
-	tag := " " + strings.ToUpper(e.action) + " FAILED "
+	tag := " " + strings.ToUpper(string(e.op)) + " FAILED "
 	code := " " + e.code + " "
 	right := " " + e.conn + " "
 	fill := max(w-1-len([]rune(tag))-len([]rune(code))-len([]rune(right)), 0)
@@ -278,8 +265,8 @@ func frameErrPanel(w int, e *connError) []string {
 	if e.target != "" {
 		lines = append(lines, frameErrKV(w, "target", e.target, cErrValue))
 	}
-	if e.op != "" {
-		lines = append(lines, frameErrKV(w, "during", e.op, cErrValue))
+	if e.during != "" {
+		lines = append(lines, frameErrKV(w, "during", e.during, cErrValue))
 	}
 	lines = append(lines, frameErrKV(w, "error", e.detail, cErrCode))
 	if e.hint != "" {
