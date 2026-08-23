@@ -8,6 +8,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/ui/spec"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
@@ -19,7 +20,7 @@ func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
 	}
 	defer ws.Close()
 
-	conn, ok, err := runAddForm(t, ws.Keyring)
+	conn, ok, err := runAddForm(t, view.NewSecrets(ws.Keyring))
 	if err != nil || !ok {
 		return false, err
 	}
@@ -31,7 +32,7 @@ func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
 	return true, nil
 }
 
-func runAddForm(t config.ConnType, secrets repository.Secrets) (config.Connection, bool, error) {
+func runAddForm(t config.ConnType, secrets *view.Secrets) (config.Connection, bool, error) {
 	formSpec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
@@ -40,7 +41,7 @@ func runAddForm(t config.ConnType, secrets repository.Secrets) (config.Connectio
 	return runForm(newFormModel(formSpec, formSpec.AddTitle, nil, secrets))
 }
 
-func RunEditForm(t config.ConnType, existing config.Connection, secrets repository.Secrets) (config.Connection, bool, error) {
+func RunEditForm(t config.ConnType, existing config.Connection, secrets *view.Secrets) (config.Connection, bool, error) {
 	formSpec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("edit form is not implemented for connection type %q", t)

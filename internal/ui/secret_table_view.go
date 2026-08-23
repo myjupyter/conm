@@ -26,7 +26,7 @@ func (m secretModel) View() tea.View {
 }
 
 func (m secretModel) render() string {
-	n := m.repo.Len()
+	n := m.secrets.Len()
 
 	lines := []string{
 		frameTop(secretInner, m.crumb(), fmt.Sprintf(" %d %s "+gLineH, n, plural(n, "entry", "entries"))),
@@ -50,20 +50,20 @@ func (m secretModel) render() string {
 		frameRule(secretInner, gTeeL, gTeeR),
 		m.secretStatusLine(n),
 	)
-	lines = append(lines, keyhintLines(secretInner, m.keyhints(), m.help)...)
+	lines = append(lines, keyhintLines(secretInner, m.keyhints(), m.secrets.Help())...)
 	lines = append(lines, frameBottom(secretInner))
 	return strings.Join(lines, "\n")
 }
 
 func (m secretModel) crumb() string {
-	if m.picking {
+	if m.secrets.Picking() {
 		return "keyring · pick an entry"
 	}
 	return "keyring"
 }
 
 func (m secretModel) storeTabsLine(n int) string {
-	label := fmt.Sprintf(" %s %d ", m.repo.Kind(), n)
+	label := fmt.Sprintf(" %s %d ", m.secrets.Active(), n)
 	return frameLine(secretInner, []span{
 		{text: " ", fg: cDim},
 		{text: label, fg: cInvFg, bg: cAccent, bold: true},
@@ -83,12 +83,12 @@ func (m secretModel) secretHeaderLine() string {
 }
 
 func (m secretModel) secretRowLine(i int) string {
-	s, ok := m.repo.Get(i)
+	s, ok := m.secrets.At(i)
 	if !ok {
 		return frameLine(secretInner, nil, nil)
 	}
-	sel := i == m.cursor
-	used := len(m.repo.UsagesAt(i))
+	sel := i == m.secrets.Cursor()
+	used := len(m.secrets.UsagesAt(i))
 
 	var bg, fg, soft, markC color.Color
 	switch {
@@ -136,8 +136,8 @@ func (m secretModel) secretRowLine(i int) string {
 func (m secretModel) secretStatusLine(n int) string {
 	icon, col := statusGlyph(m.statusKind)
 	text := m.status
-	if m.confirming {
+	if m.secrets.Confirming() {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q from the keyring? y/n", m.cursorSecretLabel())
 	}
-	return frameStatus(secretInner, icon, col, text, cursorPos(m.cursor, n))
+	return frameStatus(secretInner, icon, col, text, cursorPos(m.secrets.Cursor(), n))
 }

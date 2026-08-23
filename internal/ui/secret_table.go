@@ -5,23 +5,14 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/myjupyter/conm/internal/repository"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 // secretModel lists the records of one secret store. It owns no material: the
 // repository is the only thing that talks to the provider, and a password only
 // ever passes through on its way from the form into repository.Secrets.
 type secretModel struct {
-	repo repository.Secrets
-
-	// picking turns the screen into a chooser: enter returns the highlighted
-	// location to the caller instead of describing it.
-	picking bool
-	picked  string
-
-	cursor     int
-	confirming bool
-	help       bool // the key hints table, expanded over the key bar
+	secrets *view.Secrets
 
 	status     string
 	statusKind statusKind
@@ -31,28 +22,21 @@ type secretChangedMsg struct {
 	err error
 }
 
-func newSecretModel(repo repository.Secrets) secretModel {
-	n := repo.Len()
+func newSecretModel(secrets *view.Secrets) secretModel {
+	n := secrets.Len()
 	return secretModel{
-		repo:       repo,
-		status:     fmt.Sprintf("%s · %d %s", repo.Kind(), n, plural(n, "entry", "entries")),
+		secrets:    secrets,
+		status:     fmt.Sprintf("%s · %d %s", secrets.Active(), n, plural(n, "entry", "entries")),
 		statusKind: kindIdle,
 	}
 }
 
 // newSecretPicker opens the same screen as a chooser, positioned on the entry
 // the caller already holds.
-func newSecretPicker(repo repository.Secrets, current string) secretModel {
-	m := newSecretModel(repo)
-	m.picking = true
-	for i := range repo.Len() {
-		if s, ok := repo.Get(i); ok && s.Location() == current {
-			m.cursor = i
-			break
-		}
-	}
-	if repo.Len() == 0 {
-		m.setSecretStatus(repo.Kind()+" is empty · press "+keyMap.Add.hint+" to add an entry", kindWarn)
+func newSecretPicker(secrets *view.Secrets) secretModel {
+	m := newSecretModel(secrets)
+	if m.secrets.Len() == 0 {
+		m.setSecretStatus(m.secrets.Active()+" is empty · press "+keyMap.Add.hint+" to add an entry", kindWarn)
 	} else {
 		m.setSecretStatus("pick an entry · "+keyMap.Confirm.hint+" to attach it", kindIdle)
 	}
@@ -74,7 +58,7 @@ func (m secretModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m secretModel) handleSecretKeyMsg(key string) (tea.Model, tea.Cmd) {
-	if m.confirming {
+	if m.secrets.Confirming() {
 		return m.handleSecretConfirmKey(key)
 	}
 	return m.handleSecretKey(key)
@@ -85,20 +69,15 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Quit.matches(key):
 		return m, tea.Quit
 	case keyMap.Up.matches(key):
-		if m.cursor > 0 {
-			m.cursor--
-		}
+		m.secrets.MoveUp()
 	case keyMap.Down.matches(key):
-		if m.cursor < m.repo.Len()-1 {
-			m.cursor++
-		}
+		m.secrets.MoveDown()
 	case keyMap.SwitchStore.matches(key):
 		// One store is configured, so switching is a no-op worth saying out loud.
-		m.setSecretStatus(m.repo.Kind()+" is the only store configured", kindIdle)
+		m.setSecretStatus(m.secrets.Active()+" is the only store configured", kindIdle)
 	case keyMap.Confirm.matches(key):
-		if m.picking {
-			if s, ok := m.repo.Get(m.cursor); ok {
-				m.picked = s.Location()
+		if m.secrets.Picking() {
+			if _, ok := m.secrets.Pick(); ok {
 				return m, tea.Quit
 			}
 			return m, nil
@@ -107,16 +86,13 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Add.matches(key):
 		return m, m.addSecretCmd()
 	case keyMap.Edit.matches(key):
-		if m.repo.Len() > 0 {
-			return m, m.editSecretCmd(m.cursor)
+		if m.secrets.Len() > 0 {
+			return m, m.editSecretCmd()
 		}
 	case keyMap.Delete.matches(key):
-		if m.repo.Len() > 0 {
-			m.confirming = true
-		}
+		m.secrets.AskConfirm()
 	case keyMap.Help.matches(key):
-		m.help = !m.help
-		m.setSecretStatus(keyhintStatus(m.help), kindIdle)
+		m.setSecretStatus(keyhintStatus(m.secrets.ToggleHelp()), kindIdle)
 	}
 	return m, nil
 }
@@ -126,10 +102,10 @@ func (m secretModel) handleSecretConfirmKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
 	case keyMap.Yes.matches(key):
-		m.confirming = false
-		return m, m.removeSecretCmd(m.cursor)
+		m.secrets.ClearConfirm()
+		return m, m.removeSecretCmd()
 	case keyMap.No.matches(key):
-		m.confirming = false
+		m.secrets.ClearConfirm()
 	}
 	return m, nil
 }
@@ -137,12 +113,12 @@ func (m secretModel) handleSecretConfirmKey(key string) (tea.Model, tea.Cmd) {
 // describe reports where the selected entry points and who depends on it — the
 // two things the table has no room to spell out in full.
 func (m secretModel) describe() secretModel {
-	s, ok := m.repo.Get(m.cursor)
+	s, ok := m.secrets.Secret()
 	if !ok {
 		return m
 	}
 
-	used := m.repo.UsagesAt(m.cursor)
+	used := m.secrets.Usages()
 	if len(used) == 0 {
 		m.setSecretStatus(fmt.Sprintf("%s:%s · unused", s.Provider(), s.Location()), kindIdle)
 		return m
@@ -154,16 +130,14 @@ func (m secretModel) describe() secretModel {
 }
 
 func (m secretModel) applySecretChange(err error) secretModel {
-	if m.cursor > m.repo.Len()-1 {
-		m.cursor = max(m.repo.Len()-1, 0)
-	}
+	m.secrets.Sync()
 	if err != nil {
 		m.setSecretStatus(err.Error(), kindErr)
 		return m
 	}
 
-	n := m.repo.Len()
-	m.setSecretStatus(fmt.Sprintf("%s · %d %s", m.repo.Kind(), n, plural(n, "entry", "entries")), kindOK)
+	n := m.secrets.Len()
+	m.setSecretStatus(fmt.Sprintf("%s · %d %s", m.secrets.Active(), n, plural(n, "entry", "entries")), kindOK)
 	return m
 }
 
@@ -172,7 +146,7 @@ func (m *secretModel) setSecretStatus(s string, k statusKind) {
 }
 
 func (m secretModel) cursorSecretLabel() string {
-	s, ok := m.repo.Get(m.cursor)
+	s, ok := m.secrets.Secret()
 	if !ok {
 		return ""
 	}

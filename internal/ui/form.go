@@ -12,9 +12,9 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
-	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/secret"
 	"github.com/myjupyter/conm/internal/ui/spec"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 type formModel struct {
@@ -26,7 +26,7 @@ type formModel struct {
 	// secrets backs the store modes of the secret field. It is nil on the
 	// setup path, where no repository exists yet — there the form is
 	// literal-only.
-	secrets repository.Secrets
+	secrets *view.Secrets
 
 	// The value field is shared by both modes, so each mode's value is kept
 	// aside while the other is showing: cycling through the modes must not
@@ -65,7 +65,7 @@ type secretPickedMsg struct {
 	err error
 }
 
-func newFormModel(spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue, secrets repository.Secrets) formModel {
+func newFormModel(spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue, secrets *view.Secrets) formModel {
 	m := formModel{
 		spec:       spc,
 		title:      title,
@@ -160,20 +160,13 @@ func (m formModel) storeLabel() string {
 	return secret.Literal
 }
 
-// refEntries lists the locations selectable in the current store. A repository
-// serving a different scheme contributes nothing: the mode names the store, and
-// only that store's entries can satisfy it.
+// refEntries lists the locations selectable in the current store: the mode
+// names the store, and only that store's entries can satisfy it.
 func (m formModel) refEntries() []string {
-	if m.secrets == nil || m.secrets.Kind() != m.vals[spec.SecretProviderKey] {
+	if m.secrets == nil {
 		return nil
 	}
-	out := make([]string, 0, m.secrets.Len())
-	for i := range m.secrets.Len() {
-		if s, ok := m.secrets.Get(i); ok {
-			out = append(out, s.Location())
-		}
-	}
-	return out
+	return m.secrets.LocationsOf(m.vals[spec.SecretProviderKey])
 }
 
 // cycleRef steps through the store's entries in place of the character input

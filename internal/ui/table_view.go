@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/myjupyter/conm/internal/config"
 )
 
 // The connections table is the widest screen: six columns plus the live ping
@@ -32,11 +30,11 @@ func (m Model) View() tea.View {
 }
 
 func (m Model) render() string {
-	n := m.reg.Len()
+	n := m.conns.Len()
 
 	lines := []string{
 		frameTop(tableInner, "connections", fmt.Sprintf(" %d %s "+gLineH, n, plural(n, "connection", "connections"))),
-		m.tabsLine(n),
+		m.tabsLine(),
 		frameRule(tableInner, gTeeL, gTeeR),
 		m.headerLine(),
 		frameRule(tableInner, gTeeL, gTeeR),
@@ -59,28 +57,19 @@ func (m Model) render() string {
 	}
 
 	lines = append(lines, frameRule(tableInner, gTeeL, gTeeR), m.statusLine(n))
-	lines = append(lines, keyhintLines(tableInner, m.keyhints(), m.help)...)
+	lines = append(lines, keyhintLines(tableInner, m.keyhints(), m.conns.Help())...)
 	lines = append(lines, frameBottom(tableInner))
 	return strings.Join(lines, "\n")
 }
 
-func (m Model) tabsLine(n int) string {
-	tabs := []struct {
-		name   string
-		count  int
-		color  color.Color
-		active bool
-	}{
-		{name: "postgres", count: n, color: typeColor(config.PostgresConnType), active: true},
-	}
-
+func (m Model) tabsLine() string {
 	spans := []span{{text: " ", fg: cDim}}
-	for _, t := range tabs {
-		label := fmt.Sprintf(" %s %d ", t.name, t.count)
-		if t.active {
-			spans = append(spans, span{text: label, fg: cInvFg, bg: t.color, bold: true})
+	for _, kind := range m.conns.Kinds() {
+		label := fmt.Sprintf(" %s %d ", kind, m.conns.CountOf(kind))
+		if kind == m.conns.Active() {
+			spans = append(spans, span{text: label, fg: cInvFg, bg: typeColor(kind), bold: true})
 		} else {
-			spans = append(spans, span{text: label, fg: t.color})
+			spans = append(spans, span{text: label, fg: typeColor(kind)})
 		}
 		spans = append(spans, span{text: " ", fg: cDim})
 	}
@@ -100,12 +89,12 @@ func (m Model) headerLine() string {
 }
 
 func (m Model) rowLine(i int) string {
-	c, ok := m.reg.ConnectionAt(i)
-	if !ok {
+	c, ok := m.conns.ConnectionAt(i)
+	st := m.pingAt(i)
+	if !ok || st == nil {
 		return frameLine(tableInner, nil, nil)
 	}
-	sel := i == m.cursor
-	st := m.states[i]
+	sel := i == m.conns.Cursor()
 	failed := st.connErr != nil || st.pingStatus == pingFailed || !c.IsValid()
 
 	var bg, fg, soft, markC color.Color
@@ -140,7 +129,10 @@ func (m Model) rowLine(i int) string {
 }
 
 func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
-	st := m.states[i]
+	st := m.pingAt(i)
+	if st == nil {
+		return span{text: " " + truncPad(gEmpty, wPing, true), fg: cFaint, bg: bg}
+	}
 	if st.pingStatus == pingPinging {
 		raw := " " + strings.Repeat(" ", wPing-1) + st.pingSpinner.View()
 		return span{text: strings.Repeat(" ", wPing+1), raw: raw}
@@ -169,8 +161,8 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 func (m Model) statusLine(n int) string {
 	icon, col := statusGlyph(m.statusKind)
 	text := m.status
-	if m.confirming {
+	if m.conns.Confirming() {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q? y/n", m.cursorLabel())
 	}
-	return frameStatus(tableInner, icon, col, text, cursorPos(m.cursor, n))
+	return frameStatus(tableInner, icon, col, text, cursorPos(m.conns.Cursor(), n))
 }

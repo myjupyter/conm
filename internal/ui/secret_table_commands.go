@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/myjupyter/conm/internal/repository"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 // The forms take over the terminal, so they run the same way the connection
@@ -15,31 +15,31 @@ import (
 
 func (m secretModel) addSecretCmd() tea.Cmd {
 	return secretChangeExec(func() error {
-		sec, password, ok, err := runAddSecretForm(m.repo.Kind())
+		sec, password, ok, err := runAddSecretForm(m.secrets.Active())
 		if err != nil || !ok {
 			return err
 		}
-		return m.repo.Add(context.Background(), sec, password)
+		return m.secrets.Add(context.Background(), sec, password)
 	})
 }
 
-func (m secretModel) editSecretCmd(i int) tea.Cmd {
-	existing, ok := m.repo.Get(i)
+func (m secretModel) editSecretCmd() tea.Cmd {
+	existing, ok := m.secrets.Secret()
 	if !ok {
 		return nil
 	}
 	return secretChangeExec(func() error {
-		sec, password, ok, err := runEditSecretForm(m.repo.Kind(), existing)
+		sec, password, ok, err := runEditSecretForm(m.secrets.Active(), existing)
 		if err != nil || !ok {
 			return err
 		}
-		return m.repo.Edit(context.Background(), i, sec, password)
+		return m.secrets.Edit(context.Background(), sec, password)
 	})
 }
 
-func (m secretModel) removeSecretCmd(i int) tea.Cmd {
+func (m secretModel) removeSecretCmd() tea.Cmd {
 	return func() tea.Msg {
-		return secretChangedMsg{err: m.repo.Remove(context.Background(), i)}
+		return secretChangedMsg{err: m.secrets.Remove(context.Background())}
 	}
 }
 
@@ -51,22 +51,24 @@ func secretChangeExec(fn func() error) tea.Cmd {
 }
 
 // runSecretTable opens the secrets screen and blocks until the user leaves it.
-func runSecretTable(repo repository.Secrets) error {
-	_, err := tea.NewProgram(newSecretModel(repo)).Run()
+func runSecretTable(secrets *view.Secrets) error {
+	_, err := tea.NewProgram(newSecretModel(secrets)).Run()
 	return err
 }
 
 // runSecretPicker opens the same screen as a chooser and reports the location
 // the user attached, if any.
-func runSecretPicker(repo repository.Secrets, current string) (string, bool, error) {
-	m, err := tea.NewProgram(newSecretPicker(repo, current)).Run()
+func runSecretPicker(secrets *view.Secrets, current string) (string, bool, error) {
+	secrets.StartPicking(current)
+
+	m, err := tea.NewProgram(newSecretPicker(secrets)).Run()
+	picked, ok := secrets.StopPicking()
 	if err != nil {
 		return "", false, err
 	}
 
-	sm, ok := m.(secretModel)
-	if !ok {
+	if _, isSecretModel := m.(secretModel); !isSecretModel {
 		return "", false, fmt.Errorf("secret picker returned an unexpected model %T", m)
 	}
-	return sm.picked, sm.picked != "", nil
+	return picked, ok, nil
 }

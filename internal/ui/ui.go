@@ -5,6 +5,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/repository"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 func Run(cfg config.Conm) error {
@@ -14,6 +15,6 @@ func Run(cfg config.Conm) error {
 	}
 	defer ws.Close()
 
-	_, err = tea.NewProgram(New(ws.Postgres, ws.Keyring)).Run()
+	_, err = tea.NewProgram(New(view.NewConnections(ws.Postgres), view.NewSecrets(ws.Keyring))).Run()
 	return err
 }

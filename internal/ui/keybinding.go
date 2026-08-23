@@ -93,7 +93,7 @@ func defaultKeymap() keymap {
 		Interrupt: newBinding("ctrl+c", "ctrl+c"),
 		Cancel:    newBinding("esc", "esc"),
 
-		Help: newBinding("shift + ?", "?"),
+		Help: newBinding("?", "?"),
 	}
 
 	k.MoveVertical = merge("↑↓/jk", k.Up, k.Down)

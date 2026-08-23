@@ -5,54 +5,60 @@ import (
 	"io"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
-func (m Model) pingCmd(i int) tea.Cmd {
-	conn, ok := m.reg.ConnectionAt(i)
+func (m Model) pingCmd(ref view.ConnRef) tea.Cmd {
+	conn, ok := m.conns.ConnectionFor(ref)
 	if !ok {
 		return nil
 	}
 	return func() tea.Msg {
 		result, err := conn.Ping(context.Background())
-		return pingResultMsg{index: i, result: result, err: err}
+		return pingResultMsg{ref: ref, result: result, err: err}
 	}
 }
 
-func (m Model) runCmd(i int) tea.Cmd {
-	conn, ok := m.reg.ConnectionAt(i)
+func (m Model) runCmd() tea.Cmd {
+	ref, ok := m.conns.Ref()
+	if !ok {
+		return nil
+	}
+	conn, ok := m.conns.ConnectionFor(ref)
 	if !ok {
 		return nil
 	}
 	return tea.Exec(
 		runExec{run: func() error { return conn.Run(context.Background()) }},
-		func(err error) tea.Msg { return runResultMsg{index: i, err: err} },
+		func(err error) tea.Msg { return runResultMsg{ref: ref, err: err} },
 	)
 }
 
 func (m Model) addCmd() tea.Cmd {
 	return changeExec(func() error {
-		conn, ok, err := runAddForm(m.reg.Kind(), m.secrets)
+		conn, ok, err := runAddForm(m.conns.Active(), m.secrets)
 		if err != nil || !ok {
 			return err
 		}
-		return m.reg.Add(conn)
+		return m.conns.Add(conn)
 	})
 }
 
-func (m Model) editCmd(i int) tea.Cmd {
+func (m Model) editCmd() tea.Cmd {
 	// ConfigAt, not ConnectionAt: the form seeds from the stored config value,
 	// and a live network.Connection satisfies config.Connection without being
 	// the concrete type the spec's SeedFunc asserts on.
-	cfg, ok := m.reg.ConfigAt(i)
+	cfg, ok := m.conns.Config()
 	if !ok {
 		return nil
 	}
 	return changeExec(func() error {
-		conn, ok, err := RunEditForm(m.reg.Kind(), cfg, m.secrets)
+		conn, ok, err := RunEditForm(cfg.ConnType(), cfg, m.secrets)
 		if err != nil || !ok {
 			return err
 		}
-		return m.reg.Edit(i, conn)
+		return m.conns.Edit(conn)
 	})
 }
 
@@ -66,9 +72,9 @@ func (m Model) secretsCmd() tea.Cmd {
 	return changeExec(func() error { return runSecretTable(m.secrets) })
 }
 
-func (m Model) removeCmd(i int) tea.Cmd {
+func (m Model) removeCmd() tea.Cmd {
 	return func() tea.Msg {
-		return connChangedMsg{err: m.reg.Remove(i)}
+		return connChangedMsg{err: m.conns.Remove(), renumbered: true}
 	}
 }
 

@@ -201,7 +201,7 @@ func (m formModel) keyhints() []keyhintGroup {
 
 func (m secretModel) keyhints() []keyhintGroup {
 	use, back := "show usage", "back to connections"
-	if m.picking {
+	if m.secrets.Picking() {
 		use, back = "attach to connection", "back to form"
 	}
 	return []keyhintGroup{

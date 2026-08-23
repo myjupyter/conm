@@ -10,17 +10,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/network"
-	registry "github.com/myjupyter/conm/internal/repository"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 type Model struct {
-	reg     registry.Connections
-	secrets registry.Secrets
-	states  []ConnState
-
-	cursor     int
-	confirming bool
-	help       bool
+	conns   *view.Connections
+	secrets *view.Secrets
+	pings   map[view.ConnRef]*ConnState
 
 	status     string
 	statusKind statusKind
@@ -45,41 +41,40 @@ const (
 )
 
 type pingResultMsg struct {
-	index  int
+	ref    view.ConnRef
 	result network.PingResult
 	err    error
 }
 
 type runResultMsg struct {
-	index int
-	err   error
-}
-
-type connChangedMsg struct {
+	ref view.ConnRef
 	err error
 }
 
-func newConnState() ConnState {
+type connChangedMsg struct {
+	err        error
+	renumbered bool
+}
+
+func newConnState() *ConnState {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
-	return ConnState{
+	return &ConnState{
 		pingSpinner: s,
 		pingStatus:  pingUndefined,
 	}
 }
 
-func New(reg registry.Connections, secrets registry.Secrets) Model {
-	states := make([]ConnState, reg.Len())
-	for i := range states {
-		states[i] = newConnState()
-	}
-	return Model{
-		reg:        reg,
+func New(conns *view.Connections, secrets *view.Secrets) Model {
+	m := Model{
+		conns:      conns,
 		secrets:    secrets,
-		states:     states,
-		status:     fmt.Sprintf("ready · %d %s", reg.Len(), plural(reg.Len(), "connection", "connections")),
+		pings:      make(map[view.ConnRef]*ConnState, conns.Len()),
+		status:     fmt.Sprintf("ready · %d %s", conns.Len(), plural(conns.Len(), "connection", "connections")),
 		statusKind: kindIdle,
 	}
+
+	return m.syncPings()
 }
 
 func (m Model) Init() tea.Cmd {
@@ -98,7 +93,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyRunResult(msg), nil
 
 	case connChangedMsg:
-		return m.applyChange(msg.err), nil
+		return m.applyChange(msg), nil
 
 	case spinner.TickMsg:
 		return m.tickSpinners(msg)
@@ -108,13 +103,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleKeyMsg(key string) (tea.Model, tea.Cmd) {
-	if m.confirming {
+	if m.conns.Confirming() {
 		return m.handleConfirmKey(key)
 	}
 	if m.currentErr() != nil {
 		switch {
 		case keyMap.Cancel.matches(key):
-			m.states[m.cursor].connErr = nil
+			m.currentState().connErr = nil
 			m.status, m.statusKind = statusReady, kindIdle
 			return m, nil
 		case keyMap.Retry.matches(key):
@@ -129,34 +124,27 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Quit.matches(key):
 		return m, tea.Quit
 	case keyMap.Up.matches(key):
-		if m.cursor > 0 {
-			m.cursor--
-		}
+		m.conns.MoveUp()
 	case keyMap.Down.matches(key):
-		if m.cursor < m.reg.Len()-1 {
-			m.cursor++
-		}
+		m.conns.MoveDown()
 	case keyMap.Confirm.matches(key):
-		return m, m.runCmd(m.cursor)
+		return m, m.runCmd()
 	case keyMap.Add.matches(key):
 		return m, m.addCmd()
 	case keyMap.Edit.matches(key):
-		if m.reg.Len() > 0 {
-			return m, m.editCmd(m.cursor)
+		if m.conns.Len() > 0 {
+			return m, m.editCmd()
 		}
 	case keyMap.Delete.matches(key):
-		if m.reg.Len() > 0 {
-			m.confirming = true
-		}
+		m.conns.AskConfirm()
 	case keyMap.Ping.matches(key):
-		if m.reg.Len() > 0 {
-			return m.pingOne(m.cursor)
+		if m.conns.Len() > 0 {
+			return m.pingOne()
 		}
 	case keyMap.Secret.matches(key):
 		return m, m.secretsCmd()
 	case keyMap.Help.matches(key):
-		m.help = !m.help
-		m.status, m.statusKind = keyhintStatus(m.help), kindIdle
+		m.status, m.statusKind = keyhintStatus(m.conns.ToggleHelp()), kindIdle
 	}
 	return m, nil
 }
@@ -166,41 +154,59 @@ func (m Model) handleConfirmKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
 	case keyMap.Yes.matches(key):
-		m.confirming = false
-		return m, m.removeCmd(m.cursor)
+		m.conns.ClearConfirm()
+		return m, m.removeCmd()
 	case keyMap.No.matches(key):
-		m.confirming = false
+		m.conns.ClearConfirm()
 	}
 	return m, nil
 }
 
-func (m Model) pingOne(i int) (tea.Model, tea.Cmd) {
-	c, ok := m.reg.ConnectionAt(i)
+func (m Model) pingOne() (tea.Model, tea.Cmd) {
+	ref, ok := m.conns.Ref()
 	if !ok {
 		return m, nil
 	}
-	m.states[i].pingStatus = pingPinging
+	c, ok := m.conns.ConnectionFor(ref)
+	if !ok {
+		return m, nil
+	}
+	st, ok := m.pings[ref]
+	if !ok {
+		return m, nil
+	}
+	st.pingStatus = pingPinging
 	m.status = "pinging " + c.Host() + " …"
 	m.statusKind = kindPending
-	return m, tea.Batch(m.states[i].pingSpinner.Tick, m.pingCmd(i))
+	return m, tea.Batch(st.pingSpinner.Tick, m.pingCmd(ref))
+}
+
+func (m Model) pingAt(i int) *ConnState {
+	ref, ok := m.conns.RefAt(i)
+	if !ok {
+		return nil
+	}
+	return m.pings[ref]
+}
+
+func (m Model) currentState() *ConnState {
+	return m.pingAt(m.conns.Cursor())
 }
 
 func (m Model) currentErr() *connError {
-	if m.cursor < 0 || m.cursor >= len(m.states) {
+	st := m.currentState()
+	if st == nil {
 		return nil
 	}
-	return m.states[m.cursor].connErr
+	return st.connErr
 }
 
 func (m Model) currentPong() string {
-	if m.cursor < 0 || m.cursor >= len(m.states) {
+	st := m.currentState()
+	if st == nil || st.connErr != nil || st.pingStatus != pingOK {
 		return ""
 	}
-	st := m.states[m.cursor]
-	if st.connErr != nil || st.pingStatus != pingOK {
-		return ""
-	}
-	c, ok := m.reg.ConnectionAt(m.cursor)
+	c, ok := m.conns.Connection()
 	if !ok {
 		return ""
 	}
@@ -214,55 +220,57 @@ func (m Model) retry() (tea.Model, tea.Cmd) {
 	}
 	switch e.action {
 	case "ping":
-		return m.pingOne(m.cursor)
+		return m.pingOne()
 	case "connect":
 		m.status, m.statusKind = "reconnecting …", kindPending
-		return m, m.runCmd(m.cursor)
+		return m, m.runCmd()
 	}
 	return m, nil
 }
 
 func (m Model) applyPingResult(msg pingResultMsg) Model {
-	if msg.index >= len(m.states) {
+	st, ok := m.pings[msg.ref]
+	if !ok {
 		return m
 	}
-	c, ok := m.reg.ConnectionAt(msg.index)
+	c, live := m.conns.ConnectionFor(msg.ref)
 	name := connLabel(c)
 
 	if msg.err != nil {
 		code := errCode(msg.err)
-		m.states[msg.index].pingStatus = pingFailed
-		if ok {
-			m.states[msg.index].connErr = connErrorFor("ping", "dial tcp", code, c, msg.err)
+		st.pingStatus = pingFailed
+		if live {
+			st.connErr = connErrorFor("ping", "dial tcp", code, c, msg.err)
 		}
 		m.status, m.statusKind = "ping failed · "+name+" · "+code, kindErr
 		return m
 	}
 
-	m.states[msg.index].pingStatus = pingOK
-	m.states[msg.index].pingResult = msg.result
-	m.states[msg.index].connErr = nil
+	st.pingStatus = pingOK
+	st.pingResult = msg.result
+	st.connErr = nil
 	m.status = fmt.Sprintf("pong · %s responded in %dms", c.Host(), msg.result.PingTime.Milliseconds())
 	m.statusKind = kindOK
 	return m
 }
 
 func (m Model) applyRunResult(msg runResultMsg) Model {
-	c, ok := m.reg.ConnectionAt(msg.index)
+	c, live := m.conns.ConnectionFor(msg.ref)
 	name := connLabel(c)
+	st := m.pings[msg.ref]
 
 	if msg.err != nil {
 		code := errCode(msg.err)
-		if ok {
-			m.states[msg.index].pingStatus = pingFailed
-			m.states[msg.index].connErr = connErrorFor("connect", "open session on", code, c, msg.err)
+		if live && st != nil {
+			st.pingStatus = pingFailed
+			st.connErr = connErrorFor("connect", "open session on", code, c, msg.err)
 		}
 		m.status, m.statusKind = "connect failed · "+name+" · "+code, kindErr
 		return m
 	}
 
-	if msg.index < len(m.states) {
-		m.states[msg.index].connErr = nil
+	if st != nil {
+		st.connErr = nil
 	}
 	m.status, m.statusKind = "session closed · "+name, kindIdle
 	return m
@@ -270,41 +278,44 @@ func (m Model) applyRunResult(msg runResultMsg) Model {
 
 func (m Model) tickSpinners(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
-	for i := range m.states {
-		if m.states[i].pingStatus != pingPinging {
+	for _, st := range m.pings {
+		if st.pingStatus != pingPinging {
 			continue
 		}
 		var cmd tea.Cmd
-		m.states[i].pingSpinner, cmd = m.states[i].pingSpinner.Update(msg)
+		st.pingSpinner, cmd = st.pingSpinner.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 	return m, tea.Batch(cmds...)
 }
 
-func (m Model) applyChange(err error) Model {
-	m = m.syncStates()
-	if m.cursor > m.reg.Len()-1 {
-		m.cursor = max(m.reg.Len()-1, 0)
+func (m Model) applyChange(msg connChangedMsg) Model {
+	if msg.renumbered {
+		m.pings = make(map[view.ConnRef]*ConnState, m.conns.Len())
 	}
-	if err != nil {
-		m.status, m.statusKind = err.Error(), kindErr
+	m = m.syncPings()
+	if msg.err != nil {
+		m.status, m.statusKind = msg.err.Error(), kindErr
 	}
 	return m
 }
 
-func (m Model) syncStates() Model {
-	n := m.reg.Len()
-	for len(m.states) < n {
-		m.states = append(m.states, newConnState())
-	}
-	if len(m.states) > n {
-		m.states = m.states[:n]
+func (m Model) syncPings() Model {
+	m.conns.Sync()
+	for i := range m.conns.Len() {
+		ref, ok := m.conns.RefAt(i)
+		if !ok {
+			continue
+		}
+		if _, ok := m.pings[ref]; !ok {
+			m.pings[ref] = newConnState()
+		}
 	}
 	return m
 }
 
 func (m Model) cursorLabel() string {
-	c, ok := m.reg.ConnectionAt(m.cursor)
+	c, ok := m.conns.Connection()
 	if !ok {
 		return ""
 	}
