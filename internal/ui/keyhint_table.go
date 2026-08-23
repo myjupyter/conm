@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -15,6 +16,7 @@ const (
 	// Group titles shared by every screen's keyhint table.
 	keyhintNavigation = "navigation"
 	keyhintAction     = "action"
+	keyhintSearch     = "search"
 	keyhintScreen     = "screen"
 
 	keyhintRows   = 2
@@ -22,19 +24,88 @@ const (
 	keyhintGap    = 1
 )
 
-func keyhintLines(w int, groups []keyhintGroup, open bool) []string {
-	if !open {
-		return []string{keyhintPrompt(w)}
-	}
-	return keyhintTable(w, groups)
+type keyhintFooter struct {
+	groups []keyhintGroup
+	open   bool
+	search bool
+	typing bool
+	query  string
+	pos    string
 }
 
-func keyhintPrompt(w int) string {
-	return frameLine(w, []span{
-		{text: " ", fg: cDim},
-		{text: keyMap.Help.hint, fg: cAccent, bold: true},
-		{text: " help", fg: cDim},
-	}, nil)
+func keyhintLines(w int, f keyhintFooter) []string {
+	var lines []string
+	if f.open {
+		lines = append(keyhintTable(w, f.groups), frameRule(w, gTeeL, gTeeR))
+	}
+	if f.search {
+		lines = append(lines, frameSearch(w, f.query, f.typing), frameRule(w, gTeeL, gTeeR))
+	}
+	return append(lines, keyhintPrompt(w, f))
+}
+
+func keyhintPrompt(w int, f keyhintFooter) string {
+	spans := keyhintPromptBinds(f)
+	if f.pos != "" {
+		used := 0
+		for _, s := range spans {
+			used += s.width()
+		}
+		spans = append(spans,
+			span{text: strings.Repeat(" ", max(w-used-len([]rune(f.pos))-1, 0)), fg: cDim},
+			span{text: f.pos + " ", fg: cMuted},
+		)
+	}
+	return frameLine(w, spans, nil)
+}
+
+func keyhintPromptBinds(f keyhintFooter) []span {
+	spans := make([]span, 0, 6)
+	if f.typing {
+		spans = append(spans,
+			span{text: " ", fg: cDim},
+			span{text: keyMap.Confirm.hint, fg: cFg, bold: true},
+			span{text: " keep · ", fg: cDim},
+			span{text: keyMap.Cancel.hint, fg: cFg, bold: true},
+			span{text: " clear", fg: cDim},
+		)
+	} else {
+		label := " help"
+		if f.open {
+			label = " exit from help"
+		}
+		spans = append(spans,
+			span{text: " ", fg: cDim},
+			span{text: keyMap.Help.hint, fg: cAccent, bold: true},
+			span{text: label, fg: cDim},
+		)
+	}
+
+	if !hasKeyhintGroup(f.groups, keyhintSearch) {
+		return spans
+	}
+
+	label := " search"
+	if f.typing {
+		label = " exit from search"
+	}
+	return append(spans,
+		span{text: " · ", fg: cFaint},
+		span{text: keyMap.Search.hint, fg: cAccent, bold: true},
+		span{text: label, fg: cDim},
+	)
+}
+
+func hasKeyhintGroup(groups []keyhintGroup, title string) bool {
+	return slices.ContainsFunc(groups, func(g keyhintGroup) bool { return g.title == title })
+}
+
+func searchKeyhints(label string, filtered bool) []keybind {
+	binds := []keybind{{keyMap.Search.hint, label}}
+	if filtered {
+		binds = append(binds, keybind{keyMap.Cancel.hint, "clear the filter"})
+	}
+	return binds
 }
 
 // initKeyhintLine spells the same hints for the init screens, which are not
@@ -143,6 +214,10 @@ func (m Model) keyhints() []keyhintGroup {
 			},
 		},
 		{
+			title: keyhintSearch,
+			binds: searchKeyhints("filter connections", m.conns.Filtered()),
+		},
+		{
 			title: keyhintScreen,
 			binds: []keybind{
 				{keyMap.Secret.hint, "secrets"},
@@ -215,6 +290,7 @@ func (m secretModel) keyhints() []keyhintGroup {
 			{keyMap.Edit.hint, "edit entry"},
 			{keyMap.Delete.hint, "delete entry"},
 		}},
+		{title: keyhintSearch, binds: searchKeyhints("filter entries", m.secrets.Filtered())},
 		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, back}}},
 	}
 }

@@ -49,7 +49,7 @@ func (m formModel) render() string {
 	if m.insert {
 		lines = append(lines, keyhintBar(formInner, m.keyhints())...)
 	} else {
-		lines = append(lines, keyhintLines(formInner, m.keyhints(), m.help)...)
+		lines = append(lines, keyhintLines(formInner, keyhintFooter{groups: m.keyhints(), open: m.help})...)
 	}
 	lines = append(lines, frameBottom(formInner))
 	return strings.Join(lines, "\n")

@@ -70,7 +70,7 @@ func New(conns *view.Connections, secrets *view.Secrets) Model {
 		conns:      conns,
 		secrets:    secrets,
 		pings:      make(map[view.ConnRef]*ConnState, conns.Len()),
-		status:     fmt.Sprintf("ready · %d %s", conns.Len(), plural(conns.Len(), "connection", "connections")),
+		status:     statusReady,
 		statusKind: kindIdle,
 	}
 
@@ -84,7 +84,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		return m.handleKeyMsg(msg.String())
+		return m.handleKeyMsg(msg)
 
 	case pingResultMsg:
 		return m.applyPingResult(msg), nil
@@ -102,7 +102,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) handleKeyMsg(key string) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	if m.conns.Searching() {
+		return m.handleSearchKey(msg)
+	}
 	if m.conns.Confirming() {
 		return m.handleConfirmKey(key)
 	}
@@ -119,8 +123,32 @@ func (m Model) handleKeyMsg(key string) (tea.Model, tea.Cmd) {
 	return m.handleKey(key)
 }
 
+func (m Model) handleSearchKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	switch {
+	case keyMap.Interrupt.matches(key):
+		return m, tea.Quit
+	case keyMap.Cancel.matches(key):
+		m.conns.CancelSearch()
+	case keyMap.Search.matches(key) && m.conns.Query() == "":
+		m.conns.CancelSearch()
+	case keyMap.Confirm.matches(key):
+		m.conns.CommitSearch()
+	case keyMap.Backspace.matches(key):
+		m.conns.TrimSearch()
+	default:
+		m.conns.AppendSearch(msg.Text)
+	}
+	return m.syncPings(), nil
+}
+
 func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 	switch {
+	case keyMap.Search.matches(key):
+		m.conns.StartSearch()
+	case m.conns.Filtered() && keyMap.Cancel.matches(key):
+		m.conns.ClearSearch()
+		return m.syncPings(), nil
 	case keyMap.Quit.matches(key):
 		return m, tea.Quit
 	case keyMap.Up.matches(key):
@@ -144,7 +172,7 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Secret.matches(key):
 		return m, m.secretsCmd()
 	case keyMap.Help.matches(key):
-		m.status, m.statusKind = keyhintStatus(m.conns.ToggleHelp()), kindIdle
+		m.conns.ToggleHelp()
 	}
 	return m, nil
 }
@@ -272,7 +300,7 @@ func (m Model) applyRunResult(msg runResultMsg) Model {
 	if st != nil {
 		st.connErr = nil
 	}
-	m.status, m.statusKind = "session closed · "+name, kindIdle
+	m.status, m.statusKind = "session closed · "+name, kindOK
 	return m
 }
 

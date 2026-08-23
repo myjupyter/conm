@@ -228,6 +228,27 @@ func frameKeybar(w int, binds []keybind) []string {
 	return append(lines, frameLine(w, spans, nil))
 }
 
+func frameSearch(w int, query string, typing bool) string {
+	cursor := " "
+	if typing {
+		cursor = gInputCursor
+	}
+
+	room := max(w-3-len([]rune(keyMap.Search.hint)), 0)
+	shown := []rune(query)
+	if len(shown) > room {
+		shown = shown[len(shown)-room:]
+	}
+
+	return frameLine(w, []span{
+		{text: "  ", fg: cDim},
+		{text: keyMap.Search.hint, fg: cAccent, bold: true},
+		{text: string(shown), fg: cFg},
+		{text: cursor, fg: cAccent},
+		{text: strings.Repeat(" ", room-len(shown)), fg: cDim},
+	}, nil)
+}
+
 func framePong(w int, text string) string {
 	return frameLine(w, []span{
 		{text: " ", fg: cDim},

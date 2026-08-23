@@ -1,9 +1,6 @@
 package view
 
-import (
-	"slices"
-	"strings"
-)
+import "slices"
 
 type Ref[K comparable] struct {
 	Kind  K
@@ -19,8 +16,11 @@ type index[K comparable] struct {
 	order   []K
 	active  K
 	entries []entry[K]
-	query   string
-	visible []Ref[K]
+	search  searcher
+
+	query    string
+	filtered bool
+	visible  []Ref[K]
 }
 
 func (x *index[K]) register(kind K) bool {
@@ -38,7 +38,22 @@ func (x *index[K]) register(kind K) bool {
 
 func (x *index[K]) reset(entries []entry[K]) {
 	x.entries = entries
+
+	docs := make([]document, 0, len(entries))
+	for i, e := range entries {
+		docs = append(docs, document{id: i, fields: e.fields})
+	}
+	x.searcher().Reindex(docs)
+
 	x.refilter()
+}
+
+func (x *index[K]) searcher() searcher {
+	if x.search == nil {
+		x.search = newSearcher()
+	}
+
+	return x.search
 }
 
 func (x *index[K]) Kinds() []K {
@@ -89,8 +104,8 @@ func (x *index[K]) Query() string {
 	return x.query
 }
 
-func (x *index[K]) Searching() bool {
-	return len(searchTerms(x.query)) > 0
+func (x *index[K]) Filtered() bool {
+	return x.filtered
 }
 
 func (x *index[K]) Search(query string) {
@@ -137,48 +152,25 @@ func (x *index[K]) stepKind(step int) bool {
 }
 
 func (x *index[K]) refilter() {
-	terms := searchTerms(x.query)
-
+	hits, filtered := x.searcher().Search(x.query)
+	x.filtered = filtered
 	x.visible = x.visible[:0]
-	for _, e := range x.entries {
-		if len(terms) == 0 {
+
+	if !filtered {
+		for _, e := range x.entries {
 			if e.ref.Kind == x.active {
 				x.visible = append(x.visible, e.ref)
 			}
+		}
 
+		return
+	}
+
+	for _, id := range hits {
+		if id < 0 || id >= len(x.entries) {
 			continue
 		}
 
-		if e.matches(terms) {
-			x.visible = append(x.visible, e.ref)
-		}
+		x.visible = append(x.visible, x.entries[id].ref)
 	}
-}
-
-func (e entry[K]) matches(terms []string) bool {
-	for _, term := range terms {
-		found := slices.ContainsFunc(e.fields, func(field string) bool {
-			return strings.Contains(field, term)
-		})
-		if !found {
-			return false
-		}
-	}
-
-	return true
-}
-
-func searchTerms(query string) []string {
-	return strings.Fields(strings.ToLower(query))
-}
-
-func searchable(values ...string) []string {
-	fields := make([]string, 0, len(values))
-	for _, value := range values {
-		if value = strings.ToLower(strings.TrimSpace(value)); value != "" {
-			fields = append(fields, value)
-		}
-	}
-
-	return fields
 }

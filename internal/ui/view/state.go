@@ -8,6 +8,7 @@ type tableState[K comparable] struct {
 	row        int
 	confirming bool
 	help       bool
+	searching  bool
 }
 
 func (s *tableState[K]) register(kind K) bool {
@@ -39,8 +40,12 @@ func (s *tableState[K]) Query() string {
 	return s.idx.Query()
 }
 
+func (s *tableState[K]) Filtered() bool {
+	return s.idx.Filtered()
+}
+
 func (s *tableState[K]) Searching() bool {
-	return s.idx.Searching()
+	return s.searching
 }
 
 func (s *tableState[K]) RefAt(i int) (Ref[K], bool) {
@@ -127,6 +132,36 @@ func (s *tableState[K]) Search(query string) {
 
 func (s *tableState[K]) ClearSearch() {
 	s.Search("")
+}
+
+func (s *tableState[K]) StartSearch() {
+	s.searching = true
+}
+
+func (s *tableState[K]) CommitSearch() {
+	s.searching = false
+}
+
+func (s *tableState[K]) CancelSearch() {
+	s.searching = false
+	s.ClearSearch()
+}
+
+func (s *tableState[K]) AppendSearch(text string) {
+	if text == "" {
+		return
+	}
+
+	s.Search(s.Query() + text)
+}
+
+func (s *tableState[K]) TrimSearch() {
+	query := []rune(s.Query())
+	if len(query) == 0 {
+		return
+	}
+
+	s.Search(string(query[:len(query)-1]))
 }
 
 func (s *tableState[K]) SetActive(kind K) bool {

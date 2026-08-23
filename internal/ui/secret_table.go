@@ -9,8 +9,7 @@ import (
 )
 
 // secretModel lists the records of one secret store. It owns no material: the
-// repository is the only thing that talks to the provider, and a password only
-// ever passes through on its way from the form into repository.Secrets.
+// password only ever passes through on its way from the form into the view.
 type secretModel struct {
 	secrets *view.Secrets
 
@@ -23,10 +22,9 @@ type secretChangedMsg struct {
 }
 
 func newSecretModel(secrets *view.Secrets) secretModel {
-	n := secrets.Len()
 	return secretModel{
 		secrets:    secrets,
-		status:     fmt.Sprintf("%s · %d %s", secrets.Active(), n, plural(n, "entry", "entries")),
+		status:     statusReady,
 		statusKind: kindIdle,
 	}
 }
@@ -38,7 +36,7 @@ func newSecretPicker(secrets *view.Secrets) secretModel {
 	if m.secrets.Len() == 0 {
 		m.setSecretStatus(m.secrets.Active()+" is empty · press "+keyMap.Add.hint+" to add an entry", kindWarn)
 	} else {
-		m.setSecretStatus("pick an entry · "+keyMap.Confirm.hint+" to attach it", kindIdle)
+		m.setSecretStatus("pick an entry · "+keyMap.Confirm.hint+" to attach it", kindOK)
 	}
 	return m
 }
@@ -48,7 +46,7 @@ func (m secretModel) Init() tea.Cmd { return nil }
 func (m secretModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		return m.handleSecretKeyMsg(msg.String())
+		return m.handleSecretKeyMsg(msg)
 
 	case secretChangedMsg:
 		return m.applySecretChange(msg.err), nil
@@ -57,15 +55,42 @@ func (m secretModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m secretModel) handleSecretKeyMsg(key string) (tea.Model, tea.Cmd) {
+func (m secretModel) handleSecretKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	if m.secrets.Searching() {
+		return m.handleSecretSearchKey(msg)
+	}
 	if m.secrets.Confirming() {
 		return m.handleSecretConfirmKey(key)
 	}
 	return m.handleSecretKey(key)
 }
 
+func (m secretModel) handleSecretSearchKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	switch {
+	case keyMap.Interrupt.matches(key):
+		return m, tea.Quit
+	case keyMap.Cancel.matches(key):
+		m.secrets.CancelSearch()
+	case keyMap.Search.matches(key) && m.secrets.Query() == "":
+		m.secrets.CancelSearch()
+	case keyMap.Confirm.matches(key):
+		m.secrets.CommitSearch()
+	case keyMap.Backspace.matches(key):
+		m.secrets.TrimSearch()
+	default:
+		m.secrets.AppendSearch(msg.Text)
+	}
+	return m, nil
+}
+
 func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 	switch {
+	case keyMap.Search.matches(key):
+		m.secrets.StartSearch()
+	case m.secrets.Filtered() && keyMap.Cancel.matches(key):
+		m.secrets.ClearSearch()
 	case keyMap.Quit.matches(key):
 		return m, tea.Quit
 	case keyMap.Up.matches(key):
@@ -74,7 +99,7 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 		m.secrets.MoveDown()
 	case keyMap.SwitchStore.matches(key):
 		// One store is configured, so switching is a no-op worth saying out loud.
-		m.setSecretStatus(m.secrets.Active()+" is the only store configured", kindIdle)
+		m.setSecretStatus(m.secrets.Active()+" is the only store configured", kindWarn)
 	case keyMap.Confirm.matches(key):
 		if m.secrets.Picking() {
 			if _, ok := m.secrets.Pick(); ok {
@@ -92,7 +117,7 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Delete.matches(key):
 		m.secrets.AskConfirm()
 	case keyMap.Help.matches(key):
-		m.setSecretStatus(keyhintStatus(m.secrets.ToggleHelp()), kindIdle)
+		m.secrets.ToggleHelp()
 	}
 	return m, nil
 }
@@ -120,12 +145,12 @@ func (m secretModel) describe() secretModel {
 
 	used := m.secrets.Usages()
 	if len(used) == 0 {
-		m.setSecretStatus(fmt.Sprintf("%s:%s · unused", s.Provider(), s.Location()), kindIdle)
+		m.setSecretStatus(fmt.Sprintf("%s:%s · unused", s.Provider(), s.Location()), kindOK)
 		return m
 	}
 
 	m.setSecretStatus(fmt.Sprintf("%s:%s · used by %d %s",
-		s.Provider(), s.Location(), len(used), plural(len(used), "connection", "connections")), kindIdle)
+		s.Provider(), s.Location(), len(used), plural(len(used), "connection", "connections")), kindOK)
 	return m
 }
 

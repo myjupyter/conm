@@ -27,10 +27,11 @@ func (m secretModel) View() tea.View {
 
 func (m secretModel) render() string {
 	n := m.secrets.Len()
+	total := m.secrets.CountOf(m.secrets.Active())
 
 	lines := []string{
-		frameTop(secretInner, m.crumb(), fmt.Sprintf(" %d %s "+gLineH, n, plural(n, "entry", "entries"))),
-		m.storeTabsLine(n),
+		frameTop(secretInner, m.crumb(), fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "entry", "entries"))),
+		m.storeTabsLine(total),
 		frameRule(secretInner, gTeeL, gTeeR),
 		m.secretHeaderLine(),
 		frameRule(secretInner, gTeeL, gTeeR),
@@ -38,7 +39,7 @@ func (m secretModel) render() string {
 
 	if n == 0 {
 		lines = append(lines, frameLine(secretInner, []span{
-			{text: truncPad("   keyring is empty · press "+keyMap.Add.hint+" to add an entry", secretInner, false), fg: cFaint},
+			{text: truncPad(m.emptySecretText(), secretInner, false), fg: cFaint},
 		}, nil))
 	} else {
 		for i := range n {
@@ -46,13 +47,32 @@ func (m secretModel) render() string {
 		}
 	}
 
-	lines = append(lines,
-		frameRule(secretInner, gTeeL, gTeeR),
-		m.secretStatusLine(n),
-	)
-	lines = append(lines, keyhintLines(secretInner, m.keyhints(), m.secrets.Help())...)
+	lines = append(lines, frameRule(secretInner, gTeeL, gTeeR))
+	lines = append(lines, m.secretFooterLines(n)...)
 	lines = append(lines, frameBottom(secretInner))
 	return strings.Join(lines, "\n")
+}
+
+func (m secretModel) secretFooterLines(n int) []string {
+	var lines []string
+	if m.secrets.Confirming() || m.statusKind != kindIdle {
+		lines = append(lines, m.secretStatusLine(), frameRule(secretInner, gTeeL, gTeeR))
+	}
+	return append(lines, keyhintLines(secretInner, keyhintFooter{
+		groups: m.keyhints(),
+		open:   m.secrets.Help(),
+		search: m.secrets.Searching() || m.secrets.Filtered(),
+		typing: m.secrets.Searching(),
+		query:  m.secrets.Query(),
+		pos:    cursorPos(m.secrets.Cursor(), n),
+	})...)
+}
+
+func (m secretModel) emptySecretText() string {
+	if m.secrets.Filtered() {
+		return "   no entry matches the filter"
+	}
+	return "   " + m.secrets.Active() + " is empty · press " + keyMap.Add.hint + " to add an entry"
 }
 
 func (m secretModel) crumb() string {
@@ -133,11 +153,11 @@ func (m secretModel) secretRowLine(i int) string {
 	}, bg)
 }
 
-func (m secretModel) secretStatusLine(n int) string {
+func (m secretModel) secretStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	text := m.status
 	if m.secrets.Confirming() {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q from the keyring? y/n", m.cursorSecretLabel())
 	}
-	return frameStatus(secretInner, icon, col, text, cursorPos(m.secrets.Cursor(), n))
+	return frameStatus(secretInner, icon, col, text, "")
 }

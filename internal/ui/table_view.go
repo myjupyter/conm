@@ -31,9 +31,10 @@ func (m Model) View() tea.View {
 
 func (m Model) render() string {
 	n := m.conns.Len()
+	total := m.conns.CountOf(m.conns.Active())
 
 	lines := []string{
-		frameTop(tableInner, "connections", fmt.Sprintf(" %d %s "+gLineH, n, plural(n, "connection", "connections"))),
+		frameTop(tableInner, "connections", fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "connection", "connections"))),
 		m.tabsLine(),
 		frameRule(tableInner, gTeeL, gTeeR),
 		m.headerLine(),
@@ -42,7 +43,7 @@ func (m Model) render() string {
 
 	if n == 0 {
 		lines = append(lines, frameLine(tableInner, []span{
-			{text: truncPad("  no connections · press "+keyMap.Add.hint+" to add one", tableInner, false), fg: cDim},
+			{text: truncPad(m.emptyText(), tableInner, false), fg: cDim},
 		}, nil))
 	} else {
 		for i := range n {
@@ -56,10 +57,32 @@ func (m Model) render() string {
 		lines = append(lines, frameRule(tableInner, gTeeL, gTeeR), framePong(tableInner, p))
 	}
 
-	lines = append(lines, frameRule(tableInner, gTeeL, gTeeR), m.statusLine(n))
-	lines = append(lines, keyhintLines(tableInner, m.keyhints(), m.conns.Help())...)
+	lines = append(lines, frameRule(tableInner, gTeeL, gTeeR))
+	lines = append(lines, m.footerLines(n)...)
 	lines = append(lines, frameBottom(tableInner))
 	return strings.Join(lines, "\n")
+}
+
+func (m Model) footerLines(n int) []string {
+	var lines []string
+	if m.conns.Confirming() || m.statusKind != kindIdle {
+		lines = append(lines, m.statusLine(), frameRule(tableInner, gTeeL, gTeeR))
+	}
+	return append(lines, keyhintLines(tableInner, keyhintFooter{
+		groups: m.keyhints(),
+		open:   m.conns.Help(),
+		search: m.conns.Searching() || m.conns.Filtered(),
+		typing: m.conns.Searching(),
+		query:  m.conns.Query(),
+		pos:    cursorPos(m.conns.Cursor(), n),
+	})...)
+}
+
+func (m Model) emptyText() string {
+	if m.conns.Filtered() {
+		return "  no connection matches the filter"
+	}
+	return "  no connections · press " + keyMap.Add.hint + " to add one"
 }
 
 func (m Model) tabsLine() string {
@@ -158,11 +181,11 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 	return span{text: " " + truncPad(text, wPing, true), fg: fg, bg: bg}
 }
 
-func (m Model) statusLine(n int) string {
+func (m Model) statusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	text := m.status
 	if m.conns.Confirming() {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q? y/n", m.cursorLabel())
 	}
-	return frameStatus(tableInner, icon, col, text, cursorPos(m.conns.Cursor(), n))
+	return frameStatus(tableInner, icon, col, text, "")
 }
