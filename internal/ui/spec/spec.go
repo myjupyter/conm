@@ -8,6 +8,15 @@ import (
 
 const tagsMaxLength = 255
 
+// The section a connection form is split into, shared by every entity spec so
+// the copy reads the same whatever database the form is for.
+const (
+	connectionSectionTitle = "connection"
+	connectionSectionNote  = "how conm reaches the server"
+	metadataSectionTitle   = "metadata"
+	metadataSectionNote    = "yours — never sent to the server"
+)
+
 const (
 	// TextFieldKind is a default kind if isn't set.
 	TextFieldKind FieldKind = iota
@@ -25,6 +34,7 @@ const (
 var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
 	config.PostgresConnType: PostgresFormSpec,
 	config.MySQLConnType:    MySQLFormSpec,
+	config.MSSQLConnType:    MSSQLFormSpec,
 	config.RedisConnType:    RedisFormSpec,
 }
 

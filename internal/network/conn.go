@@ -37,6 +37,8 @@ func NewConnection(
 		return NewPGClient(conmConfig, cfg, sec)
 	case config.MySQLConnType:
 		return NewMySQLClient(conmConfig, cfg, sec)
+	case config.MSSQLConnType:
+		return NewMSSQLClient(conmConfig, cfg, sec)
 	case config.RedisConnType:
 		return NewRedisClient(conmConfig, cfg, sec)
 	default:

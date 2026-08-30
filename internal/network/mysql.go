@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -53,14 +52,6 @@ func NewMySQLClient(
 	}, nil
 }
 
-func (m *MySQLClient) dsn(ctx context.Context) (string, error) {
-	password, err := m.sec.Resolve(ctx, m.ref)
-	if err != nil {
-		return "", err
-	}
-	return m.cfg.ConnectionString(password), nil
-}
-
 func (m *MySQLClient) Ping(ctx context.Context) (PingResult, error) {
 	raw, err := m.dsn(ctx)
 	if err != nil {
@@ -102,22 +93,22 @@ func (m *MySQLClient) Run(ctx context.Context) error {
 		return m.fail(ConnectOperation, InvalidErrorCode, errors.New("no mysql client configured, run conm init"))
 	}
 
-	executor := exec.CommandContext(ctx, cli, target.args(cli, raw)...)
-	executor.Env = target.env(cli)
-
-	executor.Stdin = os.Stdin
-	executor.Stdout = os.Stdout
-	executor.Stderr = os.Stderr
-
-	if err := executor.Run(); err != nil {
+	if err := runCLI(ctx, cli, target.args(cli, raw), target.env(cli)); err != nil {
 		return m.fail(ConnectOperation, mysqlErrorCode(err), err)
 	}
-
 	return nil
 }
 
 func (m *MySQLClient) Close() error {
 	return nil
+}
+
+func (m *MySQLClient) dsn(ctx context.Context) (string, error) {
+	password, err := m.sec.Resolve(ctx, m.ref)
+	if err != nil {
+		return "", err
+	}
+	return m.cfg.ConnectionString(password), nil
 }
 
 func (m *MySQLClient) fail(op Operation, code ErrorCode, err error) error {

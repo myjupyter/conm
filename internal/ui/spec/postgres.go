@@ -137,8 +137,8 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 	Fields:    PostgresFormFields,
 	Sections: []FormSection{
 		{
-			Title: "connection",
-			Note:  "how conm reaches the server",
+			Title: connectionSectionTitle,
+			Note:  connectionSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(postgresFormFieldHost),
 				strings.ToLower(postgresFormFieldPort),
@@ -151,8 +151,8 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 			},
 		},
 		{
-			Title: "metadata",
-			Note:  "yours — never sent to the server",
+			Title: metadataSectionTitle,
+			Note:  metadataSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(postgresFormFieldName),
 				strings.ToLower(postgresFormFieldDescription),

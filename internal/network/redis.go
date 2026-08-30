@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -50,14 +48,6 @@ func NewRedisClient(
 	}, nil
 }
 
-func (r *RedisClient) dsn(ctx context.Context) (string, error) {
-	password, err := r.sec.Resolve(ctx, r.ref)
-	if err != nil {
-		return "", err
-	}
-	return r.cfg.ConnectionString(password), nil
-}
-
 func (r *RedisClient) Ping(ctx context.Context) (PingResult, error) {
 	dsn, err := r.dsn(ctx)
 	if err != nil {
@@ -92,13 +82,7 @@ func (r *RedisClient) Run(ctx context.Context) error {
 		return r.fail(ConnectOperation, InvalidErrorCode, errors.New("no redis client configured, run conm init"))
 	}
 
-	executor := exec.CommandContext(ctx, cli, redisArgs(cli, dsn)...)
-
-	executor.Stdin = os.Stdin
-	executor.Stdout = os.Stdout
-	executor.Stderr = os.Stderr
-
-	if err := executor.Run(); err != nil {
+	if err := runCLI(ctx, cli, redisArgs(cli, dsn), nil); err != nil {
 		return r.fail(ConnectOperation, redisErrorCode(err), err)
 	}
 
@@ -107,6 +91,14 @@ func (r *RedisClient) Run(ctx context.Context) error {
 
 func (r *RedisClient) Close() error {
 	return nil
+}
+
+func (r *RedisClient) dsn(ctx context.Context) (string, error) {
+	password, err := r.sec.Resolve(ctx, r.ref)
+	if err != nil {
+		return "", err
+	}
+	return r.cfg.ConnectionString(password), nil
 }
 
 func (r *RedisClient) fail(op Operation, code ErrorCode, err error) error {

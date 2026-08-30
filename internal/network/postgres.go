@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -41,62 +39,6 @@ func NewPGClient(
 	}, nil
 }
 
-func (p *PGClient) dsn(ctx context.Context) (string, error) {
-	password, err := p.sec.Resolve(ctx, p.ref)
-	if err != nil {
-		return "", err
-	}
-	return p.cfg.ConnectionString(password), nil
-}
-
-func (p *PGClient) ConnType() config.ConnType {
-	return p.cfg.ConnType()
-}
-
-func (p *PGClient) Name() string {
-	return p.cfg.Name()
-}
-
-func (p *PGClient) Description() string {
-	return p.cfg.Description()
-}
-
-func (p *PGClient) Tags() []string {
-	return p.cfg.Tags()
-}
-
-func (p *PGClient) Host() string {
-	return p.cfg.Host()
-}
-
-func (p *PGClient) Username() string {
-	return p.cfg.Username()
-}
-
-func (p *PGClient) Port() int {
-	return p.cfg.Port()
-}
-
-func (p *PGClient) Database() string {
-	return p.cfg.Database()
-}
-
-func (p *PGClient) Schema() string {
-	return p.cfg.Schema()
-}
-
-func (p *PGClient) ConnectionString(password string) string {
-	return p.cfg.ConnectionString(password)
-}
-
-func (p *PGClient) IsValid() bool {
-	return p.cfg.IsValid()
-}
-
-func (p *PGClient) Validate() []error {
-	return p.cfg.Validate()
-}
-
 func (p *PGClient) Ping(ctx context.Context) (PingResult, error) {
 	dsn, err := p.dsn(ctx)
 	if err != nil {
@@ -128,13 +70,7 @@ func (p *PGClient) Run(ctx context.Context) error {
 		return p.fail(ConnectOperation, InvalidErrorCode, errors.New("no postgres client configured, run conm init"))
 	}
 
-	executor := exec.CommandContext(ctx, cli, dsn)
-
-	executor.Stdin = os.Stdin
-	executor.Stdout = os.Stdout
-	executor.Stderr = os.Stderr
-
-	if err := executor.Run(); err != nil {
+	if err := runCLI(ctx, cli, []string{dsn}, nil); err != nil {
 		return p.fail(ConnectOperation, pgErrorCode(err), err)
 	}
 
@@ -143,6 +79,14 @@ func (p *PGClient) Run(ctx context.Context) error {
 
 func (p *PGClient) Close() error {
 	return nil
+}
+
+func (p *PGClient) dsn(ctx context.Context) (string, error) {
+	password, err := p.sec.Resolve(ctx, p.ref)
+	if err != nil {
+		return "", err
+	}
+	return p.cfg.ConnectionString(password), nil
 }
 
 func (p *PGClient) fail(op Operation, code ErrorCode, err error) error {

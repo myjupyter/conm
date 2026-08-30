@@ -135,8 +135,8 @@ var RedisFormSpec = FormSpec[config.Connection]{
 	Fields:    RedisFormFields,
 	Sections: []FormSection{
 		{
-			Title: "connection",
-			Note:  "how conm reaches the server",
+			Title: connectionSectionTitle,
+			Note:  connectionSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(redisFormFieldHost),
 				strings.ToLower(redisFormFieldPort),
@@ -148,8 +148,8 @@ var RedisFormSpec = FormSpec[config.Connection]{
 			},
 		},
 		{
-			Title: "metadata",
-			Note:  "yours — never sent to the server",
+			Title: metadataSectionTitle,
+			Note:  metadataSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(redisFormFieldName),
 				strings.ToLower(redisFormFieldDescription),

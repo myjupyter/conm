@@ -22,6 +22,7 @@ const (
 var DatabaseFormSpecs = map[config.ConnType]FormSpec[config.Database]{
 	config.PostgresConnType: databaseFormSpec(config.PostgresConnType),
 	config.MySQLConnType:    databaseFormSpec(config.MySQLConnType),
+	config.MSSQLConnType:    databaseFormSpec(config.MSSQLConnType),
 	config.RedisConnType:    databaseFormSpec(config.RedisConnType),
 }
 

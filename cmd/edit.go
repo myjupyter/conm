@@ -25,6 +25,8 @@ var editCmd = &cobra.Command{
 			configPath = config.PostgresPath()
 		case cmd.Flags().Changed("mysql"):
 			configPath = config.MySQLPath()
+		case cmd.Flags().Changed("mssql"):
+			configPath = config.MSSQLPath()
 		case cmd.Flags().Changed("redis"):
 			configPath = config.RedisPath()
 		default:
@@ -55,5 +57,6 @@ func init() {
 
 	editCmd.Flags().Bool("postgres", false, "Edit postgres.toml")
 	editCmd.Flags().Bool("mysql", false, "Edit mysql.toml")
+	editCmd.Flags().Bool("mssql", false, "Edit mssql.toml")
 	editCmd.Flags().Bool("redis", false, "Edit redis.toml")
 }

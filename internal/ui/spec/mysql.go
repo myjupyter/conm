@@ -122,8 +122,8 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 	Fields:    MySQLFormFields,
 	Sections: []FormSection{
 		{
-			Title: "connection",
-			Note:  "how conm reaches the server",
+			Title: connectionSectionTitle,
+			Note:  connectionSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(mysqlFormFieldHost),
 				strings.ToLower(mysqlFormFieldPort),
@@ -135,8 +135,8 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 			},
 		},
 		{
-			Title: "metadata",
-			Note:  "yours — never sent to the server",
+			Title: metadataSectionTitle,
+			Note:  metadataSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(mysqlFormFieldName),
 				strings.ToLower(mysqlFormFieldDescription),

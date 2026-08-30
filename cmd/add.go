@@ -65,6 +65,30 @@ var addMySQLCmd = &cobra.Command{
 	},
 }
 
+var addMSSQLCmd = &cobra.Command{
+	Use:   "mssql",
+	Short: "Add a new mssql connection",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if _, err := os.Stat(config.MSSQLPath()); err != nil {
+			if os.IsNotExist(err) {
+				return errors.New("mssql config file not found\nrun 'conm init' first")
+			}
+		}
+
+		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
+		if err != nil {
+			return fmt.Errorf("failed to open conm config: %w", err)
+		}
+		defer c.Close()
+
+		if _, err := ui.RunAddForm(c.Get(0), config.MSSQLConnType); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
 var addRedisCmd = &cobra.Command{
 	Use:   "redis",
 	Short: "Add a new redis connection",
@@ -93,6 +117,7 @@ func init() {
 	addCmd.AddCommand(
 		addPostgresCmd,
 		addMySQLCmd,
+		addMSSQLCmd,
 		addRedisCmd,
 	)
 

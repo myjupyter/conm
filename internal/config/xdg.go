@@ -10,6 +10,7 @@ const (
 	conmDirName            = "conm"
 	postgresConfigFileName = "postgres.toml"
 	mysqlConfigFileName    = "mysql.toml"
+	mssqlConfigFileName    = "mssql.toml"
 	redisConfigFileName    = "redis.toml"
 	conmConfigFileName     = "conm.toml"
 	secretConfigFileName   = "secret.toml"
@@ -21,6 +22,8 @@ var (
 	PostgresPath   = pathGetter(postgresPath)
 	mysqlPath      = filepath.Join(xdg.ConfigHome, conmDirName, mysqlConfigFileName)
 	MySQLPath      = pathGetter(mysqlPath)
+	mssqlPath      = filepath.Join(xdg.ConfigHome, conmDirName, mssqlConfigFileName)
+	MSSQLPath      = pathGetter(mssqlPath)
 	redisPath      = filepath.Join(xdg.ConfigHome, conmDirName, redisConfigFileName)
 	RedisPath      = pathGetter(redisPath)
 	conmConfigPath = filepath.Join(xdg.ConfigHome, conmDirName, conmConfigFileName)
