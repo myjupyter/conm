@@ -345,32 +345,16 @@ func (p Postgres) buildDSN(password string) string {
 }
 
 func (p Postgres) Validate() []error {
-	var errs []error
-	if err := ValidatePostgresHost(p.Hostname); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidatePostgresPort(p.PortNumber); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidatePostgresUsername(p.User); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidatePostgresDatabase(p.DBName); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidatePostgresSchema(p.SchemaName); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidatePostgresSSLMode(p.SSLMode); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidatePostgresName(p.Meta.Name); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidatePostgresDescription(p.Meta.Description); err != nil {
-		errs = append(errs, err)
-	}
-	return errs
+	return validationErrors(
+		ValidatePostgresHost(p.Hostname),
+		ValidatePostgresPort(p.PortNumber),
+		ValidatePostgresUsername(p.User),
+		ValidatePostgresDatabase(p.DBName),
+		ValidatePostgresSchema(p.SchemaName),
+		ValidatePostgresSSLMode(p.SSLMode),
+		ValidatePostgresName(p.Meta.Name),
+		ValidatePostgresDescription(p.Meta.Description),
+	)
 }
 
 func (p Postgres) IsValid() bool {

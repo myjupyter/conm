@@ -27,6 +27,17 @@ type Connection interface {
 	Validate() []error
 }
 
+func validationErrors(checks ...error) []error {
+	var errs []error
+	for _, err := range checks {
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
+}
+
 type ConfigWrapper[C any] interface {
 	// TODO: Add method to return error
 	Add(C)

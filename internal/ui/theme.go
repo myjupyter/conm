@@ -26,6 +26,7 @@ var (
 	cValue    = lipgloss.Color("#c4bcac")
 	cPong     = lipgloss.Color("#b9cdbd")
 	cPostgres = lipgloss.Color("#5aa0d6")
+	cMySQL    = lipgloss.Color("#c98f2f")
 	cRedis    = lipgloss.Color("#c4574d")
 
 	cErrBorder = lipgloss.Color("#7a3f34")
@@ -93,6 +94,8 @@ func typeColor(t config.ConnType) color.Color {
 	switch t {
 	case config.PostgresConnType:
 		return cPostgres
+	case config.MySQLConnType:
+		return cMySQL
 	case config.RedisConnType:
 		return cRedis
 	default:

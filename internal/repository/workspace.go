@@ -9,6 +9,7 @@ import (
 
 var connectionRepositories = map[config.ConnType]func(config.Conm) (*ConnectionRepository, error){
 	config.PostgresConnType: NewPostgresRepository,
+	config.MySQLConnType:    NewMySQLRepository,
 	config.RedisConnType:    NewRedisRepository,
 }
 

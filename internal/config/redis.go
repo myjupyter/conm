@@ -244,29 +244,15 @@ func (r Redis) buildDSN(password string) string {
 }
 
 func (r Redis) Validate() []error {
-	var errs []error
-	if err := ValidateRedisHost(r.Hostname); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidateRedisPort(r.PortNumber); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidateRedisUsername(r.User); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidateRedisDatabase(r.DBIndex); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidateRedisTLSMode(r.TLSMode); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidateRedisName(r.Meta.Name); err != nil {
-		errs = append(errs, err)
-	}
-	if err := ValidateRedisDescription(r.Meta.Description); err != nil {
-		errs = append(errs, err)
-	}
-	return errs
+	return validationErrors(
+		ValidateRedisHost(r.Hostname),
+		ValidateRedisPort(r.PortNumber),
+		ValidateRedisUsername(r.User),
+		ValidateRedisDatabase(r.DBIndex),
+		ValidateRedisTLSMode(r.TLSMode),
+		ValidateRedisName(r.Meta.Name),
+		ValidateRedisDescription(r.Meta.Description),
+	)
 }
 
 func (r Redis) IsValid() bool {

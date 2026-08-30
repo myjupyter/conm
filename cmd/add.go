@@ -41,6 +41,30 @@ var addPostgresCmd = &cobra.Command{
 	},
 }
 
+var addMySQLCmd = &cobra.Command{
+	Use:   "mysql",
+	Short: "Add a new mysql connection",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if _, err := os.Stat(config.MySQLPath()); err != nil {
+			if os.IsNotExist(err) {
+				return errors.New("mysql config file not found\nrun 'conm init' first")
+			}
+		}
+
+		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
+		if err != nil {
+			return fmt.Errorf("failed to open conm config: %w", err)
+		}
+		defer c.Close()
+
+		if _, err := ui.RunAddForm(c.Get(0), config.MySQLConnType); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
 var addRedisCmd = &cobra.Command{
 	Use:   "redis",
 	Short: "Add a new redis connection",
@@ -68,6 +92,7 @@ var addRedisCmd = &cobra.Command{
 func init() {
 	addCmd.AddCommand(
 		addPostgresCmd,
+		addMySQLCmd,
 		addRedisCmd,
 	)
 

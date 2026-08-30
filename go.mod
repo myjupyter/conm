@@ -7,6 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.8
 	charm.land/lipgloss/v2 v2.0.5
 	github.com/adrg/xdg v0.5.3
+	github.com/go-sql-driver/mysql v1.9.3
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/redis/go-redis/v9 v9.20.1
@@ -15,6 +16,7 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7 // indirect
