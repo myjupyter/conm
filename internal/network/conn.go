@@ -18,8 +18,6 @@ const (
 )
 
 type Connection interface {
-	config.Connection
-
 	Ping(ctx context.Context) (PingResult, error)
 	Run(ctx context.Context) error
 	Close() error

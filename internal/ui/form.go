@@ -52,7 +52,7 @@ type formModel struct {
 }
 
 type formPingMsg struct {
-	conn   config.Connection
+	cfg    config.Connection
 	result network.PingResult
 	err    error
 }
@@ -497,37 +497,34 @@ func (m formModel) submit() (tea.Model, tea.Cmd) {
 }
 
 func (m formModel) pingForm() (tea.Model, tea.Cmd) {
-	conn, err := m.spec.BuildFunc(m.values())
-	if err != nil || conn.Host() == "" {
+	cfg, err := m.spec.BuildFunc(m.values())
+	if err != nil || cfg.Host() == "" {
 		m.attempted = true
 		m.setStatus("fill host before pinging", kindErr)
 		return m, nil
 	}
 
 	m.pong, m.ping = "", nil
-	m.setStatus("pinging "+conn.Host()+" …", kindPending)
-	return m, pingFormCmd(conn)
+	m.setStatus("pinging "+cfg.Host()+" …", kindPending)
+	return m, pingFormCmd(cfg)
 }
 
-func pingFormCmd(conn config.Connection) tea.Cmd {
+func pingFormCmd(cfg config.Connection) tea.Cmd {
 	return func() tea.Msg {
-		client, err := network.NewConnection(config.Conm{}, conn, secret.Default())
+		conn, err := network.NewConnection(config.Conm{}, cfg, secret.Default())
 		if err != nil {
-			return formPingMsg{conn: conn, err: err}
+			return formPingMsg{cfg: cfg, err: err}
 		}
-		defer client.Close()
+		defer conn.Close()
 
-		result, err := client.Ping(context.Background())
-		return formPingMsg{conn: conn, result: result, err: err}
+		result, err := conn.Ping(context.Background())
+		return formPingMsg{cfg: cfg, result: result, err: err}
 	}
 }
 
 func (m formModel) applyPing(msg formPingMsg) formModel {
-	c := msg.conn
-	label := c.Name()
-	if label == "" {
-		label = c.Host()
-	}
+	cfg := msg.cfg
+	label := connLabel(cfg)
 
 	if msg.err != nil {
 		e := newConnError(msg.err, network.PingOperation, label)
@@ -539,7 +536,7 @@ func (m formModel) applyPing(msg formPingMsg) formModel {
 
 	ms := msg.result.PingTime.Milliseconds()
 	m.ping = nil
-	m.pong = fmt.Sprintf("%s:%d answered in %dms", c.Host(), c.Port(), ms)
+	m.pong = fmt.Sprintf("%s:%d answered in %dms", cfg.Host(), cfg.Port(), ms)
 	m.setStatus(fmt.Sprintf("pong · %dms", ms), kindOK)
 	return m
 }

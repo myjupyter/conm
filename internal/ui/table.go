@@ -6,6 +6,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
@@ -13,13 +14,13 @@ import (
 type Model struct {
 	conns   *view.Connections
 	secrets *view.Secrets
-	pings   map[view.ConnRef]*ConnState
+	pings   map[view.ConnRef]*connState
 
 	status     string
 	statusKind statusKind
 }
 
-type ConnState struct {
+type connState struct {
 	pingSpinner spinner.Model
 
 	pingStatus pingStatus
@@ -53,10 +54,10 @@ type connChangedMsg struct {
 	renumbered bool
 }
 
-func newConnState() *ConnState {
+func newConnState() *connState {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
-	return &ConnState{
+	return &connState{
 		pingSpinner: s,
 		pingStatus:  pingUndefined,
 	}
@@ -66,7 +67,7 @@ func New(conns *view.Connections, secrets *view.Secrets) Model {
 	m := Model{
 		conns:      conns,
 		secrets:    secrets,
-		pings:      make(map[view.ConnRef]*ConnState, conns.Len()),
+		pings:      make(map[view.ConnRef]*connState, conns.Len()),
 		status:     statusReady,
 		statusKind: kindIdle,
 	}
@@ -192,7 +193,7 @@ func (m Model) pingOne() (tea.Model, tea.Cmd) {
 	if !ok {
 		return m, nil
 	}
-	c, ok := m.conns.ConnectionFor(ref)
+	cfg, ok := m.conns.Config()
 	if !ok {
 		return m, nil
 	}
@@ -201,12 +202,12 @@ func (m Model) pingOne() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	st.pingStatus = pingPinging
-	m.status = "pinging " + c.Host() + " …"
+	m.status = "pinging " + cfg.Host() + " …"
 	m.statusKind = kindPending
 	return m, tea.Batch(st.pingSpinner.Tick, m.pingCmd(ref))
 }
 
-func (m Model) pingAt(i int) *ConnState {
+func (m Model) pingAt(i int) *connState {
 	ref, ok := m.conns.RefAt(i)
 	if !ok {
 		return nil
@@ -214,7 +215,7 @@ func (m Model) pingAt(i int) *ConnState {
 	return m.pings[ref]
 }
 
-func (m Model) currentState() *ConnState {
+func (m Model) currentState() *connState {
 	return m.pingAt(m.conns.Cursor())
 }
 
@@ -231,11 +232,11 @@ func (m Model) currentPong() string {
 	if st == nil || st.connErr != nil || st.pingStatus != pingOK {
 		return ""
 	}
-	c, ok := m.conns.Connection()
+	cfg, ok := m.conns.Config()
 	if !ok {
 		return ""
 	}
-	return fmt.Sprintf("%s:%d answered in %dms", c.Host(), c.Port(), st.pingResult.PingTime.Milliseconds())
+	return fmt.Sprintf("%s:%d answered in %dms", cfg.Host(), cfg.Port(), st.pingResult.PingTime.Milliseconds())
 }
 
 func (m Model) retry() (tea.Model, tea.Cmd) {
@@ -258,8 +259,8 @@ func (m Model) applyPingResult(msg pingResultMsg) Model {
 	if !ok {
 		return m
 	}
-	c, live := m.conns.ConnectionFor(msg.ref)
-	name := connLabel(c)
+	cfg, live := m.conns.ConfigFor(msg.ref)
+	name := connLabel(cfg)
 
 	if msg.err != nil {
 		e := newConnError(msg.err, network.PingOperation, name)
@@ -274,14 +275,14 @@ func (m Model) applyPingResult(msg pingResultMsg) Model {
 	st.pingStatus = pingOK
 	st.pingResult = msg.result
 	st.connErr = nil
-	m.status = fmt.Sprintf("pong · %s responded in %dms", c.Host(), msg.result.PingTime.Milliseconds())
+	m.status = fmt.Sprintf("pong · %s responded in %dms", cfg.Host(), msg.result.PingTime.Milliseconds())
 	m.statusKind = kindOK
 	return m
 }
 
 func (m Model) applyRunResult(msg runResultMsg) Model {
-	c, live := m.conns.ConnectionFor(msg.ref)
-	name := connLabel(c)
+	cfg, live := m.conns.ConfigFor(msg.ref)
+	name := connLabel(cfg)
 	st := m.pings[msg.ref]
 
 	if msg.err != nil {
@@ -316,7 +317,7 @@ func (m Model) tickSpinners(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) applyChange(msg connChangedMsg) Model {
 	if msg.renumbered {
-		m.pings = make(map[view.ConnRef]*ConnState, m.conns.Len())
+		m.pings = make(map[view.ConnRef]*connState, m.conns.Len())
 	}
 	m = m.syncPings()
 	if msg.err != nil {
@@ -340,21 +341,21 @@ func (m Model) syncPings() Model {
 }
 
 func (m Model) cursorLabel() string {
-	c, ok := m.conns.Connection()
+	cfg, ok := m.conns.Config()
 	if !ok {
 		return ""
 	}
-	return connLabel(c)
+	return connLabel(cfg)
 }
 
-func connLabel(c network.Connection) string {
-	if c == nil {
+func connLabel(cfg config.Connection) string {
+	if cfg == nil {
 		return ""
 	}
-	if name := c.Name(); name != "" {
+	if name := cfg.Name(); name != "" {
 		return name
 	}
-	return c.Host()
+	return cfg.Host()
 }
 
 func plural(n int, one, many string) string {

@@ -37,28 +37,25 @@ func (m Model) runCmd() tea.Cmd {
 
 func (m Model) addCmd() tea.Cmd {
 	return changeExec(func() error {
-		conn, ok, err := runAddForm(m.conns.Active(), m.secrets)
+		cfg, ok, err := runAddForm(m.conns.Active(), m.secrets)
 		if err != nil || !ok {
 			return err
 		}
-		return m.conns.Add(conn)
+		return m.conns.Add(cfg)
 	})
 }
 
 func (m Model) editCmd() tea.Cmd {
-	// ConfigAt, not ConnectionAt: the form seeds from the stored config value,
-	// and a live network.Connection satisfies config.Connection without being
-	// the concrete type the spec's SeedFunc asserts on.
 	cfg, ok := m.conns.Config()
 	if !ok {
 		return nil
 	}
 	return changeExec(func() error {
-		conn, ok, err := RunEditForm(cfg.ConnType(), cfg, m.secrets)
+		edited, ok, err := RunEditForm(cfg.ConnType(), cfg, m.secrets)
 		if err != nil || !ok {
 			return err
 		}
-		return m.conns.Edit(conn)
+		return m.conns.Edit(edited)
 	})
 }
 

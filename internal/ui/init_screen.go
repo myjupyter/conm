@@ -45,7 +45,9 @@ func RunInitScreen(cfg InitScreenConfig) error {
 		if !finalCLI.Exists {
 			return fmt.Errorf("%s client %q is not installed", cfg.ConnType, cfg.CLIFlagValue)
 		}
-		conmConfig.SetCLI(cfg.ConnType, cfg.CLIFlagValue)
+		if err := conmConfig.SetCLI(cfg.ConnType, cfg.CLIFlagValue); err != nil {
+			return err
+		}
 	default:
 		hasClient := false
 		for _, cli := range clies {
@@ -66,7 +68,9 @@ func RunInitScreen(cfg InitScreenConfig) error {
 			return errors.New("no postgres client selected")
 		}
 
-		conmConfig.SetCLI(cfg.ConnType, cli.Name)
+		if err := conmConfig.SetCLI(cfg.ConnType, cli.Name); err != nil {
+			return err
+		}
 	}
 
 	if err := runConnTypeSpecificInit(cfg); err != nil {

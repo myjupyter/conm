@@ -11,26 +11,26 @@ import (
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
-func RunAddForm(cfg config.Conm, t config.ConnType) (bool, error) {
+func RunAddForm(conm config.Conm, t config.ConnType) (bool, error) {
 	// The workspace, not just the connection repository: the form offers the
 	// secret stores as password modes, so it needs them open too.
-	ws, err := repository.NewWorkspace(cfg)
+	ws, err := repository.NewWorkspace(conm)
 	if err != nil {
 		return false, err
 	}
 	defer ws.Close()
 
-	conn, ok, err := runAddForm(t, view.NewSecrets(ws.Keyring))
+	cfg, ok, err := runAddForm(t, view.NewSecrets(ws.Keyring))
 	if err != nil || !ok {
 		return false, err
 	}
 
-	repo, ok := ws.ConnectionsOf(conn.ConnType())
+	repo, ok := ws.ConnectionsOf(cfg.ConnType())
 	if !ok {
-		return false, fmt.Errorf("no repository for connection type %q", conn.ConnType())
+		return false, fmt.Errorf("no repository for connection type %q", cfg.ConnType())
 	}
 
-	if err := repo.Add(conn); err != nil {
+	if err := repo.Add(cfg); err != nil {
 		return false, err
 	}
 
@@ -100,10 +100,10 @@ func runForm(model formModel) (config.Connection, bool, error) {
 		return nil, false, nil
 	}
 
-	conn, err := fm.result()
+	cfg, err := fm.result()
 	if err != nil {
 		return nil, false, err
 	}
 
-	return conn, true, nil
+	return cfg, true, nil
 }

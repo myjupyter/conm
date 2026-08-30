@@ -112,13 +112,13 @@ func (m Model) headerLine() string {
 }
 
 func (m Model) rowLine(i int) string {
-	c, ok := m.conns.ConnectionAt(i)
+	cfg, ok := m.conns.ConfigAt(i)
 	st := m.pingAt(i)
 	if !ok || st == nil {
 		return frameLine(tableInner, nil, nil)
 	}
 	sel := i == m.conns.Cursor()
-	failed := st.connErr != nil || st.pingStatus == pingFailed || !c.IsValid()
+	failed := st.connErr != nil || st.pingStatus == pingFailed || !cfg.IsValid()
 
 	var bg, fg, soft, markC color.Color
 	switch {
@@ -141,11 +141,11 @@ func (m Model) rowLine(i int) string {
 
 	spans := []span{
 		{text: caret + mark, fg: markC, bg: bg},
-		{text: " " + truncPad(c.Name(), wName, false), fg: fg, bg: bg},
-		{text: " " + truncPad(c.Username(), wUser, false), fg: soft, bg: bg},
-		{text: " " + truncPad(c.Host(), wHost, false), fg: fg, bg: bg},
-		{text: " " + truncPad(strconv.Itoa(c.Port()), wPort, true), fg: soft, bg: bg},
-		{text: " " + truncPad(c.Database(), wDB, false), fg: fg, bg: bg},
+		{text: " " + truncPad(cfg.Name(), wName, false), fg: fg, bg: bg},
+		{text: " " + truncPad(cfg.Username(), wUser, false), fg: soft, bg: bg},
+		{text: " " + truncPad(cfg.Host(), wHost, false), fg: fg, bg: bg},
+		{text: " " + truncPad(strconv.Itoa(cfg.Port()), wPort, true), fg: soft, bg: bg},
+		{text: " " + truncPad(cfg.Database(), wDB, false), fg: fg, bg: bg},
 		m.pingSpan(i, bg, sel),
 	}
 	return frameLine(tableInner, spans, bg)

@@ -249,7 +249,7 @@ func framePong(w int, text string) string {
 func frameErrPanel(w int, e *connError) []string {
 	tag := " " + strings.ToUpper(string(e.op)) + " FAILED "
 	code := " " + e.code + " "
-	right := " " + e.conn + " "
+	right := " " + e.label + " "
 	fill := max(w-1-len([]rune(tag))-len([]rune(code))-len([]rune(right)), 0)
 
 	var top strings.Builder
