@@ -20,12 +20,18 @@ var (
 	}
 )
 
-func ValidateCLI(t ConnType, cli string) error {
-	var clies []string
+func Clients(t ConnType) []string {
 	switch t {
 	case PostgresConnType:
-		clies = PGClients
+		return PGClients
 	default:
+		return nil
+	}
+}
+
+func ValidateCLI(t ConnType, cli string) error {
+	clies := Clients(t)
+	if len(clies) == 0 {
 		return fmt.Errorf("unknown connection type %q", t)
 	}
 
@@ -37,13 +43,7 @@ func ValidateCLI(t ConnType, cli string) error {
 }
 
 func DetectCLI(t ConnType) []CLIInfo {
-	var clies []string
-	switch t {
-	case PostgresConnType:
-		clies = PGClients
-	default:
-		clies = PGClients
-	}
+	clies := Clients(t)
 
 	infos := make([]CLIInfo, 0, len(clies))
 	for _, name := range clies {

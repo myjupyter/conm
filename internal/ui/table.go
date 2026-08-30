@@ -157,6 +157,8 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		return m, m.runCmd()
 	case keyMap.Add.matches(key):
 		return m, m.addCmd()
+	case keyMap.AddDB.matches(key):
+		return m, m.databasesCmd()
 	case keyMap.Edit.matches(key):
 		if m.conns.Len() > 0 {
 			return m, m.editCmd()

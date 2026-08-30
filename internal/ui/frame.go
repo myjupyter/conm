@@ -292,3 +292,43 @@ func frameErrKV(w int, label, value string, valColor color.Color) string {
 		{text: truncPad(value, w-11, false), fg: valColor},
 	}, nil)
 }
+
+// selectBox is a select field's value as the frame draws it: the value itself,
+// its position among the options, and the two states that repaint the box.
+type selectBox struct {
+	value  string
+	at, n  int
+	active bool
+	bad    bool
+}
+
+// frameSelectBox draws a select field's < value > box w cells wide: the value
+// centred between the cycle arrows, its position pinned to the right.
+func frameSelectBox(w int, s selectBox, bg color.Color) []span {
+	borderFg := cBorder
+	switch {
+	case s.bad:
+		borderFg = cRed
+	case s.active:
+		borderFg = cInvFg
+	}
+
+	valFg, posFg := cValue, cMuted
+	if s.active {
+		valFg, posFg = cInvFg, cInvFg
+	}
+
+	pos := fmt.Sprintf("%d/%d", s.at, s.n)
+	mid := max(w-8-len([]rune(pos)), 0)
+	value := truncPad(s.value, min(len([]rune(s.value)), mid), false)
+	left := (mid - len([]rune(value))) / 2
+
+	return []span{
+		{text: gLineV + " " + gSelectPrev + " ", fg: borderFg, bg: bg},
+		{text: strings.Repeat(" ", left), bg: bg},
+		{text: value, fg: valFg, bg: bg, bold: true},
+		{text: strings.Repeat(" ", mid-left-len([]rune(value))), bg: bg},
+		{text: pos + " ", fg: posFg, bg: bg},
+		{text: gSelectNext + " " + gLineV, fg: borderFg, bg: bg},
+	}
+}

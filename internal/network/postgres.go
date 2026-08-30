@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -122,7 +123,12 @@ func (p *PGClient) Run(ctx context.Context) error {
 		return p.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	executor := exec.CommandContext(ctx, p.conmCfg.Postgres.CLI, dsn)
+	cli := p.conmCfg.CLI(config.PostgresConnType)
+	if cli == "" {
+		return p.fail(ConnectOperation, InvalidErrorCode, errors.New("no postgres client configured, run conm init"))
+	}
+
+	executor := exec.CommandContext(ctx, cli, dsn)
 
 	executor.Stdin = os.Stdin
 	executor.Stdout = os.Stdout

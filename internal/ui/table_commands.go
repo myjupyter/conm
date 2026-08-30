@@ -69,6 +69,14 @@ func (m Model) secretsCmd() tea.Cmd {
 	return changeExec(func() error { return runSecretTable(m.secrets) })
 }
 
+// databasesCmd hands the terminal to the setup screen, the only place a
+// database is enabled. A database that changes there is picked up the next
+// time conm starts, since the workspace was built from the config this screen
+// was opened with.
+func (m Model) databasesCmd() tea.Cmd {
+	return changeExec(runDatabaseTable)
+}
+
 func (m Model) removeCmd() tea.Cmd {
 	return func() tea.Msg {
 		return connChangedMsg{err: m.conns.Remove(), renumbered: true}

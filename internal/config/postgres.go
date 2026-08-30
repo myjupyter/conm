@@ -14,8 +14,6 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-var _ Connection = (*Postgres)(nil)
-
 var simpleHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 var simpleDatabaseRegexp = regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_.-]*$`)
@@ -56,6 +54,8 @@ const (
 	PostgresSSLModeVerifyCA   PostgresSSLMode = "verify-ca"
 	PostgresSSLModeVerifyFull PostgresSSLMode = "verify-full"
 )
+
+var _ Connection = (*Postgres)(nil)
 
 type Postgres struct {
 	Meta       ConnMeta `toml:"meta"`

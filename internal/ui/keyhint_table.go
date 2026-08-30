@@ -108,23 +108,6 @@ func searchKeyhints(label string, filtered bool) []keybind {
 	return binds
 }
 
-// initKeyhintLine spells the same hints for the init screens, which are not
-// framed and so get one plain line instead of a key bar.
-func initKeyhintLine() string {
-	binds := []keybind{
-		{keyMap.Up.hint, "up"},
-		{keyMap.Down.hint, "down"},
-		{keyMap.Confirm.hint, "select"},
-		{keyMap.Quit.hint, "quit"},
-	}
-
-	parts := make([]string, 0, len(binds))
-	for _, b := range binds {
-		parts = append(parts, b.key+" "+b.label)
-	}
-	return strings.Join(parts, " · ")
-}
-
 func keyhintBar(w int, groups []keyhintGroup) []string {
 	return frameKeybar(w, flattenKeyhints(groups))
 }
@@ -209,6 +192,7 @@ func (m Model) keyhints() []keyhintGroup {
 				{keyMap.Confirm.hint, "connect"},
 				{keyMap.Ping.hint, "ping"},
 				{keyMap.Add.hint, "add new"},
+				{keyMap.AddDB.hint, "add new database"},
 				{keyMap.Edit.hint, "edit"},
 				{keyMap.Delete.hint, "delete"},
 			},
@@ -319,5 +303,33 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, "move between fields"}}},
 		{title: keyhintAction, binds: action},
 		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "cancel"}}},
+	}
+}
+
+func (m initModel) keyhints() []keyhintGroup {
+	confirm, leave := "open the connections", keybind{keyMap.Quit.hint, "quit"}
+	if m.adding {
+		confirm, leave = "back to connections", keybind{keyMap.Cancel.hint, "back to connections"}
+	}
+
+	return []keyhintGroup{
+		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, "move"}}},
+		{title: keyhintAction, binds: []keybind{
+			{keyMap.Toggle.hint, "enable / disable"},
+			{keyMap.Confirm.hint, confirm},
+			{keyMap.Edit.hint, "edit"},
+		}},
+		{title: keyhintScreen, binds: []keybind{leave}},
+	}
+}
+
+func (m initFormModel) keyhints() []keyhintGroup {
+	return []keyhintGroup{
+		{title: keyhintNavigation, binds: []keybind{
+			{keyMap.MoveVertical.hint, "move between fields"},
+			{keyMap.Cycle.hint, "change the value"},
+		}},
+		{title: keyhintAction, binds: []keybind{{keyMap.Confirm.hint, "save and go back"}}},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "back without saving"}}},
 	}
 }

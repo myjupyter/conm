@@ -43,6 +43,8 @@ type keymap struct {
 	Delete  binding
 	Secret  binding
 	Search  binding
+	Toggle  binding
+	AddDB   binding
 
 	// Text editing.
 	Backspace binding
@@ -85,6 +87,8 @@ func defaultKeymap() keymap {
 		Delete:  newBinding("d", "d"),
 		Secret:  newBinding("s", "s"),
 		Search:  newBinding("/", "/"),
+		Toggle:  newBinding("space", "space"),
+		AddDB:   newBinding("ctrl+a", "ctrl+a"),
 
 		Backspace: newBinding("backspace", "backspace"),
 

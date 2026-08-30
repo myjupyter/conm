@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/pelletier/go-toml/v2"
 )
@@ -19,22 +21,79 @@ const (
 	PostgresConnType ConnType = iota + 1
 )
 
-type ConmPostgresSection struct {
-	CLI string `toml:"cli"`
-}
+// databaseTypes names every database conm can manage, in the order the setup
+// table lists them.
+var databaseTypes = []ConnType{PostgresConnType}
 
 type Conm struct {
-	Postgres ConmPostgresSection `toml:"postgres"`
+	Databases []Database `toml:"database"`
 }
 
-func (c *Conm) SetCLI(t ConnType, cli string) {
+type Database struct {
+	Type    ConnType `toml:"type"`
+	CLI     string   `toml:"cli"`
+	Enabled bool     `toml:"enabled"`
+}
+
+func (c Conm) Database(t ConnType) (Database, bool) {
+	for _, db := range c.Databases {
+		if db.Type == t {
+			return db, true
+		}
+	}
+	return Database{}, false
+}
+
+func (c Conm) CLI(t ConnType) string {
+	db, _ := c.Database(t)
+	return db.CLI
+}
+
+func (c *Conm) SetDatabase(d Database) error {
+	if err := ValidateCLI(d.Type, d.CLI); err != nil {
+		return err
+	}
+
+	for i, db := range c.Databases {
+		if db.Type == d.Type {
+			c.Databases[i] = d
+			return nil
+		}
+	}
+
+	c.Databases = append(c.Databases, d)
+	return nil
+}
+
+// withDatabaseTypes keeps one row per database conm knows, in that order, so
+// every screen sees the same list whatever the file holds.
+func withDatabaseTypes(stored []Database) []Database {
+	dbs := make([]Database, 0, len(databaseTypes))
+	for _, t := range databaseTypes {
+		db := Database{Type: t}
+		for _, s := range stored {
+			if s.Type == t {
+				db = s
+				break
+			}
+		}
+		dbs = append(dbs, db)
+	}
+	return dbs
+}
+
+func CreateDatabaseConfig(t ConnType) error {
 	switch t {
 	case PostgresConnType:
-		c.Postgres = ConmPostgresSection{
-			CLI: cli,
+		c, err := OpenConfig[*PostgresConfigWrapper](PostgresPath())
+		if err != nil {
+			return err
 		}
+		defer c.Close()
+
+		return c.Save()
 	default:
-		// No other connection type carries a CLI section yet.
+		return fmt.Errorf("unsupported connection type %q", t)
 	}
 }
 
@@ -45,6 +104,32 @@ func (t ConnType) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+func ParseConnType(name string) (ConnType, error) {
+	for _, t := range databaseTypes {
+		if t.String() == name {
+			return t, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown connection type %q", name)
+}
+
+func (t ConnType) MarshalText() ([]byte, error) {
+	if !slices.Contains(databaseTypes, t) {
+		return nil, fmt.Errorf("unsupported connection type %d", int(t))
+	}
+	return []byte(t.String()), nil
+}
+
+func (t *ConnType) UnmarshalText(raw []byte) error {
+	parsed, err := ParseConnType(string(raw))
+	if err != nil {
+		return err
+	}
+
+	*t = parsed
+	return nil
 }
 
 type ConmConfigWrapper struct {
@@ -74,7 +159,7 @@ func (w *ConmConfigWrapper) ConnectionConfigs() []Connection {
 func (w *ConmConfigWrapper) Remove(_ int) {}
 
 func (w *ConmConfigWrapper) Validate() {
-	//TODO: validate conm config
+	w.Conm.Databases = withDatabaseTypes(w.Conm.Databases)
 }
 
 func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
@@ -128,10 +213,7 @@ func ReadConm(filename string) (Conm, error) {
 		return Conm{}, err
 	}
 
-	if t.Conm.Postgres.CLI == "" {
-		// TODO: pick the default per connection type once more than postgres exists.
-		t.Conm.Postgres.CLI = "psql"
-	}
+	t.Conm.Databases = withDatabaseTypes(t.Conm.Databases)
 
 	return t.Conm, nil
 }
