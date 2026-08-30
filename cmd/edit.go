@@ -23,6 +23,8 @@ var editCmd = &cobra.Command{
 		switch {
 		case cmd.Flags().Changed("postgres"):
 			configPath = config.PostgresPath()
+		case cmd.Flags().Changed("redis"):
+			configPath = config.RedisPath()
 		default:
 			configPath = config.ConmPath()
 		}
@@ -50,4 +52,5 @@ func init() {
 	rootCmd.AddCommand(editCmd)
 
 	editCmd.Flags().Bool("postgres", false, "Edit postgres.toml")
+	editCmd.Flags().Bool("redis", false, "Edit redis.toml")
 }

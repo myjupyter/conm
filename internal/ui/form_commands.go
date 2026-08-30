@@ -27,7 +27,7 @@ func RunAddForm(conm config.Conm, t config.ConnType) (bool, error) {
 
 	repo, ok := ws.ConnectionsOf(cfg.ConnType())
 	if !ok {
-		return false, fmt.Errorf("no repository for connection type %q", cfg.ConnType())
+		return false, fmt.Errorf("%q is not enabled\nrun 'conm init' to enable it", cfg.ConnType())
 	}
 
 	if err := repo.Add(cfg); err != nil {

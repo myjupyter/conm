@@ -26,6 +26,7 @@ var (
 	cValue    = lipgloss.Color("#c4bcac")
 	cPong     = lipgloss.Color("#b9cdbd")
 	cPostgres = lipgloss.Color("#5aa0d6")
+	cRedis    = lipgloss.Color("#c4574d")
 
 	cErrBorder = lipgloss.Color("#7a3f34")
 	cErrTagBg  = lipgloss.Color("#9e3b2a")
@@ -92,6 +93,8 @@ func typeColor(t config.ConnType) color.Color {
 	switch t {
 	case config.PostgresConnType:
 		return cPostgres
+	case config.RedisConnType:
+		return cRedis
 	default:
 		return cAccent
 	}

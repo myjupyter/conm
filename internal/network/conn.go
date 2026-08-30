@@ -35,6 +35,8 @@ func NewConnection(
 	switch cfg.ConnType() {
 	case config.PostgresConnType:
 		return NewPGClient(conmConfig, cfg, sec)
+	case config.RedisConnType:
+		return NewRedisClient(conmConfig, cfg, sec)
 	default:
 		return nil, fmt.Errorf("unsupported connection type %q", cfg.ConnType())
 	}

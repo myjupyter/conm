@@ -35,7 +35,7 @@ func RunInit() error {
 		return nil
 	}
 
-	return Run(im.conm)
+	return runOn(im.conm, im.chosen)
 }
 
 func readConm() (config.Conm, error) {
@@ -50,14 +50,23 @@ func readConm() (config.Conm, error) {
 
 // runDatabaseTable opens the setup screen from the connections table, reading
 // the config back from disk so it starts on what is actually saved.
-func runDatabaseTable() error {
+func runDatabaseTable() (config.ConnType, bool, error) {
 	conm, err := readConm()
 	if err != nil {
-		return err
+		return 0, false, err
 	}
 
-	_, err = tea.NewProgram(newAddDatabaseModel(conm)).Run()
-	return err
+	m, err := tea.NewProgram(newAddDatabaseModel(conm)).Run()
+	if err != nil {
+		return 0, false, err
+	}
+
+	im, ok := m.(initModel)
+	if !ok {
+		return 0, false, fmt.Errorf("setup screen returned an unexpected model %T", m)
+	}
+
+	return im.chosen, im.open, nil
 }
 
 func (m initModel) saveDatabaseCmd(db config.Database) tea.Cmd {

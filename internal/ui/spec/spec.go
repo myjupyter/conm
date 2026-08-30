@@ -24,6 +24,7 @@ const (
 
 var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
 	config.PostgresConnType: PostgresFormSpec,
+	config.RedisConnType:    RedisFormSpec,
 }
 
 type FieldProperty int

@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"fmt"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
@@ -9,18 +11,51 @@ import (
 )
 
 func Run(cfg config.Conm) error {
-	if enabledDatabases(cfg) == 0 {
-		return RunInit()
-	}
+	var anyDatabase config.ConnType
 
+	return runOn(cfg, anyDatabase)
+}
+
+func runOn(cfg config.Conm, active config.ConnType) error {
+	for {
+		if enabledDatabases(cfg) == 0 {
+			return RunInit()
+		}
+
+		m, err := runConnections(cfg, active)
+		if err != nil || !m.reload {
+			return err
+		}
+
+		cfg, err = readConm()
+		if err != nil {
+			return err
+		}
+		active = m.active
+	}
+}
+
+func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	ws, err := repository.NewWorkspace(cfg)
 	if err != nil {
-		return err
+		return Model{}, err
 	}
 	defer ws.Close()
 
-	_, err = tea.NewProgram(New(view.NewConnections(ws.Connections()...), view.NewSecrets(ws.Keyring))).Run()
-	return err
+	conns := view.NewConnections(ws.Connections()...)
+	conns.SetActive(active)
+
+	m, err := tea.NewProgram(New(conns, view.NewSecrets(ws.Keyring))).Run()
+	if err != nil {
+		return Model{}, err
+	}
+
+	cm, ok := m.(Model)
+	if !ok {
+		return Model{}, fmt.Errorf("connections screen returned an unexpected model %T", m)
+	}
+
+	return cm, nil
 }
 
 func enabledDatabases(cfg config.Conm) int {

@@ -65,7 +65,7 @@ type keymap struct {
 	// whole group as one.
 	MoveVertical binding
 	Cycle        binding
-	SwitchStore  binding
+	SwitchKind   binding
 }
 
 var keyMap = defaultKeymap()
@@ -104,7 +104,7 @@ func defaultKeymap() keymap {
 
 	k.MoveVertical = merge("↑↓/jk", k.Up, k.Down)
 	k.Cycle = merge("←/→", k.Left, k.Right)
-	k.SwitchStore = merge("tab/←→", k.NextSection, k.PrevSection, k.Left, k.Right)
+	k.SwitchKind = merge("tab/←→/hl", k.NextSection, k.PrevSection, k.Left, k.Right)
 
 	return k
 }

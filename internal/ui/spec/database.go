@@ -21,6 +21,7 @@ const (
 // spec here and nothing else in the UI changes.
 var DatabaseFormSpecs = map[config.ConnType]FormSpec[config.Database]{
 	config.PostgresConnType: databaseFormSpec(config.PostgresConnType),
+	config.RedisConnType:    databaseFormSpec(config.RedisConnType),
 }
 
 func DatabaseState(enabled bool) FormFieldValue {

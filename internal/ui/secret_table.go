@@ -97,7 +97,7 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 		m.secrets.MoveUp()
 	case keyMap.Down.matches(key):
 		m.secrets.MoveDown()
-	case keyMap.SwitchStore.matches(key):
+	case keyMap.SwitchKind.matches(key):
 		// One store is configured, so switching is a no-op worth saying out loud.
 		m.setSecretStatus(m.secrets.Active()+" is the only store configured", kindWarn)
 	case keyMap.Confirm.matches(key):

@@ -20,6 +20,7 @@ type initModel struct {
 	cursor int
 	help   bool
 	open   bool
+	chosen config.ConnType
 	adding bool
 
 	status     string
@@ -119,21 +120,22 @@ func (m initModel) toggle() (tea.Model, tea.Cmd) {
 // openConnections leaves the setup screen for the connection table of the
 // database under the cursor; RunInit opens it once this program is done.
 func (m initModel) openConnections() (tea.Model, tea.Cmd) {
-	if m.adding {
-		return m, tea.Quit
-	}
-
 	db, ok := m.database()
 	if !ok {
 		return m, nil
 	}
-	if !db.Enabled {
-		m.setInitStatus(db.Type.String()+" is disabled · "+keyMap.Toggle.hint+" to enable it", kindWarn)
-		return m, nil
+
+	if db.Enabled {
+		m.chosen, m.open = db.Type, true
+		return m, tea.Quit
 	}
 
-	m.open = true
-	return m, tea.Quit
+	if m.adding {
+		return m, tea.Quit
+	}
+
+	m.setInitStatus(db.Type.String()+" is disabled · "+keyMap.Toggle.hint+" to enable it", kindWarn)
+	return m, nil
 }
 
 func (m initModel) applyInitChange(msg initChangedMsg) initModel {

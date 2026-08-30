@@ -7,8 +7,9 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-var connectionRepositories = []func(config.Conm) (*ConnectionRepository, error){
-	NewPostgresRepository,
+var connectionRepositories = map[config.ConnType]func(config.Conm) (*ConnectionRepository, error){
+	config.PostgresConnType: NewPostgresRepository,
+	config.RedisConnType:    NewRedisRepository,
 }
 
 type Workspace struct {
@@ -22,14 +23,26 @@ func NewWorkspace(cfg config.Conm) (*Workspace, error) {
 	w := &Workspace{byKind: make(map[config.ConnType]Connections, len(connectionRepositories))}
 
 	users := make([]SecretUser, 0, len(connectionRepositories))
-	for _, open := range connectionRepositories {
+	for _, db := range cfg.Databases {
+		if !db.Enabled {
+			continue
+		}
+
+		open, known := connectionRepositories[db.Type]
+		if !known {
+			return nil, errors.Join(
+				fmt.Errorf("no repository for connection type %q", db.Type),
+				w.closeConnections(),
+			)
+		}
+
 		repo, err := open(cfg)
 		if err != nil {
 			return nil, errors.Join(err, w.closeConnections())
 		}
-		if _, taken := w.byKind[repo.Kind()]; taken {
+		if repo.Kind() != db.Type {
 			return nil, errors.Join(
-				fmt.Errorf("two repositories claim connection type %q", repo.Kind()),
+				fmt.Errorf("repository for %q claims connection type %q", db.Type, repo.Kind()),
 				repo.Close(), w.closeConnections(),
 			)
 		}

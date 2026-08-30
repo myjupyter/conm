@@ -41,9 +41,34 @@ var addPostgresCmd = &cobra.Command{
 	},
 }
 
+var addRedisCmd = &cobra.Command{
+	Use:   "redis",
+	Short: "Add a new redis connection",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if _, err := os.Stat(config.RedisPath()); err != nil {
+			if os.IsNotExist(err) {
+				return errors.New("redis config file not found\nrun 'conm init' first")
+			}
+		}
+
+		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
+		if err != nil {
+			return fmt.Errorf("failed to open conm config: %w", err)
+		}
+		defer c.Close()
+
+		if _, err := ui.RunAddForm(c.Get(0), config.RedisConnType); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
 func init() {
 	addCmd.AddCommand(
 		addPostgresCmd,
+		addRedisCmd,
 	)
 
 	rootCmd.AddCommand(addCmd)

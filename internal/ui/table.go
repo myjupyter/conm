@@ -18,6 +18,9 @@ type Model struct {
 
 	status     string
 	statusKind statusKind
+
+	reload bool
+	active config.ConnType
 }
 
 type connState struct {
@@ -52,6 +55,12 @@ type runResultMsg struct {
 type connChangedMsg struct {
 	err        error
 	renumbered bool
+}
+
+type databasesChangedMsg struct {
+	kind   config.ConnType
+	chosen bool
+	err    error
 }
 
 func newConnState() *connState {
@@ -92,6 +101,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case connChangedMsg:
 		return m.applyChange(msg), nil
+
+	case databasesChangedMsg:
+		return m.applyDatabaseChange(msg)
 
 	case spinner.TickMsg:
 		return m.tickSpinners(msg)
@@ -153,6 +165,8 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		m.conns.MoveUp()
 	case keyMap.Down.matches(key):
 		m.conns.MoveDown()
+	case keyMap.SwitchKind.matches(key):
+		return m.switchKind(key), nil
 	case keyMap.Confirm.matches(key):
 		return m, m.runCmd()
 	case keyMap.Add.matches(key):
@@ -175,6 +189,40 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		m.conns.ToggleHelp()
 	}
 	return m, nil
+}
+
+func (m Model) switchKind(key string) Model {
+	back := keyMap.PrevSection.matches(key) || keyMap.Left.matches(key)
+
+	moved := m.conns.NextKind()
+	if back {
+		moved = m.conns.PrevKind()
+	}
+	if !moved {
+		m.status = m.conns.Active().String() + " is the only database enabled · " + keyMap.AddDB.hint + " to add one"
+		m.statusKind = kindWarn
+		return m
+	}
+
+	m = m.syncPings()
+	m.status, m.statusKind = statusReady, kindIdle
+
+	return m
+}
+
+func (m Model) applyDatabaseChange(msg databasesChangedMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.status, m.statusKind = msg.err.Error(), kindErr
+		return m, nil
+	}
+
+	m.active = m.conns.Active()
+	if msg.chosen {
+		m.active = msg.kind
+	}
+	m.reload = true
+
+	return m, tea.Quit
 }
 
 func (m Model) handleConfirmKey(key string) (tea.Model, tea.Cmd) {

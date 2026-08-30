@@ -23,6 +23,49 @@ type Connections interface {
 	Remove(int) error
 }
 
+func openConnections[W config.ConfigWrapper[config.Connection]](
+	cfg config.Conm,
+	kind config.ConnType,
+	path string,
+) (*ConnectionRepository, error) {
+	file, err := config.OpenConfig[W](path)
+	if err != nil {
+		return nil, err
+	}
+
+	var sec secret.Provider = secret.Default()
+
+	n := file.Len()
+	ncs := make([]network.Connection, 0, n)
+	for i := range n {
+		c := file.Get(i)
+
+		var (
+			conn network.Connection
+			err  error
+		)
+		if c.IsValid() {
+			conn, err = network.NewConnection(cfg, c, sec)
+		} else {
+			conn, err = network.NewNoClient(c)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create connection: %w", err)
+		}
+
+		ncs = append(ncs, conn)
+	}
+
+	return &ConnectionRepository{
+		cfg:  cfg,
+		kind: kind,
+		file: file,
+		mx:   &sync.RWMutex{},
+		ncs:  ncs,
+		sec:  sec,
+	}, nil
+}
+
 type ConnectionRepository struct {
 	cfg  config.Conm
 	kind config.ConnType

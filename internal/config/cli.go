@@ -12,11 +12,23 @@ type CLIInfo struct {
 	Exists bool
 }
 
+const (
+	RedisCLI  = "redis-cli"
+	ValkeyCLI = "valkey-cli"
+	IRedisCLI = "iredis"
+)
+
 var (
 	PGClients = []string{
 		"psql",
 		"pgcli",
 		"usql",
+	}
+
+	RedisClients = []string{
+		RedisCLI,
+		ValkeyCLI,
+		IRedisCLI,
 	}
 )
 
@@ -24,6 +36,8 @@ func Clients(t ConnType) []string {
 	switch t {
 	case PostgresConnType:
 		return PGClients
+	case RedisConnType:
+		return RedisClients
 	default:
 		return nil
 	}

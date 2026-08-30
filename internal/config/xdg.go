@@ -9,6 +9,7 @@ import (
 const (
 	conmDirName            = "conm"
 	postgresConfigFileName = "postgres.toml"
+	redisConfigFileName    = "redis.toml"
 	conmConfigFileName     = "conm.toml"
 	secretConfigFileName   = "secret.toml"
 )
@@ -17,6 +18,8 @@ const (
 var (
 	postgresPath   = filepath.Join(xdg.ConfigHome, conmDirName, postgresConfigFileName)
 	PostgresPath   = pathGetter(postgresPath)
+	redisPath      = filepath.Join(xdg.ConfigHome, conmDirName, redisConfigFileName)
+	RedisPath      = pathGetter(redisPath)
 	conmConfigPath = filepath.Join(xdg.ConfigHome, conmDirName, conmConfigFileName)
 	ConmPath       = pathGetter(conmConfigPath)
 )

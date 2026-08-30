@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
@@ -69,12 +70,19 @@ func (m Model) secretsCmd() tea.Cmd {
 	return changeExec(func() error { return runSecretTable(m.secrets) })
 }
 
-// databasesCmd hands the terminal to the setup screen, the only place a
-// database is enabled. A database that changes there is picked up the next
-// time conm starts, since the workspace was built from the config this screen
-// was opened with.
 func (m Model) databasesCmd() tea.Cmd {
-	return changeExec(runDatabaseTable)
+	var (
+		kind   config.ConnType
+		chosen bool
+	)
+	return tea.Exec(
+		runExec{run: func() error {
+			var err error
+			kind, chosen, err = runDatabaseTable()
+			return err
+		}},
+		func(err error) tea.Msg { return databasesChangedMsg{kind: kind, chosen: chosen, err: err} },
+	)
 }
 
 func (m Model) removeCmd() tea.Cmd {

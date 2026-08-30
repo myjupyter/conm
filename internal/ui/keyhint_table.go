@@ -184,6 +184,7 @@ func (m Model) keyhints() []keyhintGroup {
 			binds: []keybind{
 				{keyMap.Up.hint, "up"},
 				{keyMap.Down.hint, "down"},
+				{keyMap.SwitchKind.hint, "switch database"},
 			},
 		},
 		{
@@ -266,7 +267,7 @@ func (m secretModel) keyhints() []keyhintGroup {
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: []keybind{
 			{keyMap.MoveVertical.hint, "move"},
-			{keyMap.SwitchStore.hint, "switch store"},
+			{keyMap.SwitchKind.hint, "switch store"},
 		}},
 		{title: keyhintAction, binds: []keybind{
 			{keyMap.Confirm.hint, use},
