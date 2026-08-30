@@ -21,12 +21,19 @@ const (
 	PostgresConnType ConnType = iota + 1
 	MySQLConnType
 	MSSQLConnType
+	ClickHouseConnType
 	RedisConnType
 )
 
 // databaseTypes names every database conm can manage, in the order the setup
 // table lists them.
-var databaseTypes = []ConnType{PostgresConnType, MySQLConnType, MSSQLConnType, RedisConnType}
+var databaseTypes = []ConnType{
+	PostgresConnType,
+	MySQLConnType,
+	MSSQLConnType,
+	ClickHouseConnType,
+	RedisConnType,
+}
 
 type Conm struct {
 	Databases []Database `toml:"database"`
@@ -111,6 +118,14 @@ func CreateDatabaseConfig(t ConnType) error {
 		defer c.Close()
 
 		return c.Save()
+	case ClickHouseConnType:
+		c, err := OpenConfig[*ClickHouseConfigWrapper](ClickHousePath())
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+
+		return c.Save()
 	case RedisConnType:
 		c, err := OpenConfig[*RedisConfigWrapper](RedisPath())
 		if err != nil {
@@ -132,6 +147,8 @@ func (t ConnType) String() string {
 		return "mysql"
 	case MSSQLConnType:
 		return "mssql"
+	case ClickHouseConnType:
+		return "clickhouse"
 	case RedisConnType:
 		return "redis"
 	default:

@@ -20,10 +20,11 @@ const (
 // Postgres is the only one conm supports today; a new database registers its
 // spec here and nothing else in the UI changes.
 var DatabaseFormSpecs = map[config.ConnType]FormSpec[config.Database]{
-	config.PostgresConnType: databaseFormSpec(config.PostgresConnType),
-	config.MySQLConnType:    databaseFormSpec(config.MySQLConnType),
-	config.MSSQLConnType:    databaseFormSpec(config.MSSQLConnType),
-	config.RedisConnType:    databaseFormSpec(config.RedisConnType),
+	config.PostgresConnType:   databaseFormSpec(config.PostgresConnType),
+	config.MySQLConnType:      databaseFormSpec(config.MySQLConnType),
+	config.MSSQLConnType:      databaseFormSpec(config.MSSQLConnType),
+	config.ClickHouseConnType: databaseFormSpec(config.ClickHouseConnType),
+	config.RedisConnType:      databaseFormSpec(config.RedisConnType),
 }
 
 func DatabaseState(enabled bool) FormFieldValue {

@@ -8,10 +8,11 @@ import (
 )
 
 var connectionRepositories = map[config.ConnType]func(config.Conm) (*ConnectionRepository, error){
-	config.PostgresConnType: NewPostgresRepository,
-	config.MySQLConnType:    NewMySQLRepository,
-	config.MSSQLConnType:    NewMSSQLRepository,
-	config.RedisConnType:    NewRedisRepository,
+	config.PostgresConnType:   NewPostgresRepository,
+	config.MySQLConnType:      NewMySQLRepository,
+	config.MSSQLConnType:      NewMSSQLRepository,
+	config.ClickHouseConnType: NewClickHouseRepository,
+	config.RedisConnType:      NewRedisRepository,
 }
 
 type Workspace struct {

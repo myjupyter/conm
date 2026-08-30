@@ -12,23 +12,24 @@ import (
 // purpose: frame.go decides how a line is assembled, this file decides what it
 // looks like, so restyling the TUI never means touching the drawing code.
 var (
-	cBorder   = lipgloss.Color("#3a362e")
-	cDim      = lipgloss.Color("#6d6759")
-	cMuted    = lipgloss.Color("#5f594c")
-	cFaint    = lipgloss.Color("#4d483e")
-	cSoft     = lipgloss.Color("#8b8474")
-	cFg       = lipgloss.Color("#ddd6c8")
-	cDead     = lipgloss.Color("#7d7668")
-	cAccent   = lipgloss.Color("#63d18a")
-	cRed      = lipgloss.Color("#e5654a")
-	cAmber    = lipgloss.Color("#e3b34a")
-	cInvFg    = lipgloss.Color("#0f0f0d")
-	cValue    = lipgloss.Color("#c4bcac")
-	cPong     = lipgloss.Color("#b9cdbd")
-	cPostgres = lipgloss.Color("#5aa0d6")
-	cMySQL    = lipgloss.Color("#c98f2f")
-	cMSSQL    = lipgloss.Color("#a07fd0")
-	cRedis    = lipgloss.Color("#c4574d")
+	cBorder     = lipgloss.Color("#3a362e")
+	cDim        = lipgloss.Color("#6d6759")
+	cMuted      = lipgloss.Color("#5f594c")
+	cFaint      = lipgloss.Color("#4d483e")
+	cSoft       = lipgloss.Color("#8b8474")
+	cFg         = lipgloss.Color("#ddd6c8")
+	cDead       = lipgloss.Color("#7d7668")
+	cAccent     = lipgloss.Color("#63d18a")
+	cRed        = lipgloss.Color("#e5654a")
+	cAmber      = lipgloss.Color("#e3b34a")
+	cInvFg      = lipgloss.Color("#0f0f0d")
+	cValue      = lipgloss.Color("#c4bcac")
+	cPong       = lipgloss.Color("#b9cdbd")
+	cPostgres   = lipgloss.Color("#5aa0d6")
+	cMySQL      = lipgloss.Color("#c98f2f")
+	cMSSQL      = lipgloss.Color("#a07fd0")
+	cClickHouse = lipgloss.Color("#e0c341")
+	cRedis      = lipgloss.Color("#c4574d")
 
 	cErrBorder = lipgloss.Color("#7a3f34")
 	cErrTagBg  = lipgloss.Color("#9e3b2a")
@@ -99,6 +100,8 @@ func typeColor(t config.ConnType) color.Color {
 		return cMySQL
 	case config.MSSQLConnType:
 		return cMSSQL
+	case config.ClickHouseConnType:
+		return cClickHouse
 	case config.RedisConnType:
 		return cRedis
 	default:

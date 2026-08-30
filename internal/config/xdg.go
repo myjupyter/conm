@@ -7,13 +7,14 @@ import (
 )
 
 const (
-	conmDirName            = "conm"
-	postgresConfigFileName = "postgres.toml"
-	mysqlConfigFileName    = "mysql.toml"
-	mssqlConfigFileName    = "mssql.toml"
-	redisConfigFileName    = "redis.toml"
-	conmConfigFileName     = "conm.toml"
-	secretConfigFileName   = "secret.toml"
+	conmDirName              = "conm"
+	postgresConfigFileName   = "postgres.toml"
+	mysqlConfigFileName      = "mysql.toml"
+	mssqlConfigFileName      = "mssql.toml"
+	clickhouseConfigFileName = "clickhouse.toml"
+	redisConfigFileName      = "redis.toml"
+	conmConfigFileName       = "conm.toml"
+	secretConfigFileName     = "secret.toml"
 )
 
 // Connection configs.
@@ -24,6 +25,8 @@ var (
 	MySQLPath      = pathGetter(mysqlPath)
 	mssqlPath      = filepath.Join(xdg.ConfigHome, conmDirName, mssqlConfigFileName)
 	MSSQLPath      = pathGetter(mssqlPath)
+	clickhousePath = filepath.Join(xdg.ConfigHome, conmDirName, clickhouseConfigFileName)
+	ClickHousePath = pathGetter(clickhousePath)
 	redisPath      = filepath.Join(xdg.ConfigHome, conmDirName, redisConfigFileName)
 	RedisPath      = pathGetter(redisPath)
 	conmConfigPath = filepath.Join(xdg.ConfigHome, conmDirName, conmConfigFileName)

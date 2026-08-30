@@ -13,30 +13,37 @@ type CLIInfo struct {
 }
 
 const (
-	MySQLCLI  = "mysql"
-	MyCLI     = "mycli"
-	SQLCmdCLI = "sqlcmd"
-	RedisCLI  = "redis-cli"
-	ValkeyCLI = "valkey-cli"
-	IRedisCLI = "iredis"
+	MySQLCLI      = "mysql"
+	MyCLI         = "mycli"
+	SQLCmdCLI     = "sqlcmd"
+	USQLCLI       = "usql"
+	ClickHouseCLI = "clickhouse"
+	RedisCLI      = "redis-cli"
+	ValkeyCLI     = "valkey-cli"
+	IRedisCLI     = "iredis"
 )
 
 var (
 	PGClients = []string{
 		"psql",
 		"pgcli",
-		"usql",
+		USQLCLI,
 	}
 
 	MySQLClients = []string{
 		MySQLCLI,
 		MyCLI,
-		"usql",
+		USQLCLI,
 	}
 
 	MSSQLClients = []string{
 		SQLCmdCLI,
-		"usql",
+		USQLCLI,
+	}
+
+	ClickHouseClients = []string{
+		ClickHouseCLI,
+		USQLCLI,
 	}
 
 	RedisClients = []string{
@@ -54,6 +61,8 @@ func Clients(t ConnType) []string {
 		return MySQLClients
 	case MSSQLConnType:
 		return MSSQLClients
+	case ClickHouseConnType:
+		return ClickHouseClients
 	case RedisConnType:
 		return RedisClients
 	default:

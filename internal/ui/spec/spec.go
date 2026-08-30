@@ -32,10 +32,11 @@ const (
 )
 
 var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
-	config.PostgresConnType: PostgresFormSpec,
-	config.MySQLConnType:    MySQLFormSpec,
-	config.MSSQLConnType:    MSSQLFormSpec,
-	config.RedisConnType:    RedisFormSpec,
+	config.PostgresConnType:   PostgresFormSpec,
+	config.MySQLConnType:      MySQLFormSpec,
+	config.MSSQLConnType:      MSSQLFormSpec,
+	config.ClickHouseConnType: ClickHouseFormSpec,
+	config.RedisConnType:      RedisFormSpec,
 }
 
 type FieldProperty int
