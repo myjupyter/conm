@@ -122,8 +122,13 @@ func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // isRef reports whether the password field currently points at a secret store
 // rather than holding the password itself.
 func (m formModel) isRef() bool {
-	mode := m.vals[spec.SecretProviderKey]
-	return mode != "" && mode != secret.Literal
+	return secret.IsStore(m.vals[spec.SecretProviderKey])
+}
+
+// noSecret reports whether the connection is declared to send no password at
+// all, which leaves the value field with nothing to hold.
+func (m formModel) noSecret() bool {
+	return m.vals[spec.SecretProviderKey] == secret.None && m.hasSecretMode()
 }
 
 // isSecretField reports whether field i is the one the secret mode governs.
@@ -201,10 +206,17 @@ func (m *formModel) cycleRef(dir int) {
 // moved to: a literal password and a store location are not interchangeable,
 // so each is parked in its own stash while the other is on screen.
 func (m *formModel) onSecretModeChange(was string) {
-	if was == "" || was == secret.Literal {
-		m.literalStash = m.vals[spec.SecretValueKey]
-	} else {
+	switch {
+	case secret.IsStore(was):
 		m.refStash = m.vals[spec.SecretValueKey]
+	case was != secret.None:
+		m.literalStash = m.vals[spec.SecretValueKey]
+	}
+
+	if m.noSecret() {
+		m.vals[spec.SecretValueKey] = ""
+		m.setStatus(secret.None+" · this connection sends no password", kindIdle)
+		return
 	}
 
 	if !m.isRef() {
@@ -307,6 +319,8 @@ func (m *formModel) navCycle(i int, cur spec.FormField, dir int) {
 // not typed into.
 func (m *formModel) navEdit(i int, cur spec.FormField) {
 	switch {
+	case m.isSecretField(i) && m.noSecret():
+		m.setStatus("no secret store · pick a provider with "+keyMap.Cycle.hint+" to set a password", kindWarn)
 	case m.isSecretField(i) && m.isRef():
 		m.setStatus(m.storeLabel()+" entries are picked, not typed · use "+keyMap.Cycle.hint, kindWarn)
 	case m.isSelector(i):
@@ -327,7 +341,7 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 	switch {
 	case m.isProviderField(i) && m.isRef():
 		return m.pickSecretCmd(), true
-	case cur.Kind == spec.HiddenFieldKind && !m.isRef():
+	case cur.Kind == spec.HiddenFieldKind && !m.isRef() && !m.noSecret():
 		m.reveal = !m.reveal
 		if m.reveal {
 			m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)

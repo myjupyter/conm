@@ -15,6 +15,7 @@ func Default() *Resolver {
 	return newResolver(
 		&KeyringProvider{},
 		&LiteralProvider{},
+		&NoneProvider{},
 	)
 }
 

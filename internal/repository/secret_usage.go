@@ -52,7 +52,7 @@ func (ix *Index) Usages(ref string) []Usage {
 
 func trackable(raw string) bool {
 	scheme, _, ok := secret.ParseRef(raw)
-	return ok && scheme != secret.Literal
+	return ok && secret.IsStore(scheme)
 }
 
 type SecretInUseError struct {

@@ -204,6 +204,10 @@ func (m formModel) display(i int, active bool) (string, bool) {
 	f := m.spec.Fields[i]
 	raw := m.vals[f.Key]
 
+	if m.isSecretField(i) && m.noSecret() {
+		return "no password sent", true
+	}
+
 	// A reference is a name, not a password: it is shown as typed, never
 	// masked, because hiding which entry is attached helps nobody.
 	if m.isSecretField(i) && m.isRef() {
@@ -240,6 +244,8 @@ func (m formModel) gutter(i int, active bool) (string, color.Color) {
 	switch {
 	case m.attempted && m.fieldError(i) != "":
 		g, c = gFieldBad, cRed
+	case m.isSecretField(i) && m.noSecret():
+		g, c = gDotOn, cAccent
 	case m.isSecretField(i) && m.isRef() && raw == "":
 		g, c = gDotOff, cFaint
 	case raw != "" || f.Kind == spec.SelectFieldKind || f.DefaultValue != "":
