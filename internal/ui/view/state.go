@@ -176,17 +176,6 @@ func (s *tableState[K]) PrevKind() bool {
 	return s.switchKind(s.idx.PrevKind)
 }
 
-func (s *tableState[K]) Focus() bool {
-	row, ok := s.idx.Focus(s.row)
-	if !ok {
-		return false
-	}
-
-	s.row = row
-
-	return true
-}
-
 func (s *tableState[K]) Sync() {
 	if s.row >= s.idx.Len() {
 		s.row = max(s.idx.Len()-1, 0)

@@ -117,24 +117,6 @@ func (x *index[K]) ClearSearch() {
 	x.Search("")
 }
 
-func (x *index[K]) Focus(i int) (int, bool) {
-	ref, ok := x.RefAt(i)
-	if !ok {
-		return 0, false
-	}
-
-	x.query = ""
-	x.active = ref.Kind
-	x.refilter()
-
-	row := slices.Index(x.visible, ref)
-	if row < 0 {
-		return 0, false
-	}
-
-	return row, true
-}
-
 func (x *index[K]) stepKind(step int) bool {
 	if len(x.order) < 2 {
 		return false
@@ -171,6 +153,8 @@ func (x *index[K]) refilter() {
 			continue
 		}
 
-		x.visible = append(x.visible, x.entries[id].ref)
+		if e := x.entries[id]; e.ref.Kind == x.active {
+			x.visible = append(x.visible, e.ref)
+		}
 	}
 }
