@@ -56,14 +56,6 @@ func NewClickHouseClient(
 	}, nil
 }
 
-func (c *ClickHouseClient) dsn(ctx context.Context) (string, error) {
-	password, err := c.sec.Resolve(ctx, c.ref)
-	if err != nil {
-		return "", err
-	}
-	return c.cfg.ConnectionString(password), nil
-}
-
 func (c *ClickHouseClient) Ping(ctx context.Context) (PingResult, error) {
 	raw, err := c.dsn(ctx)
 	if err != nil {
@@ -119,6 +111,14 @@ func (c *ClickHouseClient) Run(ctx context.Context) error {
 
 func (c *ClickHouseClient) Close() error {
 	return nil
+}
+
+func (c *ClickHouseClient) dsn(ctx context.Context) (string, error) {
+	password, err := c.sec.Resolve(ctx, c.ref)
+	if err != nil {
+		return "", err
+	}
+	return c.cfg.ConnectionString(password), nil
 }
 
 func (c *ClickHouseClient) fail(op Operation, code ErrorCode, err error) error {

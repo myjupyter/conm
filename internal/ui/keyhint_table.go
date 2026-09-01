@@ -81,18 +81,24 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 		)
 	}
 
-	if !hasKeyhintGroup(f.groups, keyhintSearch) {
+	if f.typing || !hasKeyhintGroup(f.groups, keyhintSearch) {
 		return spans
 	}
 
-	label := " search"
-	if f.typing {
-		label = " exit from search"
-	}
-	return append(spans,
+	spans = append(spans,
 		span{text: " · ", fg: cFaint},
 		span{text: keyMap.Search.hint, fg: cAccent, bold: true},
-		span{text: label, fg: cDim},
+		span{text: " search", fg: cDim},
+	)
+
+	if !f.search {
+		return spans
+	}
+
+	return append(spans,
+		span{text: " · ", fg: cFaint},
+		span{text: keyMap.Cancel.hint, fg: cAccent, bold: true},
+		span{text: " clear filter", fg: cDim},
 	)
 }
 
