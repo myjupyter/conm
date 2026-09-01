@@ -7,3 +7,113 @@ services:
       POSTGRES_DB: postgres
     ports:
       - "5432:5432"
+
+  postgres-noauth:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+
+  redis:
+    image: redis:latest
+    command:
+      - redis-server
+      - --requirepass
+      - redis
+      - --user
+      - conm
+      - "on"
+      - ">conm"
+      - "~*"
+      - "&*"
+      - +@all
+    ports:
+      - "6379:6379"
+
+  redis-noauth:
+    image: redis:latest
+    ports:
+      - "6380:6379"
+
+  mysql:
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_USER: mysql
+      MYSQL_PASSWORD: mysql
+      MYSQL_DATABASE: mysql_test
+    ports:
+      - "3306:3306"
+
+  mysql-noauth:
+    image: mysql:latest
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: mysql_test
+    ports:
+      - "3307:3306"
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Mssql_Passw0rd"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+
+  oracle:
+    image: gvenzl/oracle-free:latest
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: oracle
+      APP_USER_PASSWORD: oracle
+    ports:
+      - "1521:1521"
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    environment:
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_DB: clickhouse_test
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  clickhouse-noauth:
+    image: clickhouse/clickhouse-server:latest
+    environment:
+      CLICKHOUSE_DB: clickhouse_test
+      CLICKHOUSE_SKIP_USER_SETUP: "1"
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  mongo:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: mongo
+      MONGO_INITDB_DATABASE: mongo_test
+    ports:
+      - "27017:27017"
+
+  mongo-noauth:
+    image: mongo:latest
+    environment:
+      MONGO_INITDB_DATABASE: mongo_test
+    ports:
+      - "27018:27017"

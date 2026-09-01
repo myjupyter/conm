@@ -148,15 +148,11 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(mssqlFormFieldTrustCert),
 			},
 		},
-		{
-			Title: metadataSectionTitle,
-			Note:  metadataSectionNote,
-			Fields: []FormFieldKey{
-				strings.ToLower(mssqlFormFieldName),
-				strings.ToLower(mssqlFormFieldDescription),
-				strings.ToLower(mssqlFormFieldTags),
-			},
-		},
+		metadataSection(
+			strings.ToLower(mssqlFormFieldName),
+			strings.ToLower(mssqlFormFieldDescription),
+			strings.ToLower(mssqlFormFieldTags),
+		),
 	},
 	SeedFunc: func(c config.Connection) map[FormFieldKey]FormFieldValue {
 		ms, ok := c.(config.MSSQL)
@@ -179,21 +175,18 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
-		port := mssqlDefaultPort
-		if rawPort, ok := values[strings.ToLower(mssqlFormFieldPort)]; ok && rawPort != "" {
-			p, err := strconv.Atoi(rawPort)
-			if err != nil {
-				return nil, fmt.Errorf("invalid port value: %w", err)
-			}
-			port = p
+		port, err := intValue(values, strings.ToLower(mssqlFormFieldPort), mssqlDefaultPort)
+		if err != nil {
+			return nil, err
 		}
 
 		return config.MSSQL{
-			Meta: config.ConnMeta{
-				Name:        values[strings.ToLower(mssqlFormFieldName)],
-				Description: values[strings.ToLower(mssqlFormFieldDescription)],
-				Tags:        parseTags(values[strings.ToLower(mssqlFormFieldTags)]),
-			},
+			Meta: buildMeta(
+				values,
+				strings.ToLower(mssqlFormFieldName),
+				strings.ToLower(mssqlFormFieldDescription),
+				strings.ToLower(mssqlFormFieldTags),
+			),
 			Hostname:   values[strings.ToLower(mssqlFormFieldHost)],
 			PortNumber: port,
 			User:       values[strings.ToLower(mssqlFormFieldUsername)],

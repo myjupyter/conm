@@ -30,6 +30,7 @@ var (
 	cMSSQL      = lipgloss.Color("#a07fd0")
 	cClickHouse = lipgloss.Color("#e0c341")
 	cRedis      = lipgloss.Color("#c4574d")
+	cMongoDB    = lipgloss.Color("#4faa41")
 
 	cErrBorder = lipgloss.Color("#7a3f34")
 	cErrTagBg  = lipgloss.Color("#9e3b2a")
@@ -104,6 +105,8 @@ func typeColor(t config.ConnType) color.Color {
 		return cClickHouse
 	case config.RedisConnType:
 		return cRedis
+	case config.MongoDBConnType:
+		return cMongoDB
 	default:
 		return cAccent
 	}

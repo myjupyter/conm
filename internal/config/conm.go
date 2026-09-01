@@ -23,6 +23,7 @@ const (
 	MSSQLConnType
 	ClickHouseConnType
 	RedisConnType
+	MongoDBConnType
 )
 
 // databaseTypes names every database conm can manage, in the order the setup
@@ -33,6 +34,7 @@ var databaseTypes = []ConnType{
 	MSSQLConnType,
 	ClickHouseConnType,
 	RedisConnType,
+	MongoDBConnType,
 }
 
 type Conm struct {
@@ -134,6 +136,14 @@ func CreateDatabaseConfig(t ConnType) error {
 		defer c.Close()
 
 		return c.Save()
+	case MongoDBConnType:
+		c, err := OpenConfig[*MongoDBConfigWrapper](MongoDBPath())
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+
+		return c.Save()
 	default:
 		return fmt.Errorf("unsupported connection type %q", t)
 	}
@@ -151,6 +161,8 @@ func (t ConnType) String() string {
 		return "clickhouse"
 	case RedisConnType:
 		return "redis"
+	case MongoDBConnType:
+		return "mongodb"
 	default:
 		return "unknown"
 	}

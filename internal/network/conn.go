@@ -43,6 +43,8 @@ func NewConnection(
 		return NewClickHouseClient(conmConfig, cfg, sec)
 	case config.RedisConnType:
 		return NewRedisClient(conmConfig, cfg, sec)
+	case config.MongoDBConnType:
+		return NewMongoDBClient(conmConfig, cfg, sec)
 	default:
 		return nil, fmt.Errorf("unsupported connection type %q", cfg.ConnType())
 	}

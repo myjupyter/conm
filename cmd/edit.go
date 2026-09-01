@@ -31,6 +31,8 @@ var editCmd = &cobra.Command{
 			configPath = config.ClickHousePath()
 		case cmd.Flags().Changed("redis"):
 			configPath = config.RedisPath()
+		case cmd.Flags().Changed("mongodb"):
+			configPath = config.MongoDBPath()
 		default:
 			configPath = config.ConmPath()
 		}
@@ -62,4 +64,5 @@ func init() {
 	editCmd.Flags().Bool("mssql", false, "Edit mssql.toml")
 	editCmd.Flags().Bool("clickhouse", false, "Edit clickhouse.toml")
 	editCmd.Flags().Bool("redis", false, "Edit redis.toml")
+	editCmd.Flags().Bool("mongodb", false, "Edit mongodb.toml")
 }

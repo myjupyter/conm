@@ -21,6 +21,8 @@ const (
 	RedisCLI      = "redis-cli"
 	ValkeyCLI     = "valkey-cli"
 	IRedisCLI     = "iredis"
+	MongoshCLI    = "mongosh"
+	MongoCLI      = "mongo"
 )
 
 var (
@@ -51,6 +53,11 @@ var (
 		ValkeyCLI,
 		IRedisCLI,
 	}
+
+	MongoDBClients = []string{
+		MongoshCLI,
+		MongoCLI,
+	}
 )
 
 func Clients(t ConnType) []string {
@@ -65,6 +72,8 @@ func Clients(t ConnType) []string {
 		return ClickHouseClients
 	case RedisConnType:
 		return RedisClients
+	case MongoDBConnType:
+		return MongoDBClients
 	default:
 		return nil
 	}

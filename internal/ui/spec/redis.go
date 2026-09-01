@@ -147,15 +147,11 @@ var RedisFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(redisFormFieldTLSMode),
 			},
 		},
-		{
-			Title: metadataSectionTitle,
-			Note:  metadataSectionNote,
-			Fields: []FormFieldKey{
-				strings.ToLower(redisFormFieldName),
-				strings.ToLower(redisFormFieldDescription),
-				strings.ToLower(redisFormFieldTags),
-			},
-		},
+		metadataSection(
+			strings.ToLower(redisFormFieldName),
+			strings.ToLower(redisFormFieldDescription),
+			strings.ToLower(redisFormFieldTags),
+		),
 	},
 	SeedFunc: func(c config.Connection) map[FormFieldKey]FormFieldValue {
 		rd, ok := c.(config.Redis)
@@ -177,30 +173,23 @@ var RedisFormSpec = FormSpec[config.Connection]{
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
-		port := redisDefaultPort
-		if rawPort, ok := values[strings.ToLower(redisFormFieldPort)]; ok && rawPort != "" {
-			p, err := strconv.Atoi(rawPort)
-			if err != nil {
-				return nil, fmt.Errorf("invalid port value: %w", err)
-			}
-			port = p
+		port, err := intValue(values, strings.ToLower(redisFormFieldPort), redisDefaultPort)
+		if err != nil {
+			return nil, err
 		}
 
-		db := redisDefaultDatabase
-		if rawDB, ok := values[strings.ToLower(redisFormFieldDatabase)]; ok && rawDB != "" {
-			d, err := strconv.Atoi(rawDB)
-			if err != nil {
-				return nil, fmt.Errorf("invalid database value: %w", err)
-			}
-			db = d
+		db, err := intValue(values, strings.ToLower(redisFormFieldDatabase), redisDefaultDatabase)
+		if err != nil {
+			return nil, err
 		}
 
 		return config.Redis{
-			Meta: config.ConnMeta{
-				Name:        values[strings.ToLower(redisFormFieldName)],
-				Description: values[strings.ToLower(redisFormFieldDescription)],
-				Tags:        parseTags(values[strings.ToLower(redisFormFieldTags)]),
-			},
+			Meta: buildMeta(
+				values,
+				strings.ToLower(redisFormFieldName),
+				strings.ToLower(redisFormFieldDescription),
+				strings.ToLower(redisFormFieldTags),
+			),
 			Hostname:   values[strings.ToLower(redisFormFieldHost)],
 			PortNumber: port,
 			User:       values[strings.ToLower(redisFormFieldUsername)],

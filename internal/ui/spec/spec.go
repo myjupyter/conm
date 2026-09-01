@@ -1,8 +1,6 @@
 package spec
 
 import (
-	"strings"
-
 	"github.com/myjupyter/conm/internal/config"
 )
 
@@ -37,6 +35,7 @@ var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
 	config.MSSQLConnType:      MSSQLFormSpec,
 	config.ClickHouseConnType: ClickHouseFormSpec,
 	config.RedisConnType:      RedisFormSpec,
+	config.MongoDBConnType:    MongoDBFormSpec,
 }
 
 type FieldProperty int
@@ -82,14 +81,4 @@ func (f FieldProperty) String() string {
 	default:
 		return ""
 	}
-}
-
-func parseTags(raw string) []string {
-	var tags []string
-	for t := range strings.SplitSeq(raw, ",") {
-		if t = strings.TrimSpace(t); t != "" {
-			tags = append(tags, t)
-		}
-	}
-	return tags
 }

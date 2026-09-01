@@ -134,15 +134,11 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(mysqlFormFieldTLSMode),
 			},
 		},
-		{
-			Title: metadataSectionTitle,
-			Note:  metadataSectionNote,
-			Fields: []FormFieldKey{
-				strings.ToLower(mysqlFormFieldName),
-				strings.ToLower(mysqlFormFieldDescription),
-				strings.ToLower(mysqlFormFieldTags),
-			},
-		},
+		metadataSection(
+			strings.ToLower(mysqlFormFieldName),
+			strings.ToLower(mysqlFormFieldDescription),
+			strings.ToLower(mysqlFormFieldTags),
+		),
 	},
 	SeedFunc: func(c config.Connection) map[FormFieldKey]FormFieldValue {
 		my, ok := c.(config.MySQL)
@@ -164,21 +160,18 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
-		port := mysqlDefaultPort
-		if rawPort, ok := values[strings.ToLower(mysqlFormFieldPort)]; ok && rawPort != "" {
-			p, err := strconv.Atoi(rawPort)
-			if err != nil {
-				return nil, fmt.Errorf("invalid port value: %w", err)
-			}
-			port = p
+		port, err := intValue(values, strings.ToLower(mysqlFormFieldPort), mysqlDefaultPort)
+		if err != nil {
+			return nil, err
 		}
 
 		return config.MySQL{
-			Meta: config.ConnMeta{
-				Name:        values[strings.ToLower(mysqlFormFieldName)],
-				Description: values[strings.ToLower(mysqlFormFieldDescription)],
-				Tags:        parseTags(values[strings.ToLower(mysqlFormFieldTags)]),
-			},
+			Meta: buildMeta(
+				values,
+				strings.ToLower(mysqlFormFieldName),
+				strings.ToLower(mysqlFormFieldDescription),
+				strings.ToLower(mysqlFormFieldTags),
+			),
 			Hostname:   values[strings.ToLower(mysqlFormFieldHost)],
 			PortNumber: port,
 			User:       values[strings.ToLower(mysqlFormFieldUsername)],

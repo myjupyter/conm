@@ -133,15 +133,11 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(clickhouseFormFieldSecure),
 			},
 		},
-		{
-			Title: metadataSectionTitle,
-			Note:  metadataSectionNote,
-			Fields: []FormFieldKey{
-				strings.ToLower(clickhouseFormFieldName),
-				strings.ToLower(clickhouseFormFieldDescription),
-				strings.ToLower(clickhouseFormFieldTags),
-			},
-		},
+		metadataSection(
+			strings.ToLower(clickhouseFormFieldName),
+			strings.ToLower(clickhouseFormFieldDescription),
+			strings.ToLower(clickhouseFormFieldTags),
+		),
 	},
 	SeedFunc: func(c config.Connection) map[FormFieldKey]FormFieldValue {
 		ch, ok := c.(config.ClickHouse)
@@ -163,21 +159,18 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
-		port := clickhouseDefaultPort
-		if rawPort, ok := values[strings.ToLower(clickhouseFormFieldPort)]; ok && rawPort != "" {
-			p, err := strconv.Atoi(rawPort)
-			if err != nil {
-				return nil, fmt.Errorf("invalid port value: %w", err)
-			}
-			port = p
+		port, err := intValue(values, strings.ToLower(clickhouseFormFieldPort), clickhouseDefaultPort)
+		if err != nil {
+			return nil, err
 		}
 
 		return config.ClickHouse{
-			Meta: config.ConnMeta{
-				Name:        values[strings.ToLower(clickhouseFormFieldName)],
-				Description: values[strings.ToLower(clickhouseFormFieldDescription)],
-				Tags:        parseTags(values[strings.ToLower(clickhouseFormFieldTags)]),
-			},
+			Meta: buildMeta(
+				values,
+				strings.ToLower(clickhouseFormFieldName),
+				strings.ToLower(clickhouseFormFieldDescription),
+				strings.ToLower(clickhouseFormFieldTags),
+			),
 			Hostname:   values[strings.ToLower(clickhouseFormFieldHost)],
 			PortNumber: port,
 			User:       values[strings.ToLower(clickhouseFormFieldUsername)],

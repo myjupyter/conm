@@ -150,15 +150,11 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(postgresFormFieldSSLMode),
 			},
 		},
-		{
-			Title: metadataSectionTitle,
-			Note:  metadataSectionNote,
-			Fields: []FormFieldKey{
-				strings.ToLower(postgresFormFieldName),
-				strings.ToLower(postgresFormFieldDescription),
-				strings.ToLower(postgresFormFieldTags),
-			},
-		},
+		metadataSection(
+			strings.ToLower(postgresFormFieldName),
+			strings.ToLower(postgresFormFieldDescription),
+			strings.ToLower(postgresFormFieldTags),
+		),
 	},
 	SeedFunc: func(c config.Connection) map[FormFieldKey]FormFieldValue {
 		pg, ok := c.(config.Postgres)
@@ -181,21 +177,18 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
-		port := 5432 // default port
-		if rawPort, ok := values[strings.ToLower(postgresFormFieldPort)]; ok && rawPort != "" {
-			p, err := strconv.Atoi(rawPort)
-			if err != nil {
-				return nil, fmt.Errorf("invalid port value: %w", err)
-			}
-			port = p
+		port, err := intValue(values, strings.ToLower(postgresFormFieldPort), 5432)
+		if err != nil {
+			return nil, err
 		}
 
 		return config.Postgres{
-			Meta: config.ConnMeta{
-				Name:        values[strings.ToLower(postgresFormFieldName)],
-				Description: values[strings.ToLower(postgresFormFieldDescription)],
-				Tags:        parseTags(values[strings.ToLower(postgresFormFieldTags)]),
-			},
+			Meta: buildMeta(
+				values,
+				strings.ToLower(postgresFormFieldName),
+				strings.ToLower(postgresFormFieldDescription),
+				strings.ToLower(postgresFormFieldTags),
+			),
 			Hostname:   values[strings.ToLower(postgresFormFieldHost)],
 			PortNumber: port,
 			User:       values[strings.ToLower(postgresFormFieldUsername)],

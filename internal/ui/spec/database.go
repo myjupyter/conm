@@ -25,6 +25,7 @@ var DatabaseFormSpecs = map[config.ConnType]FormSpec[config.Database]{
 	config.MSSQLConnType:      databaseFormSpec(config.MSSQLConnType),
 	config.ClickHouseConnType: databaseFormSpec(config.ClickHouseConnType),
 	config.RedisConnType:      databaseFormSpec(config.RedisConnType),
+	config.MongoDBConnType:    databaseFormSpec(config.MongoDBConnType),
 }
 
 func DatabaseState(enabled bool) FormFieldValue {

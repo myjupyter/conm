@@ -137,6 +137,30 @@ var addRedisCmd = &cobra.Command{
 	},
 }
 
+var addMongoDBCmd = &cobra.Command{
+	Use:   "mongodb",
+	Short: "Add a new mongodb connection",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if _, err := os.Stat(config.MongoDBPath()); err != nil {
+			if os.IsNotExist(err) {
+				return errors.New("mongodb config file not found\nrun 'conm init' first")
+			}
+		}
+
+		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
+		if err != nil {
+			return fmt.Errorf("failed to open conm config: %w", err)
+		}
+		defer c.Close()
+
+		if _, err := ui.RunAddForm(c.Get(0), config.MongoDBConnType); err != nil {
+			return err
+		}
+
+		return nil
+	},
+}
+
 func init() {
 	addCmd.AddCommand(
 		addPostgresCmd,
@@ -144,6 +168,7 @@ func init() {
 		addMSSQLCmd,
 		addClickHouseCmd,
 		addRedisCmd,
+		addMongoDBCmd,
 	)
 
 	rootCmd.AddCommand(addCmd)
