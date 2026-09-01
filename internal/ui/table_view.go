@@ -119,6 +119,7 @@ func (m Model) rowLine(i int) string {
 	}
 	sel := i == m.conns.Cursor()
 	failed := st.connErr != nil || st.pingStatus == pingFailed || !cfg.IsValid()
+	alive := st.connErr == nil && st.pingStatus == pingOK
 
 	var bg, fg, soft, markC color.Color
 	switch {
@@ -126,6 +127,8 @@ func (m Model) rowLine(i int) string {
 		bg, fg, soft, markC = cAccent, cInvFg, cInvFg, cInvFg
 	case failed:
 		fg, soft, markC = cDead, cSoft, cRed
+	case alive:
+		fg, soft, markC = cFg, cSoft, cAccent
 	default:
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
@@ -135,8 +138,11 @@ func (m Model) rowLine(i int) string {
 		caret = gCaret
 	}
 	mark := gDotOff
-	if failed {
+	switch {
+	case failed:
 		mark = gDotFail
+	case alive:
+		mark = gDotOn
 	}
 
 	spans := []span{
