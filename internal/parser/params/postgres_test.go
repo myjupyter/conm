@@ -1,0 +1,305 @@
+package params
+
+import (
+	"errors"
+	"reflect"
+	"strings"
+	"testing"
+
+	"github.com/myjupyter/conm/internal/config"
+)
+
+func TestParsePostgres(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		syntax   Syntax
+		client   string
+		conn     config.Postgres
+		warnings []string
+	}{
+		{
+			name:   "uri with a host list",
+			input:  `psql "postgres://user@host1:5432,host2:5432/mydb?target_session_attrs=primary"`,
+			syntax: URISyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "host1",
+				PortNumber: 5432,
+				User:       "user",
+				DBName:     "mydb",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+			warnings: []string{
+				"kept only the first of 2 hosts: host1:5432",
+				"ignored parameter target_session_attrs=primary",
+			},
+		},
+		{
+			name:   "keyword value conninfo",
+			input:  `psql "host=localhost port=5432 dbname=mydb user=me sslmode=require"`,
+			syntax: KeywordSyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "localhost",
+				PortNumber: 5432,
+				User:       "me",
+				DBName:     "mydb",
+				SSLMode:    config.PostgresSSLModeRequire,
+			},
+		},
+		{
+			name:   "pgcli long flags",
+			input:  `pgcli --host pgbouncer-dev.db.prod --port 6404 --dbname master --user me`,
+			syntax: FlagSyntax,
+			client: "pgcli",
+			conn: config.Postgres{
+				Hostname:   "pgbouncer-dev.db.prod",
+				PortNumber: 6404,
+				User:       "me",
+				DBName:     "master",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "short flags with attached values and a positional",
+			input:  `psql -hlocalhost -p5433 -Ume mydb`,
+			syntax: FlagSyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "localhost",
+				PortNumber: 5433,
+				User:       "me",
+				DBName:     "mydb",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "positional dbname and username",
+			input:  `psql mydb me`,
+			syntax: FlagSyntax,
+			client: "psql",
+			conn: config.Postgres{
+				PortNumber: 5432,
+				User:       "me",
+				DBName:     "mydb",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "valued flag does not swallow the positional",
+			input:  `psql -c "select 1" -w mydb`,
+			syntax: FlagSyntax,
+			client: "psql",
+			conn: config.Postgres{
+				PortNumber: 5432,
+				DBName:     "mydb",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "uri behind -d, flags win over the uri",
+			input:  `psql -d postgres://user:pw@example.com/mydb -p 6432`,
+			syntax: URISyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "example.com",
+				PortNumber: 6432,
+				User:       "user",
+				Password:   "literal:pw",
+				DBName:     "mydb",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "uri with sslmode and a search path",
+			input:  `usql "postgresql://me@db:5432/app?sslmode=verify-full&options=-c%20search_path%3Danalytics"`,
+			syntax: URISyntax,
+			client: "usql",
+			conn: config.Postgres{
+				Hostname:   "db",
+				PortNumber: 5432,
+				User:       "me",
+				DBName:     "app",
+				SchemaName: "analytics",
+				SSLMode:    config.PostgresSSLModeVerifyFull,
+			},
+		},
+		{
+			name:   "env assignment prefix",
+			input:  `PGPASSWORD=s3cr3t psql -h db.example.com -U reader -d metrics`,
+			syntax: FlagSyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "db.example.com",
+				PortNumber: 5432,
+				User:       "reader",
+				Password:   "literal:s3cr3t",
+				DBName:     "metrics",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "bare uri without a client",
+			input:  `postgres://u:p@h.local/db`,
+			syntax: URISyntax,
+			conn: config.Postgres{
+				Hostname:   "h.local",
+				PortNumber: 5432,
+				User:       "u",
+				Password:   "literal:p",
+				DBName:     "db",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "bare keyword conninfo without a client",
+			input:  `host=localhost dbname=mydb user=me`,
+			syntax: KeywordSyntax,
+			conn: config.Postgres{
+				Hostname:   "localhost",
+				PortNumber: 5432,
+				User:       "me",
+				DBName:     "mydb",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "quoted keyword value and an unknown keyword",
+			input:  `psql "host=localhost options='-c search_path=reporting' application_name=conm"`,
+			syntax: KeywordSyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "localhost",
+				PortNumber: 5432,
+				SchemaName: "reporting",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+			warnings: []string{"ignored parameter application_name=conm"},
+		},
+		{
+			name:   "ipv6 host",
+			input:  `psql "postgres://[::1]:5433/db"`,
+			syntax: URISyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "::1",
+				PortNumber: 5433,
+				DBName:     "db",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "percent encoded credentials",
+			input:  `psql "postgres://my%20user:p%40ss@h/my%2Ddb"`,
+			syntax: URISyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "h",
+				PortNumber: 5432,
+				User:       "my user",
+				Password:   "literal:p@ss",
+				DBName:     "my-db",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name:   "unusable port and sslmode are reported, not kept",
+			input:  `psql "host=h port=abc sslmode=maybe"`,
+			syntax: KeywordSyntax,
+			client: "psql",
+			conn: config.Postgres{
+				Hostname:   "h",
+				PortNumber: 5432,
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+			warnings: []string{
+				`port "abc" is not a number, kept 5432`,
+				"invalid SSL mode: maybe, kept prefer",
+			},
+		},
+		{
+			name:   "client alone yields the defaults only",
+			input:  `psql`,
+			syntax: FlagSyntax,
+			client: "psql",
+			conn: config.Postgres{
+				PortNumber: 5432,
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			res, err := Parse(test.input)
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", test.input, err)
+			}
+
+			if res.Syntax != test.syntax {
+				t.Errorf("syntax = %s, want %s", res.Syntax, test.syntax)
+			}
+			if res.Client != test.client {
+				t.Errorf("client = %q, want %q", res.Client, test.client)
+			}
+
+			conn, ok := res.Conn.(config.Postgres)
+			if !ok {
+				t.Fatalf("connection is a %T, want config.Postgres", res.Conn)
+			}
+			if !reflect.DeepEqual(conn, test.conn) {
+				t.Errorf("connection = %+v, want %+v", conn, test.conn)
+			}
+
+			if strings.Join(res.Warnings, "\n") != strings.Join(test.warnings, "\n") {
+				t.Errorf("warnings = %q, want %q", res.Warnings, test.warnings)
+			}
+		})
+	}
+}
+
+func TestParseRoundTripsConnectionString(t *testing.T) {
+	want := config.Postgres{
+		Hostname:   "db.example.com",
+		PortNumber: 6432,
+		User:       "reader",
+		DBName:     "metrics",
+		SchemaName: "analytics",
+		SSLMode:    config.PostgresSSLModeVerifyCA,
+	}
+
+	res, err := Parse(want.ConnectionString(""))
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	got, ok := res.Conn.(config.Postgres)
+	if !ok {
+		t.Fatalf("connection is a %T, want config.Postgres", res.Conn)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("connection = %+v, want %+v", got, want)
+	}
+}
+
+func TestParseErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  error
+	}{
+		{name: "empty", input: "   ", want: ErrEmptyInput},
+		{name: "unterminated quote", input: `psql "postgres://h/db`, want: ErrUnterminated},
+		{name: "unknown database", input: `sqlite3 /tmp/a.db`, want: ErrUnknownDatabase},
+		{name: "known but unsupported database", input: `mysql -h localhost`, want: ErrUnsupported},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := Parse(test.input); !errors.Is(err, test.want) {
+				t.Errorf("error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
