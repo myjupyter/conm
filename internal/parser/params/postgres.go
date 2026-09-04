@@ -99,15 +99,6 @@ var postgresKeywords = map[string]postgresKey{
 
 type postgresValues map[postgresKey]string
 
-func ParsePostgres(input string) (Result, error) {
-	req, err := newRequest(input)
-	if err != nil {
-		return Result{}, err
-	}
-
-	return parsePostgres(req)
-}
-
 func parsePostgres(req request) (Result, error) {
 	values := postgresValues{}
 	for name, value := range req.env {
@@ -146,6 +137,10 @@ func parsePostgres(req request) (Result, error) {
 	}
 
 	res.Warnings = append(res.Warnings, applyPostgresFlags(values, flags)...)
+
+	if err := foreignScheme(req.kind, values[pgDatabase]); err != nil {
+		return Result{}, err
+	}
 
 	conn, warnings := buildPostgres(values)
 	res.Warnings = append(res.Warnings, warnings...)
@@ -218,20 +213,6 @@ func postgresSyntax(value string) Syntax {
 	default:
 		return UnknownSyntax
 	}
-}
-
-func hasPostgresKeywords(args []string) bool {
-	for _, arg := range args {
-		if !keywordRegexp.MatchString(arg) {
-			continue
-		}
-		key, _, _ := strings.Cut(arg, "=")
-		if _, ok := postgresKeywords[strings.ToLower(strings.TrimSpace(key))]; ok {
-			return true
-		}
-	}
-
-	return false
 }
 
 func applyPostgresFlags(values postgresValues, flags []argFlag) []string {

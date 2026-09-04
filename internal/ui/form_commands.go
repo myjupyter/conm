@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -11,7 +12,12 @@ import (
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
-func RunAddForm(conm config.Conm, t config.ConnType) (bool, error) {
+func RunAddForm(
+	conm config.Conm,
+	t config.ConnType,
+	initial map[spec.FormFieldKey]spec.FormFieldValue,
+	warnings []string,
+) (bool, error) {
 	// The workspace, not just the connection repository: the form offers the
 	// secret stores as password modes, so it needs them open too.
 	ws, err := repository.NewWorkspace(conm)
@@ -20,7 +26,7 @@ func RunAddForm(conm config.Conm, t config.ConnType) (bool, error) {
 	}
 	defer ws.Close()
 
-	cfg, ok, err := runAddForm(t, view.NewSecrets(ws.Keyring))
+	cfg, ok, err := runAddForm(t, initial, warnings, view.NewSecrets(ws.Keyring))
 	if err != nil || !ok {
 		return false, err
 	}
@@ -37,13 +43,24 @@ func RunAddForm(conm config.Conm, t config.ConnType) (bool, error) {
 	return true, nil
 }
 
-func runAddForm(t config.ConnType, secrets *view.Secrets) (config.Connection, bool, error) {
+func runAddForm(
+	t config.ConnType,
+	initial map[spec.FormFieldKey]spec.FormFieldValue,
+	warnings []string,
+	secrets *view.Secrets,
+) (config.Connection, bool, error) {
 	formSpec, ok := spec.FormSpecs[t]
 	if !ok {
 		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
 	}
 
-	return runForm(newFormModel(t, formSpec, formSpec.AddTitle, nil, secrets))
+	model := newFormModel(t, formSpec, formSpec.AddTitle, initial, false, secrets)
+	if len(warnings) > 0 {
+		model.status = strings.Join(warnings, " · ")
+		model.statusKind = kindWarn
+	}
+
+	return runForm(model)
 }
 
 func RunEditForm(t config.ConnType, existing config.Connection, secrets *view.Secrets) (config.Connection, bool, error) {
@@ -62,7 +79,7 @@ func RunEditForm(t config.ConnType, existing config.Connection, secrets *view.Se
 		return nil, false, fmt.Errorf("edit form cannot seed a %T as connection type %q", existing, t)
 	}
 
-	return runForm(newFormModel(t, formSpec, formSpec.EditTitle, initial, secrets))
+	return runForm(newFormModel(t, formSpec, formSpec.EditTitle, initial, true, secrets))
 }
 
 // pickSecretCmd hands the terminal to the keyring screen and folds the chosen

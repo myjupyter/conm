@@ -13,10 +13,10 @@ import (
 func Run(cfg config.Conm) error {
 	var anyDatabase config.ConnType
 
-	return runOn(cfg, anyDatabase)
+	return RunOn(cfg, anyDatabase)
 }
 
-func runOn(cfg config.Conm, active config.ConnType) error {
+func RunOn(cfg config.Conm, active config.ConnType) error {
 	for {
 		if enabledDatabases(cfg) == 0 {
 			return RunInit()

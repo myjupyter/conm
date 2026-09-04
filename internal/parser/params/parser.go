@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
@@ -21,7 +22,7 @@ const (
 
 var (
 	ErrEmptyInput       = errors.New("nothing to parse")
-	ErrUnknownDatabase  = errors.New("couldn't tell which database this connects to")
+	ErrTypeMismatch     = errors.New("the command line describes another database")
 	ErrUnsupported      = errors.New("database is not supported by the parser yet")
 	ErrUnterminated     = errors.New("unterminated quote")
 	ErrMalformedKeyword = errors.New("malformed keyword/value pair")
@@ -39,6 +40,7 @@ type Result struct {
 }
 
 type request struct {
+	kind   config.ConnType
 	client string
 	env    map[string]string
 	args   []string
@@ -55,78 +57,76 @@ var schemes = map[string]config.ConnType{
 	"postgresql": config.PostgresConnType,
 }
 
-const ambiguousClient config.ConnType = 0
-
-var knownClients = func() map[string]config.ConnType {
-	names := make(map[string]config.ConnType)
+var knownClients = func() map[string]bool {
+	names := make(map[string]bool)
 	for t := config.PostgresConnType; config.Clients(t) != nil; t++ {
 		for _, name := range config.Clients(t) {
-			if _, seen := names[name]; seen {
-				names[name] = ambiguousClient
-				continue
-			}
-			names[name] = t
+			names[name] = true
 		}
 	}
 
 	return names
 }()
 
-func Parse(input string) (Result, error) {
-	req, err := newRequest(input)
+func Parse(t config.ConnType, input string) (Result, error) {
+	args, err := splitArgs(input)
 	if err != nil {
 		return Result{}, err
 	}
 
-	t, ok := requestType(req)
-	if !ok {
-		return Result{}, ErrUnknownDatabase
-	}
+	return ParseArgs(t, args)
+}
 
+func ParseArgs(t config.ConnType, args []string) (Result, error) {
 	parse, ok := parsers[t]
 	if !ok {
 		return Result{}, fmt.Errorf("%w: %s", ErrUnsupported, t)
 	}
 
+	req, err := newRequest(t, args)
+	if err != nil {
+		return Result{}, err
+	}
+
 	return parse(req)
 }
 
-func newRequest(input string) (request, error) {
-	args, err := splitArgs(input)
-	if err != nil {
-		return request{}, err
-	}
+func newRequest(t config.ConnType, args []string) (request, error) {
 	if len(args) == 0 {
 		return request{}, ErrEmptyInput
 	}
 
 	env, args := splitEnv(args)
 
-	req := request{env: env, args: args}
-	if name := clientName(args[0]); isClient(name) {
-		req.client = name
-		req.args = args[1:]
+	req := request{kind: t, env: env, args: args}
+	if len(args) == 0 {
+		return req, nil
 	}
+
+	name := clientName(args[0])
+	if !isClient(name) {
+		return req, nil
+	}
+	if !slices.Contains(config.Clients(t), name) {
+		return request{}, fmt.Errorf("%w: %s is a %s client", ErrTypeMismatch, name, clientDatabases(name))
+	}
+
+	req.client = name
+	req.args = args[1:]
 
 	return req, nil
 }
 
-func requestType(req request) (config.ConnType, bool) {
-	if t, ok := clientType(req.client); ok {
-		return t, true
+func foreignScheme(t config.ConnType, value string) error {
+	scheme, _, ok := strings.Cut(value, "://")
+	if !ok {
+		return nil
+	}
+	if schemes[strings.ToLower(scheme)] == t {
+		return nil
 	}
 
-	for _, arg := range req.args {
-		if t, ok := schemeType(arg); ok {
-			return t, true
-		}
-	}
-
-	if hasPostgresKeywords(req.args) {
-		return config.PostgresConnType, true
-	}
-
-	return ambiguousClient, false
+	return fmt.Errorf("%w: %s:// is not a %s connection string", ErrTypeMismatch, scheme, t)
 }
 
 func splitEnv(args []string) (map[string]string, []string) {
@@ -156,25 +156,18 @@ func clientName(arg string) string {
 }
 
 func isClient(name string) bool {
-	_, ok := knownClients[name]
-
-	return ok
+	return knownClients[name]
 }
 
-func clientType(name string) (config.ConnType, bool) {
-	t, ok := knownClients[name]
-
-	return t, ok && t != ambiguousClient
-}
-
-func schemeType(arg string) (config.ConnType, bool) {
-	scheme, _, ok := strings.Cut(arg, "://")
-	if !ok {
-		return ambiguousClient, false
+func clientDatabases(name string) string {
+	var names []string
+	for _, t := range config.Databases {
+		if slices.Contains(config.Clients(t), name) {
+			names = append(names, t.String())
+		}
 	}
-	t, ok := schemes[strings.ToLower(scheme)]
 
-	return t, ok
+	return strings.Join(names, "/")
 }
 
 func (s Syntax) String() string {

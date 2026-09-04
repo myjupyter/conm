@@ -232,7 +232,7 @@ func TestParsePostgres(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			res, err := Parse(test.input)
+			res, err := Parse(config.PostgresConnType, test.input)
 			if err != nil {
 				t.Fatalf("Parse(%q) failed: %v", test.input, err)
 			}
@@ -269,7 +269,7 @@ func TestParseRoundTripsConnectionString(t *testing.T) {
 		SSLMode:    config.PostgresSSLModeVerifyCA,
 	}
 
-	res, err := Parse(want.ConnectionString(""))
+	res, err := Parse(config.PostgresConnType, want.ConnectionString(""))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
@@ -286,19 +286,109 @@ func TestParseRoundTripsConnectionString(t *testing.T) {
 func TestParseErrors(t *testing.T) {
 	tests := []struct {
 		name  string
+		kind  config.ConnType
 		input string
 		want  error
 	}{
-		{name: "empty", input: "   ", want: ErrEmptyInput},
-		{name: "unterminated quote", input: `psql "postgres://h/db`, want: ErrUnterminated},
-		{name: "unknown database", input: `sqlite3 /tmp/a.db`, want: ErrUnknownDatabase},
-		{name: "known but unsupported database", input: `mysql -h localhost`, want: ErrUnsupported},
+		{
+			name:  "empty",
+			kind:  config.PostgresConnType,
+			input: "   ",
+			want:  ErrEmptyInput,
+		},
+		{
+			name:  "unterminated quote",
+			kind:  config.PostgresConnType,
+			input: `psql "postgres://h/db`,
+			want:  ErrUnterminated,
+		},
+		{
+			name:  "a client of another database",
+			kind:  config.PostgresConnType,
+			input: `mysql -h localhost -u me mydb`,
+			want:  ErrTypeMismatch,
+		},
+		{
+			name:  "a connection string of another database",
+			kind:  config.PostgresConnType,
+			input: `mysql://me@localhost/mydb`,
+			want:  ErrTypeMismatch,
+		},
+		{
+			name:  "another database behind an attached flag",
+			kind:  config.PostgresConnType,
+			input: `psql -dredis://localhost:6379`,
+			want:  ErrTypeMismatch,
+		},
+		{
+			name:  "a database with no parser yet",
+			kind:  config.MySQLConnType,
+			input: `mysql -h localhost`,
+			want:  ErrUnsupported,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := Parse(test.input); !errors.Is(err, test.want) {
+			if _, err := Parse(test.kind, test.input); !errors.Is(err, test.want) {
 				t.Errorf("error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestParseArgs(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want config.Postgres
+	}{
+		{
+			name: "bare flags need no client name",
+			args: []string{"-h", "localhost", "-p", "6432", "-U", "me", "mydb"},
+			want: config.Postgres{
+				Hostname:   "localhost",
+				PortNumber: 6432,
+				User:       "me",
+				DBName:     "mydb",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name: "tokens keep a value that would not survive rejoining",
+			args: []string{"psql", "host=localhost options='-c search_path=reporting'"},
+			want: config.Postgres{
+				Hostname:   "localhost",
+				PortNumber: 5432,
+				SchemaName: "reporting",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+		{
+			name: "a client name is still stripped",
+			args: []string{"pgcli", "--host", "db", "--dbname", "app"},
+			want: config.Postgres{
+				Hostname:   "db",
+				PortNumber: 5432,
+				DBName:     "app",
+				SSLMode:    config.PostgresSSLModePrefer,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			res, err := ParseArgs(config.PostgresConnType, test.args)
+			if err != nil {
+				t.Fatalf("ParseArgs(%q) failed: %v", test.args, err)
+			}
+
+			conn, ok := res.Conn.(config.Postgres)
+			if !ok {
+				t.Fatalf("connection is a %T, want config.Postgres", res.Conn)
+			}
+			if !reflect.DeepEqual(conn, test.want) {
+				t.Errorf("connection = %+v, want %+v", conn, test.want)
 			}
 		})
 	}

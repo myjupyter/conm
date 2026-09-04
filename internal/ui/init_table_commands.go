@@ -35,7 +35,7 @@ func RunInit() error {
 		return nil
 	}
 
-	return runOn(im.conm, im.chosen)
+	return RunOn(im.conm, im.chosen)
 }
 
 func readConm() (config.Conm, error) {
@@ -48,8 +48,6 @@ func readConm() (config.Conm, error) {
 	return c.Get(0), nil
 }
 
-// runDatabaseTable opens the setup screen from the connections table, reading
-// the config back from disk so it starts on what is actually saved.
 func runDatabaseTable() (config.ConnType, bool, error) {
 	conm, err := readConm()
 	if err != nil {

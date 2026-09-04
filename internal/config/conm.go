@@ -26,17 +26,6 @@ const (
 	MongoDBConnType
 )
 
-// databaseTypes names every database conm can manage, in the order the setup
-// table lists them.
-var databaseTypes = []ConnType{
-	PostgresConnType,
-	MySQLConnType,
-	MSSQLConnType,
-	ClickHouseConnType,
-	RedisConnType,
-	MongoDBConnType,
-}
-
 type Conm struct {
 	Databases []Database `toml:"database"`
 }
@@ -77,11 +66,9 @@ func (c *Conm) SetDatabase(d Database) error {
 	return nil
 }
 
-// withDatabaseTypes keeps one row per database conm knows, in that order, so
-// every screen sees the same list whatever the file holds.
 func withDatabaseTypes(stored []Database) []Database {
-	dbs := make([]Database, 0, len(databaseTypes))
-	for _, t := range databaseTypes {
+	dbs := make([]Database, 0, len(Databases))
+	for _, t := range Databases {
 		db := Database{Type: t}
 		for _, s := range stored {
 			if s.Type == t {
@@ -92,61 +79,6 @@ func withDatabaseTypes(stored []Database) []Database {
 		dbs = append(dbs, db)
 	}
 	return dbs
-}
-
-func CreateDatabaseConfig(t ConnType) error {
-	switch t {
-	case PostgresConnType:
-		c, err := OpenConfig[*PostgresConfigWrapper](PostgresPath())
-		if err != nil {
-			return err
-		}
-		defer c.Close()
-
-		return c.Save()
-	case MySQLConnType:
-		c, err := OpenConfig[*MySQLConfigWrapper](MySQLPath())
-		if err != nil {
-			return err
-		}
-		defer c.Close()
-
-		return c.Save()
-	case MSSQLConnType:
-		c, err := OpenConfig[*MSSQLConfigWrapper](MSSQLPath())
-		if err != nil {
-			return err
-		}
-		defer c.Close()
-
-		return c.Save()
-	case ClickHouseConnType:
-		c, err := OpenConfig[*ClickHouseConfigWrapper](ClickHousePath())
-		if err != nil {
-			return err
-		}
-		defer c.Close()
-
-		return c.Save()
-	case RedisConnType:
-		c, err := OpenConfig[*RedisConfigWrapper](RedisPath())
-		if err != nil {
-			return err
-		}
-		defer c.Close()
-
-		return c.Save()
-	case MongoDBConnType:
-		c, err := OpenConfig[*MongoDBConfigWrapper](MongoDBPath())
-		if err != nil {
-			return err
-		}
-		defer c.Close()
-
-		return c.Save()
-	default:
-		return fmt.Errorf("unsupported connection type %q", t)
-	}
 }
 
 func (t ConnType) String() string {
@@ -169,7 +101,7 @@ func (t ConnType) String() string {
 }
 
 func ParseConnType(name string) (ConnType, error) {
-	for _, t := range databaseTypes {
+	for _, t := range Databases {
 		if t.String() == name {
 			return t, nil
 		}
@@ -178,7 +110,7 @@ func ParseConnType(name string) (ConnType, error) {
 }
 
 func (t ConnType) MarshalText() ([]byte, error) {
-	if !slices.Contains(databaseTypes, t) {
+	if !slices.Contains(Databases, t) {
 		return nil, fmt.Errorf("unsupported connection type %d", int(t))
 	}
 	return []byte(t.String()), nil
@@ -236,8 +168,6 @@ func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
 	return toml.Marshal(w)
 }
 
-// CreateConmConfigPath creates both the config dir (conm.toml, postgres.toml)
-// and the data dir (secret.toml); XDG may place them under different roots.
 func CreateConmConfigPath() error {
 	dirs := []string{filepath.Dir(conmConfigPath), filepath.Dir(secretConfigPath)}
 	for _, dir := range dirs {

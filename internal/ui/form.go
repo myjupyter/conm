@@ -64,12 +64,12 @@ type secretPickedMsg struct {
 	err error
 }
 
-func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue, secrets *view.Secrets) formModel {
+func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue, isEdit bool, secrets *view.Secrets) formModel {
 	m := formModel{
 		spec:       spc,
 		kind:       kind,
 		title:      title,
-		isEdit:     initial != nil,
+		isEdit:     isEdit,
 		sections:   spc.Sections,
 		secrets:    secrets,
 		vals:       make(map[string]string, len(spc.Fields)),
@@ -86,9 +86,10 @@ func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], ti
 	}
 
 	for _, f := range spc.Fields {
+		seeded, ok := initial[f.Key]
 		switch {
-		case initial != nil:
-			m.vals[f.Key] = initial[f.Key]
+		case ok:
+			m.vals[f.Key] = seeded
 		case f.Kind == spec.SelectFieldKind:
 			m.vals[f.Key] = f.DefaultValue
 			if m.vals[f.Key] == "" && len(f.Options) > 0 {

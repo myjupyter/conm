@@ -38,7 +38,7 @@ func (m Model) runCmd() tea.Cmd {
 
 func (m Model) addCmd() tea.Cmd {
 	return changeExec(func() error {
-		cfg, ok, err := runAddForm(m.conns.Active(), m.secrets)
+		cfg, ok, err := runAddForm(m.conns.Active(), nil, nil, m.secrets)
 		if err != nil || !ok {
 			return err
 		}
