@@ -293,6 +293,24 @@ func TestParseRedisErrors(t *testing.T) {
 			input: `redis://cache.internal:6379/0`,
 			want:  ErrTypeMismatch,
 		},
+		{
+			name:  "a ca has no field to keep it in",
+			kind:  config.RedisConnType,
+			input: `redis-cli --tls --cacert /etc/ca.pem -h cache.internal`,
+			want:  ErrUnsupportedTLS,
+		},
+		{
+			name:  "a client certificate has no field to keep it in",
+			kind:  config.RedisConnType,
+			input: `redis-cli --tls --cert /etc/client.crt --key /etc/client.key -h cache.internal`,
+			want:  ErrUnsupportedTLS,
+		},
+		{
+			name:  "an sni host is not the tls mode either",
+			kind:  config.RedisConnType,
+			input: `redis-cli --tls --sni cache.example.com -h cache.internal`,
+			want:  ErrUnsupportedTLS,
+		},
 	}
 
 	for _, test := range tests {

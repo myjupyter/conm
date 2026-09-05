@@ -309,6 +309,30 @@ func TestParseErrors(t *testing.T) {
 			input: `-h localhost`,
 			want:  ErrUnsupported,
 		},
+		{
+			name:  "a certificate keyword has no field to keep it in",
+			kind:  config.PostgresConnType,
+			input: `psql "host=db.internal dbname=mydb sslrootcert=/etc/ca.pem"`,
+			want:  ErrUnsupportedTLS,
+		},
+		{
+			name:  "a certificate parameter has no field to keep it in",
+			kind:  config.PostgresConnType,
+			input: `psql "postgres://db.internal/mydb?sslmode=verify-ca&sslrootcert=/etc/ca.pem"`,
+			want:  ErrUnsupportedTLS,
+		},
+		{
+			name:  "a client key is certificate material too",
+			kind:  config.PostgresConnType,
+			input: `psql "host=db.internal sslcert=/etc/client.crt sslkey=/etc/client.key"`,
+			want:  ErrUnsupportedTLS,
+		},
+		{
+			name:  "a protocol version is not the ssl mode either",
+			kind:  config.PostgresConnType,
+			input: `psql "host=db.internal ssl_min_protocol_version=TLSv1.3"`,
+			want:  ErrUnsupportedTLS,
+		},
 	}
 
 	for _, test := range tests {

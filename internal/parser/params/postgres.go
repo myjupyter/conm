@@ -3,7 +3,6 @@ package params
 import (
 	"fmt"
 	"maps"
-	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -86,6 +85,19 @@ var postgresEnv = map[string]postgresKey{
 	"PGOPTIONS":  pgOptions,
 }
 
+var postgresTLSRefusals = map[string]bool{
+	"sslrootcert":              true,
+	"sslcert":                  true,
+	"sslkey":                   true,
+	"sslcrl":                   true,
+	"sslcrldir":                true,
+	"sslpassword":              true,
+	"sslcertmode":              true,
+	"sslsni":                   true,
+	"ssl_min_protocol_version": true,
+	"ssl_max_protocol_version": true,
+}
+
 var postgresKeywords = map[string]postgresKey{
 	"host":     pgHost,
 	"port":     pgPort,
@@ -126,7 +138,11 @@ func parsePostgres(req request) (Result, error) {
 
 	switch syntax {
 	case URISyntax:
-		res.Warnings = append(res.Warnings, applyPostgresURI(values, conninfo)...)
+		warnings, err := applyPostgresURI(values, conninfo)
+		if err != nil {
+			return Result{}, err
+		}
+		res.Warnings = append(res.Warnings, warnings...)
 	case KeywordSyntax:
 		warnings, err := applyPostgresKeywords(values, conninfo)
 		if err != nil {
@@ -234,7 +250,7 @@ func applyPostgresFlags(values postgresValues, flags []argFlag) []string {
 	return warnings
 }
 
-func applyPostgresURI(values postgresValues, raw string) []string {
+func applyPostgresURI(values postgresValues, raw string) ([]string, error) {
 	var warnings []string
 
 	_, rest, _ := strings.Cut(raw, "://")
@@ -267,24 +283,25 @@ func applyPostgresURI(values postgresValues, raw string) []string {
 	rawQuery, _, _ = strings.Cut(rawQuery, "#")
 	values.set(pgDatabase, unescape(strings.TrimPrefix(path, "/")))
 
-	query, err := url.ParseQuery(rawQuery)
-	if err != nil {
-		return append(warnings, fmt.Sprintf("ignored unreadable parameters %q", rawQuery))
-	}
+	query, queryWarnings := queryParams(rawQuery)
+	warnings = append(warnings, queryWarnings...)
 
 	for _, key := range slices.Sorted(maps.Keys(query)) {
 		value := query.Get(key)
-		switch key {
-		case pgHost:
+		switch {
+		case postgresTLSRefusals[key]:
+			return nil, tlsRefusal(key)
+		case key == pgHost:
 			warnings = append(warnings, setPostgresHostList(values, value)...)
-		case pgPort, pgUser, pgPassword, pgDatabase, pgSSLMode, pgOptions, pgSchema:
+		case key == pgPort, key == pgUser, key == pgPassword, key == pgDatabase,
+			key == pgSSLMode, key == pgOptions, key == pgSchema:
 			values.set(key, value)
 		default:
 			warnings = append(warnings, fmt.Sprintf("ignored parameter %s=%s", key, value))
 		}
 	}
 
-	return warnings
+	return warnings, nil
 }
 
 func applyPostgresKeywords(values postgresValues, raw string) ([]string, error) {
@@ -295,6 +312,10 @@ func applyPostgresKeywords(values postgresValues, raw string) ([]string, error) 
 
 	var warnings []string
 	for _, pair := range pairs {
+		if postgresTLSRefusals[pair.key] {
+			return nil, tlsRefusal(pair.key)
+		}
+
 		key, ok := postgresKeywords[pair.key]
 		if !ok {
 			warnings = append(warnings, fmt.Sprintf("ignored parameter %s=%s", pair.key, pair.value))

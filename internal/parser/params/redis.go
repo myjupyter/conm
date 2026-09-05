@@ -3,7 +3,6 @@ package params
 import (
 	"fmt"
 	"maps"
-	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -57,11 +56,6 @@ var redisIgnoredFlags = map[string]bool{
 	"-d":                  true,
 	"-D":                  true,
 	dsnFlag:               true,
-	"--cacert":            true,
-	"--cacertdir":         true,
-	"--cert":              true,
-	"--key":               true,
-	"--sni":               true,
 	"--pattern":           true,
 	"--quoted-pattern":    true,
 	"--count":             true,
@@ -79,7 +73,15 @@ var redisIgnoredFlags = map[string]bool{
 	"--iredisrc":          true,
 	"--pager":             true,
 	"--prompt":            true,
-	"--verify-ssl":        true,
+}
+
+var redisTLSRefusals = map[string]bool{
+	"--cacert":     true,
+	"--cacertdir":  true,
+	"--cert":       true,
+	"--key":        true,
+	"--sni":        true,
+	"--verify-ssl": true,
 }
 
 var redisEnv = map[string]redisKey{
@@ -110,7 +112,11 @@ func parseRedis(req request) (Result, error) {
 		res.Warnings = append(res.Warnings, applyRedisURI(values, uri)...)
 	}
 
-	res.Warnings = append(res.Warnings, applyRedisFlags(values, req.client, flags)...)
+	flagWarnings, err := applyRedisFlags(values, req.client, flags)
+	if err != nil {
+		return Result{}, err
+	}
+	res.Warnings = append(res.Warnings, flagWarnings...)
 
 	conn, warnings := buildRedis(values)
 	res.Warnings = append(res.Warnings, warnings...)
@@ -127,7 +133,7 @@ func redisArity(name string) flagArity {
 
 		return valueFlag
 	}
-	if redisIgnoredFlags[name] {
+	if redisIgnoredFlags[name] || redisTLSRefusals[name] {
 		return valueFlag
 	}
 
@@ -158,11 +164,13 @@ func redisConninfo(client string, flags []argFlag, positional []string) (string,
 	return uri, syntax, kept
 }
 
-func applyRedisFlags(values redisValues, client string, flags []argFlag) []string {
+func applyRedisFlags(values redisValues, client string, flags []argFlag) ([]string, error) {
 	var warnings []string
 
 	for _, flag := range flags {
 		switch {
+		case redisTLSRefusals[flag.name]:
+			return nil, tlsRefusal(flag.name)
 		case flag.name == "--tls":
 			values.set(rdTLS, config.RedisTLSModeRequire)
 		case flag.name == dsnFlag, flag.name == "-d" && client == config.IRedisCLI:
@@ -176,7 +184,7 @@ func applyRedisFlags(values redisValues, client string, flags []argFlag) []strin
 		}
 	}
 
-	return warnings
+	return warnings, nil
 }
 
 func applyRedisURI(values redisValues, raw string) []string {
@@ -215,10 +223,8 @@ func applyRedisURI(values redisValues, raw string) []string {
 	rawQuery, _, _ = strings.Cut(rawQuery, "#")
 	values.set(rdDatabase, unescape(strings.TrimPrefix(path, "/")))
 
-	query, err := url.ParseQuery(rawQuery)
-	if err != nil {
-		return append(warnings, fmt.Sprintf("ignored unreadable parameters %q", rawQuery))
-	}
+	query, queryWarnings := queryParams(rawQuery)
+	warnings = append(warnings, queryWarnings...)
 
 	for _, key := range slices.Sorted(maps.Keys(query)) {
 		value := query.Get(key)

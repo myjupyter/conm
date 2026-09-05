@@ -3,7 +3,6 @@ package params
 import (
 	"fmt"
 	"maps"
-	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -55,13 +54,6 @@ var mysqlIgnoredFlags = map[string]bool{
 	"--connect-timeout":       true,
 	"--default-character-set": true,
 	"--charset":               true,
-	"--ssl-ca":                true,
-	"--ssl-capath":            true,
-	"--ssl-cert":              true,
-	"--ssl-cipher":            true,
-	"--ssl-key":               true,
-	"--ssl-crl":               true,
-	"--tls-version":           true,
 	"--pager":                 true,
 	"--prompt":                true,
 	"--tee":                   true,
@@ -73,6 +65,18 @@ var mysqlIgnoredFlags = map[string]bool{
 	"--defaults-file":         true,
 	"--defaults-extra-file":   true,
 	"--defaults-group-suffix": true,
+}
+
+var mysqlTLSRefusals = map[string]bool{
+	"--ssl-ca":           true,
+	"--ssl-capath":       true,
+	"--ssl-cert":         true,
+	"--ssl-key":          true,
+	"--ssl-crl":          true,
+	"--ssl-crlpath":      true,
+	"--ssl-cipher":       true,
+	"--tls-ciphersuites": true,
+	"--tls-version":      true,
 }
 
 var mysqlDefaultsFiles = map[string]bool{
@@ -119,7 +123,11 @@ func parseMySQL(req request) (Result, error) {
 		res.Warnings = append(res.Warnings, applyMySQLURI(values, uri)...)
 	}
 
-	res.Warnings = append(res.Warnings, applyMySQLFlags(values, flags)...)
+	flagWarnings, err := applyMySQLFlags(values, flags)
+	if err != nil {
+		return Result{}, err
+	}
+	res.Warnings = append(res.Warnings, flagWarnings...)
 
 	if err := foreignScheme(req.kind, values[myDatabase]); err != nil {
 		return Result{}, err
@@ -141,7 +149,7 @@ func mysqlArity(client string) func(string) flagArity {
 
 			return valueFlag
 		}
-		if mysqlIgnoredFlags[name] {
+		if mysqlIgnoredFlags[name] || mysqlTLSRefusals[name] {
 			return valueFlag
 		}
 
@@ -157,11 +165,13 @@ func mysqlConninfo(positional []string) (string, Syntax, []string) {
 	return "", UnknownSyntax, positional
 }
 
-func applyMySQLFlags(values mysqlValues, flags []argFlag) []string {
+func applyMySQLFlags(values mysqlValues, flags []argFlag) ([]string, error) {
 	var warnings []string
 
 	for _, flag := range flags {
 		switch {
+		case mysqlTLSRefusals[flag.name]:
+			return nil, tlsRefusal(flag.name)
 		case flag.name == dsnFlag, flag.name == mysqlLoginPathFlag:
 			warnings = append(warnings, namedDSNWarning(flag.value))
 		case mysqlDefaultsFiles[flag.name]:
@@ -177,7 +187,7 @@ func applyMySQLFlags(values mysqlValues, flags []argFlag) []string {
 		}
 	}
 
-	return warnings
+	return warnings, nil
 }
 
 func applyMySQLURI(values mysqlValues, raw string) []string {
@@ -213,10 +223,8 @@ func applyMySQLURI(values mysqlValues, raw string) []string {
 	rawQuery, _, _ = strings.Cut(rawQuery, "#")
 	values.set(myDatabase, unescape(strings.TrimPrefix(path, "/")))
 
-	query, err := url.ParseQuery(rawQuery)
-	if err != nil {
-		return append(warnings, fmt.Sprintf("ignored unreadable parameters %q", rawQuery))
-	}
+	query, queryWarnings := queryParams(rawQuery)
+	warnings = append(warnings, queryWarnings...)
 
 	for _, key := range slices.Sorted(maps.Keys(query)) {
 		value := query.Get(key)

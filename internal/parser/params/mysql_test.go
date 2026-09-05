@@ -302,6 +302,30 @@ func TestParseMySQLErrors(t *testing.T) {
 			input: `mysql://app@db.internal:3306/shop`,
 			want:  ErrTypeMismatch,
 		},
+		{
+			name:  "a ca has no field to keep it in",
+			kind:  config.MySQLConnType,
+			input: `mysql -h db.internal --ssl-mode=VERIFY_CA --ssl-ca=/etc/rds-ca.pem shop`,
+			want:  ErrUnsupportedTLS,
+		},
+		{
+			name:  "a client certificate has no field to keep it in",
+			kind:  config.MySQLConnType,
+			input: `mysql -h db.internal --ssl-cert /etc/client.crt --ssl-key /etc/client.key`,
+			want:  ErrUnsupportedTLS,
+		},
+		{
+			name:  "a cipher list is not the tls mode either",
+			kind:  config.MySQLConnType,
+			input: `mysql -h db.internal --ssl-cipher=ECDHE-RSA-AES128-GCM-SHA256`,
+			want:  ErrUnsupportedTLS,
+		},
+		{
+			name:  "a protocol version is not the tls mode either",
+			kind:  config.MySQLConnType,
+			input: `mysql -h db.internal --tls-version TLSv1.3`,
+			want:  ErrUnsupportedTLS,
+		},
 	}
 
 	for _, test := range tests {

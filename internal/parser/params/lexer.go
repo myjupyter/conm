@@ -180,6 +180,15 @@ func skipSpace(runes []rune, i int) int {
 	return i
 }
 
+func queryParams(rawQuery string) (url.Values, []string) {
+	query, err := url.ParseQuery(rawQuery)
+	if err != nil {
+		return nil, []string{fmt.Sprintf("ignored unreadable parameters %q", rawQuery)}
+	}
+
+	return query, nil
+}
+
 func splitHosts(authority string) []string {
 	if authority == "" {
 		return nil

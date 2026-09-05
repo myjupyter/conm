@@ -26,6 +26,7 @@ var (
 	ErrUnsupported      = errors.New("database is not supported by the parser yet")
 	ErrUnterminated     = errors.New("unterminated quote")
 	ErrMalformedKeyword = errors.New("malformed keyword/value pair")
+	ErrUnsupportedTLS   = errors.New("only the TLS mode is supported yet")
 )
 
 const dsnFlag = "--dsn"
@@ -184,6 +185,10 @@ func clientDatabases(name string) string {
 
 func namedDSNWarning(value string) string {
 	return fmt.Sprintf("named dsn %q can't be resolved from here", value)
+}
+
+func tlsRefusal(name string) error {
+	return fmt.Errorf("%w: %s has no field to keep it in", ErrUnsupportedTLS, name)
 }
 
 func socketWarning(value string) string {
