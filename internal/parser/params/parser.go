@@ -28,6 +28,8 @@ var (
 	ErrMalformedKeyword = errors.New("malformed keyword/value pair")
 )
 
+const dsnFlag = "--dsn"
+
 var assignmentRegexp = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 
 var keywordRegexp = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\s*=`)
@@ -50,11 +52,14 @@ type parseFunc func(request) (Result, error)
 
 var parsers = map[config.ConnType]parseFunc{
 	config.PostgresConnType: parsePostgres,
+	config.RedisConnType:    parseRedis,
 }
 
 var schemes = map[string]config.ConnType{
 	"postgres":   config.PostgresConnType,
 	"postgresql": config.PostgresConnType,
+	"redis":      config.RedisConnType,
+	"rediss":     config.RedisConnType,
 }
 
 var knownClients = func() map[string]bool {
@@ -168,6 +173,10 @@ func clientDatabases(name string) string {
 	}
 
 	return strings.Join(names, "/")
+}
+
+func namedDSNWarning(value string) string {
+	return fmt.Sprintf("named dsn %q can't be resolved from here", value)
 }
 
 func (s Syntax) String() string {

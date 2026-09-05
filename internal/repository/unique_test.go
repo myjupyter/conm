@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/myjupyter/conm/internal/config"
 )
 
@@ -20,9 +23,7 @@ func testRepo(t *testing.T) *ConnectionRepository {
 		config.PostgresConnType,
 		filepath.Join(t.TempDir(), "postgres.toml"),
 	)
-	if err != nil {
-		t.Fatalf("openConnections failed: %v", err)
-	}
+	require.NoError(t, err)
 	t.Cleanup(func() { repo.Close() })
 
 	return repo
@@ -42,39 +43,27 @@ func pg(name, host, db string) config.Postgres {
 func TestAddRejectsTheSameEndpoint(t *testing.T) {
 	repo := testRepo(t)
 
-	if err := repo.Add(pg("first", "db.example.com", "metrics")); err != nil {
-		t.Fatalf("first add failed: %v", err)
-	}
+	require.NoError(t, repo.Add(pg("first", "db.example.com", "metrics")))
 
 	err := repo.Add(pg("second", "db.example.com", "metrics"))
 
 	dup, ok := errors.AsType[*DuplicateConnectionError](err)
-	if !ok {
-		t.Fatalf("error = %v, want *DuplicateConnectionError", err)
-	}
-	if dup.Name != "first" || dup.Target != "me@db.example.com:5432/metrics" {
-		t.Errorf("duplicate = %+v, want the first connection", dup)
-	}
-	if repo.Len() != 1 {
-		t.Errorf("repository holds %d connections, want 1", repo.Len())
-	}
+	require.Truef(t, ok, "error = %v, want *DuplicateConnectionError", err)
+	assert.Equal(t, "first", dup.Name)
+	assert.Equal(t, "me@db.example.com:5432/metrics", dup.Target)
+	assert.Equal(t, 1, repo.Len())
 }
 
 func TestAddRejectsTheSameName(t *testing.T) {
 	repo := testRepo(t)
 
-	if err := repo.Add(pg("prod", "db1.example.com", "metrics")); err != nil {
-		t.Fatalf("first add failed: %v", err)
-	}
+	require.NoError(t, repo.Add(pg("prod", "db1.example.com", "metrics")))
 
 	err := repo.Add(pg("prod", "db2.example.com", "other"))
 
-	if _, ok := errors.AsType[*DuplicateNameError](err); !ok {
-		t.Fatalf("error = %v, want *DuplicateNameError", err)
-	}
-	if repo.Len() != 1 {
-		t.Errorf("repository holds %d connections, want 1", repo.Len())
-	}
+	_, ok := errors.AsType[*DuplicateNameError](err)
+	require.Truef(t, ok, "error = %v, want *DuplicateNameError", err)
+	assert.Equal(t, 1, repo.Len())
 }
 
 func TestAddAcceptsADifferentEndpoint(t *testing.T) {
@@ -85,43 +74,31 @@ func TestAddAcceptsADifferentEndpoint(t *testing.T) {
 		pg("", "db.example.com", "billing"),
 		pg("", "replica.example.com", "metrics"),
 	} {
-		if err := repo.Add(conn); err != nil {
-			t.Fatalf("add %s failed: %v", conn.DBName, err)
-		}
+		require.NoErrorf(t, repo.Add(conn), "adding %s failed", conn.DBName)
 	}
 
-	if repo.Len() != 3 {
-		t.Errorf("repository holds %d connections, want 3", repo.Len())
-	}
+	assert.Equal(t, 3, repo.Len())
 }
 
 func TestEditDoesNotCollideWithItself(t *testing.T) {
 	repo := testRepo(t)
 
-	if err := repo.Add(pg("prod", "db.example.com", "metrics")); err != nil {
-		t.Fatalf("add failed: %v", err)
-	}
+	require.NoError(t, repo.Add(pg("prod", "db.example.com", "metrics")))
 
 	edited := pg("prod", "db.example.com", "metrics")
 	edited.SSLMode = config.PostgresSSLModeRequire
-	if err := repo.Edit(0, edited); err != nil {
-		t.Fatalf("editing a connection into itself failed: %v", err)
-	}
+
+	assert.NoError(t, repo.Edit(0, edited), "editing a connection into itself must be allowed")
 }
 
 func TestEditRejectsAnotherRowsEndpoint(t *testing.T) {
 	repo := testRepo(t)
 
-	if err := repo.Add(pg("first", "db1.example.com", "metrics")); err != nil {
-		t.Fatalf("first add failed: %v", err)
-	}
-	if err := repo.Add(pg("second", "db2.example.com", "metrics")); err != nil {
-		t.Fatalf("second add failed: %v", err)
-	}
+	require.NoError(t, repo.Add(pg("first", "db1.example.com", "metrics")))
+	require.NoError(t, repo.Add(pg("second", "db2.example.com", "metrics")))
 
 	err := repo.Edit(1, pg("second", "db1.example.com", "metrics"))
 
-	if _, ok := errors.AsType[*DuplicateConnectionError](err); !ok {
-		t.Fatalf("error = %v, want *DuplicateConnectionError", err)
-	}
+	_, ok := errors.AsType[*DuplicateConnectionError](err)
+	assert.Truef(t, ok, "error = %v, want *DuplicateConnectionError", err)
 }

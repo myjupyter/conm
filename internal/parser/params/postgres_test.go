@@ -1,10 +1,10 @@
 package params
 
 import (
-	"errors"
-	"reflect"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -232,29 +232,18 @@ func TestParsePostgres(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			res, err := Parse(config.PostgresConnType, test.input)
-			if err != nil {
-				t.Fatalf("Parse(%q) failed: %v", test.input, err)
-			}
+			is, must := assert.New(t), require.New(t)
 
-			if res.Syntax != test.syntax {
-				t.Errorf("syntax = %s, want %s", res.Syntax, test.syntax)
-			}
-			if res.Client != test.client {
-				t.Errorf("client = %q, want %q", res.Client, test.client)
-			}
+			res, err := Parse(config.PostgresConnType, test.input)
+			must.NoError(err)
+
+			is.Equal(test.syntax, res.Syntax)
+			is.Equal(test.client, res.Client)
+			is.Equal(test.warnings, res.Warnings)
 
 			conn, ok := res.Conn.(config.Postgres)
-			if !ok {
-				t.Fatalf("connection is a %T, want config.Postgres", res.Conn)
-			}
-			if !reflect.DeepEqual(conn, test.conn) {
-				t.Errorf("connection = %+v, want %+v", conn, test.conn)
-			}
-
-			if strings.Join(res.Warnings, "\n") != strings.Join(test.warnings, "\n") {
-				t.Errorf("warnings = %q, want %q", res.Warnings, test.warnings)
-			}
+			must.Truef(ok, "connection is a %T, want config.Postgres", res.Conn)
+			is.Equal(test.conn, conn)
 		})
 	}
 }
@@ -270,17 +259,11 @@ func TestParseRoundTripsConnectionString(t *testing.T) {
 	}
 
 	res, err := Parse(config.PostgresConnType, want.ConnectionString(""))
-	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
-	}
+	require.NoError(t, err)
 
 	got, ok := res.Conn.(config.Postgres)
-	if !ok {
-		t.Fatalf("connection is a %T, want config.Postgres", res.Conn)
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("connection = %+v, want %+v", got, want)
-	}
+	require.Truef(t, ok, "connection is a %T, want config.Postgres", res.Conn)
+	assert.Equal(t, want, got)
 }
 
 func TestParseErrors(t *testing.T) {
@@ -330,9 +313,8 @@ func TestParseErrors(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := Parse(test.kind, test.input); !errors.Is(err, test.want) {
-				t.Errorf("error = %v, want %v", err, test.want)
-			}
+			_, err := Parse(test.kind, test.input)
+			assert.ErrorIs(t, err, test.want)
 		})
 	}
 }
@@ -379,17 +361,11 @@ func TestParseArgs(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			res, err := ParseArgs(config.PostgresConnType, test.args)
-			if err != nil {
-				t.Fatalf("ParseArgs(%q) failed: %v", test.args, err)
-			}
+			require.NoError(t, err)
 
 			conn, ok := res.Conn.(config.Postgres)
-			if !ok {
-				t.Fatalf("connection is a %T, want config.Postgres", res.Conn)
-			}
-			if !reflect.DeepEqual(conn, test.want) {
-				t.Errorf("connection = %+v, want %+v", conn, test.want)
-			}
+			require.Truef(t, ok, "connection is a %T, want config.Postgres", res.Conn)
+			assert.Equal(t, test.want, conn)
 		})
 	}
 }

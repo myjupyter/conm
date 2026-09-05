@@ -68,7 +68,7 @@ var postgresIgnoredFlags = map[string]bool{
 	"--set":              true,
 	"--variable":         true,
 	"-D":                 true,
-	"--dsn":              true,
+	dsnFlag:              true,
 	"--row-limit":        true,
 	"--prompt":           true,
 	"--prompt-dsn":       true,
@@ -219,8 +219,8 @@ func applyPostgresFlags(values postgresValues, flags []argFlag) []string {
 	var warnings []string
 
 	for _, flag := range flags {
-		if flag.name == "-D" || flag.name == "--dsn" {
-			warnings = append(warnings, fmt.Sprintf("named dsn %q can't be resolved from here", flag.value))
+		if flag.name == "-D" || flag.name == dsnFlag {
+			warnings = append(warnings, namedDSNWarning(flag.value))
 			continue
 		}
 		if key, ok := postgresFlags[flag.name]; ok {

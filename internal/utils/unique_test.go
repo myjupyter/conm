@@ -3,6 +3,9 @@ package utils
 import (
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type row struct {
@@ -55,12 +58,8 @@ func TestFirstDuplicate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, found := FirstDuplicate(slices.Values(test.rows), byName, test.of)
-			if found != test.found {
-				t.Fatalf("found = %t, want %t", found, test.found)
-			}
-			if got != test.want {
-				t.Errorf("duplicate = %+v, want %+v", got, test.want)
-			}
+			require.Equal(t, test.found, found)
+			assert.Equal(t, test.want, got)
 		})
 	}
 }
@@ -76,10 +75,7 @@ func TestFirstDuplicateStopsAtTheMatch(t *testing.T) {
 		}
 	}
 
-	if _, found := FirstDuplicate(counted, func(r row) string { return r.name }, row{name: "b"}); !found {
-		t.Fatal("FirstDuplicate found nothing, want the second row")
-	}
-	if visited != 2 {
-		t.Errorf("walked %d rows, want 2 — the sequence must stop at the match", visited)
-	}
+	_, found := FirstDuplicate(counted, func(r row) string { return r.name }, row{name: "b"})
+	require.True(t, found, "FirstDuplicate found nothing, want the second row")
+	assert.Equal(t, 2, visited, "the sequence must stop at the match")
 }

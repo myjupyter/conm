@@ -1,9 +1,10 @@
 package params
 
 import (
-	"errors"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSplitArgs(t *testing.T) {
@@ -84,12 +85,8 @@ func TestSplitArgs(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := splitArgs(test.input)
-			if err != nil {
-				t.Fatalf("splitArgs(%q) failed: %v", test.input, err)
-			}
-			if !reflect.DeepEqual(got, test.want) {
-				t.Errorf("splitArgs(%q) = %q, want %q", test.input, got, test.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, test.want, got)
 		})
 	}
 }
@@ -107,12 +104,8 @@ func TestSplitArgsUnterminatedQuote(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := splitArgs(test.input)
-			if !errors.Is(err, ErrUnterminated) {
-				t.Fatalf("splitArgs(%q) error = %v, want %v", test.input, err, ErrUnterminated)
-			}
-			if got != nil {
-				t.Errorf("splitArgs(%q) = %q, want no args alongside the error", test.input, got)
-			}
+			require.ErrorIs(t, err, ErrUnterminated)
+			assert.Nil(t, got, "no args come back alongside the error")
 		})
 	}
 }
@@ -212,12 +205,8 @@ func TestScanFlags(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			flags, positional := scanFlags(test.args, valued)
-			if !reflect.DeepEqual(flags, test.flags) {
-				t.Errorf("flags = %+v, want %+v", flags, test.flags)
-			}
-			if !reflect.DeepEqual(positional, test.positional) {
-				t.Errorf("positional = %q, want %q", positional, test.positional)
-			}
+			assert.Equal(t, test.flags, flags)
+			assert.Equal(t, test.positional, positional)
 		})
 	}
 }
@@ -306,12 +295,8 @@ func TestSplitKeywords(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := splitKeywords(test.input)
-			if err != nil {
-				t.Fatalf("splitKeywords(%q) failed: %v", test.input, err)
-			}
-			if !reflect.DeepEqual(got, test.want) {
-				t.Errorf("splitKeywords(%q) = %+v, want %+v", test.input, got, test.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, test.want, got)
 		})
 	}
 }
@@ -331,12 +316,8 @@ func TestSplitKeywordsErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got, err := splitKeywords(test.input)
-			if !errors.Is(err, test.want) {
-				t.Fatalf("splitKeywords(%q) error = %v, want %v", test.input, err, test.want)
-			}
-			if got != nil {
-				t.Errorf("splitKeywords(%q) = %+v, want no pairs alongside the error", test.input, got)
-			}
+			require.ErrorIs(t, err, test.want)
+			assert.Nil(t, got, "no pairs come back alongside the error")
 		})
 	}
 }
@@ -359,15 +340,9 @@ func TestReadKeywordValue(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			value, next, err := readKeywordValue([]rune(test.input), test.from)
-			if err != nil {
-				t.Fatalf("readKeywordValue(%q, %d) failed: %v", test.input, test.from, err)
-			}
-			if value != test.want {
-				t.Errorf("value = %q, want %q", value, test.want)
-			}
-			if next != test.next {
-				t.Errorf("next = %d, want %d", next, test.next)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, test.want, value)
+			assert.Equal(t, test.next, next)
 		})
 	}
 }
@@ -388,9 +363,7 @@ func TestSkipSpace(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := skipSpace([]rune(test.input), test.from); got != test.want {
-				t.Errorf("skipSpace(%q, %d) = %d, want %d", test.input, test.from, got, test.want)
-			}
+			assert.Equal(t, test.want, skipSpace([]rune(test.input), test.from))
 		})
 	}
 }
@@ -433,9 +406,7 @@ func TestSplitHosts(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := splitHosts(test.input); !reflect.DeepEqual(got, test.want) {
-				t.Errorf("splitHosts(%q) = %q, want %q", test.input, got, test.want)
-			}
+			assert.Equal(t, test.want, splitHosts(test.input))
 		})
 	}
 }
@@ -468,9 +439,8 @@ func TestSplitHostPort(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			host, port := splitHostPort(test.input)
-			if host != test.host || port != test.port {
-				t.Errorf("splitHostPort(%q) = (%q, %q), want (%q, %q)", test.input, host, port, test.host, test.port)
-			}
+			assert.Equal(t, test.host, host)
+			assert.Equal(t, test.port, port)
 		})
 	}
 }
@@ -493,9 +463,7 @@ func TestIsDigits(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := isDigits(test.input); got != test.want {
-				t.Errorf("isDigits(%q) = %t, want %t", test.input, got, test.want)
-			}
+			assert.Equal(t, test.want, isDigits(test.input))
 		})
 	}
 }
@@ -519,9 +487,7 @@ func TestUnescape(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := unescape(test.input); got != test.want {
-				t.Errorf("unescape(%q) = %q, want %q", test.input, got, test.want)
-			}
+			assert.Equal(t, test.want, unescape(test.input))
 		})
 	}
 }
