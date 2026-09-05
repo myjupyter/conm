@@ -5,15 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net"
 	"net/url"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
@@ -28,14 +26,14 @@ const (
 )
 
 type MySQLClient struct {
-	conmCfg config.Conm
-	cfg     config.Connection
-	ref     secret.Reference
-	sec     secret.Provider
+	launcher cli.Launcher
+	cfg      config.Connection
+	ref      secret.Reference
+	sec      secret.Provider
 }
 
 func NewMySQLClient(
-	conmConfig config.Conm,
+	launcher cli.Launcher,
 	cfg config.Connection,
 	sec secret.Provider,
 ) (*MySQLClient, error) {
@@ -45,10 +43,10 @@ func NewMySQLClient(
 	}
 
 	return &MySQLClient{
-		conmCfg: conmConfig,
-		cfg:     cfg,
-		ref:     ref,
-		sec:     sec,
+		launcher: launcher,
+		cfg:      cfg,
+		ref:      ref,
+		sec:      sec,
 	}, nil
 }
 
@@ -58,12 +56,12 @@ func (m *MySQLClient) Ping(ctx context.Context) (PingResult, error) {
 		return PingResult{}, m.fail(PingOperation, SecretErrorCode, err)
 	}
 
-	target, err := parseMySQLDSN(raw)
+	dsn, err := mysqlDriverDSN(raw)
 	if err != nil {
 		return PingResult{}, m.fail(PingOperation, InvalidErrorCode, err)
 	}
 
-	db, err := sql.Open("mysql", target.driverDSN())
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return PingResult{}, m.fail(PingOperation, InvalidErrorCode, err)
 	}
@@ -78,24 +76,15 @@ func (m *MySQLClient) Ping(ctx context.Context) (PingResult, error) {
 }
 
 func (m *MySQLClient) Run(ctx context.Context) error {
-	raw, err := m.dsn(ctx)
+	password, err := m.sec.Resolve(ctx, m.ref)
 	if err != nil {
 		return m.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	target, err := parseMySQLDSN(raw)
-	if err != nil {
-		return m.fail(ConnectOperation, InvalidErrorCode, err)
+	if err := m.launcher.Run(ctx, m.cfg, password); err != nil {
+		return m.fail(ConnectOperation, cliErrorCode(err, mysqlErrorCode), err)
 	}
 
-	cli := m.conmCfg.CLI(config.MySQLConnType)
-	if cli == "" {
-		return m.fail(ConnectOperation, InvalidErrorCode, errors.New("no mysql client configured, run conm init"))
-	}
-
-	if err := runCLI(ctx, cli, target.args(cli, raw), target.env(cli)); err != nil {
-		return m.fail(ConnectOperation, mysqlErrorCode(err), err)
-	}
 	return nil
 }
 
@@ -125,99 +114,24 @@ func (m *MySQLClient) fail(op Operation, code ErrorCode, err error) error {
 	}
 }
 
-// mysqlDSN is the one connection string in the three dialects MySQL speaks:
-// config builds a mysql:// URL, the driver wants user:pass@tcp(addr)/db, and
-// the stock client takes flags with the password out of band.
-type mysqlDSN struct {
-	addr     string
-	user     string
-	password string
-	database string
-	tls      string
-}
-
-func parseMySQLDSN(raw string) (mysqlDSN, error) {
+func mysqlDriverDSN(raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return mysqlDSN{}, err
+		return "", err
 	}
 
 	password, _ := u.User.Password()
 
-	return mysqlDSN{
-		addr:     u.Host,
-		user:     u.User.Username(),
-		password: password,
-		database: strings.TrimPrefix(u.Path, "/"),
-		tls:      u.Query().Get("tls"),
-	}, nil
-}
-
-func (d mysqlDSN) driverDSN() string {
 	cfg := mysql.NewConfig()
 	cfg.Net = "tcp"
-	cfg.Addr = d.addr
-	cfg.User = d.user
-	cfg.Passwd = d.password
-	cfg.DBName = d.database
-	cfg.TLSConfig = d.tls
+	cfg.Addr = u.Host
+	cfg.User = u.User.Username()
+	cfg.Passwd = password
+	cfg.DBName = strings.TrimPrefix(u.Path, "/")
+	cfg.TLSConfig = u.Query().Get("tls")
 	cfg.Timeout = mysqlDialTimeout
 
-	return cfg.FormatDSN()
-}
-
-func (d mysqlDSN) args(cli, raw string) []string {
-	if cli != config.MySQLCLI {
-		return []string{raw}
-	}
-
-	host, port := d.hostPort()
-	args := []string{"--protocol=TCP", "--host=" + host, "--user=" + d.user}
-	if port != "" {
-		args = append(args, "--port="+port)
-	}
-	if mode := d.sslMode(); mode != "" {
-		args = append(args, "--ssl-mode="+mode)
-	}
-
-	return append(args, d.database)
-}
-
-// env keeps the password out of the process table: the stock client reads it
-// from MYSQL_PWD, while the clients that take a URL already carry it inside.
-func (d mysqlDSN) env(cli string) []string {
-	if cli != config.MySQLCLI || d.password == "" {
-		return nil
-	}
-
-	return append(os.Environ(), "MYSQL_PWD="+d.password)
-}
-
-func (d mysqlDSN) hostPort() (string, string) {
-	host, port, err := net.SplitHostPort(d.addr)
-	if err != nil {
-		return d.addr, ""
-	}
-	if _, err := strconv.Atoi(port); err != nil {
-		return host, ""
-	}
-
-	return host, port
-}
-
-func (d mysqlDSN) sslMode() string {
-	switch d.tls {
-	case config.MySQLTLSModeDisable:
-		return "DISABLED"
-	case config.MySQLTLSModePreferred:
-		return "PREFERRED"
-	case config.MySQLTLSModeSkipVerify:
-		return "REQUIRED"
-	case config.MySQLTLSModeVerify:
-		return "VERIFY_CA"
-	}
-
-	return ""
+	return cfg.FormatDSN(), nil
 }
 
 func mysqlErrorCode(err error) ErrorCode {

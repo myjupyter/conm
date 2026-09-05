@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
@@ -143,7 +144,7 @@ func parseMySQL(req request) (Result, error) {
 func mysqlArity(client string) func(string) flagArity {
 	return func(name string) flagArity {
 		if key, ok := mysqlFlags[name]; ok {
-			if key == myPassword && client != config.MyCLI {
+			if key == myPassword && client != cli.MyCLI {
 				return attachedValueFlag
 			}
 

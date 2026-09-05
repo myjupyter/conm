@@ -254,14 +254,14 @@ linters:
     rules:
       # The DB CLI (psql/pgcli/usql) is user-configured by design; execing it
       # with a variable path is the feature, not a finding.
-      - path: internal/(network|config)/
+      - path: internal/cli/
         text: "G204"
         linters:
           - gosec
 
       # A DSN carries the resolved password, and the form spec ships a literal
       # example password: that is what those strings are for.
-      - path: internal/(config|network|secret|ui)/
+      - path: internal/(cli|config|network|secret|ui)/
         text: "G101"
         linters:
           - gosec

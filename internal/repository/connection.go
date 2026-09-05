@@ -6,6 +6,7 @@ import (
 	"iter"
 	"sync"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/secret"
@@ -33,6 +34,8 @@ func openConnections[W config.ConfigWrapper[config.Connection]](
 		return nil, err
 	}
 
+	launcher := cli.For(cfg, kind)
+
 	var sec secret.Provider = secret.Default()
 
 	n := file.Len()
@@ -45,7 +48,7 @@ func openConnections[W config.ConfigWrapper[config.Connection]](
 			err  error
 		)
 		if c.IsValid() {
-			conn, err = network.NewConnection(cfg, c, sec)
+			conn, err = network.NewConnection(launcher, c, sec)
 		} else {
 			conn, err = network.NewNoClient(c)
 		}
@@ -57,21 +60,21 @@ func openConnections[W config.ConfigWrapper[config.Connection]](
 	}
 
 	return &ConnectionRepository{
-		cfg:  cfg,
-		kind: kind,
-		file: file,
-		mx:   &sync.RWMutex{},
-		ncs:  ncs,
-		sec:  sec,
+		launcher: launcher,
+		kind:     kind,
+		file:     file,
+		mx:       &sync.RWMutex{},
+		ncs:      ncs,
+		sec:      sec,
 	}, nil
 }
 
 type ConnectionRepository struct {
-	cfg  config.Conm
-	kind config.ConnType
-	file config.File[config.Connection]
-	ncs  []network.Connection
-	sec  secret.Provider
+	launcher cli.Launcher
+	kind     config.ConnType
+	file     config.File[config.Connection]
+	ncs      []network.Connection
+	sec      secret.Provider
 
 	mx *sync.RWMutex
 }
@@ -139,7 +142,7 @@ func (r *ConnectionRepository) Add(cfg config.Connection) error {
 		return fmt.Errorf("add: validation error: %w", errors.Join(errs...))
 	}
 
-	conn, err := network.NewConnection(r.cfg, cfg, r.sec)
+	conn, err := network.NewConnection(r.launcher, cfg, r.sec)
 	if err != nil {
 		return fmt.Errorf("add: open new connection error: %w", err)
 	}
@@ -169,7 +172,7 @@ func (r *ConnectionRepository) Edit(i int, cfg config.Connection) error {
 		return fmt.Errorf("edit: connection index %d is out of range", i)
 	}
 
-	conn, err := network.NewConnection(r.cfg, cfg, r.sec)
+	conn, err := network.NewConnection(r.launcher, cfg, r.sec)
 	if err != nil {
 		return fmt.Errorf("edit: open new connection error: %w", err)
 	}

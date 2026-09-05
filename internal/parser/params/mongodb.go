@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
@@ -149,7 +150,7 @@ func mongodbArity(client string) func(string) flagArity {
 			switch {
 			case key == mgTLS:
 				return noValueFlag
-			case key == mgPassword && client == config.MongoCLI:
+			case key == mgPassword && client == cli.Mongo:
 				return attachedValueFlag
 			default:
 				return valueFlag

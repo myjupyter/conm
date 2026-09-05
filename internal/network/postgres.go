@@ -3,11 +3,11 @@ package network
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 
@@ -15,14 +15,14 @@ import (
 )
 
 type PGClient struct {
-	conmCfg config.Conm
-	cfg     config.Connection
-	ref     secret.Reference
-	sec     secret.Provider
+	launcher cli.Launcher
+	cfg      config.Connection
+	ref      secret.Reference
+	sec      secret.Provider
 }
 
 func NewPGClient(
-	conmConfig config.Conm,
+	launcher cli.Launcher,
 	cfg config.Connection,
 	sec secret.Provider,
 ) (*PGClient, error) {
@@ -32,10 +32,10 @@ func NewPGClient(
 	}
 
 	return &PGClient{
-		conmCfg: conmConfig,
-		cfg:     cfg,
-		ref:     ref,
-		sec:     sec,
+		launcher: launcher,
+		cfg:      cfg,
+		ref:      ref,
+		sec:      sec,
 	}, nil
 }
 
@@ -60,18 +60,13 @@ func (p *PGClient) Ping(ctx context.Context) (PingResult, error) {
 }
 
 func (p *PGClient) Run(ctx context.Context) error {
-	dsn, err := p.dsn(ctx)
+	password, err := p.sec.Resolve(ctx, p.ref)
 	if err != nil {
 		return p.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	cli := p.conmCfg.CLI(config.PostgresConnType)
-	if cli == "" {
-		return p.fail(ConnectOperation, InvalidErrorCode, errors.New("no postgres client configured, run conm init"))
-	}
-
-	if err := runCLI(ctx, cli, []string{dsn}, nil); err != nil {
-		return p.fail(ConnectOperation, pgErrorCode(err), err)
+	if err := p.launcher.Run(ctx, p.cfg, password); err != nil {
+		return p.fail(ConnectOperation, cliErrorCode(err, pgErrorCode), err)
 	}
 
 	return nil

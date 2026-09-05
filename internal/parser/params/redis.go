@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
@@ -173,7 +174,7 @@ func applyRedisFlags(values redisValues, client string, flags []argFlag) ([]stri
 			return nil, tlsRefusal(flag.name)
 		case flag.name == "--tls":
 			values.set(rdTLS, config.RedisTLSModeRequire)
-		case flag.name == dsnFlag, flag.name == "-d" && client == config.IRedisCLI:
+		case flag.name == dsnFlag, flag.name == "-d" && client == cli.IRedis:
 			warnings = append(warnings, namedDSNWarning(flag.value))
 		case redisFlags[flag.name] == rdSocket:
 			warnings = append(warnings, socketWarning(flag.value))

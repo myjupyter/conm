@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 )
 
@@ -89,13 +90,13 @@ var schemes = map[string]config.ConnType{
 }
 
 var clientAliases = map[string]string{
-	"clickhouse-client": config.ClickHouseCLI,
+	"clickhouse-client": cli.ClickHouse,
 }
 
 var knownClients = func() map[string]bool {
 	names := make(map[string]bool)
-	for t := config.PostgresConnType; config.Clients(t) != nil; t++ {
-		for _, name := range config.Clients(t) {
+	for _, t := range config.Databases {
+		for _, name := range cli.Clients(t) {
 			names[name] = true
 		}
 	}
@@ -142,7 +143,7 @@ func newRequest(t config.ConnType, args []string) (request, error) {
 	if !isClient(name) {
 		return req, nil
 	}
-	if !slices.Contains(config.Clients(t), name) {
+	if !slices.Contains(cli.Clients(t), name) {
 		return request{}, fmt.Errorf("%w: %s is a %s client", ErrTypeMismatch, name, clientDatabases(name))
 	}
 
@@ -202,7 +203,7 @@ func isClient(name string) bool {
 func clientDatabases(name string) string {
 	var names []string
 	for _, t := range config.Databases {
-		if slices.Contains(config.Clients(t), name) {
+		if slices.Contains(cli.Clients(t), name) {
 			names = append(names, t.String())
 		}
 	}

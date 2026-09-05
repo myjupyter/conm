@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/secret"
@@ -526,7 +527,7 @@ func (m formModel) pingForm() (tea.Model, tea.Cmd) {
 
 func pingFormCmd(cfg config.Connection) tea.Cmd {
 	return func() tea.Msg {
-		conn, err := network.NewConnection(config.Conm{}, cfg, secret.Default())
+		conn, err := network.NewConnection(cli.Launcher{}, cfg, secret.Default())
 		if err != nil {
 			return formPingMsg{cfg: cfg, err: err}
 		}

@@ -2,13 +2,13 @@ package network
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
@@ -24,14 +24,14 @@ func init() {
 }
 
 type RedisClient struct {
-	conmCfg config.Conm
-	cfg     config.Connection
-	ref     secret.Reference
-	sec     secret.Provider
+	launcher cli.Launcher
+	cfg      config.Connection
+	ref      secret.Reference
+	sec      secret.Provider
 }
 
 func NewRedisClient(
-	conmConfig config.Conm,
+	launcher cli.Launcher,
 	cfg config.Connection,
 	sec secret.Provider,
 ) (*RedisClient, error) {
@@ -41,10 +41,10 @@ func NewRedisClient(
 	}
 
 	return &RedisClient{
-		conmCfg: conmConfig,
-		cfg:     cfg,
-		ref:     ref,
-		sec:     sec,
+		launcher: launcher,
+		cfg:      cfg,
+		ref:      ref,
+		sec:      sec,
 	}, nil
 }
 
@@ -72,18 +72,13 @@ func (r *RedisClient) Ping(ctx context.Context) (PingResult, error) {
 }
 
 func (r *RedisClient) Run(ctx context.Context) error {
-	dsn, err := r.dsn(ctx)
+	password, err := r.sec.Resolve(ctx, r.ref)
 	if err != nil {
 		return r.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	cli := r.conmCfg.CLI(config.RedisConnType)
-	if cli == "" {
-		return r.fail(ConnectOperation, InvalidErrorCode, errors.New("no redis client configured, run conm init"))
-	}
-
-	if err := runCLI(ctx, cli, redisArgs(cli, dsn), nil); err != nil {
-		return r.fail(ConnectOperation, redisErrorCode(err), err)
+	if err := r.launcher.Run(ctx, r.cfg, password); err != nil {
+		return r.fail(ConnectOperation, cliErrorCode(err, redisErrorCode), err)
 	}
 
 	return nil
@@ -113,13 +108,6 @@ func (r *RedisClient) fail(op Operation, code ErrorCode, err error) error {
 		During: during(op, r.cfg),
 		Err:    err,
 	}
-}
-
-func redisArgs(cli, dsn string) []string {
-	if cli == config.IRedisCLI {
-		return []string{"--url", dsn}
-	}
-	return []string{"-u", dsn}
 }
 
 func redisErrorCode(err error) ErrorCode {

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
@@ -119,7 +120,7 @@ func parseClickHouse(req request) (Result, error) {
 }
 
 func clickhouseArgs(req request) []string {
-	if req.client == config.ClickHouseCLI && len(req.args) > 0 && req.args[0] == clickhouseClientSubcommand {
+	if req.client == cli.ClickHouse && len(req.args) > 0 && req.args[0] == clickhouseClientSubcommand {
 		return req.args[1:]
 	}
 

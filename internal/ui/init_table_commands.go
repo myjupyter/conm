@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 )
 
@@ -101,9 +102,11 @@ func (m initModel) editDatabaseCmd() tea.Cmd {
 }
 
 func saveDatabase(conm *config.Conm, db config.Database) error {
-	if err := conm.SetDatabase(db); err != nil {
+	if err := cli.Validate(db.Type, db.CLI); err != nil {
 		return err
 	}
+
+	conm.SetDatabase(db)
 	if db.Enabled {
 		if err := config.CreateDatabaseConfig(db.Type); err != nil {
 			return err

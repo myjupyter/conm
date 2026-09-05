@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
@@ -28,23 +29,23 @@ type PingResult struct {
 }
 
 func NewConnection(
-	conmConfig config.Conm,
+	launcher cli.Launcher,
 	cfg config.Connection,
 	sec secret.Provider,
 ) (Connection, error) {
 	switch cfg.ConnType() {
 	case config.PostgresConnType:
-		return NewPGClient(conmConfig, cfg, sec)
+		return NewPGClient(launcher, cfg, sec)
 	case config.MySQLConnType:
-		return NewMySQLClient(conmConfig, cfg, sec)
+		return NewMySQLClient(launcher, cfg, sec)
 	case config.MSSQLConnType:
-		return NewMSSQLClient(conmConfig, cfg, sec)
+		return NewMSSQLClient(launcher, cfg, sec)
 	case config.ClickHouseConnType:
-		return NewClickHouseClient(conmConfig, cfg, sec)
+		return NewClickHouseClient(launcher, cfg, sec)
 	case config.RedisConnType:
-		return NewRedisClient(conmConfig, cfg, sec)
+		return NewRedisClient(launcher, cfg, sec)
 	case config.MongoDBConnType:
-		return NewMongoDBClient(conmConfig, cfg, sec)
+		return NewMongoDBClient(launcher, cfg, sec)
 	default:
 		return nil, fmt.Errorf("unsupported connection type %q", cfg.ConnType())
 	}

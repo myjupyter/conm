@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 )
@@ -24,14 +25,14 @@ const (
 )
 
 type MongoDBClient struct {
-	conmCfg config.Conm
-	cfg     config.Connection
-	ref     secret.Reference
-	sec     secret.Provider
+	launcher cli.Launcher
+	cfg      config.Connection
+	ref      secret.Reference
+	sec      secret.Provider
 }
 
 func NewMongoDBClient(
-	conmConfig config.Conm,
+	launcher cli.Launcher,
 	cfg config.Connection,
 	sec secret.Provider,
 ) (*MongoDBClient, error) {
@@ -41,10 +42,10 @@ func NewMongoDBClient(
 	}
 
 	return &MongoDBClient{
-		conmCfg: conmConfig,
-		cfg:     cfg,
-		ref:     ref,
-		sec:     sec,
+		launcher: launcher,
+		cfg:      cfg,
+		ref:      ref,
+		sec:      sec,
 	}, nil
 }
 
@@ -74,18 +75,13 @@ func (m *MongoDBClient) Ping(ctx context.Context) (PingResult, error) {
 }
 
 func (m *MongoDBClient) Run(ctx context.Context) error {
-	dsn, err := m.dsn(ctx)
+	password, err := m.sec.Resolve(ctx, m.ref)
 	if err != nil {
 		return m.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	cli := m.conmCfg.CLI(config.MongoDBConnType)
-	if cli == "" {
-		return m.fail(ConnectOperation, InvalidErrorCode, errors.New("no mongodb client configured, run conm init"))
-	}
-
-	if err := runCLI(ctx, cli, []string{dsn}, nil); err != nil {
-		return m.fail(ConnectOperation, mongodbErrorCode(err), err)
+	if err := m.launcher.Run(ctx, m.cfg, password); err != nil {
+		return m.fail(ConnectOperation, cliErrorCode(err, mongodbErrorCode), err)
 	}
 
 	return nil

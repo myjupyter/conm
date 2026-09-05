@@ -1,10 +1,12 @@
 package network
 
 import (
+	"errors"
 	"net"
 	"strconv"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 )
 
@@ -49,6 +51,14 @@ func (f *OpError) Error() string {
 
 func (f *OpError) Unwrap() error {
 	return f.Err
+}
+
+func cliErrorCode(err error, driver func(error) ErrorCode) ErrorCode {
+	if errors.Is(err, cli.ErrNoClient) || errors.Is(err, cli.ErrConnType) {
+		return InvalidErrorCode
+	}
+
+	return driver(err)
 }
 
 func transportErrorCode(err error) ErrorCode {

@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 )
 
@@ -50,8 +51,8 @@ func databaseFormSpec(t config.ConnType) FormSpec[config.Database] {
 				Key:          databaseFormFieldClient,
 				Label:        databaseFormFieldClient,
 				Kind:         SelectFieldKind,
-				Options:      config.Clients(t),
-				ValidateFunc: func(cli string) error { return config.ValidateCLI(t, cli) },
+				Options:      cli.Clients(t),
+				ValidateFunc: func(name string) error { return cli.Validate(t, name) },
 			},
 		},
 		Sections: []FormSection{

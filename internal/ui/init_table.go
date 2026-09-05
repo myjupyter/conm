@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
@@ -15,7 +16,7 @@ import (
 type initModel struct {
 	conm    config.Conm
 	dbs     []config.Database
-	clients map[config.ConnType][]config.CLIInfo
+	clients map[config.ConnType][]cli.Info
 
 	cursor int
 	help   bool
@@ -41,9 +42,9 @@ func newInitModel(conm config.Conm) initModel {
 		statusKind: kindIdle,
 	}
 
-	m.clients = make(map[config.ConnType][]config.CLIInfo, len(m.dbs))
+	m.clients = make(map[config.ConnType][]cli.Info, len(m.dbs))
 	for _, db := range m.dbs {
-		m.clients[db.Type] = config.DetectCLI(db.Type)
+		m.clients[db.Type] = cli.Detect(db.Type)
 	}
 
 	return m
@@ -109,7 +110,7 @@ func (m initModel) toggle() (tea.Model, tea.Cmd) {
 	}
 	if db.CLI == "" {
 		m.setInitStatus("no client for "+db.Type.String()+" · install "+
-			strings.Join(config.Clients(db.Type), " or "), kindErr)
+			strings.Join(cli.Clients(db.Type), " or "), kindErr)
 		return m, nil
 	}
 

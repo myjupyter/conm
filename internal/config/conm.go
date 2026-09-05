@@ -50,20 +50,15 @@ func (c Conm) CLI(t ConnType) string {
 	return db.CLI
 }
 
-func (c *Conm) SetDatabase(d Database) error {
-	if err := ValidateCLI(d.Type, d.CLI); err != nil {
-		return err
-	}
-
+func (c *Conm) SetDatabase(d Database) {
 	for i, db := range c.Databases {
 		if db.Type == d.Type {
 			c.Databases[i] = d
-			return nil
+			return
 		}
 	}
 
 	c.Databases = append(c.Databases, d)
-	return nil
 }
 
 func withDatabaseTypes(stored []Database) []Database {
