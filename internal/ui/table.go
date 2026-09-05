@@ -192,13 +192,12 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) switchKind(key string) Model {
-	back := keyMap.PrevSection.matches(key) || keyMap.Left.matches(key)
-
-	moved := m.conns.NextKind()
-	if back {
-		moved = m.conns.PrevKind()
+	step := m.conns.NextKind
+	if keyMap.PrevSection.matches(key) || keyMap.Left.matches(key) {
+		step = m.conns.PrevKind
 	}
-	if !moved {
+
+	if !step() {
 		m.status = m.conns.Active().String() + " is the only database enabled · " + keyMap.AddDB.hint + " to add one"
 		m.statusKind = kindWarn
 		return m
