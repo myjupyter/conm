@@ -40,9 +40,9 @@ var clickhouseFlags = map[string]clickhouseKey{
 	portFlag:     chPort,
 	"-u":         chUser,
 	userFlag:     chUser,
-	"--password": chPassword,
+	passwordFlag: chPassword,
 	"-d":         chDatabase,
-	"--database": chDatabase,
+	databaseFlag: chDatabase,
 	"-s":         chSecure,
 	"--secure":   chSecure,
 }

@@ -30,10 +30,12 @@ var (
 )
 
 const (
-	dsnFlag  = "--dsn"
-	hostFlag = "--host"
-	portFlag = "--port"
-	userFlag = "--user"
+	dsnFlag      = "--dsn"
+	hostFlag     = "--host"
+	portFlag     = "--port"
+	userFlag     = "--user"
+	passwordFlag = "--password"
+	databaseFlag = "--database"
 )
 
 var assignmentRegexp = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
@@ -60,6 +62,7 @@ var parsers = map[config.ConnType]parseFunc{
 	config.PostgresConnType:   parsePostgres,
 	config.MySQLConnType:      parseMySQL,
 	config.ClickHouseConnType: parseClickHouse,
+	config.MSSQLConnType:      parseMSSQL,
 	config.RedisConnType:      parseRedis,
 }
 
@@ -72,6 +75,9 @@ var schemes = map[string]config.ConnType{
 	"percona":     config.MySQLConnType,
 	"aurora":      config.MySQLConnType,
 	"my":          config.MySQLConnType,
+	"sqlserver":   config.MSSQLConnType,
+	"mssql":       config.MSSQLConnType,
+	"ms":          config.MSSQLConnType,
 	"clickhouse":  config.ClickHouseConnType,
 	"clickhouses": config.ClickHouseConnType,
 	"ch":          config.ClickHouseConnType,

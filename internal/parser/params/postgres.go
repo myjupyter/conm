@@ -42,7 +42,7 @@ var postgresFlags = map[string]postgresKey{
 	"--username": pgUser,
 	"-d":         pgDatabase,
 	"--dbname":   pgDatabase,
-	"--database": pgDatabase,
+	databaseFlag: pgDatabase,
 	"--sslmode":  pgSSLMode,
 }
 

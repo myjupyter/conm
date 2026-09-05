@@ -40,7 +40,7 @@ var redisFlags = map[string]redisKey{
 	"--username": rdUser,
 	"-a":         rdPassword,
 	"--pass":     rdPassword,
-	"--password": rdPassword,
+	passwordFlag: rdPassword,
 	"-n":         rdDatabase,
 	"-u":         rdURL,
 	"--url":      rdURL,
