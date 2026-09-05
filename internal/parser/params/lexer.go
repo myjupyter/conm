@@ -7,6 +7,14 @@ import (
 	"unicode"
 )
 
+type flagArity int
+
+const (
+	noValueFlag flagArity = iota
+	valueFlag
+	attachedValueFlag
+)
+
 type argFlag struct {
 	name  string
 	value string
@@ -60,7 +68,7 @@ func splitArgs(input string) ([]string, error) {
 	return args, nil
 }
 
-func scanFlags(args []string, valued func(string) bool) ([]argFlag, []string) {
+func scanFlags(args []string, arity func(string) flagArity) ([]argFlag, []string) {
 	var (
 		flags      []argFlag
 		positional []string
@@ -73,7 +81,7 @@ func scanFlags(args []string, valued func(string) bool) ([]argFlag, []string) {
 			return flags, append(positional, args[i+1:]...)
 		case strings.HasPrefix(arg, "--"):
 			name, value, inline := strings.Cut(arg, "=")
-			if !inline && valued(name) && i+1 < len(args) {
+			if !inline && arity(name) == valueFlag && i+1 < len(args) {
 				i++
 				value = args[i]
 			}
@@ -83,14 +91,15 @@ func scanFlags(args []string, valued func(string) bool) ([]argFlag, []string) {
 			for rest != "" {
 				name := "-" + rest[:1]
 				rest = rest[1:]
-				if !valued(name) {
+				kind := arity(name)
+				if kind == noValueFlag {
 					flags = append(flags, argFlag{name: name})
 					continue
 				}
 
 				value := rest
 				rest = ""
-				if value == "" && i+1 < len(args) {
+				if value == "" && kind == valueFlag && i+1 < len(args) {
 					i++
 					value = args[i]
 				}

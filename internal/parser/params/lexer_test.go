@@ -111,12 +111,14 @@ func TestSplitArgsUnterminatedQuote(t *testing.T) {
 }
 
 func TestScanFlags(t *testing.T) {
-	valued := func(name string) bool {
+	arity := func(name string) flagArity {
 		switch name {
 		case "-h", "--host", "-p", "-d", "--dbname", "-c":
-			return true
+			return valueFlag
+		case "-w", "--password":
+			return attachedValueFlag
 		default:
-			return false
+			return noValueFlag
 		}
 	}
 
@@ -200,11 +202,33 @@ func TestScanFlags(t *testing.T) {
 			name: "a trailing double dash adds nothing",
 			args: []string{"--"},
 		},
+		{
+			name:  "an attached-only short flag keeps an attached value",
+			args:  []string{"-wsecret"},
+			flags: []argFlag{{name: "-w", value: "secret"}},
+		},
+		{
+			name:       "an attached-only short flag never takes the next arg",
+			args:       []string{"-w", "mydb"},
+			flags:      []argFlag{{name: "-w", value: ""}},
+			positional: []string{"mydb"},
+		},
+		{
+			name:       "an attached-only long flag never takes the next arg",
+			args:       []string{"--password", "mydb"},
+			flags:      []argFlag{{name: "--password", value: ""}},
+			positional: []string{"mydb"},
+		},
+		{
+			name:  "an attached-only long flag keeps an inline value",
+			args:  []string{"--password=secret"},
+			flags: []argFlag{{name: "--password", value: "secret"}},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			flags, positional := scanFlags(test.args, valued)
+			flags, positional := scanFlags(test.args, arity)
 			assert.Equal(t, test.flags, flags)
 			assert.Equal(t, test.positional, positional)
 		})

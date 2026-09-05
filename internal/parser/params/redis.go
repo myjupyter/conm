@@ -97,7 +97,7 @@ func parseRedis(req request) (Result, error) {
 		}
 	}
 
-	flags, positional := scanFlags(req.args, redisValued)
+	flags, positional := scanFlags(req.args, redisArity)
 	uri, syntax, flags := redisConninfo(req.client, flags, positional)
 
 	if err := foreignScheme(req.kind, uri); err != nil {
@@ -119,12 +119,19 @@ func parseRedis(req request) (Result, error) {
 	return res, nil
 }
 
-func redisValued(name string) bool {
+func redisArity(name string) flagArity {
 	if key, ok := redisFlags[name]; ok {
-		return key != rdTLS
+		if key == rdTLS {
+			return noValueFlag
+		}
+
+		return valueFlag
+	}
+	if redisIgnoredFlags[name] {
+		return valueFlag
 	}
 
-	return redisIgnoredFlags[name]
+	return noValueFlag
 }
 
 func redisConninfo(client string, flags []argFlag, positional []string) (string, Syntax, []argFlag) {
@@ -161,7 +168,7 @@ func applyRedisFlags(values redisValues, client string, flags []argFlag) []strin
 		case flag.name == dsnFlag, flag.name == "-d" && client == config.IRedisCLI:
 			warnings = append(warnings, namedDSNWarning(flag.value))
 		case redisFlags[flag.name] == rdSocket:
-			warnings = append(warnings, fmt.Sprintf("unix socket %q has no host and port to keep", flag.value))
+			warnings = append(warnings, socketWarning(flag.value))
 		default:
 			if key, ok := redisFlags[flag.name]; ok {
 				values.set(key, flag.value)
@@ -200,7 +207,7 @@ func applyRedisURI(values redisValues, raw string) []string {
 		values.set(rdHost, unescape(host))
 		values.set(rdPort, port)
 		if len(hosts) > 1 {
-			warnings = append(warnings, fmt.Sprintf("kept only the first of %d hosts: %s", len(hosts), hosts[0]))
+			warnings = append(warnings, hostListWarning(hosts))
 		}
 	}
 

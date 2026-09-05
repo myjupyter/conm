@@ -52,12 +52,19 @@ type parseFunc func(request) (Result, error)
 
 var parsers = map[config.ConnType]parseFunc{
 	config.PostgresConnType: parsePostgres,
+	config.MySQLConnType:    parseMySQL,
 	config.RedisConnType:    parseRedis,
 }
 
 var schemes = map[string]config.ConnType{
 	"postgres":   config.PostgresConnType,
 	"postgresql": config.PostgresConnType,
+	"mysql":      config.MySQLConnType,
+	"mariadb":    config.MySQLConnType,
+	"maria":      config.MySQLConnType,
+	"percona":    config.MySQLConnType,
+	"aurora":     config.MySQLConnType,
+	"my":         config.MySQLConnType,
 	"redis":      config.RedisConnType,
 	"rediss":     config.RedisConnType,
 }
@@ -177,6 +184,14 @@ func clientDatabases(name string) string {
 
 func namedDSNWarning(value string) string {
 	return fmt.Sprintf("named dsn %q can't be resolved from here", value)
+}
+
+func socketWarning(value string) string {
+	return fmt.Sprintf("unix socket %q has no host and port to keep", value)
+}
+
+func hostListWarning(hosts []string) string {
+	return fmt.Sprintf("kept only the first of %d hosts: %s", len(hosts), hosts[0])
 }
 
 func (s Syntax) String() string {

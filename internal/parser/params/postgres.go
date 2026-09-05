@@ -107,7 +107,7 @@ func parsePostgres(req request) (Result, error) {
 		}
 	}
 
-	flags, positional := scanFlags(req.args, postgresValued)
+	flags, positional := scanFlags(req.args, postgresArity)
 	keywords, operands := splitPositional(positional)
 
 	conninfo, syntax, flags, operands := postgresConninfo(flags, operands, keywords)
@@ -149,12 +149,15 @@ func parsePostgres(req request) (Result, error) {
 	return res, nil
 }
 
-func postgresValued(name string) bool {
+func postgresArity(name string) flagArity {
 	if _, ok := postgresFlags[name]; ok {
-		return true
+		return valueFlag
+	}
+	if postgresIgnoredFlags[name] {
+		return valueFlag
 	}
 
-	return postgresIgnoredFlags[name]
+	return noValueFlag
 }
 
 func splitPositional(positional []string) (keywords, operands []string) {
@@ -256,7 +259,7 @@ func applyPostgresURI(values postgresValues, raw string) []string {
 		values.set(pgHost, unescape(host))
 		values.set(pgPort, port)
 		if len(hosts) > 1 {
-			warnings = append(warnings, fmt.Sprintf("kept only the first of %d hosts: %s", len(hosts), hosts[0]))
+			warnings = append(warnings, hostListWarning(hosts))
 		}
 	}
 
@@ -325,7 +328,7 @@ func setPostgresHostList(values postgresValues, raw string) []string {
 		return nil
 	}
 
-	return []string{fmt.Sprintf("kept only the first of %d hosts: %s", len(hosts), hosts[0])}
+	return []string{hostListWarning(hosts)}
 }
 
 func setPostgresPortList(values postgresValues, raw string) []string {

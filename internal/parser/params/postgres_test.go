@@ -304,9 +304,9 @@ func TestParseErrors(t *testing.T) {
 			want:  ErrTypeMismatch,
 		},
 		{
-			name:  "a database with no parser yet",
-			kind:  config.MySQLConnType,
-			input: `mysql -h localhost`,
+			name:  "a type with no parser",
+			kind:  config.ConnType(0),
+			input: `-h localhost`,
 			want:  ErrUnsupported,
 		},
 	}
