@@ -33,12 +33,12 @@ var searchPathRegexp = regexp.MustCompile(`(?:-c\s*|--)search_path\s*=\s*(\S+)`)
 
 var postgresFlags = map[string]postgresKey{
 	"-h":         pgHost,
-	"--host":     pgHost,
+	hostFlag:     pgHost,
 	"-p":         pgPort,
-	"--port":     pgPort,
+	portFlag:     pgPort,
 	"-U":         pgUser,
 	"-u":         pgUser,
-	"--user":     pgUser,
+	userFlag:     pgUser,
 	"--username": pgUser,
 	"-d":         pgDatabase,
 	"--dbname":   pgDatabase,

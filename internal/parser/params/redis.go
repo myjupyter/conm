@@ -33,10 +33,10 @@ const (
 
 var redisFlags = map[string]redisKey{
 	"-h":         rdHost,
-	"--host":     rdHost,
+	hostFlag:     rdHost,
 	"-p":         rdPort,
-	"--port":     rdPort,
-	"--user":     rdUser,
+	portFlag:     rdPort,
+	userFlag:     rdUser,
 	"--username": rdUser,
 	"-a":         rdPassword,
 	"--pass":     rdPassword,

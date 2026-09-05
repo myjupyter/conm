@@ -32,11 +32,11 @@ var mysqlURIRegexp = regexp.MustCompile(`^(?i:mysql|mariadb|maria|percona|aurora
 
 var mysqlFlags = map[string]mysqlKey{
 	"-h":         myHost,
-	"--host":     myHost,
+	hostFlag:     myHost,
 	"-P":         myPort,
-	"--port":     myPort,
+	portFlag:     myPort,
 	"-u":         myUser,
-	"--user":     myUser,
+	userFlag:     myUser,
 	"-p":         myPassword,
 	"--password": myPassword,
 	"-D":         myDatabase,

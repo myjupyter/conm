@@ -29,7 +29,12 @@ var (
 	ErrUnsupportedTLS   = errors.New("only the TLS mode is supported yet")
 )
 
-const dsnFlag = "--dsn"
+const (
+	dsnFlag  = "--dsn"
+	hostFlag = "--host"
+	portFlag = "--port"
+	userFlag = "--user"
+)
 
 var assignmentRegexp = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 
@@ -52,22 +57,30 @@ type request struct {
 type parseFunc func(request) (Result, error)
 
 var parsers = map[config.ConnType]parseFunc{
-	config.PostgresConnType: parsePostgres,
-	config.MySQLConnType:    parseMySQL,
-	config.RedisConnType:    parseRedis,
+	config.PostgresConnType:   parsePostgres,
+	config.MySQLConnType:      parseMySQL,
+	config.ClickHouseConnType: parseClickHouse,
+	config.RedisConnType:      parseRedis,
 }
 
 var schemes = map[string]config.ConnType{
-	"postgres":   config.PostgresConnType,
-	"postgresql": config.PostgresConnType,
-	"mysql":      config.MySQLConnType,
-	"mariadb":    config.MySQLConnType,
-	"maria":      config.MySQLConnType,
-	"percona":    config.MySQLConnType,
-	"aurora":     config.MySQLConnType,
-	"my":         config.MySQLConnType,
-	"redis":      config.RedisConnType,
-	"rediss":     config.RedisConnType,
+	"postgres":    config.PostgresConnType,
+	"postgresql":  config.PostgresConnType,
+	"mysql":       config.MySQLConnType,
+	"mariadb":     config.MySQLConnType,
+	"maria":       config.MySQLConnType,
+	"percona":     config.MySQLConnType,
+	"aurora":      config.MySQLConnType,
+	"my":          config.MySQLConnType,
+	"clickhouse":  config.ClickHouseConnType,
+	"clickhouses": config.ClickHouseConnType,
+	"ch":          config.ClickHouseConnType,
+	"redis":       config.RedisConnType,
+	"rediss":      config.RedisConnType,
+}
+
+var clientAliases = map[string]string{
+	"clickhouse-client": config.ClickHouseCLI,
 }
 
 var knownClients = func() map[string]bool {
@@ -165,7 +178,12 @@ func clientName(arg string) string {
 		return ""
 	}
 
-	return filepath.Base(arg)
+	name := filepath.Base(arg)
+	if alias, ok := clientAliases[name]; ok {
+		return alias
+	}
+
+	return name
 }
 
 func isClient(name string) bool {
