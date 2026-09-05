@@ -1,7 +1,6 @@
 version: "2"
 
 run:
-  # No test suite yet, but lint them the moment they appear.
   tests: true
   timeout: 5m
 
@@ -59,7 +58,8 @@ linters:
     - intrange
     - usestdlibvars
     - exptostd
-    # testing (no tests today; these guard the ones that get added)
+    # testing
+    - testifylint # testify argument order, assert-vs-require, useless assertions
     - thelper
     - usetesting
 
@@ -272,6 +272,15 @@ linters:
         text: "G703"
         linters:
           - gosec
+
+      # A FormSpec is a declaration, not logic. Two databases of the same shape
+      # (host, port, user, secret, database, one extra string, one extra flag)
+      # necessarily spell the same literal, and the shared halves are already
+      # factored out into spec.go — what is left is the form itself, which has
+      # to stay readable as a form.
+      - path: internal/ui/spec/
+        linters:
+          - dupl
 
       - path: _test\.go
         linters:
