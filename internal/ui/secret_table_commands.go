@@ -15,11 +15,11 @@ import (
 
 func (m secretModel) addSecretCmd() tea.Cmd {
 	return secretChangeExec(func() error {
-		sec, password, ok, err := runAddSecretForm(m.secrets.Active())
-		if err != nil || !ok {
-			return err
-		}
-		return m.secrets.Add(context.Background(), sec, password)
+		_, err := runAddSecret(m.secrets.Active(), func(r secretResult) error {
+			return m.secrets.Add(context.Background(), r.record, r.password)
+		})
+
+		return err
 	})
 }
 
@@ -29,11 +29,11 @@ func (m secretModel) editSecretCmd() tea.Cmd {
 		return nil
 	}
 	return secretChangeExec(func() error {
-		sec, password, ok, err := runEditSecretForm(m.secrets.Active(), existing)
-		if err != nil || !ok {
-			return err
-		}
-		return m.secrets.Edit(context.Background(), sec, password)
+		_, err := runEditSecret(m.secrets.Active(), existing, func(r secretResult) error {
+			return m.secrets.Edit(context.Background(), r.record, r.password)
+		})
+
+		return err
 	})
 }
 

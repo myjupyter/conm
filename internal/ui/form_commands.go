@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -12,74 +11,102 @@ import (
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
-func RunAddForm(
-	conm config.Conm,
+func connectionForm(
 	t config.ConnType,
-	initial map[spec.FormFieldKey]spec.FormFieldValue,
-	warnings []string,
-) (bool, error) {
-	// The workspace, not just the connection repository: the form offers the
-	// secret stores as password modes, so it needs them open too.
+	isEdit bool,
+	secrets *view.Secrets,
+	save func(config.Connection) error,
+) (formLoop[config.Connection], error) {
+	formSpec, ok := spec.FormSpecs[t]
+	if !ok {
+		return formLoop[config.Connection]{}, fmt.Errorf("form is not implemented for connection type %q", t)
+	}
+
+	title := formSpec.AddTitle
+	if isEdit {
+		title = formSpec.EditTitle
+	}
+
+	return formLoop[config.Connection]{
+		open: func(initial formValues, status formStatus) (formResult[config.Connection], error) {
+			model := newFormModel(t, formSpec, title, initial, isEdit, secrets)
+			if status.text != "" {
+				model.status, model.statusKind = status.text, status.kind
+			}
+
+			return runForm(model)
+		},
+		save: save,
+	}, nil
+}
+
+func RunAddForm(conm config.Conm, t config.ConnType, initial formValues, warnings []string) (bool, error) {
 	ws, err := repository.NewWorkspace(conm)
 	if err != nil {
 		return false, err
 	}
 	defer ws.Close()
 
-	cfg, ok, err := runAddForm(t, initial, warnings, view.NewSecrets(ws.Keyring))
-	if err != nil || !ok {
-		return false, err
-	}
-
-	repo, ok := ws.ConnectionsOf(cfg.ConnType())
+	repo, ok := ws.ConnectionsOf(t)
 	if !ok {
-		return false, fmt.Errorf("%q is not enabled\nrun 'conm init' to enable it", cfg.ConnType())
+		return false, fmt.Errorf("%q is not enabled\nrun 'conm init' to enable it", t)
 	}
 
-	if err := repo.Add(cfg); err != nil {
+	loop, err := connectionForm(t, false, view.NewSecrets(ws.Keyring), repo.Add)
+	if err != nil {
 		return false, err
 	}
 
-	return true, nil
+	return loop.run(initial, warnStatus(warnings))
 }
 
-func runAddForm(
+func runAddConnection(
 	t config.ConnType,
-	initial map[spec.FormFieldKey]spec.FormFieldValue,
-	warnings []string,
 	secrets *view.Secrets,
-) (config.Connection, bool, error) {
-	formSpec, ok := spec.FormSpecs[t]
-	if !ok {
-		return nil, false, fmt.Errorf("add form is not implemented for connection type %q", t)
+	save func(config.Connection) error,
+) (bool, error) {
+	loop, err := connectionForm(t, false, secrets, save)
+	if err != nil {
+		return false, err
 	}
 
-	model := newFormModel(t, formSpec, formSpec.AddTitle, initial, false, secrets)
-	if len(warnings) > 0 {
-		model.status = strings.Join(warnings, " · ")
-		model.statusKind = kindWarn
-	}
-
-	return runForm(model)
+	return loop.run(nil, formStatus{})
 }
 
-func RunEditForm(t config.ConnType, existing config.Connection, secrets *view.Secrets) (config.Connection, bool, error) {
+func runEditConnection(
+	t config.ConnType,
+	existing config.Connection,
+	secrets *view.Secrets,
+	save func(config.Connection) error,
+) (bool, error) {
+	initial, err := seedConnection(t, existing)
+	if err != nil {
+		return false, err
+	}
+
+	loop, err := connectionForm(t, true, secrets, save)
+	if err != nil {
+		return false, err
+	}
+
+	return loop.run(initial, formStatus{})
+}
+
+func seedConnection(t config.ConnType, existing config.Connection) (formValues, error) {
 	formSpec, ok := spec.FormSpecs[t]
 	if !ok {
-		return nil, false, fmt.Errorf("edit form is not implemented for connection type %q", t)
+		return nil, fmt.Errorf("edit form is not implemented for connection type %q", t)
 	}
 	if formSpec.SeedFunc == nil {
-		return nil, false, fmt.Errorf("edit form is not seedable for connection type %q", t)
+		return nil, fmt.Errorf("edit form is not seedable for connection type %q", t)
 	}
 
-	// A nil seed would make newFormModel read the form as an add — silently
-	// showing "new connection" instead of the entry the user picked.
 	initial := formSpec.SeedFunc(existing)
 	if initial == nil {
-		return nil, false, fmt.Errorf("edit form cannot seed a %T as connection type %q", existing, t)
+		return nil, fmt.Errorf("edit form cannot seed a %T as connection type %q", existing, t)
 	}
 
-	return runForm(newFormModel(t, formSpec, formSpec.EditTitle, initial, true, secrets))
+	return initial, nil
 }
 
 // pickSecretCmd hands the terminal to the keyring screen and folds the chosen
@@ -103,24 +130,26 @@ func (m formModel) pickSecretCmd() tea.Cmd {
 	)
 }
 
-func runForm(model formModel) (config.Connection, bool, error) {
+func runForm(model formModel) (formResult[config.Connection], error) {
+	var none formResult[config.Connection]
+
 	m, err := tea.NewProgram(model).Run()
 	if err != nil {
-		return nil, false, err
+		return none, err
 	}
 
 	fm, ok := m.(formModel)
 	if !ok {
-		return nil, false, fmt.Errorf("connection form returned an unexpected model %T", m)
+		return none, fmt.Errorf("connection form returned an unexpected model %T", m)
 	}
 	if !fm.submitted {
-		return nil, false, nil
+		return none, nil
 	}
 
 	cfg, err := fm.result()
 	if err != nil {
-		return nil, false, err
+		return none, err
 	}
 
-	return cfg, true, nil
+	return formResult[config.Connection]{value: cfg, values: fm.values(), ok: true}, nil
 }

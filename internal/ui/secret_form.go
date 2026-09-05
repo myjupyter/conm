@@ -29,20 +29,21 @@ type secretFormModel struct {
 	statusKind statusKind
 }
 
-func newSecretFormModel(spc spec.FormSpec[config.Secret], title string, initial map[spec.FormFieldKey]spec.FormFieldValue) secretFormModel {
+func newSecretFormModel(spc spec.FormSpec[config.Secret], title string, initial formValues, isEdit bool) secretFormModel {
 	m := secretFormModel{
 		spec:       spc,
 		title:      title,
-		isEdit:     initial != nil,
+		isEdit:     isEdit,
 		vals:       make(map[string]string, len(spc.Fields)),
 		status:     statusReady,
 		statusKind: kindIdle,
 	}
 
 	for _, f := range spc.Fields {
+		seeded, ok := initial[f.Key]
 		switch {
-		case initial != nil:
-			m.vals[f.Key] = initial[f.Key]
+		case ok:
+			m.vals[f.Key] = seeded
 		case f.Kind == spec.SelectFieldKind:
 			m.vals[f.Key] = f.DefaultValue
 			if m.vals[f.Key] == "" && len(f.Options) > 0 {

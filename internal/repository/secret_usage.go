@@ -1,9 +1,7 @@
 package repository
 
 import (
-	"fmt"
 	"iter"
-	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
@@ -53,19 +51,4 @@ func (ix *Index) Usages(ref string) []Usage {
 func trackable(raw string) bool {
 	scheme, _, ok := secret.ParseRef(raw)
 	return ok && secret.IsStore(scheme)
-}
-
-type SecretInUseError struct {
-	ID string
-	By []Usage
-}
-
-func (e *SecretInUseError) Error() string {
-	owners := make([]string, 0, len(e.By))
-	for _, u := range e.By {
-		owners = append(owners, u.String())
-	}
-
-	return fmt.Sprintf("secret %q is still in use by %d connection(s): %s",
-		e.ID, len(e.By), strings.Join(owners, ", "))
 }

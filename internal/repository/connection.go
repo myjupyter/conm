@@ -130,7 +130,8 @@ func (r *ConnectionRepository) Add(cfg config.Connection) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	if err := r.check(cfg); err != nil {
+	const noSelf = -1
+	if err := r.check(cfg, noSelf); err != nil {
 		return fmt.Errorf("add: %w", err)
 	}
 
@@ -156,7 +157,7 @@ func (r *ConnectionRepository) Edit(i int, cfg config.Connection) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	if err := r.check(cfg); err != nil {
+	if err := r.check(cfg, i); err != nil {
 		return fmt.Errorf("edit: %w", err)
 	}
 
@@ -238,12 +239,12 @@ func (r *ConnectionRepository) Close() error {
 	return nil
 }
 
-func (r *ConnectionRepository) check(cfg config.Connection) error {
+func (r *ConnectionRepository) check(cfg config.Connection, self int) error {
 	if cfg.ConnType() != r.kind {
 		return fmt.Errorf("connection type %q doesn't belong to the %q repository", cfg.ConnType(), r.kind)
 	}
 
-	return nil
+	return validateUnique(r.others(self), cfg)
 }
 
 func (r *ConnectionRepository) at(i int) (config.Connection, bool) {

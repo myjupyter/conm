@@ -38,11 +38,9 @@ func (m Model) runCmd() tea.Cmd {
 
 func (m Model) addCmd() tea.Cmd {
 	return changeExec(func() error {
-		cfg, ok, err := runAddForm(m.conns.Active(), nil, nil, m.secrets)
-		if err != nil || !ok {
-			return err
-		}
-		return m.conns.Add(cfg)
+		_, err := runAddConnection(m.conns.Active(), m.secrets, m.conns.Add)
+
+		return err
 	})
 }
 
@@ -52,11 +50,9 @@ func (m Model) editCmd() tea.Cmd {
 		return nil
 	}
 	return changeExec(func() error {
-		edited, ok, err := RunEditForm(cfg.ConnType(), cfg, m.secrets)
-		if err != nil || !ok {
-			return err
-		}
-		return m.conns.Edit(edited)
+		_, err := runEditConnection(cfg.ConnType(), cfg, m.secrets, m.conns.Edit)
+
+		return err
 	})
 }
 
