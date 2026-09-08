@@ -147,7 +147,7 @@ func (m Model) rowLine(i int) string {
 
 	spans := []span{
 		{text: caret + mark, fg: markC, bg: bg},
-		{text: " " + truncPad(cfg.Name(), wName, false), fg: fg, bg: bg},
+		{text: " " + truncPad(cfg.Meta().Name, wName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(cfg.Username(), wUser, false), fg: soft, bg: bg},
 		{text: " " + truncPad(cfg.Host(), wHost, false), fg: fg, bg: bg},
 		{text: " " + truncPad(strconv.Itoa(cfg.Port()), wPort, true), fg: soft, bg: bg},

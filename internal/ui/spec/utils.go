@@ -10,7 +10,7 @@ import (
 
 func metadataSection(nameKey, descriptionKey, tagsKey FormFieldKey) FormSection {
 	return FormSection{
-		Title:  metadataSectionTitle,
+		Title:  MetadataSectionTitle,
 		Note:   metadataSectionNote,
 		Fields: []FormFieldKey{nameKey, descriptionKey, tagsKey},
 	}
@@ -35,6 +35,7 @@ func buildMeta(values map[FormFieldKey]FormFieldValue, nameKey, descriptionKey, 
 		Name:        values[nameKey],
 		Description: values[descriptionKey],
 		Tags:        parseTags(values[tagsKey]),
+		Links:       LinksFrom(values),
 	}
 }
 

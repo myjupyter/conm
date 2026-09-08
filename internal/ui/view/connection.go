@@ -116,16 +116,17 @@ func (v *Connections) rowRepo(action string, i int) (ConnRef, repository.Connect
 }
 
 func connectionFields(c config.Connection) []string {
+	meta := c.Meta()
 	values := append([]string{
-		c.Name(),
-		c.Description(),
+		meta.Name,
+		meta.Description,
 		c.Username(),
 		c.Host(),
 		c.Database(),
 		c.Schema(),
 		strconv.Itoa(c.Port()),
 		c.ConnType().String(),
-	}, c.Tags()...)
+	}, meta.Tags...)
 
 	return searchable(values...)
 }

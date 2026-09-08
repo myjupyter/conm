@@ -2,6 +2,9 @@ package ui
 
 import (
 	"fmt"
+	"os/exec"
+	"runtime"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -106,7 +109,68 @@ func seedConnection(t config.ConnType, existing config.Connection) (formValues, 
 		return nil, fmt.Errorf("edit form cannot seed a %T as connection type %q", existing, t)
 	}
 
+	spec.SeedLinks(existing.Meta().Links, initial)
+
 	return initial, nil
+}
+
+// openLink hands a link's url to the browser. The form stays where it is: the
+// url is checked first, and whatever the browser reports comes back as a status
+// line rather than as a reason to leave.
+func (m formModel) openLink(key spec.FormFieldKey) (tea.Model, tea.Cmd) {
+	i, ok := spec.LinkIndexOf(key)
+	if !ok {
+		return m, nil
+	}
+
+	name := strings.TrimSpace(m.vals[spec.LinkNameKey(i)])
+	if name == "" {
+		name = fmt.Sprintf("link %d", i+1)
+	}
+
+	url := strings.TrimSpace(m.vals[spec.LinkURLKey(i)])
+	if err := config.ValidateWebLinkURL(url); err != nil {
+		m.attempted = true
+		m.setStatus(name+" · "+err.Error(), kindErr)
+		return m, nil
+	}
+
+	m.setStatus("opening "+name+" · "+url, kindPending)
+	return m, openURLCmd(name, url)
+}
+
+type linkOpenedMsg struct {
+	name string
+	err  error
+}
+
+func openURLCmd(name, url string) tea.Cmd {
+	return func() tea.Msg {
+		opener := "xdg-open"
+		if runtime.GOOS == "darwin" {
+			opener = "open"
+		}
+
+		// The opener hands off to the browser and is done with; it is started
+		// rather than waited for, because xdg-open on some desktops does not
+		// return until the browser it launched exits.
+		cmd := exec.Command(opener, url)
+		if err := cmd.Start(); err != nil {
+			return linkOpenedMsg{name: name, err: err}
+		}
+		go func() { _ = cmd.Wait() }()
+
+		return linkOpenedMsg{name: name}
+	}
+}
+
+func (m formModel) applyLinkOpened(msg linkOpenedMsg) formModel {
+	if msg.err != nil {
+		m.setStatus("couldn't open "+msg.name+" · "+msg.err.Error(), kindErr)
+		return m
+	}
+	m.setStatus("opened "+msg.name+" in the browser", kindOK)
+	return m
 }
 
 // pickSecretCmd hands the terminal to the keyring screen and folds the chosen

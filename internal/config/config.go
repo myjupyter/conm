@@ -9,9 +9,7 @@ import (
 )
 
 type Connection interface {
-	Name() string
-	Description() string
-	Tags() []string
+	Meta() ConnMeta
 
 	Username() string
 	Host() string

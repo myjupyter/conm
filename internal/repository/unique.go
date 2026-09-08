@@ -51,16 +51,21 @@ func validateUnique(existing iter.Seq[config.Connection], c config.Connection) e
 	if other, ok := utils.FirstDuplicate(existing, keyOf, c); ok {
 		return &DuplicateConnectionError{
 			Kind:   c.ConnType(),
-			Name:   other.Name(),
+			Name:   other.Meta().Name,
 			Target: keyOf(c).String(),
 		}
 	}
 
-	if c.Name() == "" {
+	if c.Meta().Name == "" {
 		return nil
 	}
-	if _, ok := utils.FirstDuplicate(existing, config.Connection.Name, c); ok {
-		return &DuplicateNameError{Kind: c.ConnType(), Name: c.Name()}
+
+	keyFn := func(c config.Connection) string {
+		return c.Meta().Name
+	}
+
+	if _, ok := utils.FirstDuplicate(existing, keyFn, c); ok {
+		return &DuplicateNameError{Kind: c.ConnType(), Name: c.Meta().Name}
 	}
 
 	return nil

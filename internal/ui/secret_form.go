@@ -60,13 +60,42 @@ func newSecretFormModel(spc spec.FormSpec[config.Secret], title string, initial 
 func (m secretFormModel) Init() tea.Cmd { return nil }
 
 func (m secretFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyPressMsg); ok {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		if keyMap.Paste.matches(msg.String()) {
+			return m, readClipboardCmd()
+		}
 		if m.insert {
 			return m.insertKey(msg)
 		}
 		return m.navKey(msg)
+	case clipboardMsg:
+		return m.applyPaste(msg.text, msg.err), nil
+	case tea.PasteMsg:
+		return m.applyPaste(msg.Content, nil), nil
 	}
 	return m, nil
+}
+
+// applyPaste appends the clipboard to the field under the cursor. A select is
+// not typed into, so it is not pasted into either.
+func (m secretFormModel) applyPaste(raw string, err error) secretFormModel {
+	text, refusal := pasteReady(raw, err)
+	if text == "" {
+		m.setStatus(refusal.text, refusal.kind)
+		return m
+	}
+
+	cur := m.spec.Fields[m.idx]
+	if cur.Kind == spec.SelectFieldKind {
+		m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
+		return m
+	}
+
+	m.insert = true
+	m.vals[cur.Key] += text
+	m.setStatus("pasted · "+keyMap.Cancel.hint+" when done", kindIdle)
+	return m
 }
 
 func (m secretFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {

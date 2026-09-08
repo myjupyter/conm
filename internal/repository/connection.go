@@ -97,7 +97,7 @@ func (r *ConnectionRepository) SecretRefs() iter.Seq2[string, secret.Reference] 
 				continue
 			}
 
-			if !yield(c.Name(), ref) {
+			if !yield(c.Meta().Name, ref) {
 				return
 			}
 		}

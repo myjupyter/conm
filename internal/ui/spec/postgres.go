@@ -171,9 +171,9 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(postgresFormFieldDatabase):    pg.DBName,
 			strings.ToLower(postgresFormFieldSchema):      pg.SchemaName,
 			strings.ToLower(postgresFormFieldSSLMode):     pg.SSLMode,
-			strings.ToLower(postgresFormFieldName):        pg.Meta.Name,
-			strings.ToLower(postgresFormFieldDescription): pg.Meta.Description,
-			strings.ToLower(postgresFormFieldTags):        strings.Join(pg.Meta.Tags, ", "),
+			strings.ToLower(postgresFormFieldName):        pg.Metadata.Name,
+			strings.ToLower(postgresFormFieldDescription): pg.Metadata.Description,
+			strings.ToLower(postgresFormFieldTags):        strings.Join(pg.Metadata.Tags, ", "),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
@@ -183,7 +183,7 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.Postgres{
-			Meta: buildMeta(
+			Metadata: buildMeta(
 				values,
 				strings.ToLower(postgresFormFieldName),
 				strings.ToLower(postgresFormFieldDescription),

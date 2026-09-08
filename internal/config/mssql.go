@@ -24,7 +24,7 @@ const mssqlScheme = "sqlserver"
 var _ Connection = (*MSSQL)(nil)
 
 type MSSQL struct {
-	Meta        ConnMeta `toml:"meta"`
+	Metadata    ConnMeta `toml:"meta"`
 	Hostname    string   `toml:"host" json:"host"`
 	PortNumber  int      `toml:"port" json:"port"`
 	User        string   `toml:"username" json:"username"`
@@ -169,20 +169,8 @@ func (m MSSQL) ConnType() ConnType {
 	return MSSQLConnType
 }
 
-func (m MSSQL) ConnMeta() ConnMeta {
-	return m.Meta
-}
-
-func (m MSSQL) Name() string {
-	return m.Meta.Name
-}
-
-func (m MSSQL) Description() string {
-	return m.Meta.Description
-}
-
-func (m MSSQL) Tags() []string {
-	return m.Meta.Tags
+func (m MSSQL) Meta() ConnMeta {
+	return m.Metadata
 }
 
 func (m MSSQL) Host() string {
@@ -254,8 +242,8 @@ func (m MSSQL) Validate() []error {
 		ValidateMSSQLUsername(m.User),
 		ValidateMSSQLDatabase(m.DBName),
 		ValidateMSSQLEncryptMode(m.EncryptMode),
-		ValidateMSSQLName(m.Meta.Name),
-		ValidateMSSQLDescription(m.Meta.Description),
+		ValidateMSSQLName(m.Metadata.Name),
+		ValidateMSSQLDescription(m.Metadata.Description),
 	)
 }
 

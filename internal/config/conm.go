@@ -9,12 +9,6 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-type ConnMeta struct {
-	Name        string   `toml:"name,omitempty"`
-	Description string   `toml:"description,omitempty"`
-	Tags        []string `toml:"tags,omitempty"`
-}
-
 type ConnType int
 
 const (

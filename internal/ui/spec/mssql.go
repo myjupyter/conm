@@ -169,9 +169,9 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(mssqlFormFieldDatabase):    ms.DBName,
 			strings.ToLower(mssqlFormFieldEncrypt):     ms.EncryptMode,
 			strings.ToLower(mssqlFormFieldTrustCert):   strconv.FormatBool(ms.TrustCert),
-			strings.ToLower(mssqlFormFieldName):        ms.Meta.Name,
-			strings.ToLower(mssqlFormFieldDescription): ms.Meta.Description,
-			strings.ToLower(mssqlFormFieldTags):        strings.Join(ms.Meta.Tags, ", "),
+			strings.ToLower(mssqlFormFieldName):        ms.Metadata.Name,
+			strings.ToLower(mssqlFormFieldDescription): ms.Metadata.Description,
+			strings.ToLower(mssqlFormFieldTags):        strings.Join(ms.Metadata.Tags, ", "),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
@@ -181,7 +181,7 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.MSSQL{
-			Meta: buildMeta(
+			Metadata: buildMeta(
 				values,
 				strings.ToLower(mssqlFormFieldName),
 				strings.ToLower(mssqlFormFieldDescription),

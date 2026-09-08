@@ -154,9 +154,9 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 			SecretValueKey:                             value,
 			strings.ToLower(mysqlFormFieldDatabase):    my.DBName,
 			strings.ToLower(mysqlFormFieldTLSMode):     my.TLSMode,
-			strings.ToLower(mysqlFormFieldName):        my.Meta.Name,
-			strings.ToLower(mysqlFormFieldDescription): my.Meta.Description,
-			strings.ToLower(mysqlFormFieldTags):        strings.Join(my.Meta.Tags, ", "),
+			strings.ToLower(mysqlFormFieldName):        my.Metadata.Name,
+			strings.ToLower(mysqlFormFieldDescription): my.Metadata.Description,
+			strings.ToLower(mysqlFormFieldTags):        strings.Join(my.Metadata.Tags, ", "),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
@@ -166,7 +166,7 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.MySQL{
-			Meta: buildMeta(
+			Metadata: buildMeta(
 				values,
 				strings.ToLower(mysqlFormFieldName),
 				strings.ToLower(mysqlFormFieldDescription),

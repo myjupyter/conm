@@ -167,9 +167,9 @@ var RedisFormSpec = FormSpec[config.Connection]{
 			SecretValueKey:                             value,
 			strings.ToLower(redisFormFieldDatabase):    strconv.Itoa(rd.DBIndex),
 			strings.ToLower(redisFormFieldTLSMode):     rd.TLSMode,
-			strings.ToLower(redisFormFieldName):        rd.Meta.Name,
-			strings.ToLower(redisFormFieldDescription): rd.Meta.Description,
-			strings.ToLower(redisFormFieldTags):        strings.Join(rd.Meta.Tags, ", "),
+			strings.ToLower(redisFormFieldName):        rd.Metadata.Name,
+			strings.ToLower(redisFormFieldDescription): rd.Metadata.Description,
+			strings.ToLower(redisFormFieldTags):        strings.Join(rd.Metadata.Tags, ", "),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
@@ -184,7 +184,7 @@ var RedisFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.Redis{
-			Meta: buildMeta(
+			Metadata: buildMeta(
 				values,
 				strings.ToLower(redisFormFieldName),
 				strings.ToLower(redisFormFieldDescription),

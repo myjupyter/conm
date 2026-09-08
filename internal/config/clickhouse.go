@@ -15,7 +15,7 @@ const clickhouseScheme = "clickhouse"
 var _ Connection = (*ClickHouse)(nil)
 
 type ClickHouse struct {
-	Meta       ConnMeta `toml:"meta"`
+	Metadata   ConnMeta `toml:"meta"`
 	Hostname   string   `toml:"host" json:"host"`
 	PortNumber int      `toml:"port" json:"port"`
 	User       string   `toml:"username" json:"username"`
@@ -147,20 +147,8 @@ func (c ClickHouse) ConnType() ConnType {
 	return ClickHouseConnType
 }
 
-func (c ClickHouse) ConnMeta() ConnMeta {
-	return c.Meta
-}
-
-func (c ClickHouse) Name() string {
-	return c.Meta.Name
-}
-
-func (c ClickHouse) Description() string {
-	return c.Meta.Description
-}
-
-func (c ClickHouse) Tags() []string {
-	return c.Meta.Tags
+func (c ClickHouse) Meta() ConnMeta {
+	return c.Metadata
 }
 
 func (c ClickHouse) Host() string {
@@ -228,8 +216,8 @@ func (c ClickHouse) Validate() []error {
 		ValidateClickHousePort(c.PortNumber),
 		ValidateClickHouseUsername(c.User),
 		ValidateClickHouseDatabase(c.DBName),
-		ValidateClickHouseName(c.Meta.Name),
-		ValidateClickHouseDescription(c.Meta.Description),
+		ValidateClickHouseName(c.Metadata.Name),
+		ValidateClickHouseDescription(c.Metadata.Description),
 	)
 }
 

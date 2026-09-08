@@ -11,8 +11,8 @@ const tagsMaxLength = 255
 const (
 	connectionSectionTitle = "connection"
 	connectionSectionNote  = "how conm reaches the server"
-	metadataSectionTitle   = "metadata"
-	metadataSectionNote    = "yours — never sent to the server"
+	MetadataSectionTitle   = "meta"
+	metadataSectionNote    = "meta information about the connection"
 )
 
 const (

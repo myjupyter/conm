@@ -14,6 +14,15 @@ const (
 	formInner  = 88
 	formLabelW = 12
 	formBoxW   = 46
+
+	// The rail bracketing a link's two rows takes its width out of the label,
+	// so every input box still starts in the same column.
+	railW = 2
+
+	// The metadata section is drawn as two titled blocks rather than one
+	// undifferentiated pile: the fields every entity shares, then the links.
+	commonHeadTitle = "common"
+	linksHeadTitle  = "links"
 )
 
 func (m formModel) View() tea.View {
@@ -29,11 +38,23 @@ func (m formModel) render() string {
 		frameLine(formInner, nil, nil),
 		m.tabLine(),
 		m.dividerLine(),
-		m.noteLine(),
+	}
+
+	titled := m.hasLinks() && m.section == m.linkSect
+	if titled {
+		lines = append(lines, frameHead(formInner, commonHeadTitle, "")...)
+	} else {
+		lines = append(lines, m.noteLine())
 	}
 
 	for _, i := range m.sectionFields(m.section) {
+		if m.fields[i].Key == spec.LinkNameKey(0) {
+			lines = append(lines, m.linkHeadLines()...)
+		}
 		lines = append(lines, m.fieldRow(i), m.messageRow(i))
+	}
+	if titled && m.linkCount() == 0 {
+		lines = append(lines, m.linkHeadLines()...)
 	}
 	lines = append(lines, frameLine(formInner, nil, nil))
 
@@ -100,6 +121,17 @@ func (m formModel) dividerLine() string {
 	}, nil)
 }
 
+func (m formModel) linkHeadLines() []string {
+	// The keys are in the footer, so the header only speaks up when the list is
+	// empty and there is nothing else to say what to do.
+	note := ""
+	if m.linkCount() == 0 {
+		note = "nothing linked yet — " + keyMap.Add.hint + " adds one"
+	}
+
+	return frameHead(formInner, linksHeadTitle, note)
+}
+
 func (m formModel) noteLine() string {
 	return frameLine(formInner, []span{
 		{text: "  ", fg: cDim},
@@ -108,13 +140,11 @@ func (m formModel) noteLine() string {
 }
 
 func (m formModel) fieldRow(i int) string {
-	f := m.spec.Fields[i]
+	f := m.fields[i]
 	active := i == m.currentField()
+	pair, first, pairActive := m.linkPair(i)
 
-	var bg color.Color
-	if active {
-		bg = cAccent
-	}
+	bg := m.rowBg(active, pair, pairActive)
 
 	caret := "   "
 	if active {
@@ -132,18 +162,55 @@ func (m formModel) fieldRow(i int) string {
 	}
 
 	box := m.inputBox(i, active, bg)
-	spans := make([]span, 0, 3+len(box))
+	labelW := formLabelW
+
+	spans := make([]span, 0, 4+len(box))
+	spans = append(spans, span{text: caret, fg: caretColor(active), bg: bg, bold: true})
+	if pair {
+		labelW -= railW
+		spans = append(spans, span{text: railGlyph(first) + " ", fg: railColor(active, pairActive), bg: bg})
+	}
 	spans = append(spans,
-		span{text: caret, fg: caretColor(active), bg: bg, bold: true},
 		span{text: gutter + " ", fg: gc, bg: bg},
-		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
+		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, bold: active},
 	)
 	spans = append(spans, box...)
 	return frameLine(formInner, spans, bg)
 }
 
+// rowBg tints a link's two rows together: the row under the cursor takes the
+// full accent, its sibling a dim wash, so the pair reads as one object.
+func (m formModel) rowBg(active, pair, pairActive bool) color.Color {
+	switch {
+	case active:
+		return cAccent
+	case pair && pairActive:
+		return cPairBg
+	default:
+		return nil
+	}
+}
+
+func railGlyph(first bool) string {
+	if first {
+		return gCornerTL
+	}
+	return gCornerBL
+}
+
+func railColor(active, pairActive bool) color.Color {
+	switch {
+	case active:
+		return cInvFg
+	case pairActive:
+		return cAccent
+	default:
+		return cRail
+	}
+}
+
 func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
-	f := m.spec.Fields[i]
+	f := m.fields[i]
 
 	borderFg := cBorder
 	if active {
@@ -201,7 +268,7 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 }
 
 func (m formModel) display(i int, active bool) (string, bool) {
-	f := m.spec.Fields[i]
+	f := m.fields[i]
 	raw := m.vals[f.Key]
 
 	if m.isSecretField(i) && m.noSecret() {
@@ -236,7 +303,7 @@ func (m formModel) display(i int, active bool) (string, bool) {
 }
 
 func (m formModel) gutter(i int, active bool) (string, color.Color) {
-	f := m.spec.Fields[i]
+	f := m.fields[i]
 	raw := m.vals[f.Key]
 
 	var g string
@@ -267,11 +334,14 @@ func (m formModel) messageRow(i int) string {
 			text = gFieldBad + " " + e
 		}
 	}
+	pair, _, pairActive := m.linkPair(i)
+	bg := m.rowBg(false, pair, pairActive)
+
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
 	return frameLine(formInner, []span{
-		{text: prefix, fg: cDim},
-		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: col},
-	}, nil)
+		{text: prefix, fg: cDim, bg: bg},
+		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: col, bg: bg},
+	}, bg)
 }
 
 func (m formModel) pongLine() string {

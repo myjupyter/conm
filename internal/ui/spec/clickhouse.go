@@ -153,9 +153,9 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 			SecretValueKey:                                  value,
 			strings.ToLower(clickhouseFormFieldDatabase):    ch.DBName,
 			strings.ToLower(clickhouseFormFieldSecure):      strconv.FormatBool(ch.Secure),
-			strings.ToLower(clickhouseFormFieldName):        ch.Meta.Name,
-			strings.ToLower(clickhouseFormFieldDescription): ch.Meta.Description,
-			strings.ToLower(clickhouseFormFieldTags):        strings.Join(ch.Meta.Tags, ", "),
+			strings.ToLower(clickhouseFormFieldName):        ch.Metadata.Name,
+			strings.ToLower(clickhouseFormFieldDescription): ch.Metadata.Description,
+			strings.ToLower(clickhouseFormFieldTags):        strings.Join(ch.Metadata.Tags, ", "),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
@@ -165,7 +165,7 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.ClickHouse{
-			Meta: buildMeta(
+			Metadata: buildMeta(
 				values,
 				strings.ToLower(clickhouseFormFieldName),
 				strings.ToLower(clickhouseFormFieldDescription),

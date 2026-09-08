@@ -48,6 +48,7 @@ type keymap struct {
 
 	// Text editing.
 	Backspace binding
+	Paste     binding
 
 	// The y/n confirmation prompt.
 	Yes binding
@@ -91,6 +92,7 @@ func defaultKeymap() keymap {
 		AddDB:   newBinding("ctrl+a", "ctrl+a"),
 
 		Backspace: newBinding("backspace", "backspace"),
+		Paste:     newBinding("ctrl+v", "ctrl+v"),
 
 		Yes: newBinding("y", "y"),
 		No:  newBinding("n", "n", "esc"),

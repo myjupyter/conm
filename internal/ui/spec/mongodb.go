@@ -163,9 +163,9 @@ var MongoDBFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(mongodbFormFieldDatabase):    mg.DBName,
 			strings.ToLower(mongodbFormFieldAuthSource):  mg.AuthSource,
 			strings.ToLower(mongodbFormFieldTLS):         strconv.FormatBool(mg.TLS),
-			strings.ToLower(mongodbFormFieldName):        mg.Meta.Name,
-			strings.ToLower(mongodbFormFieldDescription): mg.Meta.Description,
-			strings.ToLower(mongodbFormFieldTags):        strings.Join(mg.Meta.Tags, ", "),
+			strings.ToLower(mongodbFormFieldName):        mg.Metadata.Name,
+			strings.ToLower(mongodbFormFieldDescription): mg.Metadata.Description,
+			strings.ToLower(mongodbFormFieldTags):        strings.Join(mg.Metadata.Tags, ", "),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
@@ -175,7 +175,7 @@ var MongoDBFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.MongoDB{
-			Meta: buildMeta(
+			Metadata: buildMeta(
 				values,
 				strings.ToLower(mongodbFormFieldName),
 				strings.ToLower(mongodbFormFieldDescription),

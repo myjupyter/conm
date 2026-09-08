@@ -24,7 +24,7 @@ const mysqlScheme = "mysql"
 var _ Connection = (*MySQL)(nil)
 
 type MySQL struct {
-	Meta       ConnMeta `toml:"meta"`
+	Metadata   ConnMeta `toml:"meta"`
 	Hostname   string   `toml:"host" json:"host"`
 	PortNumber int      `toml:"port" json:"port"`
 	User       string   `toml:"username" json:"username"`
@@ -168,20 +168,8 @@ func (m MySQL) ConnType() ConnType {
 	return MySQLConnType
 }
 
-func (m MySQL) ConnMeta() ConnMeta {
-	return m.Meta
-}
-
-func (m MySQL) Name() string {
-	return m.Meta.Name
-}
-
-func (m MySQL) Description() string {
-	return m.Meta.Description
-}
-
-func (m MySQL) Tags() []string {
-	return m.Meta.Tags
+func (m MySQL) Meta() ConnMeta {
+	return m.Metadata
 }
 
 func (m MySQL) Host() string {
@@ -250,8 +238,8 @@ func (m MySQL) Validate() []error {
 		ValidateMySQLUsername(m.User),
 		ValidateMySQLDatabase(m.DBName),
 		ValidateMySQLTLSMode(m.TLSMode),
-		ValidateMySQLName(m.Meta.Name),
-		ValidateMySQLDescription(m.Meta.Description),
+		ValidateMySQLName(m.Metadata.Name),
+		ValidateMySQLDescription(m.Metadata.Description),
 	)
 }
 

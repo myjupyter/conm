@@ -27,7 +27,7 @@ const (
 var _ Connection = (*Redis)(nil)
 
 type Redis struct {
-	Meta       ConnMeta `toml:"meta"`
+	Metadata   ConnMeta `toml:"meta"`
 	Hostname   string   `toml:"host" json:"host"`
 	PortNumber int      `toml:"port" json:"port"`
 	User       string   `toml:"username,omitempty" json:"username,omitempty"`
@@ -164,20 +164,8 @@ func (r Redis) ConnType() ConnType {
 	return RedisConnType
 }
 
-func (r Redis) ConnMeta() ConnMeta {
-	return r.Meta
-}
-
-func (r Redis) Name() string {
-	return r.Meta.Name
-}
-
-func (r Redis) Description() string {
-	return r.Meta.Description
-}
-
-func (r Redis) Tags() []string {
-	return r.Meta.Tags
+func (r Redis) Meta() ConnMeta {
+	return r.Metadata
 }
 
 func (r Redis) Host() string {
@@ -250,8 +238,8 @@ func (r Redis) Validate() []error {
 		ValidateRedisUsername(r.User),
 		ValidateRedisDatabase(r.DBIndex),
 		ValidateRedisTLSMode(r.TLSMode),
-		ValidateRedisName(r.Meta.Name),
-		ValidateRedisDescription(r.Meta.Description),
+		ValidateRedisName(r.Metadata.Name),
+		ValidateRedisDescription(r.Metadata.Description),
 	)
 }
 

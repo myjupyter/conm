@@ -401,7 +401,7 @@ func connLabel(cfg config.Connection) string {
 	if cfg == nil {
 		return ""
 	}
-	if name := cfg.Name(); name != "" {
+	if name := cfg.Meta().Name; name != "" {
 		return name
 	}
 	return cfg.Host()

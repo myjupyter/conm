@@ -226,6 +226,7 @@ func (m formModel) keyhints() []keyhintGroup {
 				binds: []keybind{
 					{keyMap.Cancel.hint, "stop editing"},
 					{keyMap.Confirm.hint, "confirm and next"},
+					{keyMap.Paste.hint, "paste"},
 					{keyMap.NextSection.hint, "switch section"},
 				},
 			},
@@ -246,17 +247,29 @@ func (m formModel) keyhints() []keyhintGroup {
 	switch {
 	case m.isProviderField(cur) && m.isRef():
 		action = append(action, keybind{keyMap.Secret.hint, "open " + m.storeLabel()})
-	case m.spec.Fields[cur].Kind == spec.HiddenFieldKind && !m.isRef() && !m.noSecret():
+	case m.fields[cur].Kind == spec.HiddenFieldKind && !m.isRef() && !m.noSecret():
 		label := "show password"
 		if m.reveal {
 			label = "hide password"
 		}
 		action = append(action, keybind{keyMap.Secret.hint, label})
 	}
+	if spec.IsLinkKey(m.fields[cur].Key) {
+		action = append(action,
+			keybind{keyMap.Confirm.hint, "open the link"},
+			keybind{keyMap.Delete.hint, "remove the link"},
+		)
+	}
+	if m.hasLinks() && m.section == m.linkSect {
+		action = append(action, keybind{keyMap.Add.hint, "add a link"})
+	}
+
 	action = append(action,
 		keybind{keyMap.Ping.hint, "test the connection"},
-		keybind{keyMap.Confirm.hint, "validate and save"},
 	)
+	if !spec.IsLinkKey(m.fields[cur].Key) {
+		action = append(action, keybind{keyMap.Confirm.hint, "validate and save"})
+	}
 
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: nav},
@@ -292,6 +305,7 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 			{title: "editing", binds: []keybind{
 				{keyMap.Cancel.hint, "stop editing"},
 				{keyMap.Confirm.hint, "confirm and next"},
+				{keyMap.Paste.hint, "paste"},
 			}},
 		}
 	}

@@ -17,11 +17,19 @@ import (
 )
 
 type formModel struct {
-	spec     spec.FormSpec[config.Connection]
-	kind     config.ConnType
-	title    string
-	isEdit   bool
+	spec   spec.FormSpec[config.Connection]
+	kind   config.ConnType
+	title  string
+	isEdit bool
+
+	// The links are a list the user grows, so the fields and the section that
+	// holds them are the model's own copy rather than the spec's: add and
+	// remove edit these, and every other mechanism — insert mode, validation,
+	// rendering — reads them without knowing a link from any other field.
+	fields   []spec.FormField
 	sections []spec.FormSection
+	linkSect int
+	linkBase int
 
 	// secrets backs the store modes of the secret field. It is nil on the
 	// setup path, where no repository exists yet — there the form is
@@ -71,11 +79,17 @@ func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], ti
 		kind:       kind,
 		title:      title,
 		isEdit:     isEdit,
-		sections:   spc.Sections,
+		fields:     slices.Clone(spc.Fields),
 		secrets:    secrets,
 		vals:       make(map[string]string, len(spc.Fields)),
 		status:     statusReady,
 		statusKind: kindIdle,
+	}
+
+	m.sections = make([]spec.FormSection, len(spc.Sections))
+	for i, s := range spc.Sections {
+		s.Fields = slices.Clone(s.Fields)
+		m.sections[i] = s
 	}
 
 	if len(m.sections) == 0 {
@@ -86,7 +100,15 @@ func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], ti
 		m.sections = []spec.FormSection{{Fields: keys}}
 	}
 
-	for _, f := range spc.Fields {
+	m.linkSect = m.linkSection()
+	if m.hasLinks() {
+		m.linkBase = len(m.sections[m.linkSect].Fields)
+		for i := range spec.LinkCount(initial) {
+			m.appendLinkFields(i)
+		}
+	}
+
+	for _, f := range m.fields {
 		seeded, ok := initial[f.Key]
 		switch {
 		case ok:
@@ -109,6 +131,9 @@ func (m formModel) Init() tea.Cmd { return nil }
 func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		if keyMap.Paste.matches(msg.String()) {
+			return m, readClipboardCmd()
+		}
 		if m.insert {
 			return m.insertKey(msg)
 		}
@@ -117,6 +142,12 @@ func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.applyPing(msg), nil
 	case secretPickedMsg:
 		return m.applyPicked(msg), nil
+	case linkOpenedMsg:
+		return m.applyLinkOpened(msg), nil
+	case clipboardMsg:
+		return m.applyPaste(msg.text, msg.err), nil
+	case tea.PasteMsg:
+		return m.applyPaste(msg.Content, nil), nil
 	}
 	return m, nil
 }
@@ -135,24 +166,24 @@ func (m formModel) noSecret() bool {
 
 // isSecretField reports whether field i is the one the secret mode governs.
 func (m formModel) isSecretField(i int) bool {
-	return m.spec.Fields[i].Key == spec.SecretValueKey && m.hasSecretMode()
+	return m.fields[i].Key == spec.SecretValueKey && m.hasSecretMode()
 }
 
 // isProviderField reports whether field i is the secret mode selector.
 func (m formModel) isProviderField(i int) bool {
-	return m.spec.Fields[i].Key == spec.SecretProviderKey
+	return m.fields[i].Key == spec.SecretProviderKey
 }
 
 // isSelector reports whether field i is a list the cursor can cycle: a select
 // with options to cycle through. A select declared without options has nothing
 // to change, so ←/→ stays inert there rather than pretending to be a control.
 func (m formModel) isSelector(i int) bool {
-	f := m.spec.Fields[i]
+	f := m.fields[i]
 	return f.Kind == spec.SelectFieldKind && len(f.Options) > 0
 }
 
 func (m formModel) hasSecretMode() bool {
-	for _, f := range m.spec.Fields {
+	for _, f := range m.fields {
 		if f.Key == spec.SecretProviderKey {
 			return true
 		}
@@ -255,9 +286,13 @@ func (m formModel) applyPicked(msg secretPickedMsg) formModel {
 func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	fields := m.sectionFields(m.section)
 	n := len(fields)
-	cur := m.spec.Fields[fields[m.idx]]
+	cur := m.fields[fields[m.idx]]
 
 	key := msg.String()
+
+	if model, cmd, handled := m.navLink(key, cur); handled {
+		return model, cmd
+	}
 
 	switch {
 	case keyMap.Interrupt.matches(key):
@@ -300,6 +335,55 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.setStatus(keyhintStatus(m.help), kindIdle)
 	}
 	return m, nil
+}
+
+// navLink handles the keys the link list owns: a grows one anywhere in the
+// section that holds them, d removes the one under the cursor, and enter opens
+// it rather than submitting the form. handled reports whether the key was one
+// of them.
+func (m *formModel) navLink(key string, cur spec.FormField) (model tea.Model, cmd tea.Cmd, handled bool) {
+	if !m.hasLinks() {
+		return nil, nil, false
+	}
+
+	i, onLink := spec.LinkIndexOf(cur.Key)
+
+	switch {
+	case keyMap.Add.matches(key) && m.section == m.linkSect:
+		m.addLink()
+	case keyMap.Delete.matches(key) && onLink:
+		m.removeLink(i)
+	case keyMap.Confirm.matches(key) && onLink:
+		model, cmd = m.openLink(cur.Key)
+		return model, cmd, true
+	default:
+		return nil, nil, false
+	}
+
+	return *m, nil, true
+}
+
+// applyPaste appends the clipboard to the field under the cursor. It goes
+// through navEdit, so a field that cannot be typed into refuses a paste for the
+// same reason and in the same words that it refuses the edit key.
+func (m formModel) applyPaste(raw string, err error) formModel {
+	text, refusal := pasteReady(raw, err)
+	if text == "" {
+		m.setStatus(refusal.text, refusal.kind)
+		return m
+	}
+
+	i := m.currentField()
+	if !m.insert {
+		m.navEdit(i, m.fields[i])
+		if !m.insert {
+			return m
+		}
+	}
+
+	m.vals[m.fields[i].Key] += text
+	m.setStatus("pasted · "+keyMap.Cancel.hint+" when done", kindIdle)
+	return m
 }
 
 // navCycle steps the field under the cursor one option in dir: a store entry
@@ -356,7 +440,7 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 
 func (m formModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	fields := m.sectionFields(m.section)
-	cur := m.spec.Fields[fields[m.idx]]
+	cur := m.fields[fields[m.idx]]
 
 	key := msg.String()
 
@@ -371,6 +455,11 @@ func (m formModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.insert = false
 		if m.idx < len(fields)-1 {
 			m.idx++
+		}
+		// A link is typed as one thing, so the url keeps the cursor that the
+		// name just handed on.
+		if i, ok := spec.LinkIndexOf(cur.Key); ok && cur.Key == spec.LinkNameKey(i) {
+			m.insert = true
 		}
 		return m, nil
 	case keyMap.NextSection.matches(key):
@@ -402,7 +491,7 @@ func (m *formModel) switchSection(dir int) {
 }
 
 func (m *formModel) cycle(i, dir int) {
-	f := m.spec.Fields[i]
+	f := m.fields[i]
 	if len(f.Options) == 0 {
 		return
 	}
@@ -416,13 +505,104 @@ func (m *formModel) cycle(i, dir int) {
 	m.vals[f.Key] = f.Options[(at+dir+len(f.Options))%len(f.Options)]
 }
 
-// sectionFields returns the indices into spec.Fields for the fields in section si,
+// linkSection reports which section the links are grown in. A spec without a
+// metadata section has nowhere to put them, and -1 keeps the keys inert.
+func (m formModel) linkSection() int {
+	for si, s := range m.sections {
+		if s.Title == spec.MetadataSectionTitle {
+			return si
+		}
+	}
+	return -1
+}
+
+func (m formModel) hasLinks() bool {
+	return m.linkSect >= 0
+}
+
+// linkCount counts the link fields rather than the values, so a pair the user
+// emptied still holds its row until it is removed.
+func (m formModel) linkCount() int {
+	return (len(m.sections[m.linkSect].Fields) - m.linkBase) / 2
+}
+
+func (m *formModel) appendLinkFields(i int) {
+	name, url := spec.LinkNameField(i), spec.LinkURLField(i)
+	m.fields = append(m.fields, name, url)
+	m.sections[m.linkSect].Fields = append(m.sections[m.linkSect].Fields, name.Key, url.Key)
+}
+
+func (m *formModel) addLink() {
+	n := m.linkCount()
+	m.appendLinkFields(n)
+	m.vals[spec.LinkNameKey(n)] = ""
+	m.vals[spec.LinkURLKey(n)] = ""
+
+	m.section = m.linkSect
+	m.idx = m.linkBase + n*2
+	m.insert = true
+	m.setStatus(fmt.Sprintf("link %d · type a name, %s for the url", n+1, keyMap.Confirm.hint), kindIdle)
+}
+
+// removeLink drops link at and renumbers the ones after it, so the keys stay a
+// gapless run. Only link fields and link values are touched.
+func (m *formModel) removeLink(at int) {
+	n := m.linkCount()
+	for i := at; i < n-1; i++ {
+		m.vals[spec.LinkNameKey(i)] = m.vals[spec.LinkNameKey(i+1)]
+		m.vals[spec.LinkURLKey(i)] = m.vals[spec.LinkURLKey(i+1)]
+	}
+	delete(m.vals, spec.LinkNameKey(n-1))
+	delete(m.vals, spec.LinkURLKey(n-1))
+
+	m.fields = m.fields[:len(m.fields)-2]
+	sect := &m.sections[m.linkSect]
+	sect.Fields = sect.Fields[:len(sect.Fields)-2]
+
+	m.idx = min(m.idx, len(sect.Fields)-1)
+	m.insert = false
+	m.setStatus("link removed", kindWarn)
+}
+
+// linkPair reports how field i sits in the link it belongs to: a link is one
+// object, so both of its rows are drawn behind a single rail and light up
+// together when the cursor is on either of them.
+func (m formModel) linkPair(i int) (pair, first, active bool) {
+	at, ok := spec.LinkIndexOf(m.fields[i].Key)
+	if !ok {
+		return false, false, false
+	}
+
+	cur, curOK := spec.LinkIndexOf(m.fields[m.currentField()].Key)
+	return true, m.fields[i].Key == spec.LinkNameKey(at), curOK && cur == at
+}
+
+// linkError checks the pair the field belongs to: a row left untouched is not a
+// link and passes, but one half filled in demands the other.
+func (m formModel) linkError(key spec.FormFieldKey) string {
+	i, ok := spec.LinkIndexOf(key)
+	if !ok {
+		return ""
+	}
+
+	nameErr, urlErr := spec.ValidateLink(m.vals[spec.LinkNameKey(i)], m.vals[spec.LinkURLKey(i)])
+	err := urlErr
+	if key == spec.LinkNameKey(i) {
+		err = nameErr
+	}
+	if err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// sectionFields returns the indices into m.fields for the fields in section si,
 // in the section's declared order.
 func (m formModel) sectionFields(si int) []int {
 	keys := m.sections[si].Fields
 	out := make([]int, 0, len(keys))
 	for _, key := range keys {
-		for i, f := range m.spec.Fields {
+		for i, f := range m.fields {
 			if f.Key == key {
 				out = append(out, i)
 				break
@@ -437,12 +617,17 @@ func (m formModel) currentField() int {
 }
 
 func (m formModel) fieldError(i int) string {
-	f := m.spec.Fields[i]
+	f := m.fields[i]
 
 	// In a store mode the field holds a location, so it is checked against the
 	// entries that exist rather than against the password validator.
 	if m.isSecretField(i) && m.isRef() {
 		return m.refError()
+	}
+
+	// A link is only whole as a pair, so neither half is judged on its own.
+	if spec.IsLinkKey(f.Key) {
+		return m.linkError(f.Key)
 	}
 
 	v := m.vals[f.Key]
@@ -565,8 +750,8 @@ func (m formModel) result() (config.Connection, error) {
 // is trimmed except hidden fields (passwords), where surrounding whitespace may
 // be meaningful.
 func (m formModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
-	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.spec.Fields))
-	for _, f := range m.spec.Fields {
+	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.fields))
+	for _, f := range m.fields {
 		v := m.vals[f.Key]
 		// A location is trimmed like any other field; only a literal password
 		// keeps its surrounding whitespace.

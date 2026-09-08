@@ -31,7 +31,7 @@ func testRepo(t *testing.T) *ConnectionRepository {
 
 func pg(name, host, db string) config.Postgres {
 	return config.Postgres{
-		Meta:       config.ConnMeta{Name: name},
+		Metadata:   config.ConnMeta{Name: name},
 		Hostname:   host,
 		PortNumber: 5432,
 		User:       "me",

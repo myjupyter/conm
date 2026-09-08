@@ -58,7 +58,7 @@ const (
 var _ Connection = (*Postgres)(nil)
 
 type Postgres struct {
-	Meta       ConnMeta `toml:"meta"`
+	Metadata   ConnMeta `toml:"meta"`
 	Hostname   string   `toml:"host" json:"host"`
 	PortNumber int      `toml:"port" json:"port"`
 	User       string   `toml:"username" json:"username"`
@@ -110,7 +110,7 @@ func ImportFromPGPass() ([]Postgres, error) {
 			DBName:     values[2],
 			User:       values[3],
 			Password:   values[4],
-			Meta: ConnMeta{
+			Metadata: ConnMeta{
 				Name: values[0],
 			},
 		}
@@ -265,20 +265,8 @@ func (p Postgres) ConnType() ConnType {
 	return PostgresConnType
 }
 
-func (p Postgres) ConnMeta() ConnMeta {
-	return p.Meta
-}
-
-func (p Postgres) Name() string {
-	return p.Meta.Name
-}
-
-func (p Postgres) Description() string {
-	return p.Meta.Description
-}
-
-func (p Postgres) Tags() []string {
-	return p.Meta.Tags
+func (p Postgres) Meta() ConnMeta {
+	return p.Metadata
 }
 
 func (p Postgres) Host() string {
@@ -352,8 +340,8 @@ func (p Postgres) Validate() []error {
 		ValidatePostgresDatabase(p.DBName),
 		ValidatePostgresSchema(p.SchemaName),
 		ValidatePostgresSSLMode(p.SSLMode),
-		ValidatePostgresName(p.Meta.Name),
-		ValidatePostgresDescription(p.Meta.Description),
+		ValidatePostgresName(p.Metadata.Name),
+		ValidatePostgresDescription(p.Metadata.Description),
 	)
 }
 

@@ -40,7 +40,7 @@ func NewMSSQLClient(
 ) (*MSSQLClient, error) {
 	ref, ok := cfg.(secret.Reference)
 	if !ok {
-		return nil, fmt.Errorf("connection %q does not support secrets", cfg.Name())
+		return nil, fmt.Errorf("connection %q does not support secrets", cfg.Meta().Name)
 	}
 
 	return &MSSQLClient{

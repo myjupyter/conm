@@ -23,7 +23,7 @@ var mongodbDatabaseRegexp = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 var _ Connection = (*MongoDB)(nil)
 
 type MongoDB struct {
-	Meta       ConnMeta `toml:"meta"`
+	Metadata   ConnMeta `toml:"meta"`
 	Hostname   string   `toml:"host" json:"host"`
 	PortNumber int      `toml:"port" json:"port"`
 	User       string   `toml:"username" json:"username"`
@@ -163,20 +163,8 @@ func (m MongoDB) ConnType() ConnType {
 	return MongoDBConnType
 }
 
-func (m MongoDB) ConnMeta() ConnMeta {
-	return m.Meta
-}
-
-func (m MongoDB) Name() string {
-	return m.Meta.Name
-}
-
-func (m MongoDB) Description() string {
-	return m.Meta.Description
-}
-
-func (m MongoDB) Tags() []string {
-	return m.Meta.Tags
+func (m MongoDB) Meta() ConnMeta {
+	return m.Metadata
 }
 
 func (m MongoDB) Host() string {
@@ -251,8 +239,8 @@ func (m MongoDB) Validate() []error {
 		ValidateMongoDBUsername(m.User),
 		ValidateMongoDBDatabase(m.DBName),
 		ValidateMongoDBAuthSource(m.AuthSource),
-		ValidateMongoDBName(m.Meta.Name),
-		ValidateMongoDBDescription(m.Meta.Description),
+		ValidateMongoDBName(m.Metadata.Name),
+		ValidateMongoDBDescription(m.Metadata.Description),
 	)
 }
 

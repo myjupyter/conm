@@ -133,6 +133,25 @@ func frameLine(w int, spans []span, bg color.Color) string {
 	return b.String()
 }
 
+// frameHead titles a block of fields inside a section: a banded row of the
+// title in caps and what the block is for, held apart from the fields above and
+// below it by a blank line each side.
+func frameHead(w int, title, note string) []string {
+	spans := []span{
+		{text: "  ", bg: cHeadBg},
+		{text: strings.ToUpper(title), fg: cFg, bg: cHeadBg, bold: true},
+	}
+	if note != "" {
+		spans = append(spans, span{text: "  " + note, fg: cFaint, bg: cHeadBg})
+	}
+
+	return []string{
+		frameLine(w, nil, nil),
+		frameLine(w, spans, cHeadBg),
+		frameLine(w, nil, nil),
+	}
+}
+
 // frameRule draws a horizontal divider; left and right are its end runes.
 func frameRule(w int, left, right string) string {
 	return border(left) + border(strings.Repeat(gLineH, w)) + border(right)
