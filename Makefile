@@ -1,4 +1,4 @@
-.PHONY: build smoke vet test lint tools fmt
+.PHONY: build smoke vet test lint tools hooks fmt
 
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
@@ -22,11 +22,14 @@ vet:
 test: vet
 	@go test -race ./...
 
-lint: $(GOLANGCI_LINT) vet
+lint: tools $(GOLANGCI_LINT) vet
 	@$(GOLANGCI_LINT) run ./...
 
 tools:
 	@$(INSTALL_TOOLS)
+
+hooks: $(TOOLS_BIN)/lefthook
+	@$(TOOLS_BIN)/lefthook install
 
 $(TOOLS_BIN)/%: tools/go.mod
 	@$(INSTALL_TOOLS)
