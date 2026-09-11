@@ -11,6 +11,8 @@ pre-push:
       fail_text: "branch must be main/master/develop or <type>/<lowercase-description> (https://conventionalbranch.org)"
     build:
       run: make build
+    tools:
+      run: make tools
     lint:
       run: make lint
     test:

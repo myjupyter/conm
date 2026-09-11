@@ -28,7 +28,7 @@ test: vet
 	$(say) "test"
 	@go test -race ./...
 
-lint: tools $(GOLANGCI_LINT) vet
+lint: $(GOLANGCI_LINT) vet
 	$(say) "lint"
 	@$(GOLANGCI_LINT) run ./...
 
