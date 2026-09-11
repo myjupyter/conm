@@ -1,0 +1,19 @@
+commit-msg:
+  commands:
+    conventional:
+      run: bin/tools/commitlint lint --message {1}
+      fail_text: "commit message must follow Conventional Commits (https://www.conventionalcommits.org)"
+
+pre-push:
+  commands:
+    branch:
+      run: git symbolic-ref --short HEAD | grep -qE '^(main|master|develop|(feature|feat|bugfix|fix|hotfix|release|chore|ai|claude|codex|copilot|cursor)/[a-z0-9]+([.-][a-z0-9]+)*)$'
+      fail_text: "branch must be main/master/develop or <type>/<lowercase-description> (https://conventionalbranch.org)"
+    build:
+      run: make build
+    tools:
+      run: make tools
+    lint:
+      run: make lint
+    test:
+      run: make test

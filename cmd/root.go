@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"os"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 
@@ -10,8 +11,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "conm",
-	Short: "Terminal connection manager",
+	Use:     "conm",
+	Short:   "Terminal connection manager",
+	Version: version(),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
 		if err != nil {
@@ -21,6 +23,15 @@ var rootCmd = &cobra.Command{
 
 		return ui.Run(c.Get(0))
 	},
+}
+
+func version() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+
+	return info.Main.Version
 }
 
 func Execute() {
