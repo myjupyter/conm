@@ -43,8 +43,6 @@ func (m formModel) render() string {
 	titled := m.hasLinks() && m.section == m.linkSect
 	if titled {
 		lines = append(lines, frameHead(formInner, commonHeadTitle, "")...)
-	} else {
-		lines = append(lines, m.noteLine())
 	}
 
 	for _, i := range m.sectionFields(m.section) {
@@ -110,7 +108,6 @@ func (m formModel) tabLine() string {
 		}
 		spans = append(spans, span{text: "  ", fg: cDim})
 	}
-	spans = append(spans, span{text: "tab to switch", fg: cFaint})
 	return frameLine(formInner, spans, nil)
 }
 
@@ -130,13 +127,6 @@ func (m formModel) linkHeadLines() []string {
 	}
 
 	return frameHead(formInner, linksHeadTitle, note)
-}
-
-func (m formModel) noteLine() string {
-	return frameLine(formInner, []span{
-		{text: "  ", fg: cDim},
-		{text: m.sections[m.section].Note, fg: cFaint},
-	}, nil)
 }
 
 func (m formModel) fieldRow(i int) string {

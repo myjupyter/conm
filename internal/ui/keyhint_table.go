@@ -19,6 +19,9 @@ const (
 	keyhintSearch     = "search"
 	keyhintScreen     = "screen"
 
+	keyhintMoveFields = "move between fields"
+	keyhintBackToList = "back to connections"
+
 	keyhintRows   = 2
 	keyhintIndent = 2
 	keyhintGap    = 1
@@ -211,10 +214,26 @@ func (m Model) keyhints() []keyhintGroup {
 		{
 			title: keyhintScreen,
 			binds: []keybind{
+				{keyMap.Info.hint, "info"},
 				{keyMap.Secret.hint, "secrets"},
 				{keyMap.Quit.hint, "quit"},
 			},
 		},
+	}
+}
+
+func (m infoModel) keyhints() []keyhintGroup {
+	return []keyhintGroup{
+		{title: keyhintNavigation, binds: []keybind{
+			{keyMap.MoveVertical.hint, keyhintMoveFields},
+			{keyMap.SwitchKind.hint, strings.Join(m.tabTitles(), " · ")},
+		}},
+		{title: keyhintAction, binds: []keybind{
+			{keyMap.Yank.hint, "yank the value"},
+			{keyMap.Confirm.hint, "open the link · connect"},
+			{keyMap.Edit.hint, "edit"},
+		}},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Back.hint, keyhintBackToList}}},
 	}
 }
 
@@ -235,7 +254,7 @@ func (m formModel) keyhints() []keyhintGroup {
 
 	cur := m.currentField()
 
-	nav := []keybind{{keyMap.MoveVertical.hint, "move between fields"}, {keyMap.NextSection.hint, "switch section"}}
+	nav := []keybind{{keyMap.MoveVertical.hint, keyhintMoveFields}, {keyMap.NextSection.hint, "switch section"}}
 	switch {
 	case m.isSelector(cur):
 		nav = append(nav, keybind{keyMap.Cycle.hint, "change a selector"})
@@ -279,7 +298,7 @@ func (m formModel) keyhints() []keyhintGroup {
 }
 
 func (m secretModel) keyhints() []keyhintGroup {
-	use, back := "show usage", "back to connections"
+	use, back := "show usage", keyhintBackToList
 	if m.secrets.Picking() {
 		use, back = "attach to connection", "back to form"
 	}
@@ -321,7 +340,7 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 	action = append(action, keybind{keyMap.Confirm.hint, "store entry"})
 
 	return []keyhintGroup{
-		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, "move between fields"}}},
+		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, keyhintMoveFields}}},
 		{title: keyhintAction, binds: action},
 		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "cancel"}}},
 	}
@@ -330,7 +349,7 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 func (m initModel) keyhints() []keyhintGroup {
 	confirm, leave := "open the connections", keybind{keyMap.Quit.hint, "quit"}
 	if m.adding {
-		confirm, leave = "back to connections", keybind{keyMap.Cancel.hint, "back to connections"}
+		confirm, leave = keyhintBackToList, keybind{keyMap.Cancel.hint, keyhintBackToList}
 	}
 
 	return []keyhintGroup{
@@ -347,7 +366,7 @@ func (m initModel) keyhints() []keyhintGroup {
 func (m initFormModel) keyhints() []keyhintGroup {
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: []keybind{
-			{keyMap.MoveVertical.hint, "move between fields"},
+			{keyMap.MoveVertical.hint, keyhintMoveFields},
 			{keyMap.Cycle.hint, "change the value"},
 		}},
 		{title: keyhintAction, binds: []keybind{{keyMap.Confirm.hint, "save and go back"}}},

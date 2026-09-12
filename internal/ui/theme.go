@@ -92,6 +92,9 @@ const (
 
 	// The arrow the error panel points its hint with.
 	gHintArrow = "→"
+
+	gScrollUp   = "↑"
+	gScrollDown = "↓"
 )
 
 // typeColor is the accent a connection type is branded with, used for its tab

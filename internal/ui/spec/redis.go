@@ -136,7 +136,6 @@ var RedisFormSpec = FormSpec[config.Connection]{
 	Sections: []FormSection{
 		{
 			Title: connectionSectionTitle,
-			Note:  connectionSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(redisFormFieldHost),
 				strings.ToLower(redisFormFieldPort),

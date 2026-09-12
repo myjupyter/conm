@@ -43,6 +43,8 @@ type keymap struct {
 	Delete  binding
 	Secret  binding
 	Search  binding
+	Info    binding
+	Yank    binding
 	Toggle  binding
 	AddDB   binding
 
@@ -67,6 +69,7 @@ type keymap struct {
 	MoveVertical binding
 	Cycle        binding
 	SwitchKind   binding
+	Back         binding
 }
 
 var keyMap = defaultKeymap()
@@ -88,6 +91,8 @@ func defaultKeymap() keymap {
 		Delete:  newBinding("d", "d"),
 		Secret:  newBinding("s", "s"),
 		Search:  newBinding("/", "/"),
+		Info:    newBinding("i", "i"),
+		Yank:    newBinding("yy", "y"),
 		Toggle:  newBinding("space", "space"),
 		AddDB:   newBinding("ctrl+a", "ctrl+a"),
 
@@ -107,6 +112,7 @@ func defaultKeymap() keymap {
 	k.MoveVertical = merge("↑↓/jk", k.Up, k.Down)
 	k.Cycle = merge("←/→", k.Left, k.Right)
 	k.SwitchKind = merge("tab/←→/hl", k.NextSection, k.PrevSection, k.Left, k.Right)
+	k.Back = merge("i/q/esc", k.Info, k.Quit)
 
 	return k
 }

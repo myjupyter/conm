@@ -56,6 +56,18 @@ func (m Model) editCmd() tea.Cmd {
 	})
 }
 
+func (m Model) infoCmd() tea.Cmd {
+	var edit bool
+	return tea.Exec(
+		runExec{run: func() error {
+			var err error
+			edit, err = runInfo(m.conns)
+			return err
+		}},
+		func(err error) tea.Msg { return infoClosedMsg{edit: edit, err: err} },
+	)
+}
+
 // secretsCmd hands the terminal to the secrets screen and comes back with the
 // connection list resynced: a secret that moved changes nothing on this side,
 // but an entry added while over there may now be referenced from a form.
