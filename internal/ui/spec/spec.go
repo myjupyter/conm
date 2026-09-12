@@ -10,9 +10,7 @@ const tagsMaxLength = 255
 // the copy reads the same whatever database the form is for.
 const (
 	connectionSectionTitle = "connection"
-	connectionSectionNote  = "how conm reaches the server"
 	MetadataSectionTitle   = "meta"
-	metadataSectionNote    = "meta information about the connection"
 )
 
 const (

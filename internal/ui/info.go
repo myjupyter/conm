@@ -26,18 +26,13 @@ const (
 
 var infoTabTitles = [infoTabCount]string{"general", "endpoint", "links"}
 
-var infoTabNotes = [infoTabCount]string{
-	"yours — never sent to the server",
-	"how conm reaches the server",
-	"enter opens one in the browser",
-}
-
 const (
-	infoDSNLabel     = "dsn"
-	infoCLILabel     = "cli"
-	infoVersionLabel = "version"
-	infoPathLabel    = "path"
-	infoLinksLabel   = "links"
+	infoDSNLabel      = "dsn"
+	infoEndpointLabel = "endpoint"
+	infoCLILabel      = "cli"
+	infoVersionLabel  = "version"
+	infoPathLabel     = "path"
+	infoLinksLabel    = "links"
 )
 
 type infoRow struct {
@@ -255,7 +250,10 @@ func (m infoModel) rows() []infoRow {
 
 	switch m.tab {
 	case infoEndpoint:
-		return append(specRows(cfg, false), infoValueRow(infoDSNLabel, infoDSN(cfg)))
+		head := infoRow{label: infoEndpointLabel, head: true}
+		rows := append([]infoRow{head}, specRows(cfg, false)...)
+
+		return append(rows, infoValueRow(infoDSNLabel, infoDSN(cfg)))
 	case infoLinks:
 		return m.linkRows(cfg.Meta().Links)
 	default:

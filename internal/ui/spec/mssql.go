@@ -136,7 +136,6 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 	Sections: []FormSection{
 		{
 			Title: connectionSectionTitle,
-			Note:  connectionSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(mssqlFormFieldHost),
 				strings.ToLower(mssqlFormFieldPort),

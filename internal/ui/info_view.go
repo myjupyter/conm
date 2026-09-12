@@ -62,8 +62,11 @@ func (m infoModel) titleLine() string {
 }
 
 func (m infoModel) infoTabsLine() string {
-	spans := []span{{text: " ", fg: cDim}}
-	for _, tab := range m.tabs() {
+	tabs := m.tabs()
+
+	spans := make([]span, 0, 1+2*len(tabs))
+	spans = append(spans, span{text: " ", fg: cDim})
+	for _, tab := range tabs {
 		s := span{text: " " + infoTabTitles[tab] + " ", fg: cDim}
 		if tab == m.tab {
 			s = span{text: s.text, fg: cInvFg, bg: cAccent, bold: true}
@@ -71,9 +74,7 @@ func (m infoModel) infoTabsLine() string {
 		spans = append(spans, s, span{text: " ", fg: cDim})
 	}
 
-	note := infoTabNotes[m.tab] + " · " + keyMap.NextSection.hint + " to switch"
-
-	return frameLine(infoInner, append(spans, span{text: " " + note, fg: cFaint}), nil)
+	return frameLine(infoInner, spans, nil)
 }
 
 func (m infoModel) infoRowLines() []string {

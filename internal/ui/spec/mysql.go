@@ -123,7 +123,6 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 	Sections: []FormSection{
 		{
 			Title: connectionSectionTitle,
-			Note:  connectionSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(mysqlFormFieldHost),
 				strings.ToLower(mysqlFormFieldPort),

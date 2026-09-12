@@ -486,8 +486,7 @@ func (m *formModel) setStatus(s string, k statusKind) {
 func (m *formModel) switchSection(dir int) {
 	m.section = (m.section + dir + len(m.sections)) % len(m.sections)
 	m.idx = 0
-	s := m.sections[m.section]
-	m.setStatus(s.Title+" · "+s.Note, kindIdle)
+	m.setStatus(m.sections[m.section].Title, kindIdle)
 }
 
 func (m *formModel) cycle(i, dir int) {

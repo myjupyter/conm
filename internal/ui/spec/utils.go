@@ -11,7 +11,6 @@ import (
 func metadataSection(nameKey, descriptionKey, tagsKey FormFieldKey) FormSection {
 	return FormSection{
 		Title:  MetadataSectionTitle,
-		Note:   metadataSectionNote,
 		Fields: []FormFieldKey{nameKey, descriptionKey, tagsKey},
 	}
 }

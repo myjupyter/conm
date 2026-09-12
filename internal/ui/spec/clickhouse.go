@@ -122,7 +122,6 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 	Sections: []FormSection{
 		{
 			Title: connectionSectionTitle,
-			Note:  connectionSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(clickhouseFormFieldHost),
 				strings.ToLower(clickhouseFormFieldPort),
