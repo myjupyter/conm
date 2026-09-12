@@ -57,6 +57,11 @@ type connChangedMsg struct {
 	renumbered bool
 }
 
+type infoClosedMsg struct {
+	edit bool
+	err  error
+}
+
 type databasesChangedMsg struct {
 	kind   config.ConnType
 	chosen bool
@@ -101,6 +106,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case connChangedMsg:
 		return m.applyChange(msg), nil
+
+	case infoClosedMsg:
+		return m.applyInfoClosed(msg)
 
 	case databasesChangedMsg:
 		return m.applyDatabaseChange(msg)
@@ -182,6 +190,10 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Ping.matches(key):
 		if m.conns.Len() > 0 {
 			return m.pingOne()
+		}
+	case keyMap.Info.matches(key):
+		if m.conns.Len() > 0 {
+			return m, m.infoCmd()
 		}
 	case keyMap.Secret.matches(key):
 		return m, m.secretsCmd()
@@ -362,6 +374,17 @@ func (m Model) tickSpinners(msg spinner.TickMsg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 	return m, tea.Batch(cmds...)
+}
+
+func (m Model) applyInfoClosed(msg infoClosedMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.status, m.statusKind = msg.err.Error(), kindErr
+		return m, nil
+	}
+	if msg.edit {
+		return m, m.editCmd()
+	}
+	return m, nil
 }
 
 func (m Model) applyChange(msg connChangedMsg) Model {
