@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"iter"
@@ -14,6 +15,7 @@ import (
 
 type Connections interface {
 	Kind() config.ConnType
+	ClientInfo(ctx context.Context) cli.Info
 
 	Len() int
 	ConnectionAt(int) (network.Connection, bool)
@@ -81,6 +83,10 @@ type ConnectionRepository struct {
 
 func (r *ConnectionRepository) Kind() config.ConnType {
 	return r.kind
+}
+
+func (r *ConnectionRepository) ClientInfo(ctx context.Context) cli.Info {
+	return r.launcher.Info(ctx)
 }
 
 func (r *ConnectionRepository) SecretRefs() iter.Seq2[string, secret.Reference] {

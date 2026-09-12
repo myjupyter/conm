@@ -165,7 +165,7 @@ func (m initModel) database() (config.Database, bool) {
 
 func (m initModel) installedClient(t config.ConnType) string {
 	for _, cli := range m.clients[t] {
-		if cli.Exists {
+		if cli.Installed {
 			return cli.Name
 		}
 	}

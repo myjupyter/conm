@@ -38,3 +38,20 @@ func (l Launcher) Run(ctx context.Context, cfg config.Connection, password strin
 
 	return cmd.run(ctx, l.name)
 }
+
+func (l Launcher) Info(ctx context.Context) Info {
+	if l.name == "" {
+		return Info{}
+	}
+
+	if !slices.Contains(Clients(l.kind), l.name) {
+		return Info{Name: l.name}
+	}
+
+	info := lookup(l.name)
+	if info.Installed {
+		info.Version = Version(ctx, l.name)
+	}
+
+	return info
+}

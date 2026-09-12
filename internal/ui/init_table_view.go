@@ -137,7 +137,7 @@ func (m initModel) clientSpans(db config.Database, sel bool, bg color.Color) []s
 			fg = cInvFg
 		case cli.Name == db.CLI:
 			fg = cAccent
-		case cli.Exists:
+		case cli.Installed:
 			fg = cFg
 		}
 

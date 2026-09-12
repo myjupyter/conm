@@ -1,11 +1,11 @@
 ---
 id: CONM-5
 title: Add a read-only info screen for a connection
-status: To Do
+status: In Progress
 assignee:
   - myjupyter
 created_date: '2026-09-06 14:30'
-updated_date: '2026-09-11 20:31'
+updated_date: '2026-09-12 13:41'
 labels:
   - ready-to-work
 milestone: m-0
@@ -21,7 +21,7 @@ documentation:
   - dist/DB Connections TUI.dc.html
 priority: low
 type: feature
-ordinal: 8000
+ordinal: 1000
 ---
 
 ## Description

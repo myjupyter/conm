@@ -7,9 +7,10 @@ import (
 )
 
 type Info struct {
-	Name   string
-	Path   string
-	Exists bool
+	Name      string
+	Path      string
+	Installed bool
+	Version   string
 }
 
 func Detect(t config.ConnType) []Info {
@@ -17,13 +18,18 @@ func Detect(t config.ConnType) []Info {
 
 	infos := make([]Info, 0, len(names))
 	for _, name := range names {
-		path, err := exec.LookPath(name)
-		infos = append(infos, Info{
-			Name:   name,
-			Path:   path,
-			Exists: err == nil,
-		})
+		infos = append(infos, lookup(name))
 	}
 
 	return infos
+}
+
+func lookup(name string) Info {
+	path, err := exec.LookPath(name)
+
+	return Info{
+		Name:      name,
+		Path:      path,
+		Installed: err == nil,
+	}
 }

@@ -1,9 +1,11 @@
 package view
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/repository"
@@ -63,6 +65,15 @@ func (v *Connections) CountOf(kind config.ConnType) int {
 	}
 
 	return repo.Len()
+}
+
+func (v *Connections) ClientInfo(ctx context.Context) (cli.Info, bool) {
+	repo, ok := v.repos[v.Active()]
+	if !ok {
+		return cli.Info{}, false
+	}
+
+	return repo.ClientInfo(ctx), true
 }
 
 func (v *Connections) ConnectionAt(i int) (network.Connection, bool) {
