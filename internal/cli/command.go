@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"regexp"
+	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -28,6 +30,45 @@ var commands = map[string]builder{
 	MySQL:      mysqlCommand,
 	SQLCmd:     mssqlCommand,
 	ClickHouse: clickhouseCommand,
+}
+
+const versionFlag = "--version"
+
+var versionFlags = map[string]string{
+	Psql:       versionFlag,
+	Pgcli:      versionFlag,
+	USQL:       versionFlag,
+	MySQL:      versionFlag,
+	MyCLI:      versionFlag,
+	SQLCmd:     versionFlag,
+	ClickHouse: versionFlag,
+	RedisCLI:   versionFlag,
+	ValkeyCLI:  versionFlag,
+	IRedis:     versionFlag,
+	Mongosh:    versionFlag,
+	Mongo:      versionFlag,
+}
+
+var versionNumber = regexp.MustCompile(`\d+(\.\d+)*`)
+
+func Version(ctx context.Context, name string) string {
+	flag, ok := versionFlags[name]
+	if !ok {
+		return ""
+	}
+
+	out, err := exec.CommandContext(ctx, name, flag).Output()
+	if err != nil {
+		return ""
+	}
+
+	return parseVersion(string(out))
+}
+
+func parseVersion(out string) string {
+	firstLine, _, _ := strings.Cut(out, "\n")
+
+	return versionNumber.FindString(firstLine)
 }
 
 func urlCommand(cfg config.Connection, password string) (command, error) {

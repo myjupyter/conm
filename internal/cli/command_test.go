@@ -154,3 +154,48 @@ func TestLauncherWithoutClient(t *testing.T) {
 
 	require.ErrorIs(t, err, ErrNoClient)
 }
+
+func TestParseVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		out  string
+		want string
+	}{
+		{name: "psql names the product first", out: "psql (PostgreSQL) 16.2\n", want: "16.2"},
+		{name: "redis-cli trails a git revision", out: "redis-cli 7.2.4 (git:0)\n", want: "7.2.4"},
+		{name: "mongo spells a v prefix", out: "MongoDB shell version v5.0.5\n", want: "5.0.5"},
+		{name: "clickhouse counts four components", out: "ClickHouse client version 24.1.1.1.\n", want: "24.1.1.1"},
+		{name: "mysql buries it in a banner", out: "mysql  Ver 8.0.36 for macos14 on arm64 (Homebrew)\n", want: "8.0.36"},
+		{name: "mongosh prints it bare", out: "2.1.1\n", want: "2.1.1"},
+		{name: "later lines are ignored", out: "no version here\n9.9.9\n", want: ""},
+		{name: "nothing parseable", out: "command not found\n", want: ""},
+		{name: "no output at all", out: "", want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, parseVersion(tt.out))
+		})
+	}
+}
+
+func TestEveryClientHasAVersionFlag(t *testing.T) {
+	t.Parallel()
+
+	for _, db := range config.Databases {
+		for _, name := range Clients(db) {
+			_, ok := versionFlags[name]
+			assert.True(t, ok, "%s has no version flag", name)
+		}
+	}
+}
+
+func TestVersionOfUnknownClient(t *testing.T) {
+	t.Parallel()
+
+	assert.Empty(t, Version(context.Background(), "nosuchclient"))
+}
