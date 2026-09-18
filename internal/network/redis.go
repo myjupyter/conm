@@ -25,14 +25,14 @@ func init() {
 
 type RedisClient struct {
 	launcher cli.Launcher
-	cfg      config.Connection
+	cfg      config.DBConnection
 	ref      secret.Reference
 	sec      secret.Provider
 }
 
 func NewRedisClient(
 	launcher cli.Launcher,
-	cfg config.Connection,
+	cfg config.DBConnection,
 	sec secret.Provider,
 ) (*RedisClient, error) {
 	ref, ok := cfg.(secret.Reference)
@@ -125,7 +125,7 @@ func redisErrorCode(err error) ErrorCode {
 	return transportErrorCode(err)
 }
 
-func redisTarget(cfg config.Connection) string {
+func redisTarget(cfg config.DBConnection) string {
 	var user string
 	if cfg.Username() != "" {
 		user = cfg.Username() + "@"

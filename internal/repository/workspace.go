@@ -27,7 +27,7 @@ func NewWorkspace(cfg config.Conm) (*Workspace, error) {
 	w := &Workspace{byKind: make(map[config.ConnType]Connections, len(connectionRepositories))}
 
 	users := make([]SecretUser, 0, len(connectionRepositories))
-	for _, db := range cfg.Databases {
+	for _, db := range cfg.Connections {
 		if !db.Enabled {
 			continue
 		}

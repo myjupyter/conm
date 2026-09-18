@@ -133,11 +133,12 @@ func connectionFields(c config.Connection) []string {
 		meta.Description,
 		c.Username(),
 		c.Host(),
-		c.Database(),
-		c.Schema(),
 		strconv.Itoa(c.Port()),
 		c.ConnType().String(),
 	}, meta.Tags...)
+	if db, ok := c.(config.DBConnection); ok {
+		values = append(values, db.Database(), db.Schema())
+	}
 
 	return searchable(values...)
 }

@@ -120,7 +120,7 @@ func (m initModel) initRowLine(i int) string {
 // clientSpans lists every client conm can drive this database with: the
 // configured one accented, the ones found on this host readable, the rest
 // muted — the whole list padded out to one column.
-func (m initModel) clientSpans(db config.Database, sel bool, bg color.Color) []span {
+func (m initModel) clientSpans(db config.ConnectionSettings, sel bool, bg color.Color) []span {
 	clients := m.clients[db.Type]
 
 	spans := make([]span, 0, len(clients)+1)

@@ -11,6 +11,12 @@ var Databases = []ConnType{
 	MongoDBConnType,
 }
 
+type DBConnection interface {
+	Connection
+	Database() string
+	Schema() string
+}
+
 func DatabaseNames() []string {
 	names := make([]string, 0, len(Databases))
 	for _, t := range Databases {

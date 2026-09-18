@@ -15,7 +15,7 @@ import (
 // workspace exists, so it holds a config.Conm instead of a view.
 type initModel struct {
 	conm    config.Conm
-	dbs     []config.Database
+	dbs     []config.ConnectionSettings
 	clients map[config.ConnType][]cli.Info
 
 	cursor int
@@ -37,7 +37,7 @@ type initChangedMsg struct {
 func newInitModel(conm config.Conm) initModel {
 	m := initModel{
 		conm:       conm,
-		dbs:        conm.Databases,
+		dbs:        conm.Connections,
 		status:     statusReady,
 		statusKind: kindIdle,
 	}
@@ -149,16 +149,16 @@ func (m initModel) applyInitChange(msg initChangedMsg) initModel {
 	}
 
 	m.conm = msg.conm
-	m.dbs = m.conm.Databases
+	m.dbs = m.conm.Connections
 	if db, ok := m.database(); ok {
 		m.setInitStatus(databaseSummary(db), kindOK)
 	}
 	return m
 }
 
-func (m initModel) database() (config.Database, bool) {
+func (m initModel) database() (config.ConnectionSettings, bool) {
 	if m.cursor < 0 || m.cursor >= len(m.dbs) {
-		return config.Database{}, false
+		return config.ConnectionSettings{}, false
 	}
 	return m.dbs[m.cursor], true
 }
@@ -180,6 +180,6 @@ func (m *initModel) setInitStatus(s string, k statusKind) {
 	m.status, m.statusKind = s, k
 }
 
-func databaseSummary(db config.Database) string {
+func databaseSummary(db config.ConnectionSettings) string {
 	return db.Type.String() + " " + spec.DatabaseState(db.Enabled) + " · " + db.CLI
 }

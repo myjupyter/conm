@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/myjupyter/conm/internal/config"
 )
 
 // The connections table is the widest screen: six columns plus the live ping
@@ -145,13 +147,18 @@ func (m Model) rowLine(i int) string {
 		mark = gDotOn
 	}
 
+	database := ""
+	if db, ok := cfg.(config.DBConnection); ok {
+		database = db.Database()
+	}
+
 	spans := []span{
 		{text: caret + mark, fg: markC, bg: bg},
 		{text: " " + truncPad(cfg.Meta().Name, wName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(cfg.Username(), wUser, false), fg: soft, bg: bg},
 		{text: " " + truncPad(cfg.Host(), wHost, false), fg: fg, bg: bg},
 		{text: " " + truncPad(strconv.Itoa(cfg.Port()), wPort, true), fg: soft, bg: bg},
-		{text: " " + truncPad(cfg.Database(), wDB, false), fg: fg, bg: bg},
+		{text: " " + truncPad(database, wDB, false), fg: fg, bg: bg},
 		m.pingSpan(i, bg, sel),
 	}
 	return frameLine(tableInner, spans, bg)
