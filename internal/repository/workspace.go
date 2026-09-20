@@ -14,6 +14,7 @@ var connectionRepositories = map[config.ConnType]func(config.Conm) (*ConnectionR
 	config.ClickHouseConnType: NewClickHouseRepository,
 	config.RedisConnType:      NewRedisRepository,
 	config.MongoDBConnType:    NewMongoDBRepository,
+	config.SSHConnType:        NewSSHRepository,
 }
 
 type Workspace struct {

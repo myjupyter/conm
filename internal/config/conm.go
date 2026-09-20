@@ -18,6 +18,7 @@ const (
 	ClickHouseConnType
 	RedisConnType
 	MongoDBConnType
+	SSHConnType
 )
 
 type ConnKind int
@@ -63,22 +64,27 @@ func (c *Conm) SetConnection(s ConnectionSettings) {
 	c.Connections = append(c.Connections, s)
 }
 
-func withDatabaseKinds(stored []ConnectionSettings) []ConnectionSettings {
-	conns := make([]ConnectionSettings, 0, len(Databases))
-	for _, t := range Databases {
-		conn := ConnectionSettings{Kind: DatabaseConnKind, Type: t}
+func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {
+	conns := make([]ConnectionSettings, 0, len(ConnTypes))
+	for _, t := range ConnTypes {
+		conn := ConnectionSettings{Type: t}
 		for _, s := range stored {
 			if s.Type == t {
 				conn = s
 				break
 			}
 		}
-		if conn.Kind == 0 {
-			conn.Kind = DatabaseConnKind
-		}
+		conn.Kind = t.Kind()
 		conns = append(conns, conn)
 	}
 	return conns
+}
+
+func (t ConnType) Kind() ConnKind {
+	if t == SSHConnType {
+		return SSHConnKind
+	}
+	return DatabaseConnKind
 }
 
 func (k ConnKind) String() string {
@@ -106,13 +112,15 @@ func (t ConnType) String() string {
 		return "redis"
 	case MongoDBConnType:
 		return "mongodb"
+	case SSHConnType:
+		return "ssh"
 	default:
 		return "unknown"
 	}
 }
 
 func ParseConnType(name string) (ConnType, error) {
-	for _, t := range Databases {
+	for _, t := range ConnTypes {
 		if t.String() == name {
 			return t, nil
 		}
@@ -121,7 +129,7 @@ func ParseConnType(name string) (ConnType, error) {
 }
 
 func (t ConnType) MarshalText() ([]byte, error) {
-	if !slices.Contains(Databases, t) {
+	if !slices.Contains(ConnTypes, t) {
 		return nil, fmt.Errorf("unsupported connection type %d", int(t))
 	}
 	return []byte(t.String()), nil
@@ -185,7 +193,7 @@ func (w *ConmConfigWrapper) ConnectionConfigs() []Connection {
 func (w *ConmConfigWrapper) Remove(_ int) {}
 
 func (w *ConmConfigWrapper) Validate() {
-	w.Conm.Connections = withDatabaseKinds(w.Conm.Connections)
+	w.Conm.Connections = withKnownTypes(w.Conm.Connections)
 }
 
 func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
@@ -237,7 +245,7 @@ func ReadConm(filename string) (Conm, error) {
 		return Conm{}, err
 	}
 
-	t.Conm.Connections = withDatabaseKinds(t.Conm.Connections)
+	t.Conm.Connections = withKnownTypes(t.Conm.Connections)
 
 	return t.Conm, nil
 }

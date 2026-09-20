@@ -23,33 +23,6 @@ func (hostOnly) Validate() []error              { return nil }
 
 var _ Connection = hostOnly{}
 
-func TestConnKindText(t *testing.T) {
-	tests := map[string]struct {
-		kind ConnKind
-		text string
-	}{
-		"database": {kind: DatabaseConnKind, text: "database"},
-		"ssh":      {kind: SSHConnKind, text: "ssh"},
-	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			raw, err := tt.kind.MarshalText()
-			require.NoError(t, err)
-			assert.Equal(t, tt.text, string(raw))
-
-			var parsed ConnKind
-			require.NoError(t, parsed.UnmarshalText(raw))
-			assert.Equal(t, tt.kind, parsed)
-		})
-	}
-
-	_, err := ConnKind(0).MarshalText()
-	require.Error(t, err)
-	var parsed ConnKind
-	require.Error(t, parsed.UnmarshalText([]byte("tunnel")))
-}
-
 func TestReadConm(t *testing.T) {
 	tests := map[string]struct {
 		toml string

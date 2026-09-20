@@ -34,6 +34,7 @@ var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
 	config.ClickHouseConnType: ClickHouseFormSpec,
 	config.RedisConnType:      RedisFormSpec,
 	config.MongoDBConnType:    MongoDBFormSpec,
+	config.SSHConnType:        SSHFormSpec,
 }
 
 type FieldProperty int

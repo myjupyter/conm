@@ -14,6 +14,7 @@ const (
 	clickhouseConfigFileName = "clickhouse.toml"
 	redisConfigFileName      = "redis.toml"
 	mongodbConfigFileName    = "mongodb.toml"
+	sshConfigFileName        = "ssh.toml"
 	conmConfigFileName       = "conm.toml"
 	secretConfigFileName     = "secret.toml"
 )
@@ -32,6 +33,8 @@ var (
 	RedisPath      = pathGetter(redisPath)
 	mongodbPath    = filepath.Join(xdg.ConfigHome, conmDirName, mongodbConfigFileName)
 	MongoDBPath    = pathGetter(mongodbPath)
+	sshPath        = filepath.Join(xdg.ConfigHome, conmDirName, sshConfigFileName)
+	SSHPath        = pathGetter(sshPath)
 	conmConfigPath = filepath.Join(xdg.ConfigHome, conmDirName, conmConfigFileName)
 	ConmPath       = pathGetter(conmConfigPath)
 )

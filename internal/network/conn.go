@@ -33,6 +33,10 @@ func NewConnection(
 	cfg config.Connection,
 	sec secret.Provider,
 ) (Connection, error) {
+	if cfg.ConnType() == config.SSHConnType {
+		return NewSSHClient(launcher, cfg, sec)
+	}
+
 	db, isDatabase := cfg.(config.DBConnection)
 	if !isDatabase {
 		return nil, fmt.Errorf("connection type %q is not a database", cfg.ConnType())

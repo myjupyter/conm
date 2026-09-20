@@ -24,6 +24,7 @@ var DatabaseFormSpecs = map[config.ConnType]FormSpec[config.ConnectionSettings]{
 	config.ClickHouseConnType: databaseFormSpec(config.ClickHouseConnType),
 	config.RedisConnType:      databaseFormSpec(config.RedisConnType),
 	config.MongoDBConnType:    databaseFormSpec(config.MongoDBConnType),
+	config.SSHConnType:        databaseFormSpec(config.SSHConnType),
 }
 
 func DatabaseState(enabled bool) FormFieldValue {
@@ -70,7 +71,7 @@ func databaseFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
 		},
 		BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.ConnectionSettings, error) {
 			return config.ConnectionSettings{
-				Kind:    config.DatabaseConnKind,
+				Kind:    t.Kind(),
 				Type:    t,
 				CLI:     values[databaseFormFieldClient],
 				Enabled: values[databaseFormFieldState] == DatabaseEnabled,

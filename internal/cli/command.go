@@ -30,6 +30,7 @@ var commands = map[string]builder{
 	MySQL:      mysqlCommand,
 	SQLCmd:     mssqlCommand,
 	ClickHouse: clickhouseCommand,
+	SSH:        sshCommand,
 }
 
 const versionFlag = "--version"
@@ -47,6 +48,7 @@ var versionFlags = map[string]string{
 	IRedis:     versionFlag,
 	Mongosh:    versionFlag,
 	Mongo:      versionFlag,
+	SSH:        "-V",
 }
 
 var versionNumber = regexp.MustCompile(`\d+(\.\d+)*`)
@@ -57,7 +59,7 @@ func Version(ctx context.Context, name string) string {
 		return ""
 	}
 
-	out, err := exec.CommandContext(ctx, name, flag).Output()
+	out, err := exec.CommandContext(ctx, name, flag).CombinedOutput()
 	if err != nil {
 		return ""
 	}
