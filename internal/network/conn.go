@@ -33,19 +33,28 @@ func NewConnection(
 	cfg config.Connection,
 	sec secret.Provider,
 ) (Connection, error) {
+	if cfg.ConnType() == config.SSHConnType {
+		return NewSSHClient(launcher, cfg, sec)
+	}
+
+	db, isDatabase := cfg.(config.DBConnection)
+	if !isDatabase {
+		return nil, fmt.Errorf("connection type %q is not a database", cfg.ConnType())
+	}
+
 	switch cfg.ConnType() {
 	case config.PostgresConnType:
-		return NewPGClient(launcher, cfg, sec)
+		return NewPGClient(launcher, db, sec)
 	case config.MySQLConnType:
-		return NewMySQLClient(launcher, cfg, sec)
+		return NewMySQLClient(launcher, db, sec)
 	case config.MSSQLConnType:
-		return NewMSSQLClient(launcher, cfg, sec)
+		return NewMSSQLClient(launcher, db, sec)
 	case config.ClickHouseConnType:
-		return NewClickHouseClient(launcher, cfg, sec)
+		return NewClickHouseClient(launcher, db, sec)
 	case config.RedisConnType:
-		return NewRedisClient(launcher, cfg, sec)
+		return NewRedisClient(launcher, db, sec)
 	case config.MongoDBConnType:
-		return NewMongoDBClient(launcher, cfg, sec)
+		return NewMongoDBClient(launcher, db, sec)
 	default:
 		return nil, fmt.Errorf("unsupported connection type %q", cfg.ConnType())
 	}

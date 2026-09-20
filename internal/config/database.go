@@ -1,6 +1,9 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 var Databases = []ConnType{
 	PostgresConnType,
@@ -11,9 +14,17 @@ var Databases = []ConnType{
 	MongoDBConnType,
 }
 
-func DatabaseNames() []string {
-	names := make([]string, 0, len(Databases))
-	for _, t := range Databases {
+var ConnTypes = append(slices.Clone(Databases), SSHConnType)
+
+type DBConnection interface {
+	Connection
+	Database() string
+	Schema() string
+}
+
+func ConnTypeNames() []string {
+	names := make([]string, 0, len(ConnTypes))
+	for _, t := range ConnTypes {
 		names = append(names, t.String())
 	}
 
@@ -64,6 +75,14 @@ func CreateDatabaseConfig(t ConnType) error {
 		return c.Save()
 	case MongoDBConnType:
 		c, err := OpenConfig[*MongoDBConfigWrapper](MongoDBPath())
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+
+		return c.Save()
+	case SSHConnType:
+		c, err := OpenConfig[*SSHConfigWrapper](SSHPath())
 		if err != nil {
 			return err
 		}

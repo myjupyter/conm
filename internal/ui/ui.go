@@ -60,7 +60,7 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 
 func enabledDatabases(cfg config.Conm) int {
 	n := 0
-	for _, db := range cfg.Databases {
+	for _, db := range cfg.Connections {
 		if db.Enabled {
 			n++
 		}

@@ -212,14 +212,15 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 
 	if f.Kind == spec.SelectFieldKind {
 		value := m.vals[f.Key]
+		options := m.options(f)
 		at := 1
-		for j, opt := range f.Options {
+		for j, opt := range options {
 			if opt == value {
 				at = j + 1
 				break
 			}
 		}
-		pos := fmt.Sprintf("%d/%d", at, len(f.Options))
+		pos := fmt.Sprintf("%d/%d", at, len(options))
 		mid := max(formBoxW-8-len([]rune(pos)), 0)
 		value = truncPad(value, mid, false)
 		left := max((mid-len([]rune(value)))/2, 0)
@@ -275,7 +276,7 @@ func (m formModel) display(i int, active bool) (string, bool) {
 	}
 
 	if raw != "" {
-		if f.Kind == spec.HiddenFieldKind && !m.reveal {
+		if f.Kind == spec.HiddenFieldKind && !m.reveal && m.isLiteral() {
 			return strings.Repeat(gInputMask, len([]rune(raw))), false
 		}
 		return raw, false

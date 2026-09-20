@@ -18,56 +18,84 @@ const (
 	ClickHouseConnType
 	RedisConnType
 	MongoDBConnType
+	SSHConnType
+)
+
+type ConnKind int
+
+const (
+	DatabaseConnKind ConnKind = iota + 1
+	SSHConnKind
 )
 
 type Conm struct {
-	Databases []Database `toml:"database"`
+	Connections []ConnectionSettings `toml:"connection"`
 }
 
-type Database struct {
+type ConnectionSettings struct {
+	Kind    ConnKind `toml:"kind"`
 	Type    ConnType `toml:"type"`
 	CLI     string   `toml:"cli"`
 	Enabled bool     `toml:"enabled"`
 }
 
-func (c Conm) Database(t ConnType) (Database, bool) {
-	for _, db := range c.Databases {
-		if db.Type == t {
-			return db, true
+func (c Conm) Connection(t ConnType) (ConnectionSettings, bool) {
+	for _, conn := range c.Connections {
+		if conn.Type == t {
+			return conn, true
 		}
 	}
-	return Database{}, false
+	return ConnectionSettings{}, false
 }
 
 func (c Conm) CLI(t ConnType) string {
-	db, _ := c.Database(t)
-	return db.CLI
+	conn, _ := c.Connection(t)
+	return conn.CLI
 }
 
-func (c *Conm) SetDatabase(d Database) {
-	for i, db := range c.Databases {
-		if db.Type == d.Type {
-			c.Databases[i] = d
+func (c *Conm) SetConnection(s ConnectionSettings) {
+	for i, conn := range c.Connections {
+		if conn.Type == s.Type {
+			c.Connections[i] = s
 			return
 		}
 	}
 
-	c.Databases = append(c.Databases, d)
+	c.Connections = append(c.Connections, s)
 }
 
-func withDatabaseTypes(stored []Database) []Database {
-	dbs := make([]Database, 0, len(Databases))
-	for _, t := range Databases {
-		db := Database{Type: t}
+func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {
+	conns := make([]ConnectionSettings, 0, len(ConnTypes))
+	for _, t := range ConnTypes {
+		conn := ConnectionSettings{Type: t}
 		for _, s := range stored {
 			if s.Type == t {
-				db = s
+				conn = s
 				break
 			}
 		}
-		dbs = append(dbs, db)
+		conn.Kind = t.Kind()
+		conns = append(conns, conn)
 	}
-	return dbs
+	return conns
+}
+
+func (t ConnType) Kind() ConnKind {
+	if t == SSHConnType {
+		return SSHConnKind
+	}
+	return DatabaseConnKind
+}
+
+func (k ConnKind) String() string {
+	switch k {
+	case DatabaseConnKind:
+		return "database"
+	case SSHConnKind:
+		return "ssh"
+	default:
+		return "unknown"
+	}
 }
 
 func (t ConnType) String() string {
@@ -84,13 +112,15 @@ func (t ConnType) String() string {
 		return "redis"
 	case MongoDBConnType:
 		return "mongodb"
+	case SSHConnType:
+		return "ssh"
 	default:
 		return "unknown"
 	}
 }
 
 func ParseConnType(name string) (ConnType, error) {
-	for _, t := range Databases {
+	for _, t := range ConnTypes {
 		if t.String() == name {
 			return t, nil
 		}
@@ -99,7 +129,7 @@ func ParseConnType(name string) (ConnType, error) {
 }
 
 func (t ConnType) MarshalText() ([]byte, error) {
-	if !slices.Contains(Databases, t) {
+	if !slices.Contains(ConnTypes, t) {
 		return nil, fmt.Errorf("unsupported connection type %d", int(t))
 	}
 	return []byte(t.String()), nil
@@ -112,6 +142,27 @@ func (t *ConnType) UnmarshalText(raw []byte) error {
 	}
 
 	*t = parsed
+	return nil
+}
+
+func (k ConnKind) MarshalText() ([]byte, error) {
+	if k != DatabaseConnKind && k != SSHConnKind {
+		return nil, fmt.Errorf("unsupported connection kind %d", int(k))
+	}
+	return []byte(k.String()), nil
+}
+
+func (k *ConnKind) UnmarshalText(raw []byte) error {
+	parsed := string(raw)
+	switch parsed {
+	case "database":
+		*k = DatabaseConnKind
+	case "ssh":
+		*k = SSHConnKind
+	default:
+		return fmt.Errorf("unknown connection kind %q", parsed)
+	}
+
 	return nil
 }
 
@@ -142,7 +193,7 @@ func (w *ConmConfigWrapper) ConnectionConfigs() []Connection {
 func (w *ConmConfigWrapper) Remove(_ int) {}
 
 func (w *ConmConfigWrapper) Validate() {
-	w.Conm.Databases = withDatabaseTypes(w.Conm.Databases)
+	w.Conm.Connections = withKnownTypes(w.Conm.Connections)
 }
 
 func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
@@ -194,7 +245,7 @@ func ReadConm(filename string) (Conm, error) {
 		return Conm{}, err
 	}
 
-	t.Conm.Databases = withDatabaseTypes(t.Conm.Databases)
+	t.Conm.Connections = withKnownTypes(t.Conm.Connections)
 
 	return t.Conm, nil
 }

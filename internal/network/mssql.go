@@ -28,14 +28,14 @@ const (
 
 type MSSQLClient struct {
 	launcher cli.Launcher
-	cfg      config.Connection
+	cfg      config.DBConnection
 	ref      secret.Reference
 	sec      secret.Provider
 }
 
 func NewMSSQLClient(
 	launcher cli.Launcher,
-	cfg config.Connection,
+	cfg config.DBConnection,
 	sec secret.Provider,
 ) (*MSSQLClient, error) {
 	ref, ok := cfg.(secret.Reference)
@@ -145,6 +145,6 @@ func mssqlErrorCode(err error) ErrorCode {
 	return transportErrorCode(err)
 }
 
-func mssqlTarget(cfg config.Connection) string {
+func mssqlTarget(cfg config.DBConnection) string {
 	return fmt.Sprintf("sqlserver://%s@%s:%d?database=%s", cfg.Username(), cfg.Host(), cfg.Port(), cfg.Database())
 }

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/myjupyter/conm/internal/config"
 )
 
 // The connections table is the widest screen: six columns plus the live ping
@@ -99,16 +101,31 @@ func (m Model) tabsLine() string {
 	return frameLine(tableInner, spans, nil)
 }
 
+func (m Model) hasDatabaseColumn() bool {
+	return m.conns.Active().Kind() == config.DatabaseConnKind
+}
+
+func (m Model) hostWidth() int {
+	if m.hasDatabaseColumn() {
+		return wHost
+	}
+	return wHost + 1 + wDB
+}
+
 func (m Model) headerLine() string {
-	return frameLine(tableInner, []span{
+	spans := []span{
 		{text: truncPad("", wMark, false), fg: cDim},
 		{text: " " + truncPad("NAME", wName, false), fg: cDim},
 		{text: " " + truncPad("USERNAME", wUser, false), fg: cDim},
-		{text: " " + truncPad("HOST", wHost, false), fg: cDim},
+		{text: " " + truncPad("HOST", m.hostWidth(), false), fg: cDim},
 		{text: " " + truncPad("PORT", wPort, true), fg: cDim},
-		{text: " " + truncPad("DBNAME", wDB, false), fg: cDim},
-		{text: " " + truncPad("PING", wPing, true), fg: cDim},
-	}, nil)
+	}
+	if m.hasDatabaseColumn() {
+		spans = append(spans, span{text: " " + truncPad("DBNAME", wDB, false), fg: cDim})
+	}
+	spans = append(spans, span{text: " " + truncPad("PING", wPing, true), fg: cDim})
+
+	return frameLine(tableInner, spans, nil)
 }
 
 func (m Model) rowLine(i int) string {
@@ -149,11 +166,18 @@ func (m Model) rowLine(i int) string {
 		{text: caret + mark, fg: markC, bg: bg},
 		{text: " " + truncPad(cfg.Meta().Name, wName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(cfg.Username(), wUser, false), fg: soft, bg: bg},
-		{text: " " + truncPad(cfg.Host(), wHost, false), fg: fg, bg: bg},
+		{text: " " + truncPad(cfg.Host(), m.hostWidth(), false), fg: fg, bg: bg},
 		{text: " " + truncPad(strconv.Itoa(cfg.Port()), wPort, true), fg: soft, bg: bg},
-		{text: " " + truncPad(cfg.Database(), wDB, false), fg: fg, bg: bg},
-		m.pingSpan(i, bg, sel),
 	}
+	if m.hasDatabaseColumn() {
+		database := ""
+		if db, ok := cfg.(config.DBConnection); ok {
+			database = db.Database()
+		}
+		spans = append(spans, span{text: " " + truncPad(database, wDB, false), fg: fg, bg: bg})
+	}
+	spans = append(spans, m.pingSpan(i, bg, sel))
+
 	return frameLine(tableInner, spans, bg)
 }
 
@@ -190,8 +214,11 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 func (m Model) statusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	text := m.status
-	if m.conns.Confirming() {
+	switch {
+	case m.conns.Confirming():
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q? y/n", m.cursorLabel())
+	case m.statusKind == kindPing:
+		return framePing(tableInner, text)
 	}
 	return frameStatus(tableInner, icon, col, text, "")
 }

@@ -13,8 +13,9 @@ import (
 type builder func(cfg config.Connection, password string) (command, error)
 
 type command struct {
-	args []string
-	env  []string
+	args    []string
+	env     []string
+	cleanup func()
 }
 
 var commands = map[string]builder{
@@ -30,6 +31,7 @@ var commands = map[string]builder{
 	MySQL:      mysqlCommand,
 	SQLCmd:     mssqlCommand,
 	ClickHouse: clickhouseCommand,
+	SSH:        sshCommand,
 }
 
 const versionFlag = "--version"
@@ -47,6 +49,7 @@ var versionFlags = map[string]string{
 	IRedis:     versionFlag,
 	Mongosh:    versionFlag,
 	Mongo:      versionFlag,
+	SSH:        "-V",
 }
 
 var versionNumber = regexp.MustCompile(`\d+(\.\d+)*`)
@@ -57,7 +60,7 @@ func Version(ctx context.Context, name string) string {
 		return ""
 	}
 
-	out, err := exec.CommandContext(ctx, name, flag).Output()
+	out, err := exec.CommandContext(ctx, name, flag).CombinedOutput()
 	if err != nil {
 		return ""
 	}
@@ -90,6 +93,10 @@ func passwordEnv(name, password string) []string {
 }
 
 func (c command) run(ctx context.Context, name string) error {
+	if c.cleanup != nil {
+		defer c.cleanup()
+	}
+
 	executor := exec.CommandContext(ctx, name, c.args...)
 	executor.Env = c.env
 

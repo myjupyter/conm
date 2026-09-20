@@ -17,16 +17,14 @@ const (
 	databaseFormFieldClient databaseFormField = "client"
 )
 
-// DatabaseFormSpecs maps a database to the form that edits its availability.
-// Postgres is the only one conm supports today; a new database registers its
-// spec here and nothing else in the UI changes.
-var DatabaseFormSpecs = map[config.ConnType]FormSpec[config.Database]{
+var DatabaseFormSpecs = map[config.ConnType]FormSpec[config.ConnectionSettings]{
 	config.PostgresConnType:   databaseFormSpec(config.PostgresConnType),
 	config.MySQLConnType:      databaseFormSpec(config.MySQLConnType),
 	config.MSSQLConnType:      databaseFormSpec(config.MSSQLConnType),
 	config.ClickHouseConnType: databaseFormSpec(config.ClickHouseConnType),
 	config.RedisConnType:      databaseFormSpec(config.RedisConnType),
 	config.MongoDBConnType:    databaseFormSpec(config.MongoDBConnType),
+	config.SSHConnType:        databaseFormSpec(config.SSHConnType),
 }
 
 func DatabaseState(enabled bool) FormFieldValue {
@@ -36,8 +34,8 @@ func DatabaseState(enabled bool) FormFieldValue {
 	return DatabaseDisabled
 }
 
-func databaseFormSpec(t config.ConnType) FormSpec[config.Database] {
-	return FormSpec[config.Database]{
+func databaseFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
+	return FormSpec[config.ConnectionSettings]{
 		EditTitle: "availability",
 		Fields: []FormField{
 			{
@@ -62,7 +60,7 @@ func databaseFormSpec(t config.ConnType) FormSpec[config.Database] {
 				Fields: []FormFieldKey{databaseFormFieldState, databaseFormFieldClient},
 			},
 		},
-		SeedFunc: func(d config.Database) map[FormFieldKey]FormFieldValue {
+		SeedFunc: func(d config.ConnectionSettings) map[FormFieldKey]FormFieldValue {
 			if d.Type != t {
 				return nil
 			}
@@ -71,8 +69,9 @@ func databaseFormSpec(t config.ConnType) FormSpec[config.Database] {
 				databaseFormFieldClient: d.CLI,
 			}
 		},
-		BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Database, error) {
-			return config.Database{
+		BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.ConnectionSettings, error) {
+			return config.ConnectionSettings{
+				Kind:    t.Kind(),
 				Type:    t,
 				CLI:     values[databaseFormFieldClient],
 				Enabled: values[databaseFormFieldState] == DatabaseEnabled,

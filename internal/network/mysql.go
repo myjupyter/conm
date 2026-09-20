@@ -27,14 +27,14 @@ const (
 
 type MySQLClient struct {
 	launcher cli.Launcher
-	cfg      config.Connection
+	cfg      config.DBConnection
 	ref      secret.Reference
 	sec      secret.Provider
 }
 
 func NewMySQLClient(
 	launcher cli.Launcher,
-	cfg config.Connection,
+	cfg config.DBConnection,
 	sec secret.Provider,
 ) (*MySQLClient, error) {
 	ref, ok := cfg.(secret.Reference)
@@ -151,6 +151,6 @@ func mysqlErrorCode(err error) ErrorCode {
 	return transportErrorCode(err)
 }
 
-func mysqlTarget(cfg config.Connection) string {
+func mysqlTarget(cfg config.DBConnection) string {
 	return fmt.Sprintf("mysql://%s@%s:%d/%s", cfg.Username(), cfg.Host(), cfg.Port(), cfg.Database())
 }

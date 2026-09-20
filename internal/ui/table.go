@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -263,8 +265,8 @@ func (m Model) pingOne() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	st.pingStatus = pingPinging
-	m.status = "pinging " + cfg.Host() + " …"
-	m.statusKind = kindPending
+	st.connErr = nil
+	m.status, m.statusKind = pingTarget(cfg)+" …", kindPing
 	return m, tea.Batch(st.pingSpinner.Tick, m.pingCmd(ref))
 }
 
@@ -320,25 +322,27 @@ func (m Model) applyPingResult(msg pingResultMsg) Model {
 	if !ok {
 		return m
 	}
-	cfg, live := m.conns.ConfigFor(msg.ref)
-	name := connLabel(cfg)
+	_, live := m.conns.ConfigFor(msg.ref)
 
 	if msg.err != nil {
-		e := newConnError(msg.err, network.PingOperation, name)
+		e := newConnError(msg.err, network.PingOperation)
 		st.pingStatus = pingFailed
 		if live {
 			st.connErr = e
 		}
-		m.status, m.statusKind = "ping failed · "+name+" · "+e.code, kindErr
+		m.status, m.statusKind = statusReady, kindIdle
 		return m
 	}
 
 	st.pingStatus = pingOK
 	st.pingResult = msg.result
 	st.connErr = nil
-	m.status = fmt.Sprintf("pong · %s responded in %dms", cfg.Host(), msg.result.PingTime.Milliseconds())
-	m.statusKind = kindOK
+	m.status, m.statusKind = statusReady, kindIdle
 	return m
+}
+
+func pingTarget(cfg config.Connection) string {
+	return net.JoinHostPort(cfg.Host(), strconv.Itoa(cfg.Port()))
 }
 
 func (m Model) applyRunResult(msg runResultMsg) Model {
@@ -347,7 +351,7 @@ func (m Model) applyRunResult(msg runResultMsg) Model {
 	st := m.pings[msg.ref]
 
 	if msg.err != nil {
-		e := newConnError(msg.err, network.ConnectOperation, name)
+		e := newConnError(msg.err, network.ConnectOperation)
 		if live && st != nil {
 			st.pingStatus = pingFailed
 			st.connErr = e

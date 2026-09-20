@@ -34,6 +34,7 @@ var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
 	config.ClickHouseConnType: ClickHouseFormSpec,
 	config.RedisConnType:      RedisFormSpec,
 	config.MongoDBConnType:    MongoDBFormSpec,
+	config.SSHConnType:        SSHFormSpec,
 }
 
 type FieldProperty int
@@ -52,6 +53,7 @@ type FormField struct {
 	Property     FieldProperty
 	DefaultValue string
 	Options      []string // only used for SelectFieldKind
+	OptionsFunc  func(map[FormFieldKey]FormFieldValue) []string
 	ValidateFunc func(string) error
 }
 

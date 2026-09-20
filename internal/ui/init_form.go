@@ -14,7 +14,7 @@ import (
 // whether it is enabled at all. Every field is a select, so the form has no
 // insert mode — a value is cycled, never typed.
 type initFormModel struct {
-	spec spec.FormSpec[config.Database]
+	spec spec.FormSpec[config.ConnectionSettings]
 	kind config.ConnType
 
 	vals map[spec.FormFieldKey]spec.FormFieldValue
@@ -29,7 +29,7 @@ type initFormModel struct {
 	statusKind statusKind
 }
 
-func newInitFormModel(spc spec.FormSpec[config.Database], kind config.ConnType, initial map[spec.FormFieldKey]spec.FormFieldValue) initFormModel {
+func newInitFormModel(spc spec.FormSpec[config.ConnectionSettings], kind config.ConnType, initial map[spec.FormFieldKey]spec.FormFieldValue) initFormModel {
 	m := initFormModel{
 		spec:       spc,
 		kind:       kind,
@@ -141,6 +141,6 @@ func (m initFormModel) submit() (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-func (m initFormModel) result() (config.Database, error) {
+func (m initFormModel) result() (config.ConnectionSettings, error) {
 	return m.spec.BuildFunc(m.vals)
 }

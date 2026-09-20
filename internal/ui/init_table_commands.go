@@ -68,7 +68,7 @@ func runDatabaseTable() (config.ConnType, bool, error) {
 	return im.chosen, im.open, nil
 }
 
-func (m initModel) saveDatabaseCmd(db config.Database) tea.Cmd {
+func (m initModel) saveDatabaseCmd(db config.ConnectionSettings) tea.Cmd {
 	next := m.conm
 	return func() tea.Msg {
 		err := saveDatabase(&next, db)
@@ -101,12 +101,12 @@ func (m initModel) editDatabaseCmd() tea.Cmd {
 	)
 }
 
-func saveDatabase(conm *config.Conm, db config.Database) error {
+func saveDatabase(conm *config.Conm, db config.ConnectionSettings) error {
 	if err := cli.Validate(db.Type, db.CLI); err != nil {
 		return err
 	}
 
-	conm.SetDatabase(db)
+	conm.SetConnection(db)
 	if db.Enabled {
 		if err := config.CreateDatabaseConfig(db.Type); err != nil {
 			return err

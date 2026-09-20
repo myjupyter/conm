@@ -19,14 +19,18 @@ type connKey struct {
 }
 
 func keyOf(c config.Connection) connKey {
-	return connKey{
+	key := connKey{
 		Type:     c.ConnType(),
 		Host:     c.Host(),
 		Port:     c.Port(),
-		Database: c.Database(),
-		Schema:   c.Schema(),
 		Username: c.Username(),
 	}
+	if db, ok := c.(config.DBConnection); ok {
+		key.Database = db.Database()
+		key.Schema = db.Schema()
+	}
+
+	return key
 }
 
 func (k connKey) String() string {
