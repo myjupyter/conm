@@ -22,6 +22,11 @@ const (
 
 const sshScheme = "ssh"
 
+const (
+	sshNoneSecretScheme     = "none"
+	sshFilepathSecretScheme = "filepath"
+)
+
 var sshJumpHopRegexp = regexp.MustCompile(`^([A-Za-z0-9._-]+@)?[A-Za-z0-9._-]+(:\d+)?$`)
 
 var sshLocalForwardRegexp = regexp.MustCompile(`^\d+:[^:\s]+:\d+$`)
@@ -29,18 +34,16 @@ var sshLocalForwardRegexp = regexp.MustCompile(`^\d+:[^:\s]+:\d+$`)
 var _ Connection = (*SSH)(nil)
 
 type SSH struct {
-	Metadata      ConnMeta `toml:"meta"`
-	Hostname      string   `toml:"host"`
-	PortNumber    int      `toml:"port"`
-	User          string   `toml:"username"`
-	Auth          SSHAuth  `toml:"auth"`
-	Identity      string   `toml:"identity,omitempty"`
-	Password      string   `toml:"password,omitempty"`
-	Jump          string   `toml:"jump,omitempty"`
-	ForwardAgent  bool     `toml:"forward_agent,omitempty"`
-	KeepAlive     int      `toml:"keepalive,omitempty"`
-	LocalForward  string   `toml:"local_forward,omitempty"`
-	RemoteCommand string   `toml:"remote_command,omitempty"`
+	Metadata     ConnMeta `toml:"meta"`
+	Hostname     string   `toml:"host"`
+	PortNumber   int      `toml:"port"`
+	User         string   `toml:"username"`
+	Auth         SSHAuth  `toml:"auth"`
+	Password     string   `toml:"password,omitempty"`
+	Jump         string   `toml:"jump,omitempty"`
+	ForwardAgent bool     `toml:"forward_agent,omitempty"`
+	KeepAlive    int      `toml:"keepalive,omitempty"`
+	LocalForward string   `toml:"local_forward,omitempty"`
 
 	validationErrs []error
 }
@@ -93,11 +96,30 @@ func ValidateSSHAuth(auth string) error {
 }
 
 func ValidateSSHIdentity(identity string) error {
-	if identity == "" {
-		return nil
-	}
 	if !strings.HasPrefix(identity, "~") && !strings.HasPrefix(identity, "/") {
 		return errors.New("identity must be a path — ~/.ssh/… or /…")
+	}
+	return nil
+}
+
+func ValidateSSHCredential(auth SSHAuth, ref string) error {
+	scheme, location, _ := strings.Cut(ref, ":")
+	switch auth {
+	case SSHAuthKey:
+		if ref == "" || scheme == sshNoneSecretScheme {
+			return errors.New("key auth needs the key: a filepath, or its material in a store")
+		}
+		if scheme == sshFilepathSecretScheme {
+			return ValidateSSHIdentity(location)
+		}
+	case SSHAuthAgent:
+		if ref != "" && scheme != sshNoneSecretScheme {
+			return errors.New("agent auth takes no secret")
+		}
+	case SSHAuthPassword:
+		if scheme == sshFilepathSecretScheme {
+			return errors.New("password auth takes a password, not a file")
+		}
 	}
 	return nil
 }
@@ -247,7 +269,7 @@ func (s SSH) Validate() []error {
 		ValidateSSHPort(s.PortNumber),
 		ValidateSSHUsername(s.User),
 		ValidateSSHAuth(s.Auth),
-		ValidateSSHIdentity(s.Identity),
+		ValidateSSHCredential(s.Auth, s.Password),
 		ValidateSSHJump(s.Jump),
 		ValidateSSHKeepAlive(s.KeepAlive),
 		ValidateSSHLocalForward(s.LocalForward),

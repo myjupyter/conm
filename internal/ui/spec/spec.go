@@ -53,6 +53,7 @@ type FormField struct {
 	Property     FieldProperty
 	DefaultValue string
 	Options      []string // only used for SelectFieldKind
+	OptionsFunc  func(map[FormFieldKey]FormFieldValue) []string
 	ValidateFunc func(string) error
 }
 

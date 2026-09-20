@@ -7,17 +7,16 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
 const (
 	sshExampleHost         = "bastion.internal.corp"
 	sshExamplePort         = "22"
 	sshExampleUsername     = "deploy"
-	sshExampleIdentity     = "~/.ssh/id_ed25519"
 	sshExampleJump         = "deploy@bastion.internal.corp"
 	sshExampleKeepAlive    = "seconds between probes"
 	sshExampleLocalForward = "5432:localhost:5432"
-	sshExampleRemoteCmd    = "runs instead of a shell"
 	sshExampleName         = "bastion-eu"
 	sshExampleDescription  = "Entry point for every eu-west box"
 	sshExampleTags         = "prod,bastion"
@@ -45,18 +44,43 @@ const (
 	sshFormFieldPort         sshFormField = "Port"
 	sshFormFieldUsername     sshFormField = "Username"
 	sshFormFieldAuth         sshFormField = "Auth"
-	sshFormFieldIdentity     sshFormField = "Identity"
 	sshFormFieldJump         sshFormField = "Proxy jump"
 	sshFormFieldForwardAgent sshFormField = "Forward agent"
 	sshFormFieldKeepAlive    sshFormField = "Keepalive"
 	sshFormFieldLocalForward sshFormField = "Local forward"
-	sshFormFieldRemoteCmd    sshFormField = "Remote command"
 )
 
 var SSHAuthOrder = []config.SSHAuth{
 	config.SSHAuthAgent,
 	config.SSHAuthKey,
 	config.SSHAuthPassword,
+}
+
+var SSHSecretProvidersOrder = []string{
+	secret.None,
+	secret.Literal,
+	secret.Keyring,
+	secret.Filepath,
+}
+
+var sshSecretProviderField = FormField{
+	Key:          SecretProviderKey,
+	Label:        secretProviderField.Label,
+	Kind:         SelectFieldKind,
+	DefaultValue: secret.None,
+	Options:      SSHSecretProvidersOrder,
+	OptionsFunc:  sshSecretProviders,
+}
+
+func sshSecretProviders(values map[FormFieldKey]FormFieldValue) []string {
+	switch values[strings.ToLower(sshFormFieldAuth)] {
+	case config.SSHAuthKey:
+		return []string{secret.Filepath, secret.Literal, secret.Keyring}
+	case config.SSHAuthPassword:
+		return []string{secret.Literal, secret.Keyring, secret.None}
+	default:
+		return []string{secret.None}
+	}
 }
 
 var SSHFormFields = []FormField{
@@ -98,14 +122,7 @@ var SSHFormFields = []FormField{
 		Options:      SSHAuthOrder,
 		ValidateFunc: config.ValidateSSHAuth,
 	},
-	{
-		Key:          strings.ToLower(sshFormFieldIdentity),
-		Label:        sshFormFieldIdentity,
-		Example:      sshExampleIdentity,
-		Property:     OptionalFieldProperty,
-		ValidateFunc: config.ValidateSSHIdentity,
-	},
-	secretProviderField,
+	sshSecretProviderField,
 	passwordField,
 	{
 		Key:          strings.ToLower(sshFormFieldJump),
@@ -144,13 +161,6 @@ var SSHFormFields = []FormField{
 		Example:      sshExampleLocalForward,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateSSHLocalForward,
-	},
-	{
-		Key:          strings.ToLower(sshFormFieldRemoteCmd),
-		Label:        sshFormFieldRemoteCmd,
-		Example:      sshExampleRemoteCmd,
-		Property:     OptionalFieldProperty,
-		ValidateFunc: func(string) error { return nil },
 	},
 	{
 		Key:          strings.ToLower(sshFormFieldName),
@@ -192,7 +202,6 @@ var SSHFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(sshFormFieldPort),
 				strings.ToLower(sshFormFieldUsername),
 				strings.ToLower(sshFormFieldAuth),
-				strings.ToLower(sshFormFieldIdentity),
 				SecretProviderKey,
 				SecretValueKey,
 			},
@@ -205,7 +214,6 @@ var SSHFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(sshFormFieldForwardAgent),
 				strings.ToLower(sshFormFieldKeepAlive),
 				strings.ToLower(sshFormFieldLocalForward),
-				strings.ToLower(sshFormFieldRemoteCmd),
 			},
 		},
 		metadataSection(
@@ -233,14 +241,12 @@ var SSHFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(sshFormFieldPort):         strconv.Itoa(s.PortNumber),
 			strings.ToLower(sshFormFieldUsername):     s.User,
 			strings.ToLower(sshFormFieldAuth):         s.Auth,
-			strings.ToLower(sshFormFieldIdentity):     s.Identity,
 			SecretProviderKey:                         mode,
 			SecretValueKey:                            value,
 			strings.ToLower(sshFormFieldJump):         s.Jump,
 			strings.ToLower(sshFormFieldForwardAgent): forwardAgent,
 			strings.ToLower(sshFormFieldKeepAlive):    keepAlive,
 			strings.ToLower(sshFormFieldLocalForward): s.LocalForward,
-			strings.ToLower(sshFormFieldRemoteCmd):    s.RemoteCommand,
 			strings.ToLower(sshFormFieldName):         s.Metadata.Name,
 			strings.ToLower(sshFormFieldDescription):  s.Metadata.Description,
 			strings.ToLower(sshFormFieldTags):         strings.Join(s.Metadata.Tags, ", "),
@@ -268,16 +274,14 @@ var SSHFormSpec = FormSpec[config.Connection]{
 			PortNumber: port,
 			User:       values[strings.ToLower(sshFormFieldUsername)],
 			Auth:       values[strings.ToLower(sshFormFieldAuth)],
-			Identity:   values[strings.ToLower(sshFormFieldIdentity)],
 			Password: JoinSecret(
 				values[SecretProviderKey],
 				values[SecretValueKey],
 			),
-			Jump:          values[strings.ToLower(sshFormFieldJump)],
-			ForwardAgent:  values[strings.ToLower(sshFormFieldForwardAgent)] == SSHForwardAgentYes,
-			KeepAlive:     keepAlive,
-			LocalForward:  values[strings.ToLower(sshFormFieldLocalForward)],
-			RemoteCommand: values[strings.ToLower(sshFormFieldRemoteCmd)],
+			Jump:         values[strings.ToLower(sshFormFieldJump)],
+			ForwardAgent: values[strings.ToLower(sshFormFieldForwardAgent)] == SSHForwardAgentYes,
+			KeepAlive:    keepAlive,
+			LocalForward: values[strings.ToLower(sshFormFieldLocalForward)],
 		}, nil
 	},
 }

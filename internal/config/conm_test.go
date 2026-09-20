@@ -50,7 +50,7 @@ func TestReadConm(t *testing.T) {
 			conm, err := ReadConm(path)
 			require.NoError(t, err)
 
-			assert.Len(t, conm.Connections, len(Databases))
+			assert.Len(t, conm.Connections, len(ConnTypes))
 			got, ok := conm.Connection(PostgresConnType)
 			require.True(t, ok)
 			assert.Equal(t, tt.want, got)

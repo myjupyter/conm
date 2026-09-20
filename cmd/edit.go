@@ -33,6 +33,8 @@ var editCmd = &cobra.Command{
 			configPath = config.RedisPath()
 		case cmd.Flags().Changed("mongodb"):
 			configPath = config.MongoDBPath()
+		case cmd.Flags().Changed("ssh"):
+			configPath = config.SSHPath()
 		default:
 			configPath = config.ConmPath()
 		}
@@ -65,4 +67,5 @@ func init() {
 	editCmd.Flags().Bool("clickhouse", false, "Edit clickhouse.toml")
 	editCmd.Flags().Bool("redis", false, "Edit redis.toml")
 	editCmd.Flags().Bool("mongodb", false, "Edit mongodb.toml")
+	editCmd.Flags().Bool("ssh", false, "Edit ssh.toml")
 }

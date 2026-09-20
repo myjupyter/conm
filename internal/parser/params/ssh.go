@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
 const sshDefaultPort = 22
@@ -160,9 +161,9 @@ func buildSSH(values sshValues) (config.SSH, []string) {
 		}
 	}
 
-	auth := config.SSHAuthAgent
-	if values[sshIdentity] != "" {
-		auth = config.SSHAuthKey
+	auth, password := config.SSHAuthAgent, ""
+	if identity := values[sshIdentity]; identity != "" {
+		auth, password = config.SSHAuthKey, secret.Ref(secret.Filepath, identity)
 	}
 
 	return config.SSH{
@@ -170,7 +171,7 @@ func buildSSH(values sshValues) (config.SSH, []string) {
 		PortNumber:   port,
 		User:         values[sshUser],
 		Auth:         auth,
-		Identity:     values[sshIdentity],
+		Password:     password,
 		Jump:         values[sshJump],
 		ForwardAgent: strings.EqualFold(values[sshForwardAgent], "yes"),
 		KeepAlive:    keepAlive,

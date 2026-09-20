@@ -18,7 +18,7 @@ func TestCommandFor(t *testing.T) {
 	mssql := config.MSSQL{Hostname: "db.local", PortNumber: 1433, User: "me", DBName: "app", EncryptMode: config.MSSQLEncryptStrict, TrustCert: true}
 	clickhouse := config.ClickHouse{Hostname: "db.local", PortNumber: 9000, User: "me", DBName: "app", Secure: true}
 	redis := config.Redis{Hostname: "db.local", PortNumber: 6379, DBIndex: 0}
-	sshKey := config.SSH{Hostname: "bastion.local", PortNumber: 2222, User: "me", Auth: config.SSHAuthKey, Identity: "~/.ssh/id_ed25519", Jump: "me@jump.local", ForwardAgent: true, KeepAlive: 30, LocalForward: "5432:localhost:5432", RemoteCommand: "uptime"}
+	sshKey := config.SSH{Hostname: "bastion.local", PortNumber: 2222, User: "me", Auth: config.SSHAuthKey, Jump: "me@jump.local", ForwardAgent: true, KeepAlive: 30, LocalForward: "5432:localhost:5432"}
 	sshPassword := config.SSH{Hostname: "bastion.local", PortNumber: 22, User: "me", Auth: config.SSHAuthPassword}
 
 	tests := []struct {
@@ -81,12 +81,13 @@ func TestCommandFor(t *testing.T) {
 			args: []string{"--url", redis.ConnectionString("")},
 		},
 		{
-			name: "ssh spells every field as a flag",
-			cli:  SSH,
-			cfg:  sshKey,
+			name:     "ssh spells every field as a flag",
+			cli:      SSH,
+			cfg:      sshKey,
+			password: "~/.ssh/id_ed25519",
 			args: []string{
 				"-p", "2222", "-i", "~/.ssh/id_ed25519", "-J", "me@jump.local", "-A",
-				"-o", "ServerAliveInterval=30", "-L", "5432:localhost:5432", "me@bastion.local", "uptime",
+				"-o", "ServerAliveInterval=30", "-L", "5432:localhost:5432", "me@bastion.local",
 			},
 		},
 		{

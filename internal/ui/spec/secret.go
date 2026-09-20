@@ -69,7 +69,7 @@ func SplitSecret(raw string) (mode, value string) {
 	if scheme == secret.Literal {
 		return secret.Literal, location
 	}
-	if slices.Contains(SecretProvidersOrder, scheme) {
+	if slices.Contains(SecretProvidersOrder, scheme) || slices.Contains(SSHSecretProvidersOrder, scheme) {
 		return scheme, location
 	}
 	return secret.Literal, raw

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
 func TestParseSSH(t *testing.T) {
@@ -28,7 +29,7 @@ func TestParseSSH(t *testing.T) {
 				PortNumber:   2222,
 				User:         "ci",
 				Auth:         config.SSHAuthKey,
-				Identity:     "~/.ssh/id_ci",
+				Password:     secret.Ref(secret.Filepath, "~/.ssh/id_ci"),
 				Jump:         "deploy@bastion.eu",
 				ForwardAgent: true,
 				KeepAlive:    30,

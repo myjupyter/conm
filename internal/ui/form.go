@@ -115,8 +115,8 @@ func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], ti
 			m.vals[f.Key] = seeded
 		case f.Kind == spec.SelectFieldKind:
 			m.vals[f.Key] = f.DefaultValue
-			if m.vals[f.Key] == "" && len(f.Options) > 0 {
-				m.vals[f.Key] = f.Options[0]
+			if options := m.options(f); m.vals[f.Key] == "" && len(options) > 0 {
+				m.vals[f.Key] = options[0]
 			}
 		default:
 			m.vals[f.Key] = ""
@@ -164,6 +164,10 @@ func (m formModel) noSecret() bool {
 	return m.vals[spec.SecretProviderKey] == secret.None && m.hasSecretMode()
 }
 
+func (m formModel) isLiteral() bool {
+	return secret.IsMaterial(m.vals[spec.SecretProviderKey])
+}
+
 // isSecretField reports whether field i is the one the secret mode governs.
 func (m formModel) isSecretField(i int) bool {
 	return m.fields[i].Key == spec.SecretValueKey && m.hasSecretMode()
@@ -179,7 +183,14 @@ func (m formModel) isProviderField(i int) bool {
 // to change, so ←/→ stays inert there rather than pretending to be a control.
 func (m formModel) isSelector(i int) bool {
 	f := m.fields[i]
-	return f.Kind == spec.SelectFieldKind && len(f.Options) > 0
+	return f.Kind == spec.SelectFieldKind && len(m.options(f)) > 0
+}
+
+func (m formModel) options(f spec.FormField) []string {
+	if f.OptionsFunc != nil {
+		return f.OptionsFunc(m.vals)
+	}
+	return f.Options
 }
 
 func (m formModel) hasSecretMode() bool {
@@ -242,7 +253,7 @@ func (m *formModel) onSecretModeChange(was string) {
 	switch {
 	case secret.IsStore(was):
 		m.refStash = m.vals[spec.SecretValueKey]
-	case was != secret.None:
+	case secret.IsMaterial(was):
 		m.literalStash = m.vals[spec.SecretValueKey]
 	}
 
@@ -252,9 +263,15 @@ func (m *formModel) onSecretModeChange(was string) {
 		return
 	}
 
-	if !m.isRef() {
+	if m.isLiteral() {
 		m.vals[spec.SecretValueKey] = m.literalStash
 		m.setStatus("literal · password stored as plain text", kindWarn)
+		return
+	}
+
+	if !m.isRef() {
+		m.vals[spec.SecretValueKey] = ""
+		m.setStatus(m.storeLabel()+" · a location conm hands over, never reads", kindIdle)
 		return
 	}
 
@@ -395,8 +412,21 @@ func (m *formModel) navCycle(i int, cur spec.FormField, dir int) {
 	case m.isSelector(i):
 		was := m.vals[spec.SecretProviderKey]
 		m.cycle(i, dir)
-		if cur.Key == spec.SecretProviderKey {
+		m.clampSelects()
+		if m.vals[spec.SecretProviderKey] != was {
 			m.onSecretModeChange(was)
+		}
+	}
+}
+
+func (m *formModel) clampSelects() {
+	for _, f := range m.fields {
+		if f.Kind != spec.SelectFieldKind || f.OptionsFunc == nil {
+			continue
+		}
+		options := m.options(f)
+		if len(options) > 0 && !slices.Contains(options, m.vals[f.Key]) {
+			m.vals[f.Key] = options[0]
 		}
 	}
 }
@@ -427,7 +457,7 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 	switch {
 	case m.isProviderField(i) && m.isRef():
 		return m.pickSecretCmd(), true
-	case cur.Kind == spec.HiddenFieldKind && !m.isRef() && !m.noSecret():
+	case cur.Kind == spec.HiddenFieldKind && m.isLiteral():
 		m.reveal = !m.reveal
 		if m.reveal {
 			m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)
@@ -491,17 +521,18 @@ func (m *formModel) switchSection(dir int) {
 
 func (m *formModel) cycle(i, dir int) {
 	f := m.fields[i]
-	if len(f.Options) == 0 {
+	options := m.options(f)
+	if len(options) == 0 {
 		return
 	}
 	at := 0
-	for j, opt := range f.Options {
+	for j, opt := range options {
 		if opt == m.vals[f.Key] {
 			at = j
 			break
 		}
 	}
-	m.vals[f.Key] = f.Options[(at+dir+len(f.Options))%len(f.Options)]
+	m.vals[f.Key] = options[(at+dir+len(options))%len(options)]
 }
 
 // linkSection reports which section the links are grown in. A spec without a
@@ -754,7 +785,7 @@ func (m formModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
 		v := m.vals[f.Key]
 		// A location is trimmed like any other field; only a literal password
 		// keeps its surrounding whitespace.
-		if f.Kind != spec.HiddenFieldKind || m.isRef() {
+		if f.Kind != spec.HiddenFieldKind || !m.isLiteral() {
 			v = strings.TrimSpace(v)
 		}
 		out[f.Key] = v

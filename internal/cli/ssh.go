@@ -5,11 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
 )
 
 const sshAskpassScript = "#!/bin/sh\nprintf '%s' \"$CONM_SSH_PASSWORD\"\n"
+
+const sshKeyMaterialPrefix = "-----BEGIN "
 
 func sshCommand(cfg config.Connection, password string) (command, error) {
 	s, ok := cfg.(config.SSH)
@@ -17,15 +20,21 @@ func sshCommand(cfg config.Connection, password string) (command, error) {
 		return command{}, fmt.Errorf("%w: %s cannot run a %s connection", ErrConnType, SSH, cfg.ConnType())
 	}
 
-	var args []string
+	var (
+		args    []string
+		cleanup func()
+	)
 	if s.PortNumber != 0 {
 		args = append(args, "-p", strconv.Itoa(s.PortNumber))
 	}
 	switch s.Auth {
 	case config.SSHAuthKey:
-		if s.Identity != "" {
-			args = append(args, "-i", s.Identity)
+		identity, remove, err := sshIdentity(password)
+		if err != nil {
+			return command{}, err
 		}
+		args = append(args, "-i", identity)
+		cleanup = remove
 	case config.SSHAuthPassword:
 		args = append(args, "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no")
 	}
@@ -43,16 +52,37 @@ func sshCommand(cfg config.Connection, password string) (command, error) {
 	}
 
 	args = append(args, s.User+"@"+s.Hostname)
-	if s.RemoteCommand != "" {
-		args = append(args, s.RemoteCommand)
-	}
 
 	env, err := sshPasswordEnv(s.Auth, password)
 	if err != nil {
 		return command{}, err
 	}
 
-	return command{args: args, env: env}, nil
+	return command{args: args, env: env, cleanup: cleanup}, nil
+}
+
+func sshIdentity(secret string) (path string, remove func(), err error) {
+	if !strings.HasPrefix(secret, sshKeyMaterialPrefix) {
+		return secret, nil, nil
+	}
+
+	f, err := os.CreateTemp("", "conm-identity-*")
+	if err != nil {
+		return "", nil, err
+	}
+	remove = func() { _ = os.Remove(f.Name()) }
+
+	if _, err := f.WriteString(strings.TrimRight(secret, "\n") + "\n"); err != nil {
+		f.Close()
+		remove()
+		return "", nil, err
+	}
+	if err := f.Close(); err != nil {
+		remove()
+		return "", nil, err
+	}
+
+	return f.Name(), remove, nil
 }
 
 func sshPasswordEnv(auth config.SSHAuth, password string) ([]string, error) {

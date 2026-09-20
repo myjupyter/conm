@@ -13,23 +13,24 @@ import (
 )
 
 var addCmd = &cobra.Command{
-	Use:   "add [database] [command line]",
-	Short: "Add a database, or a connection to one",
-	Long: `Add a database, or a connection to one.
+	Use:   "add [type] [command line]",
+	Short: "Add a connection type, or a connection of one",
+	Long: `Add a connection type, or a connection of one.
 
-Without arguments it opens the setup table, where a database is enabled or
-disabled, and enter leaves for the connections of the database under the cursor.
-With a database it opens an empty connection form, and with a client command
+Without arguments it opens the setup table, where a type is enabled or
+disabled, and enter leaves for the connections of the type under the cursor.
+With a type it opens an empty connection form, and with a client command
 line after it the form opens filled in from what that command line describes; a
-saved connection leaves for the connections of that database:
+saved connection leaves for the connections of that type:
 
   conm add
   conm add postgres
   conm add postgres "psql -h localhost -p 5432 -U me mydb"
   conm add postgres "postgres://me@localhost:5432/mydb?sslmode=require"
-  conm add postgres -- pgcli --host localhost --dbname mydb --user me`,
+  conm add postgres -- pgcli --host localhost --dbname mydb --user me
+  conm add ssh "ssh -p 2222 -i ~/.ssh/id_ed25519 deploy@bastion.internal"`,
 	Args:         cobra.ArbitraryArgs,
-	ValidArgs:    config.DatabaseNames(),
+	ValidArgs:    config.ConnTypeNames(),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
@@ -38,7 +39,7 @@ saved connection leaves for the connections of that database:
 
 		t, err := config.ParseConnType(args[0])
 		if err != nil {
-			return fmt.Errorf("%w\nknown databases: %s", err, strings.Join(config.DatabaseNames(), ", "))
+			return fmt.Errorf("%w\nknown types: %s", err, strings.Join(config.ConnTypeNames(), ", "))
 		}
 
 		initial, warnings, err := parseConnection(t, args[1:])

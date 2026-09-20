@@ -13,8 +13,9 @@ import (
 type builder func(cfg config.Connection, password string) (command, error)
 
 type command struct {
-	args []string
-	env  []string
+	args    []string
+	env     []string
+	cleanup func()
 }
 
 var commands = map[string]builder{
@@ -92,6 +93,10 @@ func passwordEnv(name, password string) []string {
 }
 
 func (c command) run(ctx context.Context, name string) error {
+	if c.cleanup != nil {
+		defer c.cleanup()
+	}
+
 	executor := exec.CommandContext(ctx, name, c.args...)
 	executor.Env = c.env
 
