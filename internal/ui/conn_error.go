@@ -8,7 +8,6 @@ import (
 
 type connError struct {
 	op     network.Operation
-	label  string
 	code   string
 	target string
 	during string
@@ -16,14 +15,13 @@ type connError struct {
 	hint   string
 }
 
-func newConnError(err error, attempted network.Operation, label string) *connError {
+func newConnError(err error, attempted network.Operation) *connError {
 	if err == nil {
 		return nil
 	}
 
 	e := connError{
 		op:     attempted,
-		label:  label,
 		code:   string(network.UnknownErrorCode),
 		detail: err.Error(),
 		hint:   hintFor(network.UnknownErrorCode),

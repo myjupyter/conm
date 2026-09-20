@@ -36,13 +36,12 @@ var (
 	cMongoDB    = lipgloss.Color("#4faa41")
 	cSSH        = lipgloss.Color("#9ea6b4")
 
-	cErrBorder = lipgloss.Color("#7a3f34")
-	cErrTagBg  = lipgloss.Color("#9e3b2a")
-	cErrTagFg  = lipgloss.Color("#fdf3f1")
-	cErrCode   = lipgloss.Color("#f0a48f")
-	cErrMuted  = lipgloss.Color("#8d7a76")
-	cErrValue  = lipgloss.Color("#c8b8b4")
-	cHint      = lipgloss.Color("#a2938f")
+	cErrTagBg = lipgloss.Color("#9e3b2a")
+	cErrTagFg = lipgloss.Color("#fdf3f1")
+	cErrCode  = lipgloss.Color("#f0a48f")
+	cErrMuted = lipgloss.Color("#8d7a76")
+	cErrValue = lipgloss.Color("#c8b8b4")
+	cHint     = lipgloss.Color("#a2938f")
 )
 
 // The runes every screen is drawn from. Like the palette above, they say what

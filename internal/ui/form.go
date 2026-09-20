@@ -758,7 +758,7 @@ func (m formModel) applyPing(msg formPingMsg) formModel {
 	label := connLabel(cfg)
 
 	if msg.err != nil {
-		e := newConnError(msg.err, network.PingOperation, label)
+		e := newConnError(msg.err, network.PingOperation)
 		m.ping = e
 		m.pong = ""
 		m.setStatus("ping failed · "+label+" · "+e.code, kindErr)
