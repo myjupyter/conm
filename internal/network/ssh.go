@@ -14,7 +14,11 @@ import (
 	"github.com/myjupyter/conm/internal/secret"
 )
 
-const sshBannerPrefix = "SSH-"
+const (
+	sshBannerPrefix = "SSH-"
+	sshDialTimeout  = 5 * time.Second
+	sshDefaultPort  = "22"
+)
 
 var errNoSSHBanner = errors.New("no ssh banner received")
 
@@ -46,16 +50,19 @@ func NewSSHClient(
 func (s *SSHClient) Ping(ctx context.Context) (PingResult, error) {
 	now := time.Now()
 
-	var dialer net.Dialer
-	conn, err := dialer.DialContext(ctx, "tcp", address(s.cfg))
+	// TODO(CONM-15): with a jump set this pings the first jump hop, not the target
+	dialer := net.Dialer{Timeout: sshDialTimeout}
+	conn, err := dialer.DialContext(ctx, "tcp", firstHopAddress(s.cfg))
 	if err != nil {
 		return PingResult{}, s.fail(PingOperation, transportErrorCode(err), err)
 	}
 	defer conn.Close()
 
-	if deadline, ok := ctx.Deadline(); ok {
-		_ = conn.SetReadDeadline(deadline)
+	deadline := now.Add(sshDialTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
 	}
+	_ = conn.SetReadDeadline(deadline)
 
 	banner, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
@@ -83,6 +90,24 @@ func (s *SSHClient) Run(ctx context.Context) error {
 
 func (s *SSHClient) Close() error {
 	return nil
+}
+
+func firstHopAddress(cfg config.Connection) string {
+	s, ok := cfg.(config.SSH)
+	if !ok || s.Jump == "" {
+		return address(cfg)
+	}
+
+	firstHop, _, _ := strings.Cut(s.Jump, ",")
+	firstHop = strings.TrimSpace(firstHop)
+	if _, hostPort, hasUser := strings.Cut(firstHop, "@"); hasUser {
+		firstHop = hostPort
+	}
+	host, port, hasPort := strings.Cut(firstHop, ":")
+	if !hasPort {
+		port = sshDefaultPort
+	}
+	return net.JoinHostPort(host, port)
 }
 
 func (s *SSHClient) fail(op Operation, code ErrorCode, err error) error {
