@@ -18,6 +18,9 @@ const (
 	sshBannerPrefix = "SSH-"
 	sshDialTimeout  = 5 * time.Second
 	sshDefaultPort  = "22"
+
+	sshMaxPreBannerLines = 1024
+	sshMaxLineLength     = 8192
 )
 
 var errNoSSHBanner = errors.New("no ssh banner received")
@@ -64,15 +67,32 @@ func (s *SSHClient) Ping(ctx context.Context) (PingResult, error) {
 	}
 	_ = conn.SetReadDeadline(deadline)
 
-	banner, err := bufio.NewReader(conn).ReadString('\n')
-	if err != nil {
+	if err := awaitSSHBanner(conn); err != nil {
+		if errors.Is(err, errNoSSHBanner) {
+			return PingResult{}, s.fail(PingOperation, UnknownErrorCode, err)
+		}
 		return PingResult{}, s.fail(PingOperation, transportErrorCode(err), err)
-	}
-	if !strings.HasPrefix(banner, sshBannerPrefix) {
-		return PingResult{}, s.fail(PingOperation, UnknownErrorCode, errNoSSHBanner)
 	}
 
 	return PingResult{PingTime: time.Since(now)}, nil
+}
+
+func awaitSSHBanner(conn net.Conn) error {
+	lines := bufio.NewScanner(conn)
+	var buf [256]byte
+	lines.Buffer(buf[:], sshMaxLineLength)
+	for range sshMaxPreBannerLines + 1 {
+		if !lines.Scan() {
+			break
+		}
+		if strings.HasPrefix(lines.Text(), sshBannerPrefix) {
+			return nil
+		}
+	}
+	if err := lines.Err(); err != nil && !errors.Is(err, bufio.ErrTooLong) {
+		return err
+	}
+	return errNoSSHBanner
 }
 
 func (s *SSHClient) Run(ctx context.Context) error {
