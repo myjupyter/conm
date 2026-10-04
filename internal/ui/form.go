@@ -330,9 +330,9 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case keyMap.PrevSection.matches(key):
 		m.switchSection(-1)
 	case keyMap.Right.matches(key):
-		m.navCycle(fields[m.idx], cur, 1)
+		m.navCycle(fields[m.idx], 1)
 	case keyMap.Left.matches(key):
-		m.navCycle(fields[m.idx], cur, -1)
+		m.navCycle(fields[m.idx], -1)
 	case keyMap.Edit.matches(key):
 		m.navEdit(fields[m.idx], cur)
 	case keyMap.Secret.matches(key):
@@ -405,17 +405,38 @@ func (m formModel) applyPaste(raw string, err error) formModel {
 
 // navCycle steps the field under the cursor one option in dir: a store entry
 // for a secret reference, otherwise the selector's own options.
-func (m *formModel) navCycle(i int, cur spec.FormField, dir int) {
+func (m *formModel) navCycle(i, dir int) {
 	switch {
 	case m.isSecretField(i) && m.isRef():
 		m.cycleRef(dir)
 	case m.isSelector(i):
 		was := m.vals[spec.SecretProviderKey]
+		wasProviders := m.secretProviders()
 		m.cycle(i, dir)
+		if providers := m.secretProviders(); !slices.Equal(providers, wasProviders) {
+			m.resetSecret(providers)
+		}
 		m.clampSelects()
 		if m.vals[spec.SecretProviderKey] != was {
 			m.onSecretModeChange(was)
 		}
+	}
+}
+
+func (m formModel) secretProviders() []string {
+	for _, f := range m.fields {
+		if f.Key == spec.SecretProviderKey {
+			return m.options(f)
+		}
+	}
+	return nil
+}
+
+func (m *formModel) resetSecret(providers []string) {
+	m.vals[spec.SecretValueKey] = ""
+	m.literalStash, m.refStash = "", ""
+	if len(providers) > 0 {
+		m.vals[spec.SecretProviderKey] = providers[0]
 	}
 }
 

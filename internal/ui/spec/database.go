@@ -71,7 +71,6 @@ func databaseFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
 		},
 		BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.ConnectionSettings, error) {
 			return config.ConnectionSettings{
-				Kind:    t.Kind(),
 				Type:    t,
 				CLI:     values[databaseFormFieldClient],
 				Enabled: values[databaseFormFieldState] == DatabaseEnabled,
