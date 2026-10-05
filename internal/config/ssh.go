@@ -281,3 +281,22 @@ func (s SSH) Validate() []error {
 func (s SSH) IsValid() bool {
 	return len(s.validationErrs) == 0
 }
+
+func (s SSH) Identity() string {
+	return identity(
+		s.ConnType().String(),
+		s.Hostname,
+		strconv.Itoa(s.PortNumber),
+		s.User,
+		normalizeSSHJump(s.Jump),
+		s.LocalForward,
+	)
+}
+
+func normalizeSSHJump(jump string) string {
+	hops := strings.Split(jump, ",")
+	for i, hop := range hops {
+		hops[i] = strings.TrimSpace(hop)
+	}
+	return strings.Join(hops, ",")
+}

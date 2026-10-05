@@ -33,7 +33,6 @@ type Conm struct {
 }
 
 type ConnectionSettings struct {
-	Kind    ConnKind `toml:"kind"`
 	Type    ConnType `toml:"type"`
 	CLI     string   `toml:"cli"`
 	Enabled bool     `toml:"enabled"`
@@ -74,7 +73,6 @@ func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {
 				break
 			}
 		}
-		conn.Kind = t.Kind()
 		conns = append(conns, conn)
 	}
 	return conns
@@ -85,17 +83,6 @@ func (t ConnType) Kind() ConnKind {
 		return SSHConnKind
 	}
 	return DatabaseConnKind
-}
-
-func (k ConnKind) String() string {
-	switch k {
-	case DatabaseConnKind:
-		return "database"
-	case SSHConnKind:
-		return "ssh"
-	default:
-		return "unknown"
-	}
 }
 
 func (t ConnType) String() string {
@@ -142,27 +129,6 @@ func (t *ConnType) UnmarshalText(raw []byte) error {
 	}
 
 	*t = parsed
-	return nil
-}
-
-func (k ConnKind) MarshalText() ([]byte, error) {
-	if k != DatabaseConnKind && k != SSHConnKind {
-		return nil, fmt.Errorf("unsupported connection kind %d", int(k))
-	}
-	return []byte(k.String()), nil
-}
-
-func (k *ConnKind) UnmarshalText(raw []byte) error {
-	parsed := string(raw)
-	switch parsed {
-	case "database":
-		*k = DatabaseConnKind
-	case "ssh":
-		*k = SSHConnKind
-	default:
-		return fmt.Errorf("unknown connection kind %q", parsed)
-	}
-
 	return nil
 }
 

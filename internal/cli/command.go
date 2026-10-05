@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -60,9 +61,16 @@ func Version(ctx context.Context, name string) string {
 		return ""
 	}
 
-	out, err := exec.CommandContext(ctx, name, flag).CombinedOutput()
+	var stderr bytes.Buffer
+	executor := exec.CommandContext(ctx, name, flag)
+	executor.Stderr = &stderr
+
+	out, err := executor.Output()
 	if err != nil {
 		return ""
+	}
+	if len(bytes.TrimSpace(out)) == 0 {
+		out = stderr.Bytes()
 	}
 
 	return parseVersion(string(out))

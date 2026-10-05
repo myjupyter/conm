@@ -246,3 +246,13 @@ func (m MySQL) Validate() []error {
 func (m MySQL) IsValid() bool {
 	return len(m.validationErrs) == 0
 }
+
+func (m MySQL) Identity() string {
+	return identity(
+		m.ConnType().String(),
+		m.Hostname,
+		strconv.Itoa(m.PortNumber),
+		m.User,
+		m.DBName,
+	)
+}

@@ -224,3 +224,13 @@ func (c ClickHouse) Validate() []error {
 func (c ClickHouse) IsValid() bool {
 	return len(c.validationErrs) == 0
 }
+
+func (c ClickHouse) Identity() string {
+	return identity(
+		c.ConnType().String(),
+		c.Hostname,
+		strconv.Itoa(c.PortNumber),
+		c.User,
+		c.DBName,
+	)
+}

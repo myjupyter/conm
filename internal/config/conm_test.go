@@ -20,6 +20,7 @@ func (hostOnly) ConnectionString(string) string { return "" }
 func (hostOnly) ConnType() ConnType             { return 0 }
 func (hostOnly) IsValid() bool                  { return false }
 func (hostOnly) Validate() []error              { return nil }
+func (hostOnly) Identity() string               { return "" }
 
 var _ Connection = hostOnly{}
 
@@ -28,17 +29,13 @@ func TestReadConm(t *testing.T) {
 		toml string
 		want ConnectionSettings
 	}{
-		"kind kept": {
-			toml: "[[conm.connection]]\nkind = \"database\"\ntype = \"postgres\"\ncli = \"psql\"\nenabled = true\n",
-			want: ConnectionSettings{Kind: DatabaseConnKind, Type: PostgresConnType, CLI: "psql", Enabled: true},
-		},
-		"kind defaults to database": {
+		"connection row is kept": {
 			toml: "[[conm.connection]]\ntype = \"postgres\"\ncli = \"psql\"\nenabled = true\n",
-			want: ConnectionSettings{Kind: DatabaseConnKind, Type: PostgresConnType, CLI: "psql", Enabled: true},
+			want: ConnectionSettings{Type: PostgresConnType, CLI: "psql", Enabled: true},
 		},
 		"old database section is dropped": {
 			toml: "[[conm.database]]\ntype = \"postgres\"\ncli = \"psql\"\nenabled = true\n",
-			want: ConnectionSettings{Kind: DatabaseConnKind, Type: PostgresConnType},
+			want: ConnectionSettings{Type: PostgresConnType},
 		},
 	}
 
@@ -58,12 +55,12 @@ func TestReadConm(t *testing.T) {
 	}
 }
 
-func TestConmMarshalsKindAsText(t *testing.T) {
+func TestConmMarshalsConnectionSection(t *testing.T) {
 	raw, err := toml.Marshal(ConmConfigWrapper{Conm: Conm{Connections: []ConnectionSettings{
-		{Kind: DatabaseConnKind, Type: PostgresConnType, CLI: "psql", Enabled: true},
+		{Type: PostgresConnType, CLI: "psql", Enabled: true},
 	}}})
 	require.NoError(t, err)
 
 	assert.Contains(t, string(raw), "[[conm.connection]]")
-	assert.Contains(t, string(raw), `kind = 'database'`)
+	assert.Contains(t, string(raw), `type = 'postgres'`)
 }

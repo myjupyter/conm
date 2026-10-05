@@ -356,3 +356,14 @@ func skipPGPassRow(values []string) bool {
 
 	return values[0] == "*" || values[1] == "*" || values[2] == "*" || values[3] == "*" || values[4] == "*"
 }
+
+func (p Postgres) Identity() string {
+	return identity(
+		p.ConnType().String(),
+		p.Hostname,
+		strconv.Itoa(p.PortNumber),
+		p.User,
+		p.DBName,
+		p.SchemaName,
+	)
+}

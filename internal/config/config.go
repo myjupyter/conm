@@ -21,6 +21,8 @@ type Connection interface {
 
 	IsValid() bool
 	Validate() []error
+
+	Distinct
 }
 
 func validationErrors(checks ...error) []error {

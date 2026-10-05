@@ -250,3 +250,13 @@ func (m MSSQL) Validate() []error {
 func (m MSSQL) IsValid() bool {
 	return len(m.validationErrs) == 0
 }
+
+func (m MSSQL) Identity() string {
+	return identity(
+		m.ConnType().String(),
+		m.Hostname,
+		strconv.Itoa(m.PortNumber),
+		m.User,
+		m.DBName,
+	)
+}

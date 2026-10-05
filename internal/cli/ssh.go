@@ -36,7 +36,11 @@ func sshCommand(cfg config.Connection, password string) (command, error) {
 		args = append(args, "-i", identity)
 		cleanup = remove
 	case config.SSHAuthPassword:
-		args = append(args, "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no")
+		args = append(args,
+			"-o", "PreferredAuthentications=password",
+			"-o", "PubkeyAuthentication=no",
+			"-o", "StrictHostKeyChecking=accept-new",
+		)
 	}
 	if s.Jump != "" {
 		args = append(args, "-J", s.Jump)

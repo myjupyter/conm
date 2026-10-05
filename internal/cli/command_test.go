@@ -95,8 +95,11 @@ func TestCommandFor(t *testing.T) {
 			cli:      SSH,
 			cfg:      sshPassword,
 			password: "s3cret",
-			args:     []string{"-p", "22", "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no", "me@bastion.local"},
-			env:      "CONM_SSH_PASSWORD=s3cret",
+			args: []string{
+				"-p", "22", "-o", "PreferredAuthentications=password", "-o", "PubkeyAuthentication=no",
+				"-o", "StrictHostKeyChecking=accept-new", "me@bastion.local",
+			},
+			env: "CONM_SSH_PASSWORD=s3cret",
 		},
 	}
 
