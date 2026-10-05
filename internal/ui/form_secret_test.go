@@ -74,3 +74,28 @@ func TestFormSSHAuthChangeResetsSecret(t *testing.T) {
 		})
 	}
 }
+
+func TestFormSSHSecretLabel(t *testing.T) {
+	tests := map[string]struct {
+		conn config.SSH
+		want string
+	}{
+		"key from file":         {conn: config.SSH{Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/id"}, want: "private key path"},
+		"literal key":           {conn: config.SSH{Auth: config.SSHAuthKey, Password: "-----BEGIN OPENSSH PRIVATE KEY-----"}, want: "private key"},
+		"key from keyring":      {conn: config.SSH{Auth: config.SSHAuthKey, Password: "keyring:deploy-key"}, want: "private key"},
+		"password from keyring": {conn: config.SSH{Auth: config.SSHAuthPassword, Password: "keyring:deploy-pw"}, want: "password"},
+		"literal password":      {conn: config.SSH{Auth: config.SSHAuthPassword, Password: "hunter2"}, want: "password"},
+		"agent with no secret":  {conn: config.SSH{Auth: config.SSHAuthAgent}, want: "password"},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			tt.conn.Hostname, tt.conn.PortNumber, tt.conn.User = "10.0.0.5", 22, "deploy"
+			m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "edit", spec.SSHFormSpec.SeedFunc(tt.conn), true, nil)
+
+			i := slices.IndexFunc(m.fields, func(f spec.FormField) bool { return f.Key == spec.SecretValueKey })
+			require.GreaterOrEqual(t, i, 0)
+			assert.Equal(t, tt.want, m.label(m.fields[i]))
+		})
+	}
+}

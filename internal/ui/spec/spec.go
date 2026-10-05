@@ -37,9 +37,9 @@ var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
 	config.SSHConnType:        SSHFormSpec,
 }
 
-type FieldProperty int
+type FieldProperty uint8
 
-type FieldKind int
+type FieldKind uint8
 
 type FormFieldKey = string
 
@@ -49,11 +49,12 @@ type FormField struct {
 	Key          string
 	Label        string
 	Kind         FieldKind
-	Example      string
 	Property     FieldProperty
+	Example      string
 	DefaultValue string
 	Options      []string // only used for SelectFieldKind
 	OptionsFunc  func(map[FormFieldKey]FormFieldValue) []string
+	LabelFunc    func(map[FormFieldKey]FormFieldValue) string
 	ValidateFunc func(string) error
 }
 

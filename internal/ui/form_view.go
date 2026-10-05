@@ -12,7 +12,7 @@ import (
 
 const (
 	formInner  = 88
-	formLabelW = 12
+	formLabelW = 18
 	formBoxW   = 46
 
 	// The rail bracketing a link's two rows takes its width out of the label,
@@ -142,7 +142,7 @@ func (m formModel) fieldRow(i int) string {
 	}
 	gutter, gc := m.gutter(i, active)
 
-	label := strings.ToLower(f.Label)
+	label := m.label(f)
 	if f.Property == spec.RequiredFieldProperty {
 		label += " *"
 	}

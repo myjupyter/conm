@@ -44,6 +44,8 @@ const (
 	sshFormFieldPort         sshFormField = "Port"
 	sshFormFieldUsername     sshFormField = "Username"
 	sshFormFieldAuth         sshFormField = "Auth"
+	sshFormFieldKey          sshFormField = "Private key"
+	sshFormFieldKeyPath      sshFormField = "Private key path"
 	sshFormFieldJump         sshFormField = "Proxy jump"
 	sshFormFieldForwardAgent sshFormField = "Forward agent"
 	sshFormFieldKeepAlive    sshFormField = "Keepalive"
@@ -80,6 +82,23 @@ func sshSecretProviders(values map[FormFieldKey]FormFieldValue) []string {
 		return []string{secret.Literal, secret.Keyring, secret.None}
 	default:
 		return []string{secret.None}
+	}
+}
+
+var sshSecretValueField = func() FormField {
+	f := passwordField
+	f.LabelFunc = sshSecretValueLabel
+	return f
+}()
+
+func sshSecretValueLabel(values map[FormFieldKey]FormFieldValue) string {
+	switch {
+	case values[strings.ToLower(sshFormFieldAuth)] != config.SSHAuthKey:
+		return passwordField.Label
+	case values[SecretProviderKey] == secret.Filepath:
+		return sshFormFieldKeyPath
+	default:
+		return sshFormFieldKey
 	}
 }
 
@@ -123,7 +142,7 @@ var SSHFormFields = []FormField{
 		ValidateFunc: config.ValidateSSHAuth,
 	},
 	sshSecretProviderField,
-	passwordField,
+	sshSecretValueField,
 	{
 		Key:          strings.ToLower(sshFormFieldJump),
 		Label:        sshFormFieldJump,

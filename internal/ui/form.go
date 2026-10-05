@@ -186,6 +186,13 @@ func (m formModel) isSelector(i int) bool {
 	return f.Kind == spec.SelectFieldKind && len(m.options(f)) > 0
 }
 
+func (m formModel) label(f spec.FormField) string {
+	if f.LabelFunc != nil {
+		return strings.ToLower(f.LabelFunc(m.vals))
+	}
+	return strings.ToLower(f.Label)
+}
+
 func (m formModel) options(f spec.FormField) []string {
 	if f.OptionsFunc != nil {
 		return f.OptionsFunc(m.vals)
@@ -461,12 +468,12 @@ func (m *formModel) navEdit(i int, cur spec.FormField) {
 	case m.isSecretField(i) && m.isRef():
 		m.setStatus(m.storeLabel()+" entries are picked, not typed · use "+keyMap.Cycle.hint, kindWarn)
 	case m.isSelector(i):
-		m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
+		m.setStatus(m.label(cur)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
 	case cur.Kind == spec.SelectFieldKind:
-		m.setStatus(strings.ToLower(cur.Label)+" has no options to pick from", kindWarn)
+		m.setStatus(m.label(cur)+" has no options to pick from", kindWarn)
 	default:
 		m.insert = true
-		m.setStatus("editing "+strings.ToLower(cur.Label)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
+		m.setStatus("editing "+m.label(cur)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
 	}
 }
 
@@ -687,7 +694,7 @@ func (m formModel) fieldError(i int) string {
 	}
 
 	if f.Property == spec.RequiredFieldProperty && strings.TrimSpace(v) == "" {
-		return strings.ToLower(f.Label) + " is required"
+		return m.label(f) + " is required"
 	}
 	if f.ValidateFunc != nil {
 		if err := f.ValidateFunc(v); err != nil {
