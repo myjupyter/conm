@@ -184,10 +184,17 @@ func (m formModel) isSelector(i int) bool {
 }
 
 func (m formModel) label(f spec.FormField) string {
-	if f.LabelFunc != nil {
-		return strings.ToLower(f.LabelFunc(m.vals))
+	if f.TextFunc != nil {
+		return strings.ToLower(f.TextFunc(m.vals).Label)
 	}
 	return strings.ToLower(f.Label)
+}
+
+func (m formModel) example(f spec.FormField) string {
+	if f.TextFunc != nil {
+		return f.TextFunc(m.vals).Example
+	}
+	return f.Example
 }
 
 func (m formModel) options(f spec.FormField) []string {

@@ -33,11 +33,11 @@ func labelsOf(fields []spec.FormField) []string {
 	var labels []string
 	for _, f := range fields {
 		labels = append(labels, f.Label)
-		if f.LabelFunc == nil {
+		if f.TextFunc == nil {
 			continue
 		}
 		for _, values := range selectCombinations(fields) {
-			labels = append(labels, f.LabelFunc(values))
+			labels = append(labels, f.TextFunc(values).Label)
 		}
 	}
 	return labels

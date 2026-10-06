@@ -15,6 +15,8 @@ const (
 	sshExamplePort         = "22"
 	sshExampleUsername     = "deploy"
 	sshExampleJump         = "deploy@bastion.internal.corp"
+	sshExampleKeyPath      = "~/.ssh/id_ed25519"
+	sshExampleKey          = "-----BEGIN OPENSSH PRIVATE KEY-----"
 	sshExampleKeepAlive    = "seconds between probes"
 	sshExampleLocalForward = "5432:localhost:5432"
 	sshExampleName         = "bastion-eu"
@@ -87,18 +89,18 @@ func sshSecretProviders(values map[FormFieldKey]FormFieldValue) []string {
 
 var sshSecretValueField = func() FormField {
 	f := passwordField
-	f.LabelFunc = sshSecretValueLabel
+	f.TextFunc = sshSecretValueText
 	return f
 }()
 
-func sshSecretValueLabel(values map[FormFieldKey]FormFieldValue) string {
+func sshSecretValueText(values map[FormFieldKey]FormFieldValue) FieldText {
 	switch {
 	case values[strings.ToLower(sshFormFieldAuth)] != config.SSHAuthKey:
-		return passwordField.Label
+		return FieldText{Label: passwordField.Label, Example: passwordField.Example}
 	case values[SecretProviderKey] == secret.Filepath:
-		return sshFormFieldKeyPath
+		return FieldText{Label: sshFormFieldKeyPath, Example: sshExampleKeyPath}
 	default:
-		return sshFormFieldKey
+		return FieldText{Label: sshFormFieldKey, Example: sshExampleKey}
 	}
 }
 

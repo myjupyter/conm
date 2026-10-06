@@ -54,8 +54,13 @@ type FormField struct {
 	DefaultValue string
 	Options      []string // only used for SelectFieldKind
 	OptionsFunc  func(map[FormFieldKey]FormFieldValue) []string
-	LabelFunc    func(map[FormFieldKey]FormFieldValue) string
+	TextFunc     func(map[FormFieldKey]FormFieldValue) FieldText
 	ValidateFunc func(string) error
+}
+
+type FieldText struct {
+	Label   string
+	Example string
 }
 
 type FormSection struct {

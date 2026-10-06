@@ -75,17 +75,18 @@ func TestFormSSHAuthChangeResetsSecret(t *testing.T) {
 	}
 }
 
-func TestFormSSHSecretLabel(t *testing.T) {
+func TestFormSSHSecretText(t *testing.T) {
 	tests := map[string]struct {
-		conn config.SSH
-		want string
+		conn    config.SSH
+		want    string
+		example string
 	}{
-		"key from file":         {conn: config.SSH{Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/id"}, want: "private key path"},
-		"literal key":           {conn: config.SSH{Auth: config.SSHAuthKey, Password: "-----BEGIN OPENSSH PRIVATE KEY-----"}, want: "private key"},
-		"key from keyring":      {conn: config.SSH{Auth: config.SSHAuthKey, Password: "keyring:deploy-key"}, want: "private key"},
-		"password from keyring": {conn: config.SSH{Auth: config.SSHAuthPassword, Password: "keyring:deploy-pw"}, want: "password"},
-		"literal password":      {conn: config.SSH{Auth: config.SSHAuthPassword, Password: "hunter2"}, want: "password"},
-		"agent with no secret":  {conn: config.SSH{Auth: config.SSHAuthAgent}, want: "password"},
+		"key from file":         {conn: config.SSH{Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/id"}, want: "private key path", example: "~/.ssh/id_ed25519"},
+		"literal key":           {conn: config.SSH{Auth: config.SSHAuthKey, Password: "-----BEGIN OPENSSH PRIVATE KEY-----"}, want: "private key", example: "-----BEGIN OPENSSH PRIVATE KEY-----"},
+		"key from keyring":      {conn: config.SSH{Auth: config.SSHAuthKey, Password: "keyring:deploy-key"}, want: "private key", example: "-----BEGIN OPENSSH PRIVATE KEY-----"},
+		"password from keyring": {conn: config.SSH{Auth: config.SSHAuthPassword, Password: "keyring:deploy-pw"}, want: "password", example: `4^@CP^S8\le9`},
+		"literal password":      {conn: config.SSH{Auth: config.SSHAuthPassword, Password: "hunter2"}, want: "password", example: `4^@CP^S8\le9`},
+		"agent with no secret":  {conn: config.SSH{Auth: config.SSHAuthAgent}, want: "password", example: `4^@CP^S8\le9`},
 	}
 
 	for name, tt := range tests {
@@ -96,6 +97,7 @@ func TestFormSSHSecretLabel(t *testing.T) {
 			i := slices.IndexFunc(m.fields, func(f spec.FormField) bool { return f.Key == spec.SecretValueKey })
 			require.GreaterOrEqual(t, i, 0)
 			assert.Equal(t, tt.want, m.label(m.fields[i]))
+			assert.Equal(t, tt.example, m.example(m.fields[i]))
 		})
 	}
 }

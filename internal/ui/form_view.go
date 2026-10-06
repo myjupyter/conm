@@ -285,7 +285,7 @@ func (m formModel) display(i int, active bool) (string, bool) {
 	case f.DefaultValue != "":
 		return f.DefaultValue + " (default)", true
 	case active:
-		return f.Example, true
+		return m.example(f), true
 	case f.Property == spec.RequiredFieldProperty:
 		return "", true
 	default:
