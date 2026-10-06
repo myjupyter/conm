@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	DatabaseEnabled  FormFieldValue = "enabled"
-	DatabaseDisabled FormFieldValue = "disabled"
+	ConnectionEnabled  FormFieldValue = "enabled"
+	ConnectionDisabled FormFieldValue = "disabled"
 )
 
 type databaseFormField = string
@@ -17,24 +17,24 @@ const (
 	databaseFormFieldClient databaseFormField = "client"
 )
 
-var DatabaseFormSpecs = map[config.ConnType]FormSpec[config.ConnectionSettings]{
-	config.PostgresConnType:   databaseFormSpec(config.PostgresConnType),
-	config.MySQLConnType:      databaseFormSpec(config.MySQLConnType),
-	config.MSSQLConnType:      databaseFormSpec(config.MSSQLConnType),
-	config.ClickHouseConnType: databaseFormSpec(config.ClickHouseConnType),
-	config.RedisConnType:      databaseFormSpec(config.RedisConnType),
-	config.MongoDBConnType:    databaseFormSpec(config.MongoDBConnType),
-	config.SSHConnType:        databaseFormSpec(config.SSHConnType),
+var ConnectionFormSpecs = map[config.ConnType]FormSpec[config.ConnectionSettings]{
+	config.PostgresConnType:   connectionFormSpec(config.PostgresConnType),
+	config.MySQLConnType:      connectionFormSpec(config.MySQLConnType),
+	config.MSSQLConnType:      connectionFormSpec(config.MSSQLConnType),
+	config.ClickHouseConnType: connectionFormSpec(config.ClickHouseConnType),
+	config.RedisConnType:      connectionFormSpec(config.RedisConnType),
+	config.MongoDBConnType:    connectionFormSpec(config.MongoDBConnType),
+	config.SSHConnType:        connectionFormSpec(config.SSHConnType),
 }
 
-func DatabaseState(enabled bool) FormFieldValue {
+func ConnectionState(enabled bool) FormFieldValue {
 	if enabled {
-		return DatabaseEnabled
+		return ConnectionEnabled
 	}
-	return DatabaseDisabled
+	return ConnectionDisabled
 }
 
-func databaseFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
+func connectionFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
 	return FormSpec[config.ConnectionSettings]{
 		EditTitle: "availability",
 		Fields: []FormField{
@@ -42,8 +42,8 @@ func databaseFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
 				Key:          databaseFormFieldState,
 				Label:        databaseFormFieldState,
 				Kind:         SelectFieldKind,
-				Options:      []string{DatabaseEnabled, DatabaseDisabled},
-				DefaultValue: DatabaseDisabled,
+				Options:      []string{ConnectionEnabled, ConnectionDisabled},
+				DefaultValue: ConnectionDisabled,
 			},
 			{
 				Key:          databaseFormFieldClient,
@@ -65,7 +65,7 @@ func databaseFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
 				return nil
 			}
 			return map[FormFieldKey]FormFieldValue{
-				databaseFormFieldState:  DatabaseState(d.Enabled),
+				databaseFormFieldState:  ConnectionState(d.Enabled),
 				databaseFormFieldClient: d.CLI,
 			}
 		},
@@ -73,7 +73,7 @@ func databaseFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
 			return config.ConnectionSettings{
 				Type:    t,
 				CLI:     values[databaseFormFieldClient],
-				Enabled: values[databaseFormFieldState] == DatabaseEnabled,
+				Enabled: values[databaseFormFieldState] == ConnectionEnabled,
 			}, nil
 		},
 	}

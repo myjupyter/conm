@@ -110,7 +110,7 @@ func (m initModel) initRowLine(i int) string {
 	)
 	spans = append(spans, clients...)
 	spans = append(spans, span{
-		text: " " + truncPad(spec.DatabaseState(db.Enabled), wInitState, false),
+		text: " " + truncPad(spec.ConnectionState(db.Enabled), wInitState, false),
 		fg:   stateC, bg: bg, bold: db.Enabled,
 	})
 

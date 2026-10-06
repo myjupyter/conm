@@ -12,7 +12,7 @@ import (
 // runDatabaseForm opens the availability form for one database and reports
 // what the user saved, if anything.
 func runDatabaseForm(db config.ConnectionSettings) (config.ConnectionSettings, bool, error) {
-	formSpec, ok := spec.DatabaseFormSpecs[db.Type]
+	formSpec, ok := spec.ConnectionFormSpecs[db.Type]
 	if !ok {
 		return config.ConnectionSettings{}, false, fmt.Errorf("edit form is not implemented for database %q", db.Type)
 	}

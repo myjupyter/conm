@@ -11,14 +11,14 @@ import (
 )
 
 func Run(cfg config.Conm) error {
-	var anyDatabase config.ConnType
+	var anyConnection config.ConnType
 
-	return RunOn(cfg, anyDatabase)
+	return RunOn(cfg, anyConnection)
 }
 
 func RunOn(cfg config.Conm, active config.ConnType) error {
 	for {
-		if enabledDatabases(cfg) == 0 {
+		if enabledConnections(cfg) == 0 {
 			return RunInit()
 		}
 
@@ -58,10 +58,10 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	return cm, nil
 }
 
-func enabledDatabases(cfg config.Conm) int {
+func enabledConnections(cfg config.Conm) int {
 	n := 0
-	for _, db := range cfg.Connections {
-		if db.Enabled {
+	for _, conn := range cfg.Connections {
+		if conn.Enabled {
 			n++
 		}
 	}
