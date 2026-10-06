@@ -60,6 +60,57 @@ func TestParseSSH(t *testing.T) {
 			},
 			warnings: []string{"ignored flag -v", "ignored flag -C", "ignored flag -F", `dropped remote command "uptime"`},
 		},
+		{
+			name:     "dashed arguments of the remote command are not flags",
+			input:    `ssh host.internal ls -la`,
+			syntax:   FlagSyntax,
+			client:   "ssh",
+			conn:     config.SSH{Hostname: "host.internal", PortNumber: 22, Auth: config.SSHAuthAgent},
+			warnings: []string{`dropped remote command "ls -la"`},
+		},
+		{
+			name:     "flags right after the destination still count",
+			input:    `ssh host.internal -p 2222 -- ls -la`,
+			syntax:   FlagSyntax,
+			client:   "ssh",
+			conn:     config.SSH{Hostname: "host.internal", PortNumber: 2222, Auth: config.SSHAuthAgent},
+			warnings: []string{`dropped remote command "ls -la"`},
+		},
+		{
+			name:   "-l wins over the user in the destination",
+			input:  `ssh -l alice bob@host.internal`,
+			syntax: FlagSyntax,
+			client: "ssh",
+			conn:   config.SSH{Hostname: "host.internal", PortNumber: 22, User: "alice", Auth: config.SSHAuthAgent},
+		},
+		{
+			name:   "HostName wins over the destination alias",
+			input:  `ssh -o HostName=10.0.0.5 prod`,
+			syntax: FlagSyntax,
+			client: "ssh",
+			conn:   config.SSH{Hostname: "10.0.0.5", PortNumber: 22, Auth: config.SSHAuthAgent},
+		},
+		{
+			name:   "-p wins over the url port and an earlier -o Port",
+			input:  `ssh -o Port=1 -p 2222 ssh://host.internal:2200`,
+			syntax: URISyntax,
+			client: "ssh",
+			conn:   config.SSH{Hostname: "host.internal", PortNumber: 2222, Auth: config.SSHAuthAgent},
+		},
+		{
+			name:   "an option takes a space as its separator",
+			input:  `ssh -o "User alice" -o "Port = 2222" host.internal`,
+			syntax: FlagSyntax,
+			client: "ssh",
+			conn:   config.SSH{Hostname: "host.internal", PortNumber: 2222, User: "alice", Auth: config.SSHAuthAgent},
+		},
+		{
+			name:   "the first value of an option wins",
+			input:  `ssh -o User=alice -o User=bob host.internal`,
+			syntax: FlagSyntax,
+			client: "ssh",
+			conn:   config.SSH{Hostname: "host.internal", PortNumber: 22, User: "alice", Auth: config.SSHAuthAgent},
+		},
 	}
 
 	for _, tt := range tests {

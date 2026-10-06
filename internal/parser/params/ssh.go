@@ -60,7 +60,8 @@ func parseSSH(req request) (Result, error) {
 	values := sshValues{}
 	res := Result{Syntax: FlagSyntax, Client: req.client}
 
-	flags, positional := scanFlags(req.args, sshArity)
+	commandAt := sshCommandStart(req.args)
+	flags, positional := scanFlags(req.args[:commandAt], sshArity)
 	for _, flag := range flags {
 		res.Warnings = append(res.Warnings, applySSHFlag(values, flag)...)
 	}
@@ -74,9 +75,9 @@ func parseSSH(req request) (Result, error) {
 			res.Syntax = URISyntax
 		}
 		applySSHDestination(values, destination)
-		if len(positional) > 1 {
-			res.Warnings = append(res.Warnings, fmt.Sprintf("dropped remote command %q", strings.Join(positional[1:], " ")))
-		}
+	}
+	if command := req.args[commandAt:]; len(command) > 0 {
+		res.Warnings = append(res.Warnings, fmt.Sprintf("dropped remote command %q", strings.Join(command, " ")))
 	}
 
 	conn, warnings := buildSSH(values)
@@ -97,6 +98,37 @@ func sshArity(name string) flagArity {
 	return noValueFlag
 }
 
+func sshCommandStart(args []string) int {
+	sawDestination := false
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--" && sawDestination:
+			return i + 1
+		case arg == "--":
+			return min(i+2, len(args))
+		case len(arg) > 1 && arg[0] == '-':
+			if sshClusterTakesNext(arg) {
+				i++
+			}
+		case sawDestination:
+			return i
+		default:
+			sawDestination = true
+		}
+	}
+	return len(args)
+}
+
+func sshClusterTakesNext(cluster string) bool {
+	for j := 1; j < len(cluster); j++ {
+		if sshArity("-"+cluster[j:j+1]) == valueFlag {
+			return j == len(cluster)-1
+		}
+	}
+	return false
+}
+
 func applySSHFlag(values sshValues, flag argFlag) []string {
 	key, ok := sshFlags[flag.name]
 	switch {
@@ -104,8 +136,10 @@ func applySSHFlag(values sshValues, flag argFlag) []string {
 		return []string{"ignored flag " + flag.name}
 	case key == sshForwardAgent:
 		values.set(sshForwardAgent, "yes")
+	case key == sshPort:
+		values.override(sshPort, flag.value)
 	case key == sshOption:
-		name, value, _ := strings.Cut(flag.value, "=")
+		name, value := splitSSHOption(flag.value)
 		if optionKey, known := sshOptions[strings.ToLower(name)]; known {
 			values.set(optionKey, value)
 			return nil
@@ -116,6 +150,17 @@ func applySSHFlag(values sshValues, flag argFlag) []string {
 	}
 
 	return nil
+}
+
+func splitSSHOption(option string) (name, value string) {
+	option = strings.TrimSpace(option)
+	at := strings.IndexAny(option, "= \t")
+	if at < 0 {
+		return option, ""
+	}
+	value = strings.TrimSpace(option[at:])
+	value = strings.TrimSpace(strings.TrimPrefix(value, "="))
+	return option[:at], value
 }
 
 func applySSHDestination(values sshValues, destination string) {
@@ -180,6 +225,13 @@ func buildSSH(values sshValues) (config.SSH, []string) {
 }
 
 func (v sshValues) set(key sshKey, value string) {
+	if _, taken := v[key]; taken {
+		return
+	}
+	v.override(key, value)
+}
+
+func (v sshValues) override(key sshKey, value string) {
 	if value == "" {
 		return
 	}
