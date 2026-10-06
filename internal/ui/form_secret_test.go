@@ -140,3 +140,14 @@ func TestFormProviderRoundTripKeepsSecret(t *testing.T) {
 		})
 	}
 }
+
+func TestFormOpensOnAnOfferedProvider(t *testing.T) {
+	agent := config.SSH{Hostname: "10.0.0.5", PortNumber: 22, User: "deploy", Auth: config.SSHAuthAgent}
+
+	m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "add", spec.SSHFormSpec.SeedFunc(agent), false, nil)
+
+	assert.Equal(t, secret.None, m.vals[spec.SecretProviderKey])
+	conn, err := spec.SSHFormSpec.BuildFunc(m.vals)
+	require.NoError(t, err)
+	assert.Empty(t, conn.Validate())
+}

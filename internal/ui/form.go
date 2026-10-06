@@ -118,6 +118,7 @@ func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], ti
 			m.vals[f.Key] = ""
 		}
 	}
+	m.clampSelects()
 
 	return m
 }
