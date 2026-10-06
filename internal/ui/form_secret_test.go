@@ -99,3 +99,44 @@ func TestFormSSHSecretLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestFormProviderRoundTripKeepsSecret(t *testing.T) {
+	tests := map[string]struct {
+		conn  config.SSH
+		steps []int
+		want  string
+	}{
+		"key path through literal and back": {
+			conn:  config.SSH{Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/id"},
+			steps: []int{1, -1},
+			want:  "~/.ssh/id",
+		},
+		"key path around every provider": {
+			conn:  config.SSH{Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/id"},
+			steps: []int{1, 1, 1},
+			want:  "~/.ssh/id",
+		},
+		"literal password through keyring and back": {
+			conn:  config.SSH{Auth: config.SSHAuthPassword, Password: "hunter2"},
+			steps: []int{1, -1},
+			want:  "hunter2",
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			tt.conn.Hostname, tt.conn.PortNumber, tt.conn.User = "10.0.0.5", 22, "deploy"
+			m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "edit", spec.SSHFormSpec.SeedFunc(tt.conn), true, nil)
+			was := m.vals[spec.SecretProviderKey]
+
+			i := slices.IndexFunc(m.fields, func(f spec.FormField) bool { return f.Key == spec.SecretProviderKey })
+			require.GreaterOrEqual(t, i, 0)
+			for _, dir := range tt.steps {
+				m.navCycle(i, dir)
+			}
+
+			assert.Equal(t, was, m.vals[spec.SecretProviderKey])
+			assert.Equal(t, tt.want, m.vals[spec.SecretValueKey])
+		})
+	}
+}

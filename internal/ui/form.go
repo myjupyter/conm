@@ -36,11 +36,7 @@ type formModel struct {
 	// literal-only.
 	secrets *view.Secrets
 
-	// The value field is shared by both modes, so each mode's value is kept
-	// aside while the other is showing: cycling through the modes must not
-	// throw away a password that was already typed.
-	literalStash string
-	refStash     string
+	secretStashByProvider map[string]string
 
 	vals map[string]string
 
@@ -257,41 +253,30 @@ func (m *formModel) cycleRef(dir int) {
 // moved to: a literal password and a store location are not interchangeable,
 // so each is parked in its own stash while the other is on screen.
 func (m *formModel) onSecretModeChange(was string) {
-	switch {
-	case secret.IsStore(was):
-		m.refStash = m.vals[spec.SecretValueKey]
-	case secret.IsMaterial(was):
-		m.literalStash = m.vals[spec.SecretValueKey]
+	if m.secretStashByProvider == nil {
+		m.secretStashByProvider = map[string]string{}
 	}
+	m.secretStashByProvider[was] = m.vals[spec.SecretValueKey]
+	m.vals[spec.SecretValueKey] = m.secretStashByProvider[m.vals[spec.SecretProviderKey]]
 
-	if m.noSecret() {
+	switch {
+	case m.noSecret():
 		m.vals[spec.SecretValueKey] = ""
 		m.setStatus(secret.None+" · this connection sends no password", kindIdle)
-		return
-	}
-
-	if m.isLiteral() {
-		m.vals[spec.SecretValueKey] = m.literalStash
+	case m.isLiteral():
 		m.setStatus("literal · password stored as plain text", kindWarn)
-		return
-	}
-
-	if !m.isRef() {
-		m.vals[spec.SecretValueKey] = ""
+	case !m.isRef():
 		m.setStatus(m.storeLabel()+" · a location conm hands over, never reads", kindIdle)
-		return
-	}
-
-	m.vals[spec.SecretValueKey] = m.refStash
-
-	list := m.refEntries()
-	if !slices.Contains(list, m.vals[spec.SecretValueKey]) {
-		m.vals[spec.SecretValueKey] = ""
-		if len(list) > 0 {
-			m.vals[spec.SecretValueKey] = list[0]
+	default:
+		list := m.refEntries()
+		if !slices.Contains(list, m.vals[spec.SecretValueKey]) {
+			m.vals[spec.SecretValueKey] = ""
+			if len(list) > 0 {
+				m.vals[spec.SecretValueKey] = list[0]
+			}
 		}
+		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Secret.hint+" on provider to manage", kindIdle)
 	}
-	m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Secret.hint+" on provider to manage", kindIdle)
 }
 
 func (m formModel) applyPicked(msg secretPickedMsg) formModel {
@@ -441,7 +426,7 @@ func (m formModel) secretProviders() []string {
 
 func (m *formModel) resetSecret(providers []string) {
 	m.vals[spec.SecretValueKey] = ""
-	m.literalStash, m.refStash = "", ""
+	clear(m.secretStashByProvider)
 	if len(providers) > 0 {
 		m.vals[spec.SecretProviderKey] = providers[0]
 	}
