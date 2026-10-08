@@ -10,7 +10,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-const sshAskpassScript = "#!/bin/sh\nprintf '%s' \"$CONM_SSH_PASSWORD\"\n"
+const sshAskpassScript = "#!/bin/sh\ncat \"$(dirname \"$0\")/password\"\n"
 
 const sshKeyMaterialPrefix = "-----BEGIN "
 
@@ -42,7 +42,10 @@ func sshCommand(cfg config.Connection, password string) (command, error) {
 			"-o", "StrictHostKeyChecking=accept-new",
 		)
 	}
-	if s.Jump != "" {
+	switch {
+	case s.Jump != "" && sshUsesAskpass(s.Auth, password):
+		args = append(args, "-o", "ProxyCommand="+sshJumpWithoutAskpass(s.Jump))
+	case s.Jump != "":
 		args = append(args, "-J", s.Jump)
 	}
 	if s.ForwardAgent {
@@ -57,9 +60,14 @@ func sshCommand(cfg config.Connection, password string) (command, error) {
 
 	args = append(args, s.User+"@"+s.Hostname)
 
-	env, err := sshPasswordEnv(s.Auth, password)
-	if err != nil {
-		return command{}, err
+	var env []string
+	if sshUsesAskpass(s.Auth, password) {
+		askpass, remove, err := sshAskpass(password)
+		if err != nil {
+			return command{}, err
+		}
+		env = append(os.Environ(), "SSH_ASKPASS="+askpass, "SSH_ASKPASS_REQUIRE=force")
+		cleanup = remove
 	}
 
 	return command{args: args, env: env, cleanup: cleanup}, nil
@@ -89,40 +97,45 @@ func sshIdentity(secret string) (path string, remove func(), err error) {
 	return f.Name(), remove, nil
 }
 
-func sshPasswordEnv(auth config.SSHAuth, password string) ([]string, error) {
-	if auth != config.SSHAuthPassword || password == "" {
-		return nil, nil
-	}
-
-	askpass, err := sshAskpass()
-	if err != nil {
-		return nil, err
-	}
-
-	return append(
-		passwordEnv("CONM_SSH_PASSWORD", password),
-		"SSH_ASKPASS="+askpass,
-		"SSH_ASKPASS_REQUIRE=force",
-	), nil
+func sshUsesAskpass(auth config.SSHAuth, password string) bool {
+	return auth == config.SSHAuthPassword && password != ""
 }
 
-func sshAskpass() (string, error) {
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return "", err
+func sshJumpWithoutAskpass(jump string) string {
+	hops := strings.Split(jump, ",")
+	for i, hop := range hops {
+		hops[i] = strings.TrimSpace(hop)
 	}
-	dir = filepath.Join(dir, "conm")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return "", err
-	}
+	last := len(hops) - 1
 
-	path := filepath.Join(dir, "askpass.sh")
+	proxy := []string{"env", "-u", "SSH_ASKPASS", "-u", "SSH_ASKPASS_REQUIRE", "ssh"}
+	if last > 0 {
+		proxy = append(proxy, "-J", strings.Join(hops[:last], ","))
+	}
+	proxy = append(proxy, "-W", "%h:%p", "ssh://"+hops[last])
+	return strings.Join(proxy, " ")
+}
+
+func sshAskpass(password string) (path string, remove func(), err error) {
+	dir, err := os.MkdirTemp("", "conm-askpass-*")
+	if err != nil {
+		return "", nil, err
+	}
+	remove = func() { _ = os.RemoveAll(dir) }
+
+	if err := os.WriteFile(filepath.Join(dir, "password"), []byte(password), 0o600); err != nil {
+		remove()
+		return "", nil, err
+	}
+	path = filepath.Join(dir, "askpass")
 	if err := os.WriteFile(path, []byte(sshAskpassScript), 0o600); err != nil {
-		return "", err
+		remove()
+		return "", nil, err
 	}
 	if err := os.Chmod(path, 0o700); err != nil {
-		return "", err
+		remove()
+		return "", nil, err
 	}
 
-	return path, nil
+	return path, remove, nil
 }
