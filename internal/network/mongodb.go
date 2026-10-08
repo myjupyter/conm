@@ -26,14 +26,14 @@ const (
 
 type MongoDBClient struct {
 	launcher cli.Launcher
-	cfg      config.Connection
+	cfg      config.DBConnection
 	ref      secret.Reference
 	sec      secret.Provider
 }
 
 func NewMongoDBClient(
 	launcher cli.Launcher,
-	cfg config.Connection,
+	cfg config.DBConnection,
 	sec secret.Provider,
 ) (*MongoDBClient, error) {
 	ref, ok := cfg.(secret.Reference)
@@ -140,7 +140,7 @@ func mongodbErrorCode(err error) ErrorCode {
 	return transportErrorCode(err)
 }
 
-func mongodbTarget(cfg config.Connection) string {
+func mongodbTarget(cfg config.DBConnection) string {
 	var user string
 	if cfg.Username() != "" {
 		user = cfg.Username() + "@"

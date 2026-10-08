@@ -20,6 +20,7 @@ const (
 	IRedis     = "iredis"
 	Mongosh    = "mongosh"
 	Mongo      = "mongo"
+	SSH        = "ssh"
 )
 
 var clients = map[config.ConnType][]string{
@@ -29,6 +30,7 @@ var clients = map[config.ConnType][]string{
 	config.ClickHouseConnType: {ClickHouse, USQL},
 	config.RedisConnType:      {RedisCLI, ValkeyCLI, IRedis},
 	config.MongoDBConnType:    {Mongosh, Mongo},
+	config.SSHConnType:        {SSH},
 }
 
 func Clients(t config.ConnType) []string {

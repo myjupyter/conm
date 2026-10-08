@@ -34,11 +34,12 @@ var FormSpecs = map[config.ConnType]FormSpec[config.Connection]{
 	config.ClickHouseConnType: ClickHouseFormSpec,
 	config.RedisConnType:      RedisFormSpec,
 	config.MongoDBConnType:    MongoDBFormSpec,
+	config.SSHConnType:        SSHFormSpec,
 }
 
-type FieldProperty int
+type FieldProperty uint8
 
-type FieldKind int
+type FieldKind uint8
 
 type FormFieldKey = string
 
@@ -48,11 +49,18 @@ type FormField struct {
 	Key          string
 	Label        string
 	Kind         FieldKind
-	Example      string
 	Property     FieldProperty
+	Example      string
 	DefaultValue string
 	Options      []string // only used for SelectFieldKind
+	OptionsFunc  func(map[FormFieldKey]FormFieldValue) []string
+	TextFunc     func(map[FormFieldKey]FormFieldValue) FieldText
 	ValidateFunc func(string) error
+}
+
+type FieldText struct {
+	Label   string
+	Example string
 }
 
 type FormSection struct {

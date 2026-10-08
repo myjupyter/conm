@@ -104,7 +104,7 @@ func TestCommandFor(t *testing.T) {
 func TestEveryClientHasACommand(t *testing.T) {
 	t.Parallel()
 
-	for _, db := range config.Databases {
+	for _, db := range config.ConnTypes {
 		for _, name := range Clients(db) {
 			_, ok := commands[name]
 			assert.True(t, ok, "%s has no command", name)
@@ -133,6 +133,7 @@ func TestCommandRefusesForeignConnection(t *testing.T) {
 		MySQL:      mysqlCommand,
 		SQLCmd:     mssqlCommand,
 		ClickHouse: clickhouseCommand,
+		SSH:        sshCommand,
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -186,7 +187,7 @@ func TestParseVersion(t *testing.T) {
 func TestEveryClientHasAVersionFlag(t *testing.T) {
 	t.Parallel()
 
-	for _, db := range config.Databases {
+	for _, db := range config.ConnTypes {
 		for _, name := range Clients(db) {
 			_, ok := versionFlags[name]
 			assert.True(t, ok, "%s has no version flag", name)

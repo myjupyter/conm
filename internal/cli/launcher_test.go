@@ -41,7 +41,7 @@ func TestLauncherInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			conm := config.Conm{Databases: []config.Database{{Type: tt.kind, CLI: tt.cli}}}
+			conm := config.Conm{Connections: []config.ConnectionSettings{{Type: tt.kind, CLI: tt.cli}}}
 
 			assert.Equal(t, tt.want, For(conm, tt.kind).Info(t.Context()))
 		})
@@ -51,7 +51,7 @@ func TestLauncherInfo(t *testing.T) {
 func TestLauncherInfoResolvesConfiguredClient(t *testing.T) {
 	t.Parallel()
 
-	conm := config.Conm{Databases: []config.Database{{Type: config.PostgresConnType, CLI: Psql}}}
+	conm := config.Conm{Connections: []config.ConnectionSettings{{Type: config.PostgresConnType, CLI: Psql}}}
 
 	info := For(conm, config.PostgresConnType).Info(t.Context())
 

@@ -14,6 +14,7 @@ var connectionRepositories = map[config.ConnType]func(config.Conm) (*ConnectionR
 	config.ClickHouseConnType: NewClickHouseRepository,
 	config.RedisConnType:      NewRedisRepository,
 	config.MongoDBConnType:    NewMongoDBRepository,
+	config.SSHConnType:        NewSSHRepository,
 }
 
 type Workspace struct {
@@ -27,7 +28,7 @@ func NewWorkspace(cfg config.Conm) (*Workspace, error) {
 	w := &Workspace{byKind: make(map[config.ConnType]Connections, len(connectionRepositories))}
 
 	users := make([]SecretUser, 0, len(connectionRepositories))
-	for _, db := range cfg.Databases {
+	for _, db := range cfg.Connections {
 		if !db.Enabled {
 			continue
 		}

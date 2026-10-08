@@ -247,3 +247,13 @@ func (m MongoDB) Validate() []error {
 func (m MongoDB) IsValid() bool {
 	return len(m.validationErrs) == 0
 }
+
+func (m MongoDB) Identity() string {
+	return identity(
+		m.ConnType().String(),
+		m.Hostname,
+		strconv.Itoa(m.PortNumber),
+		m.User,
+		m.DBName,
+	)
+}

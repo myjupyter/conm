@@ -32,6 +32,7 @@ const (
 	kindPending
 	kindWarn
 	kindErr
+	kindPing
 )
 
 // span is a run of text with a single style. Content lines are built from
@@ -256,9 +257,17 @@ func frameSearch(w int, query string, typing bool) string {
 }
 
 func framePong(w int, text string) string {
+	return frameTagged(w, " PONG ", cAccent, text)
+}
+
+func framePing(w int, text string) string {
+	return frameTagged(w, " PING ", cAmber, text)
+}
+
+func frameTagged(w int, tag string, bg color.Color, text string) string {
 	return frameLine(w, []span{
 		{text: " ", fg: cDim},
-		{text: " PONG ", fg: cInvFg, bg: cAccent, bold: true},
+		{text: tag, fg: cInvFg, bg: bg, bold: true},
 		{text: " " + text, fg: cPong},
 	}, nil)
 }
@@ -267,20 +276,15 @@ func framePong(w int, text string) string {
 // describing what went wrong, an optional hint and the way out.
 func frameErrPanel(w int, e *connError) []string {
 	tag := " " + strings.ToUpper(string(e.op)) + " FAILED "
-	code := " " + e.code + " "
-	right := " " + e.label + " "
-	fill := max(w-1-len([]rune(tag))-len([]rune(code))-len([]rune(right)), 0)
 
-	var top strings.Builder
-	top.WriteString(border(gTeeL))
-	top.WriteString((span{text: gLineH, fg: cErrBorder}).render())
-	top.WriteString((span{text: tag, fg: cErrTagFg, bg: cErrTagBg, bold: true}).render())
-	top.WriteString((span{text: code, fg: cErrCode, bold: true}).render())
-	top.WriteString((span{text: strings.Repeat(gLineH, fill), fg: cErrBorder}).render())
-	top.WriteString((span{text: right, fg: cErrMuted}).render())
-	top.WriteString(border(gTeeR))
-
-	lines := []string{top.String()}
+	lines := []string{
+		frameRule(w, gTeeL, gTeeR),
+		frameLine(w, []span{
+			{text: " ", fg: cDim},
+			{text: tag, fg: cErrTagFg, bg: cErrTagBg, bold: true},
+			{text: " " + e.code, fg: cErrCode, bold: true},
+		}, nil),
+	}
 	if e.target != "" {
 		lines = append(lines, frameErrKV(w, "target", e.target, cErrValue))
 	}

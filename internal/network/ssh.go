@@ -1,0 +1,145 @@
+package network
+
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"strings"
+	"time"
+
+	"github.com/myjupyter/conm/internal/cli"
+	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
+)
+
+const (
+	sshBannerPrefix = "SSH-"
+	sshDialTimeout  = 5 * time.Second
+	sshDefaultPort  = "22"
+
+	sshMaxPreBannerLines = 1024
+	sshMaxLineLength     = 8192
+)
+
+var errNoSSHBanner = errors.New("no ssh banner received")
+
+type SSHClient struct {
+	launcher cli.Launcher
+	cfg      config.Connection
+	ref      secret.Reference
+	sec      secret.Provider
+}
+
+func NewSSHClient(
+	launcher cli.Launcher,
+	cfg config.Connection,
+	sec secret.Provider,
+) (*SSHClient, error) {
+	ref, ok := cfg.(secret.Reference)
+	if !ok {
+		return nil, fmt.Errorf("connection %q does not support secrets", cfg.Meta().Name)
+	}
+
+	return &SSHClient{
+		launcher: launcher,
+		cfg:      cfg,
+		ref:      ref,
+		sec:      sec,
+	}, nil
+}
+
+func (s *SSHClient) Ping(ctx context.Context) (PingResult, error) {
+	now := time.Now()
+
+	// TODO(CONM-15): with a jump set this pings the first jump hop, not the target
+	dialer := net.Dialer{Timeout: sshDialTimeout}
+	conn, err := dialer.DialContext(ctx, "tcp", firstHopAddress(s.cfg))
+	if err != nil {
+		return PingResult{}, s.fail(PingOperation, transportErrorCode(err), err)
+	}
+	defer conn.Close()
+
+	deadline := now.Add(sshDialTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	_ = conn.SetReadDeadline(deadline)
+
+	if err := awaitSSHBanner(conn); err != nil {
+		if errors.Is(err, errNoSSHBanner) {
+			return PingResult{}, s.fail(PingOperation, UnknownErrorCode, err)
+		}
+		return PingResult{}, s.fail(PingOperation, transportErrorCode(err), err)
+	}
+
+	return PingResult{PingTime: time.Since(now)}, nil
+}
+
+func awaitSSHBanner(conn net.Conn) error {
+	lines := bufio.NewScanner(conn)
+	var buf [256]byte
+	lines.Buffer(buf[:], sshMaxLineLength)
+	for range sshMaxPreBannerLines + 1 {
+		if !lines.Scan() {
+			break
+		}
+		if strings.HasPrefix(lines.Text(), sshBannerPrefix) {
+			return nil
+		}
+	}
+	if err := lines.Err(); err != nil && !errors.Is(err, bufio.ErrTooLong) {
+		return err
+	}
+	return errNoSSHBanner
+}
+
+func (s *SSHClient) Run(ctx context.Context) error {
+	password, err := s.sec.Resolve(ctx, s.ref)
+	if err != nil {
+		return s.fail(ConnectOperation, SecretErrorCode, err)
+	}
+
+	if err := s.launcher.Run(ctx, s.cfg, password); err != nil {
+		return s.fail(ConnectOperation, cliErrorCode(err, transportErrorCode), err)
+	}
+
+	return nil
+}
+
+func (s *SSHClient) Close() error {
+	return nil
+}
+
+func firstHopAddress(cfg config.Connection) string {
+	s, ok := cfg.(config.SSH)
+	if !ok || s.Jump == "" {
+		return address(cfg)
+	}
+
+	firstHop, _, _ := strings.Cut(s.Jump, ",")
+	firstHop = strings.TrimSpace(firstHop)
+	if _, hostPort, hasUser := strings.Cut(firstHop, "@"); hasUser {
+		firstHop = hostPort
+	}
+	host, port, hasPort := strings.Cut(firstHop, ":")
+	if !hasPort {
+		port = sshDefaultPort
+	}
+	return net.JoinHostPort(host, port)
+}
+
+func (s *SSHClient) fail(op Operation, code ErrorCode, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	return &OpError{
+		Op:     op,
+		Code:   code,
+		Target: s.cfg.ConnectionString(""),
+		During: during(op, s.cfg),
+		Err:    err,
+	}
+}

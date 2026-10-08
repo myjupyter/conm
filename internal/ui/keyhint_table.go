@@ -266,7 +266,7 @@ func (m formModel) keyhints() []keyhintGroup {
 	switch {
 	case m.isProviderField(cur) && m.isRef():
 		action = append(action, keybind{keyMap.Secret.hint, "open " + m.storeLabel()})
-	case m.fields[cur].Kind == spec.HiddenFieldKind && !m.isRef() && !m.noSecret():
+	case m.fields[cur].Kind == spec.HiddenFieldKind && m.isLiteral():
 		label := "show password"
 		if m.reveal {
 			label = "hide password"

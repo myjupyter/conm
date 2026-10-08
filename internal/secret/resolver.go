@@ -16,6 +16,7 @@ func Default() *Resolver {
 		&KeyringProvider{},
 		&LiteralProvider{},
 		&NoneProvider{},
+		&FilepathProvider{},
 	)
 }
 

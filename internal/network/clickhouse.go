@@ -28,14 +28,14 @@ const (
 
 type ClickHouseClient struct {
 	launcher cli.Launcher
-	cfg      config.Connection
+	cfg      config.DBConnection
 	ref      secret.Reference
 	sec      secret.Provider
 }
 
 func NewClickHouseClient(
 	launcher cli.Launcher,
-	cfg config.Connection,
+	cfg config.DBConnection,
 	sec secret.Provider,
 ) (*ClickHouseClient, error) {
 	ref, ok := cfg.(secret.Reference)
@@ -146,6 +146,6 @@ func clickhouseErrorCode(err error) ErrorCode {
 	return transportErrorCode(err)
 }
 
-func clickhouseTarget(cfg config.Connection) string {
+func clickhouseTarget(cfg config.DBConnection) string {
 	return fmt.Sprintf("clickhouse://%s@%s:%d/%s", cfg.Username(), cfg.Host(), cfg.Port(), cfg.Database())
 }

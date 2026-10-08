@@ -36,11 +36,7 @@ type formModel struct {
 	// literal-only.
 	secrets *view.Secrets
 
-	// The value field is shared by both modes, so each mode's value is kept
-	// aside while the other is showing: cycling through the modes must not
-	// throw away a password that was already typed.
-	literalStash string
-	refStash     string
+	secretStashByProvider map[string]string
 
 	vals map[string]string
 
@@ -115,13 +111,14 @@ func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], ti
 			m.vals[f.Key] = seeded
 		case f.Kind == spec.SelectFieldKind:
 			m.vals[f.Key] = f.DefaultValue
-			if m.vals[f.Key] == "" && len(f.Options) > 0 {
-				m.vals[f.Key] = f.Options[0]
+			if options := m.options(f); m.vals[f.Key] == "" && len(options) > 0 {
+				m.vals[f.Key] = options[0]
 			}
 		default:
 			m.vals[f.Key] = ""
 		}
 	}
+	m.clampSelects()
 
 	return m
 }
@@ -164,6 +161,10 @@ func (m formModel) noSecret() bool {
 	return m.vals[spec.SecretProviderKey] == secret.None && m.hasSecretMode()
 }
 
+func (m formModel) isLiteral() bool {
+	return secret.IsMaterial(m.vals[spec.SecretProviderKey])
+}
+
 // isSecretField reports whether field i is the one the secret mode governs.
 func (m formModel) isSecretField(i int) bool {
 	return m.fields[i].Key == spec.SecretValueKey && m.hasSecretMode()
@@ -179,7 +180,28 @@ func (m formModel) isProviderField(i int) bool {
 // to change, so ←/→ stays inert there rather than pretending to be a control.
 func (m formModel) isSelector(i int) bool {
 	f := m.fields[i]
-	return f.Kind == spec.SelectFieldKind && len(f.Options) > 0
+	return f.Kind == spec.SelectFieldKind && len(m.options(f)) > 0
+}
+
+func (m formModel) label(f spec.FormField) string {
+	if f.TextFunc != nil {
+		return strings.ToLower(f.TextFunc(m.vals).Label)
+	}
+	return strings.ToLower(f.Label)
+}
+
+func (m formModel) example(f spec.FormField) string {
+	if f.TextFunc != nil {
+		return f.TextFunc(m.vals).Example
+	}
+	return f.Example
+}
+
+func (m formModel) options(f spec.FormField) []string {
+	if f.OptionsFunc != nil {
+		return f.OptionsFunc(m.vals)
+	}
+	return f.Options
 }
 
 func (m formModel) hasSecretMode() bool {
@@ -239,35 +261,30 @@ func (m *formModel) cycleRef(dir int) {
 // moved to: a literal password and a store location are not interchangeable,
 // so each is parked in its own stash while the other is on screen.
 func (m *formModel) onSecretModeChange(was string) {
-	switch {
-	case secret.IsStore(was):
-		m.refStash = m.vals[spec.SecretValueKey]
-	case was != secret.None:
-		m.literalStash = m.vals[spec.SecretValueKey]
+	if m.secretStashByProvider == nil {
+		m.secretStashByProvider = map[string]string{}
 	}
+	m.secretStashByProvider[was] = m.vals[spec.SecretValueKey]
+	m.vals[spec.SecretValueKey] = m.secretStashByProvider[m.vals[spec.SecretProviderKey]]
 
-	if m.noSecret() {
+	switch {
+	case m.noSecret():
 		m.vals[spec.SecretValueKey] = ""
 		m.setStatus(secret.None+" · this connection sends no password", kindIdle)
-		return
-	}
-
-	if !m.isRef() {
-		m.vals[spec.SecretValueKey] = m.literalStash
+	case m.isLiteral():
 		m.setStatus("literal · password stored as plain text", kindWarn)
-		return
-	}
-
-	m.vals[spec.SecretValueKey] = m.refStash
-
-	list := m.refEntries()
-	if !slices.Contains(list, m.vals[spec.SecretValueKey]) {
-		m.vals[spec.SecretValueKey] = ""
-		if len(list) > 0 {
-			m.vals[spec.SecretValueKey] = list[0]
+	case !m.isRef():
+		m.setStatus(m.storeLabel()+" · a location conm hands over, never reads", kindIdle)
+	default:
+		list := m.refEntries()
+		if !slices.Contains(list, m.vals[spec.SecretValueKey]) {
+			m.vals[spec.SecretValueKey] = ""
+			if len(list) > 0 {
+				m.vals[spec.SecretValueKey] = list[0]
+			}
 		}
+		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Secret.hint+" on provider to manage", kindIdle)
 	}
-	m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Secret.hint+" on provider to manage", kindIdle)
 }
 
 func (m formModel) applyPicked(msg secretPickedMsg) formModel {
@@ -313,9 +330,9 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case keyMap.PrevSection.matches(key):
 		m.switchSection(-1)
 	case keyMap.Right.matches(key):
-		m.navCycle(fields[m.idx], cur, 1)
+		m.navCycle(fields[m.idx], 1)
 	case keyMap.Left.matches(key):
-		m.navCycle(fields[m.idx], cur, -1)
+		m.navCycle(fields[m.idx], -1)
 	case keyMap.Edit.matches(key):
 		m.navEdit(fields[m.idx], cur)
 	case keyMap.Secret.matches(key):
@@ -388,15 +405,49 @@ func (m formModel) applyPaste(raw string, err error) formModel {
 
 // navCycle steps the field under the cursor one option in dir: a store entry
 // for a secret reference, otherwise the selector's own options.
-func (m *formModel) navCycle(i int, cur spec.FormField, dir int) {
+func (m *formModel) navCycle(i, dir int) {
 	switch {
 	case m.isSecretField(i) && m.isRef():
 		m.cycleRef(dir)
 	case m.isSelector(i):
 		was := m.vals[spec.SecretProviderKey]
+		wasProviders := m.secretProviders()
 		m.cycle(i, dir)
-		if cur.Key == spec.SecretProviderKey {
+		if providers := m.secretProviders(); !slices.Equal(providers, wasProviders) {
+			m.resetSecret(providers)
+		}
+		m.clampSelects()
+		if m.vals[spec.SecretProviderKey] != was {
 			m.onSecretModeChange(was)
+		}
+	}
+}
+
+func (m formModel) secretProviders() []string {
+	for _, f := range m.fields {
+		if f.Key == spec.SecretProviderKey {
+			return m.options(f)
+		}
+	}
+	return nil
+}
+
+func (m *formModel) resetSecret(providers []string) {
+	m.vals[spec.SecretValueKey] = ""
+	clear(m.secretStashByProvider)
+	if len(providers) > 0 {
+		m.vals[spec.SecretProviderKey] = providers[0]
+	}
+}
+
+func (m *formModel) clampSelects() {
+	for _, f := range m.fields {
+		if f.Kind != spec.SelectFieldKind || f.OptionsFunc == nil {
+			continue
+		}
+		options := m.options(f)
+		if len(options) > 0 && !slices.Contains(options, m.vals[f.Key]) {
+			m.vals[f.Key] = options[0]
 		}
 	}
 }
@@ -410,12 +461,12 @@ func (m *formModel) navEdit(i int, cur spec.FormField) {
 	case m.isSecretField(i) && m.isRef():
 		m.setStatus(m.storeLabel()+" entries are picked, not typed · use "+keyMap.Cycle.hint, kindWarn)
 	case m.isSelector(i):
-		m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
+		m.setStatus(m.label(cur)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
 	case cur.Kind == spec.SelectFieldKind:
-		m.setStatus(strings.ToLower(cur.Label)+" has no options to pick from", kindWarn)
+		m.setStatus(m.label(cur)+" has no options to pick from", kindWarn)
 	default:
 		m.insert = true
-		m.setStatus("editing "+strings.ToLower(cur.Label)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
+		m.setStatus("editing "+m.label(cur)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
 	}
 }
 
@@ -427,7 +478,7 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 	switch {
 	case m.isProviderField(i) && m.isRef():
 		return m.pickSecretCmd(), true
-	case cur.Kind == spec.HiddenFieldKind && !m.isRef() && !m.noSecret():
+	case cur.Kind == spec.HiddenFieldKind && m.isLiteral():
 		m.reveal = !m.reveal
 		if m.reveal {
 			m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)
@@ -491,17 +542,18 @@ func (m *formModel) switchSection(dir int) {
 
 func (m *formModel) cycle(i, dir int) {
 	f := m.fields[i]
-	if len(f.Options) == 0 {
+	options := m.options(f)
+	if len(options) == 0 {
 		return
 	}
 	at := 0
-	for j, opt := range f.Options {
+	for j, opt := range options {
 		if opt == m.vals[f.Key] {
 			at = j
 			break
 		}
 	}
-	m.vals[f.Key] = f.Options[(at+dir+len(f.Options))%len(f.Options)]
+	m.vals[f.Key] = options[(at+dir+len(options))%len(options)]
 }
 
 // linkSection reports which section the links are grown in. A spec without a
@@ -635,7 +687,7 @@ func (m formModel) fieldError(i int) string {
 	}
 
 	if f.Property == spec.RequiredFieldProperty && strings.TrimSpace(v) == "" {
-		return strings.ToLower(f.Label) + " is required"
+		return m.label(f) + " is required"
 	}
 	if f.ValidateFunc != nil {
 		if err := f.ValidateFunc(v); err != nil {
@@ -727,7 +779,7 @@ func (m formModel) applyPing(msg formPingMsg) formModel {
 	label := connLabel(cfg)
 
 	if msg.err != nil {
-		e := newConnError(msg.err, network.PingOperation, label)
+		e := newConnError(msg.err, network.PingOperation)
 		m.ping = e
 		m.pong = ""
 		m.setStatus("ping failed · "+label+" · "+e.code, kindErr)
@@ -754,7 +806,7 @@ func (m formModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
 		v := m.vals[f.Key]
 		// A location is trimmed like any other field; only a literal password
 		// keeps its surrounding whitespace.
-		if f.Kind != spec.HiddenFieldKind || m.isRef() {
+		if f.Kind != spec.HiddenFieldKind || !m.isLiteral() {
 			v = strings.TrimSpace(v)
 		}
 		out[f.Key] = v

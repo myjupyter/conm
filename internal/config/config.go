@@ -13,8 +13,6 @@ type Connection interface {
 
 	Username() string
 	Host() string
-	Database() string
-	Schema() string
 	Port() int
 
 	ConnectionString(string) string
@@ -23,6 +21,8 @@ type Connection interface {
 
 	IsValid() bool
 	Validate() []error
+
+	Distinct
 }
 
 func validationErrors(checks ...error) []error {

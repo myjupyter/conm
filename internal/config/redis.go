@@ -246,3 +246,13 @@ func (r Redis) Validate() []error {
 func (r Redis) IsValid() bool {
 	return len(r.validationErrs) == 0
 }
+
+func (r Redis) Identity() string {
+	return identity(
+		r.ConnType().String(),
+		r.Hostname,
+		strconv.Itoa(r.PortNumber),
+		r.User,
+		strconv.Itoa(r.DBIndex),
+	)
+}

@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +15,7 @@ import (
 func testRepo(t *testing.T) *ConnectionRepository {
 	t.Helper()
 
-	conm := config.Conm{Databases: []config.Database{
+	conm := config.Conm{Connections: []config.ConnectionSettings{
 		{Type: config.PostgresConnType, CLI: "psql", Enabled: true},
 	}}
 
@@ -50,7 +51,7 @@ func TestAddRejectsTheSameEndpoint(t *testing.T) {
 	dup, ok := errors.AsType[*DuplicateConnectionError](err)
 	require.Truef(t, ok, "error = %v, want *DuplicateConnectionError", err)
 	assert.Equal(t, "first", dup.Name)
-	assert.Equal(t, "me@db.example.com:5432/metrics", dup.Target)
+	assert.Equal(t, "postgresql://me@db.example.com:5432/metrics?sslmode=prefer", dup.Target)
 	assert.Equal(t, 1, repo.Len())
 }
 
@@ -101,4 +102,43 @@ func TestEditRejectsAnotherRowsEndpoint(t *testing.T) {
 
 	_, ok := errors.AsType[*DuplicateConnectionError](err)
 	assert.Truef(t, ok, "error = %v, want *DuplicateConnectionError", err)
+}
+
+func TestSSHUniqueness(t *testing.T) {
+	target := func(jump, forward string) config.SSH {
+		return config.SSH{
+			Hostname:     "10.0.0.5",
+			PortNumber:   22,
+			User:         "deploy",
+			Auth:         config.SSHAuthAgent,
+			Jump:         jump,
+			LocalForward: forward,
+		}
+	}
+
+	tests := map[string]struct {
+		existing, added config.SSH
+		duplicate       bool
+	}{
+		"same jump":                {existing: target("bastion-eu", ""), added: target("bastion-eu", ""), duplicate: true},
+		"different jump":           {existing: target("bastion-eu", ""), added: target("bastion-us", "")},
+		"jump against direct":      {existing: target("", ""), added: target("bastion-eu", "")},
+		"jump differing by spaces": {existing: target("a@hop1,hop2", ""), added: target(" a@hop1 , hop2", ""), duplicate: true},
+		"same local forward":       {existing: target("", "5432:db:5432"), added: target("", "5432:db:5432"), duplicate: true},
+		"different local forward":  {existing: target("", "5432:db:5432"), added: target("", "6379:cache:6379")},
+		"forward against plain":    {existing: target("", ""), added: target("", "5432:db:5432")},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := validateUnique(slices.Values([]config.Connection{tt.existing}), tt.added)
+
+			if !tt.duplicate {
+				assert.NoError(t, err)
+				return
+			}
+			_, ok := errors.AsType[*DuplicateConnectionError](err)
+			assert.Truef(t, ok, "error = %v, want *DuplicateConnectionError", err)
+		})
+	}
 }

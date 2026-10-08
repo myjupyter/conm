@@ -66,6 +66,7 @@ var parsers = map[config.ConnType]parseFunc{
 	config.MSSQLConnType:      parseMSSQL,
 	config.MongoDBConnType:    parseMongoDB,
 	config.RedisConnType:      parseRedis,
+	config.SSHConnType:        parseSSH,
 }
 
 var schemes = map[string]config.ConnType{
@@ -87,6 +88,7 @@ var schemes = map[string]config.ConnType{
 	mongodbSRVScheme: config.MongoDBConnType,
 	"redis":          config.RedisConnType,
 	"rediss":         config.RedisConnType,
+	sshScheme:        config.SSHConnType,
 }
 
 var clientAliases = map[string]string{
@@ -95,7 +97,7 @@ var clientAliases = map[string]string{
 
 var knownClients = func() map[string]bool {
 	names := make(map[string]bool)
-	for _, t := range config.Databases {
+	for _, t := range config.ConnTypes {
 		for _, name := range cli.Clients(t) {
 			names[name] = true
 		}
@@ -202,7 +204,7 @@ func isClient(name string) bool {
 
 func clientDatabases(name string) string {
 	var names []string
-	for _, t := range config.Databases {
+	for _, t := range config.ConnTypes {
 		if slices.Contains(cli.Clients(t), name) {
 			names = append(names, t.String())
 		}

@@ -16,14 +16,14 @@ import (
 
 type PGClient struct {
 	launcher cli.Launcher
-	cfg      config.Connection
+	cfg      config.DBConnection
 	ref      secret.Reference
 	sec      secret.Provider
 }
 
 func NewPGClient(
 	launcher cli.Launcher,
-	cfg config.Connection,
+	cfg config.DBConnection,
 	sec secret.Provider,
 ) (*PGClient, error) {
 	ref, ok := cfg.(secret.Reference)
@@ -110,6 +110,6 @@ func pgErrorCode(err error) ErrorCode {
 	return transportErrorCode(err)
 }
 
-func pgTarget(cfg config.Connection) string {
+func pgTarget(cfg config.DBConnection) string {
 	return fmt.Sprintf("postgres://%s@%s:%d/%s", cfg.Username(), cfg.Host(), cfg.Port(), cfg.Database())
 }

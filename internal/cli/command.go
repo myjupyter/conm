@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -13,8 +14,9 @@ import (
 type builder func(cfg config.Connection, password string) (command, error)
 
 type command struct {
-	args []string
-	env  []string
+	args    []string
+	env     []string
+	cleanup func()
 }
 
 var commands = map[string]builder{
@@ -30,6 +32,7 @@ var commands = map[string]builder{
 	MySQL:      mysqlCommand,
 	SQLCmd:     mssqlCommand,
 	ClickHouse: clickhouseCommand,
+	SSH:        sshCommand,
 }
 
 const versionFlag = "--version"
@@ -47,6 +50,7 @@ var versionFlags = map[string]string{
 	IRedis:     versionFlag,
 	Mongosh:    versionFlag,
 	Mongo:      versionFlag,
+	SSH:        "-V",
 }
 
 var versionNumber = regexp.MustCompile(`\d+(\.\d+)*`)
@@ -57,9 +61,16 @@ func Version(ctx context.Context, name string) string {
 		return ""
 	}
 
-	out, err := exec.CommandContext(ctx, name, flag).Output()
+	var stderr bytes.Buffer
+	executor := exec.CommandContext(ctx, name, flag)
+	executor.Stderr = &stderr
+
+	out, err := executor.Output()
 	if err != nil {
 		return ""
+	}
+	if len(bytes.TrimSpace(out)) == 0 {
+		out = stderr.Bytes()
 	}
 
 	return parseVersion(string(out))
@@ -90,6 +101,10 @@ func passwordEnv(name, password string) []string {
 }
 
 func (c command) run(ctx context.Context, name string) error {
+	if c.cleanup != nil {
+		defer c.cleanup()
+	}
+
 	executor := exec.CommandContext(ctx, name, c.args...)
 	executor.Env = c.env
 
