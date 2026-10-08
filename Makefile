@@ -1,4 +1,4 @@
-.PHONY: build smoke vet test lint tools hooks fmt
+.PHONY: build smoke vet test lint vuln tidy tools hooks fmt
 
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
@@ -6,6 +6,7 @@ BIN ?= bin/$(GOOS)-$(GOARCH)/conm
 
 TOOLS_BIN := $(CURDIR)/bin/tools
 GOLANGCI_LINT := $(TOOLS_BIN)/golangci-lint
+GOVULNCHECK := $(TOOLS_BIN)/govulncheck
 
 INSTALL_TOOLS = GOBIN=$(TOOLS_BIN) go -C tools install tool
 
@@ -31,6 +32,15 @@ test: vet
 lint: $(GOLANGCI_LINT) vet
 	$(say) "lint"
 	@$(GOLANGCI_LINT) run ./...
+
+vuln: $(GOVULNCHECK)
+	$(say) "vuln"
+	@$(GOVULNCHECK) ./...
+
+tidy:
+	$(say) "tidy"
+	@go mod tidy -diff
+	@go -C tools mod tidy -diff
 
 tools:
 	$(say) "tools -> $(TOOLS_BIN)"
