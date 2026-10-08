@@ -11,7 +11,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 
-	_ "github.com/jackc/pgx/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type PGClient struct {
