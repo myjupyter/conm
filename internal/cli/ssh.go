@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,6 +21,61 @@ func sshCommand(cfg config.Connection, password string) (command, error) {
 		return command{}, fmt.Errorf("%w: %s cannot run a %s connection", ErrConnType, SSH, cfg.ConnType())
 	}
 
+	cmd, err := sshLogin(s, password)
+	if err != nil {
+		return command{}, err
+	}
+	if s.ForwardAgent {
+		cmd.args = append(cmd.args, "-A")
+	}
+	if s.KeepAlive > 0 {
+		cmd.args = append(cmd.args, "-o", "ServerAliveInterval="+strconv.Itoa(s.KeepAlive))
+	}
+	if s.LocalForward != "" {
+		cmd.args = append(cmd.args, "-L", s.LocalForward)
+	}
+	cmd.args = append(cmd.args, sshDestination(s))
+
+	return cmd, nil
+}
+
+func sshTransportCommand(
+	bastionCfg config.Connection,
+	tr config.Transport,
+	password string,
+	target config.Connection,
+) (command, error) {
+	bastion, ok := bastionCfg.(config.SSH)
+	if !ok {
+		return command{}, fmt.Errorf("%w: %s transport cannot go through a %s connection", ErrConnType, tr.Kind, bastionCfg.ConnType())
+	}
+	if tr.LocalPort == 0 {
+		return command{}, fmt.Errorf("%w: transport %q has no local port picked", ErrTransport, tr.Name)
+	}
+
+	cmd, err := sshLogin(bastion, password)
+	if err != nil {
+		return command{}, err
+	}
+
+	cmd.args = append(cmd.args, "-N", "-o", "ExitOnForwardFailure=yes")
+	if !sshUsesAskpass(bastion.Auth, password) {
+		cmd.args = append(cmd.args, "-o", "BatchMode=yes")
+	}
+	if tr.ConnectTimeout > 0 {
+		cmd.args = append(cmd.args, "-o", "ConnectTimeout="+strconv.Itoa(tr.ConnectTimeout))
+	}
+	if tr.KeepAlive > 0 {
+		cmd.args = append(cmd.args, "-o", "ServerAliveInterval="+strconv.Itoa(tr.KeepAlive))
+	}
+	local := net.JoinHostPort(transportLocalHost, strconv.Itoa(tr.LocalPort))
+	remote := net.JoinHostPort(target.Host(), strconv.Itoa(target.Port()))
+	cmd.args = append(cmd.args, "-L", local+":"+remote, sshDestination(bastion))
+
+	return cmd, nil
+}
+
+func sshLogin(s config.SSH, password string) (command, error) {
 	var (
 		args    []string
 		cleanup func()
@@ -48,17 +104,6 @@ func sshCommand(cfg config.Connection, password string) (command, error) {
 	case s.Jump != "":
 		args = append(args, "-J", s.Jump)
 	}
-	if s.ForwardAgent {
-		args = append(args, "-A")
-	}
-	if s.KeepAlive > 0 {
-		args = append(args, "-o", "ServerAliveInterval="+strconv.Itoa(s.KeepAlive))
-	}
-	if s.LocalForward != "" {
-		args = append(args, "-L", s.LocalForward)
-	}
-
-	args = append(args, s.User+"@"+s.Hostname)
 
 	var env []string
 	if sshUsesAskpass(s.Auth, password) {
@@ -71,6 +116,10 @@ func sshCommand(cfg config.Connection, password string) (command, error) {
 	}
 
 	return command{args: args, env: env, cleanup: cleanup}, nil
+}
+
+func sshDestination(s config.SSH) string {
+	return s.User + "@" + s.Hostname
 }
 
 func sshIdentity(secret string) (path string, remove func(), err error) {
