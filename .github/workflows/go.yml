@@ -60,7 +60,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: make build smoke
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: conm-${{ matrix.goos }}-${{ matrix.goarch }}
           path: bin/${{ matrix.goos }}-${{ matrix.goarch }}/conm
