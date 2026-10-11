@@ -10,11 +10,16 @@ import (
 var errInvalidConfig = errors.New("invalid connection config")
 
 type NoClient struct {
-	cfg config.Connection
+	cfg    config.Connection
+	reason error
 }
 
 func NewNoClient(cfg config.Connection) (*NoClient, error) {
-	return &NoClient{cfg: cfg}, nil
+	return NewNoClientWithReson(cfg, errInvalidConfig)
+}
+
+func NewNoClientWithReson(cfg config.Connection, reason error) (*NoClient, error) {
+	return &NoClient{cfg: cfg, reason: reason}, nil
 }
 
 func (n *NoClient) ConnType() config.ConnType {
@@ -35,7 +40,7 @@ func (n *NoClient) fail(op Operation) error {
 		Code:   InvalidErrorCode,
 		Target: address(n.cfg),
 		During: during(op, n.cfg),
-		Err:    errInvalidConfig,
+		Err:    n.reason,
 	}
 }
 

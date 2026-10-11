@@ -35,6 +35,7 @@ const (
 	SecretErrorCode      ErrorCode = "ESECRET"
 	TLSErrorCode         ErrorCode = "ETLS"
 	InvalidErrorCode     ErrorCode = "EINVALID"
+	TransportErrorCode   ErrorCode = "ETRANSPORT"
 )
 
 type OpError struct {
