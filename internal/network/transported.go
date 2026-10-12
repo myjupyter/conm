@@ -17,16 +17,16 @@ import (
 var _ Connection = (*Transported)(nil)
 
 type Transported struct {
-	cfg       config.DBConnection
-	ref       string
-	transport transport.Transport
-	build     func(config.DBConnection) (Connection, error)
+	cfg        config.DBConnection
+	ref        string
+	transports transport.Provider
+	build      func(config.DBConnection) (Connection, error)
 }
 
 func NewTransported(
 	launcher cli.Launcher,
 	cfg config.DBConnection,
-	tr transport.Transport,
+	transports transport.Provider,
 	sec secret.Provider,
 ) (*Transported, error) {
 	ref, ok := cfg.(transport.Reference)
@@ -35,9 +35,9 @@ func NewTransported(
 	}
 
 	return &Transported{
-		cfg:       cfg,
-		ref:       ref.TransportRef(),
-		transport: tr,
+		cfg:        cfg,
+		ref:        ref.TransportRef(),
+		transports: transports,
 		build: func(moved config.DBConnection) (Connection, error) {
 			return NewConnection(launcher, moved, sec)
 		},
@@ -66,11 +66,16 @@ func (t *Transported) Close() error {
 }
 
 func (t *Transported) through(ctx context.Context, op Operation, use func(Connection) error) error {
-	host, port, err := t.transport.Open(ctx)
+	tr, err := t.transports.Resolve(t.cfg)
 	if err != nil {
 		return t.fail(op, err)
 	}
-	defer func() { _ = t.transport.Close(context.WithoutCancel(ctx)) }()
+
+	host, port, err := tr.Open(ctx)
+	if err != nil {
+		return t.fail(op, err)
+	}
+	defer func() { _ = tr.Close(context.WithoutCancel(ctx)) }()
 
 	inner, err := t.build(t.cfg.SetHost(host).SetPort(port))
 	if err != nil {

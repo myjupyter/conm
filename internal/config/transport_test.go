@@ -204,3 +204,46 @@ func TestDBConnection_SetHost_SetPort(t *testing.T) {
 		})
 	}
 }
+
+func TestTransport_Identity(t *testing.T) {
+	t.Parallel()
+
+	type fields struct {
+		Name      string
+		Kind      TransportKind
+		Via       string
+		LocalPort int
+		KeepAlive int
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name:   "kind and name make a transport",
+			fields: fields{Name: "prod", Kind: SSHTransportKind, Via: "bastion"},
+			want:   `["ssh" "prod"]`,
+		},
+		{
+			name:   "settings do not",
+			fields: fields{Name: "prod", Kind: SSHTransportKind, Via: "jump", LocalPort: 15432, KeepAlive: 30},
+			want:   `["ssh" "prod"]`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tr := Transport{
+				Name:      tt.fields.Name,
+				Kind:      tt.fields.Kind,
+				Via:       tt.fields.Via,
+				LocalPort: tt.fields.LocalPort,
+				KeepAlive: tt.fields.KeepAlive,
+			}
+
+			assert.Equal(t, tt.want, tr.Identity())
+		})
+	}
+}

@@ -9,13 +9,38 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-func TestDirectHandsBackTheTarget(t *testing.T) {
-	d := NewDirect(config.Postgres{Hostname: "db.internal", PortNumber: 5432})
+func TestDirect_Open(t *testing.T) {
+	t.Parallel()
 
-	host, port, err := d.Open(t.Context())
+	type fields struct {
+		target config.Connection
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+		want1  int
+	}{
+		{
+			name:   "hands back the address of the connection",
+			fields: fields{target: config.Postgres{Hostname: "db.internal", PortNumber: 5432}},
+			want:   "db.internal",
+			want1:  5432,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	require.NoError(t, err)
-	assert.Equal(t, "db.internal", host)
-	assert.Equal(t, 5432, port)
-	require.NoError(t, d.Close(t.Context()))
+			d := NewDirect(tt.fields.target)
+
+			got, got1, err := d.Open(t.Context())
+			require.NoError(t, err)
+
+			is := assert.New(t)
+			is.Equal(tt.want, got)
+			is.Equal(tt.want1, got1)
+			is.NoError(d.Close(t.Context()))
+		})
+	}
 }

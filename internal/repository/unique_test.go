@@ -23,6 +23,8 @@ func testRepo(t *testing.T) *ConnectionRepository {
 		conm,
 		config.PostgresConnType,
 		filepath.Join(t.TempDir(), "postgres.toml"),
+		nil,
+		NewConnectionIndex(),
 	)
 	require.NoError(t, err)
 	t.Cleanup(func() { repo.Close() })

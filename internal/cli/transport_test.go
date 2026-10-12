@@ -118,55 +118,81 @@ func Test_sshTransportCommand(t *testing.T) {
 	}
 }
 
-func TestTransportLauncherRefusesAnUnknownKind(t *testing.T) {
-	err := TransportLauncher{}.Run(
-		context.Background(),
-		config.SSH{Hostname: "bastion.local", User: "me", Auth: config.SSHAuthAgent},
-		config.Transport{Kind: "vpn", LocalPort: 40000},
-		"",
-		config.Postgres{Hostname: "db.internal", PortNumber: 5432},
-	)
+func TestTransportLauncher_Run(t *testing.T) {
+	_, lookErr := exec.LookPath(SSH)
+	sshInstalled := lookErr == nil
 
-	require.ErrorIs(t, err, ErrUnknownTransport)
-}
-
-func TestTransportLauncherRun(t *testing.T) {
-	if _, err := exec.LookPath(SSH); err != nil {
-		t.Skip("ssh is not installed")
+	type args struct {
+		cfg    config.Connection
+		tr     config.Transport
+		target config.Connection
 	}
+	sshThrough := func(bastionPort int) config.Connection {
+		return config.SSH{Hostname: "127.0.0.1", PortNumber: bastionPort, User: "me", Auth: config.SSHAuthAgent}
+	}
+	sshTransport := config.Transport{Kind: config.SSHTransportKind, LocalPort: 40000, ConnectTimeout: 2}
+	target := config.Postgres{Hostname: "db.internal", PortNumber: 5432}
+	refusingPort := closedPort(t)
 
-	t.Run("reports why ssh exited", func(t *testing.T) {
-		port := closedPort(t)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+	tests := []struct {
+		name         string
+		args         args
+		needsSSH     bool
+		cancelAfter  time.Duration
+		wantErr      error
+		wantErrPart  string
+		wantStopFast bool
+	}{
+		{
+			name: "an unknown transport kind is refused",
+			args: args{
+				cfg:    config.SSH{Hostname: "bastion.local", User: "me", Auth: config.SSHAuthAgent},
+				tr:     config.Transport{Kind: "vpn", LocalPort: 40000},
+				target: target,
+			},
+			wantErr: ErrUnknownTransport,
+		},
+		{
+			name:        "reports why ssh exited",
+			args:        args{cfg: sshThrough(refusingPort), tr: sshTransport, target: target},
+			needsSSH:    true,
+			wantErr:     ErrTransport,
+			wantErrPart: strconv.Itoa(refusingPort),
+		},
+		{
+			name:         "a cancelled context stops it without an error",
+			args:         args{cfg: sshThrough(silentServer(t)), tr: sshTransport, target: target},
+			needsSSH:     true,
+			cancelAfter:  300 * time.Millisecond,
+			wantStopFast: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.needsSSH && !sshInstalled {
+				t.Skip("ssh is not installed")
+			}
 
-		err := runTestTransport(ctx, port)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			if tt.cancelAfter > 0 {
+				time.AfterFunc(tt.cancelAfter, cancel)
+			}
 
-		require.ErrorIs(t, err, ErrTransport)
-		assert.Contains(t, err.Error(), strconv.Itoa(port))
-	})
+			start := time.Now()
+			err := TransportLauncher{}.Run(ctx, tt.args.cfg, tt.args.tr, "", tt.args.target)
 
-	t.Run("a cancelled context stops it without an error", func(t *testing.T) {
-		port := silentServer(t)
-		ctx, cancel := context.WithCancel(context.Background())
-		time.AfterFunc(300*time.Millisecond, cancel)
-
-		start := time.Now()
-		err := runTestTransport(ctx, port)
-
-		require.NoError(t, err)
-		assert.Less(t, time.Since(start), transportStopGrace)
-	})
-}
-
-func runTestTransport(ctx context.Context, bastionPort int) error {
-	return TransportLauncher{}.Run(
-		ctx,
-		config.SSH{Hostname: "127.0.0.1", PortNumber: bastionPort, User: "me", Auth: config.SSHAuthAgent},
-		config.Transport{Kind: config.SSHTransportKind, LocalPort: 40000, ConnectTimeout: 2},
-		"",
-		config.Postgres{Hostname: "db.internal", PortNumber: 5432},
-	)
+			if tt.wantStopFast {
+				assert.Less(t, time.Since(start), transportStopGrace)
+			}
+			if tt.wantErr == nil {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorIs(t, err, tt.wantErr)
+			assert.Contains(t, err.Error(), tt.wantErrPart)
+		})
+	}
 }
 
 func closedPort(t *testing.T) int {

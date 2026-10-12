@@ -11,6 +11,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/secret"
+	"github.com/myjupyter/conm/internal/transport"
 )
 
 type Connections interface {
@@ -26,51 +27,6 @@ type Connections interface {
 	Remove(int) error
 }
 
-func openConnections[W config.ConfigWrapper[config.Connection]](
-	cfg config.Conm,
-	kind config.ConnType,
-	path string,
-) (*ConnectionRepository, error) {
-	file, err := config.OpenConfig[W](path)
-	if err != nil {
-		return nil, err
-	}
-
-	launcher := cli.For(cfg, kind)
-
-	var sec secret.Provider = secret.Default()
-
-	n := file.Len()
-	ncs := make([]network.Connection, 0, n)
-	for i := range n {
-		c := file.Get(i)
-
-		var (
-			conn network.Connection
-			err  error
-		)
-		if c.IsValid() {
-			conn, err = network.NewConnection(launcher, c, sec)
-		} else {
-			conn, err = network.NewNoClient(c)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("couldn't create connection: %w", err)
-		}
-
-		ncs = append(ncs, conn)
-	}
-
-	return &ConnectionRepository{
-		launcher: launcher,
-		kind:     kind,
-		file:     file,
-		mx:       &sync.RWMutex{},
-		ncs:      ncs,
-		sec:      sec,
-	}, nil
-}
-
 type ConnectionRepository struct {
 	launcher cli.Launcher
 	kind     config.ConnType
@@ -78,7 +34,28 @@ type ConnectionRepository struct {
 	ncs      []network.Connection
 	sec      secret.Provider
 
+	transports transport.Provider
+	usage      UsageLookup
+
 	mx *sync.RWMutex
+}
+
+func (r *ConnectionRepository) TransportRefs() iter.Seq2[string, string] {
+	return func(yield func(string, string) bool) {
+		r.mx.RLock()
+		defer r.mx.RUnlock()
+
+		for i := range r.file.Len() {
+			c := r.file.Get(i)
+			ref, ok := c.(transport.Reference)
+			if !ok || ref.TransportRef() == "" {
+				continue
+			}
+			if !yield(c.Meta().Name, ref.TransportRef()) {
+				return
+			}
+		}
+	}
 }
 
 func (r *ConnectionRepository) Kind() config.ConnType {
@@ -136,6 +113,10 @@ func (r *ConnectionRepository) ConfigAt(i int) (config.Connection, bool) {
 }
 
 func (r *ConnectionRepository) Add(cfg config.Connection) error {
+	if err := r.checkTransport(cfg); err != nil {
+		return fmt.Errorf("add: %w", err)
+	}
+
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -148,7 +129,7 @@ func (r *ConnectionRepository) Add(cfg config.Connection) error {
 		return fmt.Errorf("add: validation error: %w", errors.Join(errs...))
 	}
 
-	conn, err := network.NewConnection(r.launcher, cfg, r.sec)
+	conn, err := r.build(cfg)
 	if err != nil {
 		return fmt.Errorf("add: open new connection error: %w", err)
 	}
@@ -163,6 +144,15 @@ func (r *ConnectionRepository) Add(cfg config.Connection) error {
 	return nil
 }
 func (r *ConnectionRepository) Edit(i int, cfg config.Connection) error {
+	if err := r.checkTransport(cfg); err != nil {
+		return fmt.Errorf("edit: %w", err)
+	}
+	if old, ok := r.ConfigAt(i); ok && old.Meta().Name != cfg.Meta().Name {
+		if err := r.checkUnused(old); err != nil {
+			return fmt.Errorf("edit: %w", err)
+		}
+	}
+
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -178,7 +168,7 @@ func (r *ConnectionRepository) Edit(i int, cfg config.Connection) error {
 		return fmt.Errorf("edit: connection index %d is out of range", i)
 	}
 
-	conn, err := network.NewConnection(r.launcher, cfg, r.sec)
+	conn, err := r.build(cfg)
 	if err != nil {
 		return fmt.Errorf("edit: open new connection error: %w", err)
 	}
@@ -198,6 +188,12 @@ func (r *ConnectionRepository) Edit(i int, cfg config.Connection) error {
 }
 
 func (r *ConnectionRepository) Remove(i int) error {
+	if old, ok := r.ConfigAt(i); ok {
+		if err := r.checkUnused(old); err != nil {
+			return fmt.Errorf("remove: %w", err)
+		}
+	}
+
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -248,6 +244,69 @@ func (r *ConnectionRepository) Close() error {
 	return nil
 }
 
+func openConnections[W config.ConfigWrapper[config.Connection]](
+	cfg config.Conm,
+	kind config.ConnType,
+	path string,
+	transports transport.Provider,
+	usage UsageLookup,
+) (*ConnectionRepository, error) {
+	file, err := config.OpenConfig[W](path)
+	if err != nil {
+		return nil, err
+	}
+
+	r := &ConnectionRepository{
+		launcher: cli.For(cfg, kind),
+		kind:     kind,
+		file:     file,
+		mx:       &sync.RWMutex{},
+		sec:      secret.Default(),
+
+		transports: transports,
+		usage:      usage,
+	}
+
+	ncs := make([]network.Connection, 0, file.Len())
+	for i := range file.Len() {
+		conn, err := r.build(file.Get(i))
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create connection: %w", err)
+		}
+		ncs = append(ncs, conn)
+	}
+	r.ncs = ncs
+
+	return r, nil
+}
+
+func (r *ConnectionRepository) build(c config.Connection) (network.Connection, error) {
+	if !c.IsValid() {
+		return network.NewNoClient(c)
+	}
+
+	db, ok := c.(config.DBConnection)
+	ref, routed := c.(transport.Reference)
+	if !ok || !routed || ref.TransportRef() == "" {
+		return network.NewConnection(r.launcher, c, r.sec)
+	}
+
+	return network.NewTransported(r.launcher, db, r.transports, r.sec)
+}
+
+func (r *ConnectionRepository) byName(name string) (config.Connection, bool) {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	for i := range r.file.Len() {
+		if c := r.file.Get(i); c.Meta().Name == name {
+			return c, true
+		}
+	}
+
+	return nil, false
+}
+
 func (r *ConnectionRepository) check(cfg config.Connection, self int) error {
 	if cfg.ConnType() != r.kind {
 		return fmt.Errorf("connection type %q doesn't belong to the %q repository", cfg.ConnType(), r.kind)
@@ -262,4 +321,23 @@ func (r *ConnectionRepository) at(i int) (config.Connection, bool) {
 	}
 
 	return r.file.Get(i), true
+}
+
+func (r *ConnectionRepository) checkTransport(cfg config.Connection) error {
+	ref, ok := cfg.(transport.Reference)
+	if !ok || ref.TransportRef() == "" {
+		return nil
+	}
+
+	_, err := r.transports.Resolve(cfg)
+	return err
+}
+
+func (r *ConnectionRepository) checkUnused(c config.Connection) error {
+	ref := connectionRef(c.ConnType(), c.Meta().Name)
+	if used := r.usage.Usages(ref); len(used) > 0 {
+		return &ConnectionInUseError{Ref: ref, By: used}
+	}
+
+	return nil
 }

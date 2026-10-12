@@ -36,6 +36,18 @@ func (f *fakeTransport) Close(context.Context) error {
 	return nil
 }
 
+type fakeProvider struct {
+	transport  *fakeTransport
+	resolveErr error
+}
+
+func (p fakeProvider) Resolve(config.Connection) (transport.Transport, error) {
+	if p.resolveErr != nil {
+		return nil, p.resolveErr
+	}
+	return p.transport, nil
+}
+
 func closedLocalPort(t *testing.T) int {
 	t.Helper()
 
@@ -86,7 +98,7 @@ func TestNewTransported(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := NewTransported(cli.Launcher{}, tt.args.cfg, &fakeTransport{}, secret.Default())
+			got, err := NewTransported(cli.Launcher{}, tt.args.cfg, fakeProvider{transport: &fakeTransport{}}, secret.Default())
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return
@@ -101,7 +113,7 @@ func TestTransported_Ping(t *testing.T) {
 	t.Parallel()
 
 	type fields struct {
-		transport *fakeTransport
+		provider fakeProvider
 	}
 	tests := []struct {
 		name       string
@@ -111,22 +123,37 @@ func TestTransported_Ping(t *testing.T) {
 		wantOpened int
 	}{
 		{
-			name:       "the database behind the transport refuses",
-			fields:     fields{transport: &fakeTransport{host: "127.0.0.1", port: closedLocalPort(t)}},
+			name: "the database behind the transport refuses",
+			fields: fields{provider: fakeProvider{
+				transport: &fakeTransport{host: "127.0.0.1", port: closedLocalPort(t)},
+			}},
 			wantCode:   RefusedErrorCode,
 			wantTarget: "postgres://svc@db.internal:5432/orders",
 			wantOpened: 1,
 		},
 		{
-			name:       "the transport does not come up",
-			fields:     fields{transport: &fakeTransport{openErr: errors.Join(errors.New("prod"), transport.ErrNotReady)}},
+			name: "the transport does not come up",
+			fields: fields{provider: fakeProvider{
+				transport: &fakeTransport{openErr: errors.Join(errors.New("prod"), transport.ErrNotReady)},
+			}},
 			wantCode:   TransportErrorCode,
 			wantTarget: "ssh:prod",
 		},
 		{
-			name:       "the bastion secret is unreadable",
-			fields:     fields{transport: &fakeTransport{openErr: errors.Join(errors.New("prod"), transport.ErrSecret)}},
+			name: "the bastion secret is unreadable",
+			fields: fields{provider: fakeProvider{
+				transport: &fakeTransport{openErr: errors.Join(errors.New("prod"), transport.ErrSecret)},
+			}},
 			wantCode:   SecretErrorCode,
+			wantTarget: "ssh:prod",
+		},
+		{
+			name: "the transport does not exist",
+			fields: fields{provider: fakeProvider{
+				transport:  &fakeTransport{},
+				resolveErr: errors.New(`transport "ssh:prod" does not exist`),
+			}},
+			wantCode:   TransportErrorCode,
 			wantTarget: "ssh:prod",
 		},
 	}
@@ -134,7 +161,7 @@ func TestTransported_Ping(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			conn, err := NewTransported(cli.Launcher{}, behindTransport(), tt.fields.transport, secret.Default())
+			conn, err := NewTransported(cli.Launcher{}, behindTransport(), tt.fields.provider, secret.Default())
 			require.NoError(t, err)
 
 			_, err = conn.Ping(t.Context())
@@ -146,8 +173,8 @@ func TestTransported_Ping(t *testing.T) {
 			is.Equal(tt.wantTarget, opErr.Target)
 			is.Contains(opErr.During, "db.internal:5432")
 			is.NotContains(opErr.During, "127.0.0.1")
-			is.Equal(tt.wantOpened, tt.fields.transport.opened)
-			is.Equal(tt.wantOpened, tt.fields.transport.closed)
+			is.Equal(tt.wantOpened, tt.fields.provider.transport.opened)
+			is.Equal(tt.wantOpened, tt.fields.provider.transport.closed)
 		})
 	}
 }
@@ -156,7 +183,7 @@ func TestTransported_Run(t *testing.T) {
 	t.Parallel()
 
 	type fields struct {
-		transport *fakeTransport
+		provider fakeProvider
 	}
 	tests := []struct {
 		name     string
@@ -165,7 +192,7 @@ func TestTransported_Run(t *testing.T) {
 	}{
 		{
 			name:     "the transport does not come up",
-			fields:   fields{transport: &fakeTransport{openErr: transport.ErrNotReady}},
+			fields:   fields{provider: fakeProvider{transport: &fakeTransport{openErr: transport.ErrNotReady}}},
 			wantCode: TransportErrorCode,
 		},
 	}
@@ -173,7 +200,7 @@ func TestTransported_Run(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			conn, err := NewTransported(cli.Launcher{}, behindTransport(), tt.fields.transport, secret.Default())
+			conn, err := NewTransported(cli.Launcher{}, behindTransport(), tt.fields.provider, secret.Default())
 			require.NoError(t, err)
 
 			err = conn.Run(t.Context())
@@ -181,7 +208,7 @@ func TestTransported_Run(t *testing.T) {
 			var opErr *OpError
 			require.ErrorAs(t, err, &opErr)
 			assert.Equal(t, tt.wantCode, opErr.Code)
-			assert.Zero(t, tt.fields.transport.closed)
+			assert.Zero(t, tt.fields.provider.transport.closed)
 		})
 	}
 }

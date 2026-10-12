@@ -11,7 +11,10 @@ type TransportKind = string
 
 const SSHTransportKind TransportKind = "ssh"
 
-var _ ConfigWrapper[Transport] = (*TransportConfigWrapper)(nil)
+var (
+	_ ConfigWrapper[Transport] = (*TransportConfigWrapper)(nil)
+	_ Distinct                 = Transport{}
+)
 
 type Transport struct {
 	Name           string        `toml:"name"`
@@ -85,6 +88,10 @@ func (t Transport) Validate() []error {
 		ValidateTransportConnectTimeout(t.ConnectTimeout),
 		ValidateTransportKeepAlive(t.KeepAlive),
 	)
+}
+
+func (t Transport) Identity() string {
+	return identity(t.Kind, t.Name)
 }
 
 func (t Transport) IsValid() bool {

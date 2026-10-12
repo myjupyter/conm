@@ -23,6 +23,12 @@ type UsageLookup interface {
 	Usages(ref string) []Usage
 }
 
+type UsageLookupFunc func(ref string) []Usage
+
+func (f UsageLookupFunc) Usages(ref string) []Usage {
+	return f(ref)
+}
+
 type Index struct {
 	users []SecretUser
 }
