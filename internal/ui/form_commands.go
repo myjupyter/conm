@@ -32,7 +32,7 @@ func connectionForm(
 
 	return formLoop[config.Connection]{
 		open: func(initial formValues, status formStatus) (formResult[config.Connection], error) {
-			model := newFormModel(t, formSpec, title, initial, isEdit, secrets)
+			model := newFormModel(t, formSpec, title, initial, isEdit, secrets, nil)
 			if status.text != "" {
 				model.status, model.statusKind = status.text, status.kind
 			}

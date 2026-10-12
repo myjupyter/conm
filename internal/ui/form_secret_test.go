@@ -62,7 +62,7 @@ func TestFormSSHAuthChangeResetsSecret(t *testing.T) {
 			tt.from.Hostname, tt.from.PortNumber, tt.from.User = "10.0.0.5", 22, "deploy"
 			initial := spec.SSHFormSpec.SeedFunc(tt.from)
 			require.NotNil(t, initial)
-			m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "edit", initial, true, nil)
+			m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "edit", initial, true, nil, nil)
 			require.NotEmpty(t, m.vals[spec.SecretValueKey])
 
 			for _, auth := range tt.via {
@@ -92,7 +92,7 @@ func TestFormSSHSecretText(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			tt.conn.Hostname, tt.conn.PortNumber, tt.conn.User = "10.0.0.5", 22, "deploy"
-			m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "edit", spec.SSHFormSpec.SeedFunc(tt.conn), true, nil)
+			m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "edit", spec.SSHFormSpec.SeedFunc(tt.conn), true, nil, nil)
 
 			i := slices.IndexFunc(m.fields, func(f spec.FormField) bool { return f.Key == spec.SecretValueKey })
 			require.GreaterOrEqual(t, i, 0)
@@ -128,7 +128,7 @@ func TestFormProviderRoundTripKeepsSecret(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			tt.conn.Hostname, tt.conn.PortNumber, tt.conn.User = "10.0.0.5", 22, "deploy"
-			m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "edit", spec.SSHFormSpec.SeedFunc(tt.conn), true, nil)
+			m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "edit", spec.SSHFormSpec.SeedFunc(tt.conn), true, nil, nil)
 			was := m.vals[spec.SecretProviderKey]
 
 			i := slices.IndexFunc(m.fields, func(f spec.FormField) bool { return f.Key == spec.SecretProviderKey })
@@ -146,7 +146,7 @@ func TestFormProviderRoundTripKeepsSecret(t *testing.T) {
 func TestFormOpensOnAnOfferedProvider(t *testing.T) {
 	agent := config.SSH{Hostname: "10.0.0.5", PortNumber: 22, User: "deploy", Auth: config.SSHAuthAgent}
 
-	m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "add", spec.SSHFormSpec.SeedFunc(agent), false, nil)
+	m := newFormModel(config.SSHConnType, spec.SSHFormSpec, "add", spec.SSHFormSpec.SeedFunc(agent), false, nil, nil)
 
 	assert.Equal(t, secret.None, m.vals[spec.SecretProviderKey])
 	conn, err := spec.SSHFormSpec.BuildFunc(m.vals)

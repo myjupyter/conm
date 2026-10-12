@@ -270,7 +270,8 @@ func specRows(cfg config.Connection, meta bool) []infoRow {
 
 	values := sp.SeedFunc(cfg)
 	labels := make(map[spec.FormFieldKey]string, len(sp.Fields))
-	for _, f := range sp.Fields {
+	for i := range sp.Fields {
+		f := &sp.Fields[i]
 		labels[f.Key] = strings.ToLower(f.Label)
 	}
 

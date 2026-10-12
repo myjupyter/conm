@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -210,34 +211,8 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 		borderFg = cRed
 	}
 
-	if f.Kind == spec.SelectFieldKind {
-		value := m.vals[f.Key]
-		options := m.options(f)
-		at := 1
-		for j, opt := range options {
-			if opt == value {
-				at = j + 1
-				break
-			}
-		}
-		pos := fmt.Sprintf("%d/%d", at, len(options))
-		mid := max(formBoxW-8-len([]rune(pos)), 0)
-		value = truncPad(value, mid, false)
-		left := max((mid-len([]rune(value)))/2, 0)
-		right := max(mid-left-len([]rune(value)), 0)
-
-		valFg, posFg := cValue, cMuted
-		if active {
-			valFg, posFg = cInvFg, cInvFg
-		}
-		return []span{
-			{text: gLineV + " " + gSelectPrev + " ", fg: borderFg, bg: bg},
-			{text: strings.Repeat(" ", left), bg: bg},
-			{text: value, fg: valFg, bg: bg, bold: true},
-			{text: strings.Repeat(" ", right), bg: bg},
-			{text: pos + " ", fg: posFg, bg: bg},
-			{text: gSelectNext + " " + gLineV, fg: borderFg, bg: bg},
-		}
+	if isSelect(f) {
+		return m.selectBox(f, active, borderFg, bg)
 	}
 
 	disp, ghost := m.display(i, active)
@@ -255,6 +230,40 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 		{text: gLineV, fg: borderFg, bg: bg},
 		{text: truncPad(disp, formBoxW-2, false), fg: valFg, bg: bg},
 		{text: gLineV, fg: borderFg, bg: bg},
+	}
+}
+
+func (m formModel) selectBox(f spec.FormField, active bool, borderFg, bg color.Color) []span {
+	value := m.vals[f.Key]
+	options := m.options(f)
+	missing := m.isMissing(f)
+
+	pos := fmt.Sprintf("-/%d", len(options))
+	if !missing {
+		pos = fmt.Sprintf("%d/%d", max(slices.Index(options, value), 0)+1, len(options))
+	}
+	if value == "" {
+		value = gEmpty
+	}
+	mid := max(formBoxW-8-len([]rune(pos)), 0)
+	value = truncPad(value, mid, false)
+	left := max((mid-len([]rune(value)))/2, 0)
+	right := max(mid-left-len([]rune(value)), 0)
+
+	valFg, posFg := cValue, cMuted
+	if missing {
+		valFg = cFaint
+	}
+	if active {
+		valFg, posFg = cInvFg, cInvFg
+	}
+	return []span{
+		{text: gLineV + " " + gSelectPrev + " ", fg: borderFg, bg: bg},
+		{text: strings.Repeat(" ", left), bg: bg},
+		{text: value, fg: valFg, bg: bg, bold: true},
+		{text: strings.Repeat(" ", right), bg: bg},
+		{text: pos + " ", fg: posFg, bg: bg},
+		{text: gSelectNext + " " + gLineV, fg: borderFg, bg: bg},
 	}
 }
 

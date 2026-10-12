@@ -38,7 +38,8 @@ func newInitFormModel(spc spec.FormSpec[config.ConnectionSettings], kind config.
 		statusKind: kindIdle,
 	}
 
-	for _, f := range spc.Fields {
+	for i := range spc.Fields {
+		f := &spc.Fields[i]
 		value := initial[f.Key]
 		if value == "" {
 			value = f.DefaultValue
