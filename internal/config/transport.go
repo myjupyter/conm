@@ -11,6 +11,8 @@ type TransportKind = string
 
 const SSHTransportKind TransportKind = "ssh"
 
+var TransportKinds = []TransportKind{SSHTransportKind}
+
 var (
 	_ ConfigWrapper[Transport] = (*TransportConfigWrapper)(nil)
 	_ Distinct                 = Transport{}
@@ -23,6 +25,7 @@ type Transport struct {
 	LocalPort      int           `toml:"local_port,omitempty"`
 	ConnectTimeout int           `toml:"connect_timeout,omitempty"`
 	KeepAlive      int           `toml:"keepalive,omitempty"`
+	Description    string        `toml:"description,omitempty"`
 
 	validationErrs []error
 }
@@ -72,6 +75,13 @@ func ValidateTransportConnectTimeout(seconds int) error {
 	return nil
 }
 
+func ValidateTransportDescription(desc string) error {
+	if len(desc) > descriptionMaxLength {
+		return fmt.Errorf("description must be at most %d characters long", descriptionMaxLength)
+	}
+	return nil
+}
+
 func ValidateTransportKeepAlive(seconds int) error {
 	if seconds < 0 {
 		return errors.New("keepalive can't be negative")
@@ -87,6 +97,7 @@ func (t Transport) Validate() []error {
 		ValidateTransportLocalPort(t.LocalPort),
 		ValidateTransportConnectTimeout(t.ConnectTimeout),
 		ValidateTransportKeepAlive(t.KeepAlive),
+		ValidateTransportDescription(t.Description),
 	)
 }
 

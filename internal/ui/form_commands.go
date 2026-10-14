@@ -10,14 +10,44 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/repository"
+	"github.com/myjupyter/conm/internal/transport"
 	"github.com/myjupyter/conm/internal/ui/spec"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
+type formContext struct {
+	secrets    *view.Secrets
+	sources    spec.Sources
+	transports transport.Provider
+}
+
+func connectionFormContext(conns *view.Connections, secrets *view.Secrets, transports *view.Transports) formContext {
+	sources := spec.Sources{config.SSHConnType.String(): conns.NamesOf(config.SSHConnType)}
+
+	types := []string{spec.TransportDirect}
+	for _, kind := range config.TransportKinds {
+		if transports == nil {
+			break
+		}
+		if names := transports.NamesOf(kind); len(names) > 0 {
+			types = append(types, kind)
+			sources[spec.TransportsSourceOf(kind)] = names
+		}
+	}
+	sources[spec.TransportTypesSource] = types
+
+	ctx := formContext{secrets: secrets, sources: sources}
+	if transports != nil {
+		ctx.transports = transports
+	}
+
+	return ctx
+}
+
 func connectionForm(
 	t config.ConnType,
 	isEdit bool,
-	secrets *view.Secrets,
+	ctx formContext,
 	save func(config.Connection) error,
 ) (formLoop[config.Connection], error) {
 	formSpec, ok := spec.FormSpecs[t]
@@ -32,7 +62,7 @@ func connectionForm(
 
 	return formLoop[config.Connection]{
 		open: func(initial formValues, status formStatus) (formResult[config.Connection], error) {
-			model := newFormModel(t, formSpec, title, initial, isEdit, secrets, nil)
+			model := newFormModel(t, formSpec, title, initial, isEdit, ctx)
 			if status.text != "" {
 				model.status, model.statusKind = status.text, status.kind
 			}
@@ -55,7 +85,9 @@ func RunAddForm(conm config.Conm, t config.ConnType, initial formValues, warning
 		return false, fmt.Errorf("%q is not enabled\nrun 'conm init' to enable it", t)
 	}
 
-	loop, err := connectionForm(t, false, view.NewSecrets(ws.Keyring), repo.Add)
+	conns := view.NewConnections(ws.Connections()...)
+	ctx := connectionFormContext(conns, view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports))
+	loop, err := connectionForm(t, false, ctx, repo.Add)
 	if err != nil {
 		return false, err
 	}
@@ -65,10 +97,10 @@ func RunAddForm(conm config.Conm, t config.ConnType, initial formValues, warning
 
 func runAddConnection(
 	t config.ConnType,
-	secrets *view.Secrets,
+	ctx formContext,
 	save func(config.Connection) error,
 ) (bool, error) {
-	loop, err := connectionForm(t, false, secrets, save)
+	loop, err := connectionForm(t, false, ctx, save)
 	if err != nil {
 		return false, err
 	}
@@ -79,7 +111,7 @@ func runAddConnection(
 func runEditConnection(
 	t config.ConnType,
 	existing config.Connection,
-	secrets *view.Secrets,
+	ctx formContext,
 	save func(config.Connection) error,
 ) (bool, error) {
 	initial, err := seedConnection(t, existing)
@@ -87,7 +119,7 @@ func runEditConnection(
 		return false, err
 	}
 
-	loop, err := connectionForm(t, true, secrets, save)
+	loop, err := connectionForm(t, true, ctx, save)
 	if err != nil {
 		return false, err
 	}

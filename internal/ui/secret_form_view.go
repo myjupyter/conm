@@ -67,7 +67,7 @@ func (m secretFormModel) secretFieldRow(i int) string {
 		bg = cAccent
 	}
 
-	caret := "   "
+	caret := caretBlank
 	if active {
 		caret = " " + gCaret + " "
 	}

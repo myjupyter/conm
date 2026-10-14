@@ -38,7 +38,7 @@ func (m Model) runCmd() tea.Cmd {
 
 func (m Model) addCmd() tea.Cmd {
 	return changeExec(func() error {
-		_, err := runAddConnection(m.conns.Active(), m.secrets, m.conns.Add)
+		_, err := runAddConnection(m.conns.Active(), m.formContext(), m.conns.Add)
 
 		return err
 	})
@@ -50,7 +50,7 @@ func (m Model) editCmd() tea.Cmd {
 		return nil
 	}
 	return changeExec(func() error {
-		_, err := runEditConnection(cfg.ConnType(), cfg, m.secrets, m.conns.Edit)
+		_, err := runEditConnection(cfg.ConnType(), cfg, m.formContext(), m.conns.Edit)
 
 		return err
 	})
@@ -76,6 +76,13 @@ func (m Model) secretsCmd() tea.Cmd {
 		return nil
 	}
 	return changeExec(func() error { return runSecretTable(m.secrets) })
+}
+
+func (m Model) transportsCmd() tea.Cmd {
+	if m.transports == nil {
+		return nil
+	}
+	return changeExec(func() error { return runTransportTable(m.transports, m.conns) })
 }
 
 func (m Model) databasesCmd() tea.Cmd {

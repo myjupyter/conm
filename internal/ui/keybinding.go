@@ -35,18 +35,19 @@ type keymap struct {
 	PrevSection binding
 
 	// Actions.
-	Confirm binding
-	Ping    binding
-	Retry   binding
-	Add     binding
-	Edit    binding
-	Delete  binding
-	Secret  binding
-	Search  binding
-	Info    binding
-	Yank    binding
-	Toggle  binding
-	AddDB   binding
+	Confirm   binding
+	Ping      binding
+	Retry     binding
+	Add       binding
+	Edit      binding
+	Delete    binding
+	Secret    binding
+	Transport binding
+	Search    binding
+	Info      binding
+	Yank      binding
+	Toggle    binding
+	AddDB     binding
 
 	// Text editing.
 	Backspace binding
@@ -83,18 +84,19 @@ func defaultKeymap() keymap {
 		NextSection: newBinding("tab", "tab"),
 		PrevSection: newBinding("shift+tab", "shift+tab"),
 
-		Confirm: newBinding("enter", "enter"),
-		Ping:    newBinding("p", "p"),
-		Retry:   newBinding("r", "r", "R"),
-		Add:     newBinding("a", "a"),
-		Edit:    newBinding("e", "e"),
-		Delete:  newBinding("d", "d"),
-		Secret:  newBinding("s", "s"),
-		Search:  newBinding("/", "/"),
-		Info:    newBinding("i", "i"),
-		Yank:    newBinding("yy", "y"),
-		Toggle:  newBinding("space", "space"),
-		AddDB:   newBinding("ctrl+a", "ctrl+a"),
+		Confirm:   newBinding("enter", "enter"),
+		Ping:      newBinding("p", "p"),
+		Retry:     newBinding("r", "r", "R"),
+		Add:       newBinding("a", "a"),
+		Edit:      newBinding("e", "e"),
+		Delete:    newBinding("d", "d"),
+		Secret:    newBinding("s", "s"),
+		Transport: newBinding("t", "t"),
+		Search:    newBinding("/", "/"),
+		Info:      newBinding("i", "i"),
+		Yank:      newBinding("yy", "y"),
+		Toggle:    newBinding("space", "space"),
+		AddDB:     newBinding("ctrl+a", "ctrl+a"),
 
 		Backspace: newBinding("backspace", "backspace"),
 		Paste:     newBinding("ctrl+v", "ctrl+v"),

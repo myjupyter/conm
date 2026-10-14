@@ -45,7 +45,7 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	conns := view.NewConnections(ws.Connections()...)
 	conns.SetActive(active)
 
-	m, err := tea.NewProgram(New(conns, view.NewSecrets(ws.Keyring))).Run()
+	m, err := tea.NewProgram(New(conns, view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports))).Run()
 	if err != nil {
 		return Model{}, err
 	}

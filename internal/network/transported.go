@@ -23,6 +23,24 @@ type Transported struct {
 	build      func(config.DBConnection) (Connection, error)
 }
 
+func NewRouted(
+	launcher cli.Launcher,
+	cfg config.Connection,
+	transports transport.Provider,
+	sec secret.Provider,
+) (Connection, error) {
+	db, isDatabase := cfg.(config.DBConnection)
+	ref, routed := cfg.(transport.Reference)
+	if !isDatabase || !routed || ref.TransportRef() == "" {
+		return NewConnection(launcher, cfg, sec)
+	}
+	if transports == nil {
+		return nil, fmt.Errorf("connection %q goes through %s but transports are not available", cfg.Meta().Name, ref.TransportRef())
+	}
+
+	return NewTransported(launcher, db, transports, sec)
+}
+
 func NewTransported(
 	launcher cli.Launcher,
 	cfg config.DBConnection,
@@ -94,6 +112,7 @@ func (t *Transported) configuredAddress(err error, dialled string) error {
 	configured := address(t.cfg)
 	opErr.Target = strings.ReplaceAll(opErr.Target, dialled, configured)
 	opErr.During = strings.ReplaceAll(opErr.During, dialled, configured)
+	opErr.Through = t.ref
 	return opErr
 }
 

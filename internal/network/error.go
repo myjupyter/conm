@@ -39,11 +39,12 @@ const (
 )
 
 type OpError struct {
-	Op     Operation
-	Code   ErrorCode
-	Target string
-	During string
-	Err    error
+	Op      Operation
+	Code    ErrorCode
+	Target  string
+	During  string
+	Through string
+	Err     error
 }
 
 func (f *OpError) Error() string {

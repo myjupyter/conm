@@ -49,14 +49,8 @@ type FormFieldValue = string
 type Sources map[string][]string
 
 type FieldSource struct {
-	Name        string
-	VisibleFunc func(Sources) bool
-}
-
-func SourceAvailable(source string) func(Sources) bool {
-	return func(sources Sources) bool {
-		return len(sources[source]) > 0
-	}
+	Name     string
+	NameFunc func(map[FormFieldKey]FormFieldValue) string
 }
 
 type FormField struct {

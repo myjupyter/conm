@@ -113,6 +113,8 @@ var ClickHouseFormFields = []FormField{
 			return nil
 		},
 	},
+	transportTypeField,
+	transportField,
 }
 
 var ClickHouseFormSpec = FormSpec[config.Connection]{
@@ -132,6 +134,7 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(clickhouseFormFieldSecure),
 			},
 		},
+		transportSection,
 		metadataSection(
 			strings.ToLower(clickhouseFormFieldName),
 			strings.ToLower(clickhouseFormFieldDescription),
@@ -150,6 +153,8 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(clickhouseFormFieldUsername):    ch.User,
 			SecretProviderKey:                               mode,
 			SecretValueKey:                                  value,
+			TransportTypeKey:                                transportTypeOf(ch.Transport),
+			TransportKey:                                    transportNameOf(ch.Transport),
 			strings.ToLower(clickhouseFormFieldDatabase):    ch.DBName,
 			strings.ToLower(clickhouseFormFieldSecure):      strconv.FormatBool(ch.Secure),
 			strings.ToLower(clickhouseFormFieldName):        ch.Metadata.Name,
@@ -164,6 +169,7 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.ClickHouse{
+			Transport: JoinTransport(values[TransportTypeKey], values[TransportKey]),
 			Metadata: buildMeta(
 				values,
 				strings.ToLower(clickhouseFormFieldName),

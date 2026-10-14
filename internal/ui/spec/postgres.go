@@ -129,6 +129,8 @@ var PostgresFormFields = []FormField{
 			return nil
 		},
 	},
+	transportTypeField,
+	transportField,
 }
 
 var PostgresFormSpec = FormSpec[config.Connection]{
@@ -149,6 +151,7 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(postgresFormFieldSSLMode),
 			},
 		},
+		transportSection,
 		metadataSection(
 			strings.ToLower(postgresFormFieldName),
 			strings.ToLower(postgresFormFieldDescription),
@@ -167,6 +170,8 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(postgresFormFieldUsername):    pg.User,
 			SecretProviderKey:                             mode,
 			SecretValueKey:                                value,
+			TransportTypeKey:                              transportTypeOf(pg.Transport),
+			TransportKey:                                  transportNameOf(pg.Transport),
 			strings.ToLower(postgresFormFieldDatabase):    pg.DBName,
 			strings.ToLower(postgresFormFieldSchema):      pg.SchemaName,
 			strings.ToLower(postgresFormFieldSSLMode):     pg.SSLMode,
@@ -182,6 +187,7 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.Postgres{
+			Transport: JoinTransport(values[TransportTypeKey], values[TransportKey]),
 			Metadata: buildMeta(
 				values,
 				strings.ToLower(postgresFormFieldName),

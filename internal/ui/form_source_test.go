@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,10 +12,14 @@ import (
 )
 
 const (
-	testSourceVia       = "via"
-	testSourceTransport = "transport"
 	testSourceHost      = "host"
+	testSourceVia       = "via"
+	testSourceType      = "type"
+	testSourceTransport = "transport"
+	testSourceDirect    = "direct"
 )
+
+type formVals = map[spec.FormFieldKey]spec.FormFieldValue
 
 func sourceFormSpec() spec.FormSpec[config.Connection] {
 	return spec.FormSpec[config.Connection]{
@@ -27,29 +32,49 @@ func sourceFormSpec() spec.FormSpec[config.Connection] {
 				Source: &spec.FieldSource{Name: config.SSHConnType.String()},
 			},
 			{
-				Key:      testSourceTransport,
-				Label:    "Transport",
-				Kind:     spec.SourceFieldKind,
-				Property: spec.OptionalFieldProperty,
-				Source: &spec.FieldSource{
-					Name:        "transport",
-					VisibleFunc: spec.SourceAvailable("transport"),
-				},
+				Key:          testSourceType,
+				Label:        "Type",
+				Kind:         spec.SourceFieldKind,
+				DefaultValue: testSourceDirect,
+				Source:       &spec.FieldSource{Name: "types"},
+			},
+			{
+				Key:     testSourceTransport,
+				Label:   "Transport",
+				Kind:    spec.SourceFieldKind,
+				Example: "connects directly",
+				Source: &spec.FieldSource{NameFunc: func(values formVals) string {
+					if values[testSourceType] == testSourceDirect {
+						return ""
+					}
+					return "transports " + values[testSourceType]
+				}},
 			},
 		},
 		Sections: []spec.FormSection{
 			{Title: "connection", Fields: []spec.FormFieldKey{testSourceHost, testSourceVia}},
-			{Title: "route", Fields: []spec.FormFieldKey{testSourceTransport}},
+			{Title: "transport", Fields: []spec.FormFieldKey{testSourceType, testSourceTransport}},
 		},
 	}
+}
+
+func testSources() spec.Sources {
+	return spec.Sources{
+		"ssh":            {"bastion", "jump"},
+		"types":          {testSourceDirect, "ssh"},
+		"transports ssh": {"prod", "staging"},
+	}
+}
+
+func newSourceForm(sources spec.Sources, initial formVals) formModel {
+	return newFormModel(config.PostgresConnType, sourceFormSpec(), "edit", initial, initial != nil, formContext{sources: sources})
 }
 
 func fieldIndex(t *testing.T, m formModel, key spec.FormFieldKey) int {
 	t.Helper()
 
 	for i := range m.fields {
-		f := &m.fields[i]
-		if f.Key == key {
+		if m.fields[i].Key == key {
 			return i
 		}
 	}
@@ -61,37 +86,37 @@ func TestFormModel_options_source(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		key spec.FormFieldKey
+		key  spec.FormFieldKey
+		kind string
 	}
-	sources := spec.Sources{
-		"ssh":       {"bastion", "jump"},
-		"transport": {"ssh:prod"},
-	}
-
 	tests := []struct {
 		name string
 		args args
 		want []string
 	}{
 		{
-			name: "a required source offers its values",
-			args: args{key: testSourceVia},
+			name: "a source offers its values",
+			args: args{key: testSourceVia, kind: testSourceDirect},
 			want: []string{"bastion", "jump"},
 		},
 		{
-			name: "an optional source offers an empty choice first",
-			args: args{key: testSourceTransport},
-			want: []string{"", "ssh:prod"},
+			name: "a source named after another field follows it",
+			args: args{key: testSourceTransport, kind: "ssh"},
+			want: []string{"prod", "staging"},
+		},
+		{
+			name: "a source that does not apply offers nothing",
+			args: args{key: testSourceTransport, kind: testSourceDirect},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := newFormModel(config.PostgresConnType, sourceFormSpec(), "add", nil, false, nil, sources)
-			f := m.fields[fieldIndex(t, m, tt.args.key)]
+			m := newSourceForm(testSources(), nil)
+			m.vals[testSourceType] = tt.args.kind
 
-			assert.Equal(t, tt.want, m.options(f))
+			assert.Equal(t, tt.want, m.options(m.fields[fieldIndex(t, m, tt.args.key)]))
 		})
 	}
 }
@@ -100,45 +125,48 @@ func TestNewFormModel_source(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		initial map[spec.FormFieldKey]spec.FormFieldValue
+		initial formVals
 		sources spec.Sources
 	}
 	tests := []struct {
 		name          string
 		args          args
 		wantVia       string
+		wantType      string
 		wantTransport string
 		wantSections  []string
 	}{
 		{
-			name:          "a required source starts on its first value, an optional one on none",
-			args:          args{sources: spec.Sources{"ssh": {"bastion", "jump"}, "transport": {"ssh:prod"}}},
-			wantVia:       "bastion",
-			wantTransport: "",
-			wantSections:  []string{"connection", "route"},
-		},
-		{
-			name:         "a field whose source is empty is not shown, and an emptied section goes with it",
-			args:         args{sources: spec.Sources{"ssh": {"bastion"}}},
+			name:         "a new connection goes direct and the transport section is still there",
+			args:         args{sources: testSources()},
 			wantVia:      "bastion",
-			wantSections: []string{"connection"},
+			wantType:     testSourceDirect,
+			wantSections: []string{"connection", "transport"},
 		},
 		{
-			name: "a saved value keeps its field on screen even when the source is empty",
+			name: "an edited connection keeps its transport",
 			args: args{
-				initial: map[spec.FormFieldKey]spec.FormFieldValue{testSourceVia: "bastion", testSourceTransport: "ssh:prod"},
-				sources: spec.Sources{"ssh": {"bastion"}},
+				initial: formVals{testSourceType: "ssh", testSourceTransport: "staging"},
+				sources: testSources(),
 			},
 			wantVia:       "bastion",
-			wantTransport: "ssh:prod",
-			wantSections:  []string{"connection", "route"},
+			wantType:      "ssh",
+			wantTransport: "staging",
+			wantSections:  []string{"connection", "transport"},
+		},
+		{
+			name:         "with no transports at all the section only offers direct",
+			args:         args{sources: spec.Sources{"ssh": {"bastion"}, "types": {testSourceDirect}}},
+			wantVia:      "bastion",
+			wantType:     testSourceDirect,
+			wantSections: []string{"connection", "transport"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := newFormModel(config.PostgresConnType, sourceFormSpec(), "add", tt.args.initial, false, nil, tt.args.sources)
+			got := newSourceForm(tt.args.sources, tt.args.initial)
 
 			titles := make([]string, 0, len(got.sections))
 			for _, s := range got.sections {
@@ -146,6 +174,7 @@ func TestNewFormModel_source(t *testing.T) {
 			}
 			is := assert.New(t)
 			is.Equal(tt.wantVia, got.vals[testSourceVia])
+			is.Equal(tt.wantType, got.vals[testSourceType])
 			is.Equal(tt.wantTransport, got.vals[testSourceTransport])
 			is.Equal(tt.wantSections, titles)
 		})
@@ -156,11 +185,9 @@ func TestFormModel_fieldError_source(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		key   spec.FormFieldKey
-		value string
+		values formVals
+		key    spec.FormFieldKey
 	}
-	sources := spec.Sources{"ssh": {"bastion", "jump"}, "transport": {"ssh:prod"}}
-
 	tests := []struct {
 		name        string
 		args        args
@@ -169,35 +196,42 @@ func TestFormModel_fieldError_source(t *testing.T) {
 	}{
 		{
 			name: "a value from the source",
-			args: args{key: testSourceVia, value: "jump"},
+			args: args{values: formVals{testSourceVia: "jump"}, key: testSourceVia},
 		},
 		{
 			name:        "a value the source no longer has",
-			args:        args{key: testSourceVia, value: "old-bastion"},
+			args:        args{values: formVals{testSourceVia: "old-bastion"}, key: testSourceVia},
 			wantErr:     "old-bastion is no longer available",
 			wantMissing: true,
 		},
 		{
-			name:    "a required source left empty",
-			args:    args{key: testSourceVia, value: ""},
-			wantErr: "via is required",
+			name: "a transport is not asked for when the connection goes direct",
+			args: args{values: formVals{testSourceType: testSourceDirect, testSourceTransport: ""}, key: testSourceTransport},
 		},
 		{
-			name: "an optional source left empty",
-			args: args{key: testSourceTransport, value: ""},
+			name:    "a transport type needs a transport",
+			args:    args{values: formVals{testSourceType: "ssh", testSourceTransport: ""}, key: testSourceTransport},
+			wantErr: "transport is required",
+		},
+		{
+			name:        "a transport that is gone",
+			args:        args{values: formVals{testSourceType: "ssh", testSourceTransport: "old"}, key: testSourceTransport},
+			wantErr:     "old is no longer available",
+			wantMissing: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := newFormModel(config.PostgresConnType, sourceFormSpec(), "edit", nil, true, nil, sources)
-			m.vals[tt.args.key] = tt.args.value
+			m := newSourceForm(testSources(), nil)
+			maps.Copy(m.vals, tt.args.values)
 			i := fieldIndex(t, m, tt.args.key)
 
 			got := m.fieldError(i)
 
 			assert.Equal(t, tt.wantMissing, m.isMissing(m.fields[i]))
+			assert.NotEmpty(t, m.render())
 			if tt.wantErr == "" {
 				assert.Empty(t, got)
 				return
@@ -211,51 +245,55 @@ func TestFormModel_navCycle_source(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		key   spec.FormFieldKey
-		from  string
-		steps int
+		key  spec.FormFieldKey
+		from formVals
 	}
-	sources := spec.Sources{"ssh": {"bastion", "jump"}, "transport": {"ssh:prod"}}
-
 	tests := []struct {
-		name string
-		args args
-		want string
+		name          string
+		args          args
+		wantVia       string
+		wantType      string
+		wantTransport string
 	}{
 		{
-			name: "steps through the source values",
-			args: args{key: testSourceVia, from: "bastion", steps: 1},
-			want: "jump",
+			name:     "steps through the source values",
+			args:     args{key: testSourceVia, from: formVals{testSourceVia: "bastion"}},
+			wantVia:  "jump",
+			wantType: testSourceDirect,
 		},
 		{
-			name: "wraps around",
-			args: args{key: testSourceVia, from: "jump", steps: 1},
-			want: "bastion",
+			name:     "a missing value moves onto a real one",
+			args:     args{key: testSourceVia, from: formVals{testSourceVia: "old-bastion"}},
+			wantVia:  "jump",
+			wantType: testSourceDirect,
 		},
 		{
-			name: "an optional source cycles back to none",
-			args: args{key: testSourceTransport, from: "ssh:prod", steps: 1},
-			want: "",
+			name:          "picking a transport type offers its first transport",
+			args:          args{key: testSourceType, from: formVals{testSourceType: testSourceDirect}},
+			wantVia:       "bastion",
+			wantType:      "ssh",
+			wantTransport: "prod",
 		},
 		{
-			name: "a missing value moves onto a real one",
-			args: args{key: testSourceVia, from: "old-bastion", steps: 1},
-			want: "jump",
+			name:     "going back to direct drops the transport",
+			args:     args{key: testSourceType, from: formVals{testSourceType: "ssh", testSourceTransport: "staging"}},
+			wantVia:  "bastion",
+			wantType: testSourceDirect,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := newFormModel(config.PostgresConnType, sourceFormSpec(), "edit", nil, true, nil, sources)
-			m.vals[tt.args.key] = tt.args.from
-			i := fieldIndex(t, m, tt.args.key)
+			m := newSourceForm(testSources(), nil)
+			maps.Copy(m.vals, tt.args.from)
 
-			for range tt.args.steps {
-				m.navCycle(i, 1)
-			}
+			m.navCycle(fieldIndex(t, m, tt.args.key), 1)
 
-			assert.Equal(t, tt.want, m.vals[tt.args.key])
+			is := assert.New(t)
+			is.Equal(tt.wantVia, m.vals[testSourceVia])
+			is.Equal(tt.wantType, m.vals[testSourceType])
+			is.Equal(tt.wantTransport, m.vals[testSourceTransport])
 		})
 	}
 }

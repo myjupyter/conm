@@ -285,13 +285,7 @@ func (r *ConnectionRepository) build(c config.Connection) (network.Connection, e
 		return network.NewNoClient(c)
 	}
 
-	db, ok := c.(config.DBConnection)
-	ref, routed := c.(transport.Reference)
-	if !ok || !routed || ref.TransportRef() == "" {
-		return network.NewConnection(r.launcher, c, r.sec)
-	}
-
-	return network.NewTransported(r.launcher, db, r.transports, r.sec)
+	return network.NewRouted(r.launcher, c, r.transports, r.sec)
 }
 
 func (r *ConnectionRepository) byName(name string) (config.Connection, bool) {

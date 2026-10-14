@@ -14,9 +14,10 @@ import (
 )
 
 type Model struct {
-	conns   *view.Connections
-	secrets *view.Secrets
-	pings   map[view.ConnRef]*connState
+	conns      *view.Connections
+	secrets    *view.Secrets
+	transports *view.Transports
+	pings      map[view.ConnRef]*connState
 
 	status     string
 	statusKind statusKind
@@ -79,16 +80,21 @@ func newConnState() *connState {
 	}
 }
 
-func New(conns *view.Connections, secrets *view.Secrets) Model {
+func New(conns *view.Connections, secrets *view.Secrets, transports *view.Transports) Model {
 	m := Model{
 		conns:      conns,
 		secrets:    secrets,
+		transports: transports,
 		pings:      make(map[view.ConnRef]*connState, conns.Len()),
 		status:     statusReady,
 		statusKind: kindIdle,
 	}
 
 	return m.syncPings()
+}
+
+func (m Model) formContext() formContext {
+	return connectionFormContext(m.conns, m.secrets, m.transports)
 }
 
 func (m Model) Init() tea.Cmd {
@@ -181,8 +187,6 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		return m, m.runCmd()
 	case keyMap.Add.matches(key):
 		return m, m.addCmd()
-	case keyMap.AddDB.matches(key):
-		return m, m.databasesCmd()
 	case keyMap.Edit.matches(key):
 		if m.conns.Len() > 0 {
 			return m, m.editCmd()
@@ -193,16 +197,27 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		if m.conns.Len() > 0 {
 			return m.pingOne()
 		}
-	case keyMap.Info.matches(key):
-		if m.conns.Len() > 0 {
-			return m, m.infoCmd()
-		}
-	case keyMap.Secret.matches(key):
-		return m, m.secretsCmd()
 	case keyMap.Help.matches(key):
 		m.conns.ToggleHelp()
+	default:
+		return m, m.screenCmd(key)
 	}
 	return m, nil
+}
+
+func (m Model) screenCmd(key string) tea.Cmd {
+	switch {
+	case keyMap.AddDB.matches(key):
+		return m.databasesCmd()
+	case keyMap.Info.matches(key) && m.conns.Len() > 0:
+		return m.infoCmd()
+	case keyMap.Secret.matches(key):
+		return m.secretsCmd()
+	case keyMap.Transport.matches(key):
+		return m.transportsCmd()
+	default:
+		return nil
+	}
 }
 
 func (m Model) switchKind(key string) Model {

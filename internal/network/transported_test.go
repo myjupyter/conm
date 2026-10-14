@@ -116,20 +116,22 @@ func TestTransported_Ping(t *testing.T) {
 		provider fakeProvider
 	}
 	tests := []struct {
-		name       string
-		fields     fields
-		wantCode   ErrorCode
-		wantTarget string
-		wantOpened int
+		name        string
+		fields      fields
+		wantCode    ErrorCode
+		wantTarget  string
+		wantThrough string
+		wantOpened  int
 	}{
 		{
 			name: "the database behind the transport refuses",
 			fields: fields{provider: fakeProvider{
 				transport: &fakeTransport{host: "127.0.0.1", port: closedLocalPort(t)},
 			}},
-			wantCode:   RefusedErrorCode,
-			wantTarget: "postgres://svc@db.internal:5432/orders",
-			wantOpened: 1,
+			wantCode:    RefusedErrorCode,
+			wantTarget:  "postgres://svc@db.internal:5432/orders",
+			wantThrough: "ssh:prod",
+			wantOpened:  1,
 		},
 		{
 			name: "the transport does not come up",
@@ -171,6 +173,7 @@ func TestTransported_Ping(t *testing.T) {
 			is := assert.New(t)
 			is.Equal(tt.wantCode, opErr.Code)
 			is.Equal(tt.wantTarget, opErr.Target)
+			is.Equal(tt.wantThrough, opErr.Through)
 			is.Contains(opErr.During, "db.internal:5432")
 			is.NotContains(opErr.During, "127.0.0.1")
 			is.Equal(tt.wantOpened, tt.fields.provider.transport.opened)

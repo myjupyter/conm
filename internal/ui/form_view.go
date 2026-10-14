@@ -137,7 +137,7 @@ func (m formModel) fieldRow(i int) string {
 
 	bg := m.rowBg(active, pair, pairActive)
 
-	caret := "   "
+	caret := caretBlank
 	if active {
 		caret = " " + gCaret + " "
 	}
@@ -211,7 +211,7 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 		borderFg = cRed
 	}
 
-	if isSelect(f) {
+	if isSelect(f) && m.applies(f) {
 		return m.selectBox(f, active, borderFg, bg)
 	}
 
@@ -234,10 +234,10 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 }
 
 func (m formModel) selectBox(f spec.FormField, active bool, borderFg, bg color.Color) []span {
-	value := m.vals[f.Key]
-	options := m.options(f)
-	missing := m.isMissing(f)
+	return selectSpans(m.vals[f.Key], m.options(f), m.isMissing(f), active, borderFg, bg)
+}
 
+func selectSpans(value string, options []string, missing, active bool, borderFg, bg color.Color) []span {
 	pos := fmt.Sprintf("-/%d", len(options))
 	if !missing {
 		pos = fmt.Sprintf("%d/%d", max(slices.Index(options, value), 0)+1, len(options))
@@ -271,6 +271,9 @@ func (m formModel) display(i int, active bool) (string, bool) {
 	f := m.fields[i]
 	raw := m.vals[f.Key]
 
+	if !m.applies(f) {
+		return m.example(f), true
+	}
 	if m.isSecretField(i) && m.noSecret() {
 		return "no password sent", true
 	}
@@ -352,6 +355,8 @@ func (m formModel) formStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	return frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.sectionFields(m.section))))
 }
+
+const caretBlank = "   "
 
 func caretColor(active bool) color.Color {
 	if active {

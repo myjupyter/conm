@@ -14,6 +14,8 @@ import (
 )
 
 type Transports interface {
+	transport.Provider
+
 	Len() int
 	Get(int) (config.Transport, bool)
 	UsagesAt(int) []Usage

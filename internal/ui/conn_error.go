@@ -33,9 +33,21 @@ func newConnError(err error, attempted network.Operation) *connError {
 		e.target = failure.Target
 		e.during = failure.During
 		e.hint = hintFor(failure.Code)
+		if failure.Through != "" {
+			e.hint = hintThrough(failure.Code, failure.Through, e.hint)
+		}
 	}
 
 	return &e
+}
+
+func hintThrough(code network.ErrorCode, through, fallback string) string {
+	switch code {
+	case network.RefusedErrorCode, network.TimeoutErrorCode, network.UnreachableErrorCode, network.UnknownErrorCode:
+		return "the tunnel " + through + " is up but could not reach the database · host and port must be the address as the bastion sees it"
+	default:
+		return fallback
+	}
 }
 
 func hintFor(code network.ErrorCode) string {

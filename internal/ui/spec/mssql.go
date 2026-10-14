@@ -127,6 +127,8 @@ var MSSQLFormFields = []FormField{
 			return nil
 		},
 	},
+	transportTypeField,
+	transportField,
 }
 
 var MSSQLFormSpec = FormSpec[config.Connection]{
@@ -147,6 +149,7 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(mssqlFormFieldTrustCert),
 			},
 		},
+		transportSection,
 		metadataSection(
 			strings.ToLower(mssqlFormFieldName),
 			strings.ToLower(mssqlFormFieldDescription),
@@ -165,6 +168,8 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(mssqlFormFieldUsername):    ms.User,
 			SecretProviderKey:                          mode,
 			SecretValueKey:                             value,
+			TransportTypeKey:                           transportTypeOf(ms.Transport),
+			TransportKey:                               transportNameOf(ms.Transport),
 			strings.ToLower(mssqlFormFieldDatabase):    ms.DBName,
 			strings.ToLower(mssqlFormFieldEncrypt):     ms.EncryptMode,
 			strings.ToLower(mssqlFormFieldTrustCert):   strconv.FormatBool(ms.TrustCert),
@@ -180,6 +185,7 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.MSSQL{
+			Transport: JoinTransport(values[TransportTypeKey], values[TransportKey]),
 			Metadata: buildMeta(
 				values,
 				strings.ToLower(mssqlFormFieldName),

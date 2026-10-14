@@ -57,7 +57,7 @@ func (m initFormModel) initFormFieldRow(i int) string {
 		bg, labelFg, gutterFg = cAccent, cInvFg, cInvFg
 	}
 
-	caret, gutter := "   ", gDotOn
+	caret, gutter := caretBlank, gDotOn
 	if active {
 		caret = " " + gCaret + " "
 	}
