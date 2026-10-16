@@ -1,8 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
-	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -63,7 +64,7 @@ type File[C any] interface {
 type Config[W ConfigWrapper[C], C any] struct {
 	w W
 
-	file *os.File
+	path string
 }
 
 func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
@@ -72,23 +73,17 @@ func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
 		return nil, fmt.Errorf("couldn't create dir for %q: %w", path, err)
 	}
 
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't open file %q: %w", path, err)
-	}
-
 	var w W
 	if t := reflect.TypeOf(w); t != nil && t.Kind() == reflect.Pointer {
 		alloc, ok := reflect.TypeAssert[W](reflect.New(t.Elem()))
 		if !ok {
-			f.Close()
 			return nil, fmt.Errorf("couldn't allocate a %T wrapper for %q", w, path)
 		}
 		w = alloc
 	}
 
-	data, err := io.ReadAll(f)
-	if err != nil {
+	data, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("couldn't read file %q: %w", path, err)
 	}
 
@@ -100,7 +95,7 @@ func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
 
 	return &Config[W, C]{
 		w:    w,
-		file: f,
+		path: path,
 	}, nil
 }
 
@@ -121,25 +116,39 @@ func (c *Config[W, C]) Remove(i int) { c.w.Remove(i) }
 func (c *Config[W, C]) Save() error {
 	data, err := c.w.Marshal()
 	if err != nil {
-		return fmt.Errorf("couldn't marshal config for %q: %w", c.file.Name(), err)
+		return fmt.Errorf("couldn't marshal config for %q: %w", c.path, err)
 	}
 
-	if _, err := c.file.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("couldn't save config to %q: %w", c.file.Name(), err)
-	}
-
-	n, err := c.file.Write(data)
-	if err != nil {
-		return fmt.Errorf("couldn't save config to %q: %w", c.file.Name(), err)
-	}
-
-	if err := c.file.Truncate(int64(n)); err != nil {
-		return fmt.Errorf("couldn't save config to %q: %w", c.file.Name(), err)
+	if err := writeFileAtomic(c.path, data); err != nil {
+		return fmt.Errorf("couldn't save config to %q: %w", c.path, err)
 	}
 
 	return nil
 }
 
-func (c *Config[W, C]) Close() error {
-	return c.file.Close()
+func (c *Config[W, C]) Close() error { return nil }
+
+func writeFileAtomic(path string, data []byte) error {
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target
+	}
+
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+
+	if _, err := tmp.Write(data); err != nil {
+		return errors.Join(err, tmp.Close())
+	}
+
+	if err := tmp.Sync(); err != nil {
+		return errors.Join(err, tmp.Close())
+	}
+
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		return errors.Join(err, os.Remove(tmp.Name()))
+	}
+
+	return nil
 }
