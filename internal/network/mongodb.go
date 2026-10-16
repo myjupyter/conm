@@ -129,9 +129,6 @@ func mongodbErrorCode(err error) ErrorCode {
 		strings.Contains(msg, "auth error"),
 		strings.Contains(msg, "requires authentication"):
 		return AuthErrorCode
-	case strings.Contains(msg, "no such host"),
-		strings.Contains(msg, "no route to host"):
-		return UnreachableErrorCode
 	case strings.Contains(msg, "x509"),
 		strings.Contains(msg, "certificate"):
 		return TLSErrorCode

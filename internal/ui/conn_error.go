@@ -56,6 +56,10 @@ func hintFor(code network.ErrorCode) string {
 		return "is the server running and accepting connections on that host and port?"
 	case network.TimeoutErrorCode, network.UnreachableErrorCode:
 		return "host unreachable from this network · check the address, VPN, or firewall"
+	case network.UnresolvedErrorCode:
+		return "the host name does not resolve · check the address or your DNS"
+	case network.LocalNetErrorCode:
+		return "macOS may be blocking local network access · allow your terminal in System Settings › Privacy & Security › Local Network"
 	case network.SecretErrorCode:
 		return "the password could not be read · press " + keyMap.Secret.hint + " to check the secret store"
 	case network.AuthErrorCode:
