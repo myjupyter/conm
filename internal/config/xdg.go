@@ -15,6 +15,7 @@ const (
 	redisConfigFileName      = "redis.toml"
 	mongodbConfigFileName    = "mongodb.toml"
 	sshConfigFileName        = "ssh.toml"
+	transportConfigFileName  = "transport.toml"
 	conmConfigFileName       = "conm.toml"
 	secretConfigFileName     = "secret.toml"
 )
@@ -35,6 +36,8 @@ var (
 	MongoDBPath    = pathGetter(mongodbPath)
 	sshPath        = filepath.Join(xdg.ConfigHome, conmDirName, sshConfigFileName)
 	SSHPath        = pathGetter(sshPath)
+	transportPath  = filepath.Join(xdg.ConfigHome, conmDirName, transportConfigFileName)
+	TransportPath  = pathGetter(transportPath)
 	conmConfigPath = filepath.Join(xdg.ConfigHome, conmDirName, conmConfigFileName)
 	ConmPath       = pathGetter(conmConfigPath)
 )

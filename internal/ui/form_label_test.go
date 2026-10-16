@@ -12,7 +12,8 @@ import (
 
 func selectCombinations(fields []spec.FormField) []map[spec.FormFieldKey]spec.FormFieldValue {
 	combos := []map[spec.FormFieldKey]spec.FormFieldValue{{}}
-	for _, f := range fields {
+	for i := range fields {
+		f := &fields[i]
 		if f.Kind != spec.SelectFieldKind || len(f.Options) == 0 {
 			continue
 		}
@@ -31,7 +32,8 @@ func selectCombinations(fields []spec.FormField) []map[spec.FormFieldKey]spec.Fo
 
 func labelsOf(fields []spec.FormField) []string {
 	var labels []string
-	for _, f := range fields {
+	for i := range fields {
+		f := &fields[i]
 		labels = append(labels, f.Label)
 		if f.TextFunc == nil {
 			continue

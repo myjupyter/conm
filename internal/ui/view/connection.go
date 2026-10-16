@@ -67,6 +67,37 @@ func (v *Connections) CountOf(kind config.ConnType) int {
 	return repo.Len()
 }
 
+func (v *Connections) Named(kind config.ConnType, name string) (config.Connection, bool) {
+	repo, ok := v.repos[kind]
+	if !ok || name == "" {
+		return nil, false
+	}
+
+	for i := range repo.Len() {
+		if cfg, ok := repo.ConfigAt(i); ok && cfg.Meta().Name == name {
+			return cfg, true
+		}
+	}
+
+	return nil, false
+}
+
+func (v *Connections) NamesOf(kind config.ConnType) []string {
+	repo, ok := v.repos[kind]
+	if !ok {
+		return nil
+	}
+
+	names := make([]string, 0, repo.Len())
+	for i := range repo.Len() {
+		if cfg, ok := repo.ConfigAt(i); ok && cfg.Meta().Name != "" {
+			names = append(names, cfg.Meta().Name)
+		}
+	}
+
+	return names
+}
+
 func (v *Connections) ClientInfo(ctx context.Context) (cli.Info, bool) {
 	repo, ok := v.repos[v.Active()]
 	if !ok {

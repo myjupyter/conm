@@ -216,6 +216,7 @@ func (m Model) keyhints() []keyhintGroup {
 			binds: []keybind{
 				{keyMap.Info.hint, "info"},
 				{keyMap.Secret.hint, "secrets"},
+				{keyMap.Transport.hint, "transports"},
 				{keyMap.Quit.hint, "quit"},
 			},
 		},
@@ -371,5 +372,51 @@ func (m initFormModel) keyhints() []keyhintGroup {
 		}},
 		{title: keyhintAction, binds: []keybind{{keyMap.Confirm.hint, "save and go back"}}},
 		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "back without saving"}}},
+	}
+}
+
+func (m transportModel) keyhints() []keyhintGroup {
+	return []keyhintGroup{
+		{title: keyhintNavigation, binds: []keybind{
+			{keyMap.MoveVertical.hint, "move"},
+		}},
+		{title: keyhintAction, binds: []keybind{
+			{keyMap.Confirm.hint, "show usage"},
+			{keyMap.Add.hint, "add new"},
+			{keyMap.Edit.hint, "edit transport"},
+			{keyMap.Delete.hint, "delete transport"},
+		}},
+		{title: keyhintSearch, binds: searchKeyhints("filter transports", m.transports.Filtered())},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, keyhintBackToList}}},
+	}
+}
+
+func (m transportFormModel) keyhints() []keyhintGroup {
+	if m.insert {
+		return []keyhintGroup{
+			{
+				title: "editing",
+				binds: []keybind{
+					{keyMap.Cancel.hint, "stop editing"},
+					{keyMap.Confirm.hint, "confirm and next"},
+					{keyMap.Paste.hint, "paste"},
+				},
+			},
+		}
+	}
+
+	nav := []keybind{{keyMap.MoveVertical.hint, keyhintMoveFields}}
+	if cur := m.current(); isSelect(cur) && len(m.options(cur)) > 0 {
+		nav = append(nav, keybind{keyMap.Cycle.hint, "change a selector"})
+	}
+
+	return []keyhintGroup{
+		{title: keyhintNavigation, binds: nav},
+		{title: keyhintAction, binds: []keybind{
+			{keyMap.Edit.hint, "edit field"},
+			{keyMap.Ping.hint, "ping the connection it goes through"},
+			{keyMap.Confirm.hint, "validate and save"},
+		}},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "cancel"}}},
 	}
 }

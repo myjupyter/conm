@@ -34,6 +34,7 @@ type Redis struct {
 	Password   string   `toml:"password" json:"password"`
 	DBIndex    int      `toml:"db" json:"db"`
 	TLSMode    string   `toml:"tls,omitempty" json:"tls,omitempty"`
+	Transport  string   `toml:"transport,omitempty" json:"transport,omitempty"`
 
 	validationErrs []error
 }
@@ -184,6 +185,20 @@ func (r Redis) Schema() string {
 	return ""
 }
 
+func (r Redis) TransportRef() string {
+	return r.Transport
+}
+
+func (r Redis) SetHost(host string) DBConnection {
+	r.Hostname = host
+	return r
+}
+
+func (r Redis) SetPort(port int) DBConnection {
+	r.PortNumber = port
+	return r
+}
+
 func (r Redis) Username() string {
 	return r.User
 }
@@ -254,5 +269,6 @@ func (r Redis) Identity() string {
 		strconv.Itoa(r.PortNumber),
 		r.User,
 		strconv.Itoa(r.DBIndex),
+		r.Transport,
 	)
 }

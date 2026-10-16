@@ -121,6 +121,8 @@ var MongoDBFormFields = []FormField{
 			return nil
 		},
 	},
+	transportTypeField,
+	transportField,
 }
 
 var MongoDBFormSpec = FormSpec[config.Connection]{
@@ -141,6 +143,7 @@ var MongoDBFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(mongodbFormFieldTLS),
 			},
 		},
+		transportSection,
 		metadataSection(
 			strings.ToLower(mongodbFormFieldName),
 			strings.ToLower(mongodbFormFieldDescription),
@@ -159,6 +162,8 @@ var MongoDBFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(mongodbFormFieldUsername):    mg.User,
 			SecretProviderKey:                            mode,
 			SecretValueKey:                               value,
+			TransportTypeKey:                             transportTypeOf(mg.Transport),
+			TransportKey:                                 transportNameOf(mg.Transport),
 			strings.ToLower(mongodbFormFieldDatabase):    mg.DBName,
 			strings.ToLower(mongodbFormFieldAuthSource):  mg.AuthSource,
 			strings.ToLower(mongodbFormFieldTLS):         strconv.FormatBool(mg.TLS),
@@ -174,6 +179,7 @@ var MongoDBFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.MongoDB{
+			Transport: JoinTransport(values[TransportTypeKey], values[TransportKey]),
 			Metadata: buildMeta(
 				values,
 				strings.ToLower(mongodbFormFieldName),

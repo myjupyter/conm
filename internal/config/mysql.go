@@ -31,6 +31,7 @@ type MySQL struct {
 	Password   string   `toml:"password" json:"password"`
 	DBName     string   `toml:"dbname" json:"dbname"`
 	TLSMode    string   `toml:"tls,omitempty" json:"tls,omitempty"`
+	Transport  string   `toml:"transport,omitempty" json:"transport,omitempty"`
 
 	validationErrs []error
 }
@@ -188,6 +189,20 @@ func (m MySQL) Schema() string {
 	return ""
 }
 
+func (m MySQL) TransportRef() string {
+	return m.Transport
+}
+
+func (m MySQL) SetHost(host string) DBConnection {
+	m.Hostname = host
+	return m
+}
+
+func (m MySQL) SetPort(port int) DBConnection {
+	m.PortNumber = port
+	return m
+}
+
 func (m MySQL) Username() string {
 	return m.User
 }
@@ -254,5 +269,6 @@ func (m MySQL) Identity() string {
 		strconv.Itoa(m.PortNumber),
 		m.User,
 		m.DBName,
+		m.Transport,
 	)
 }

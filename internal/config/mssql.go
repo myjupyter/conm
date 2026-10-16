@@ -32,6 +32,7 @@ type MSSQL struct {
 	DBName      string   `toml:"dbname" json:"dbname"`
 	EncryptMode string   `toml:"encrypt,omitempty" json:"encrypt,omitempty"`
 	TrustCert   bool     `toml:"trust_server_certificate,omitempty" json:"trust_server_certificate,omitempty"`
+	Transport   string   `toml:"transport,omitempty" json:"transport,omitempty"`
 
 	validationErrs []error
 }
@@ -189,6 +190,20 @@ func (m MSSQL) Schema() string {
 	return ""
 }
 
+func (m MSSQL) TransportRef() string {
+	return m.Transport
+}
+
+func (m MSSQL) SetHost(host string) DBConnection {
+	m.Hostname = host
+	return m
+}
+
+func (m MSSQL) SetPort(port int) DBConnection {
+	m.PortNumber = port
+	return m
+}
+
 func (m MSSQL) Username() string {
 	return m.User
 }
@@ -258,5 +273,6 @@ func (m MSSQL) Identity() string {
 		strconv.Itoa(m.PortNumber),
 		m.User,
 		m.DBName,
+		m.Transport,
 	)
 }

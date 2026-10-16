@@ -31,6 +31,7 @@ type MongoDB struct {
 	DBName     string   `toml:"dbname" json:"dbname"`
 	AuthSource string   `toml:"authsource,omitempty" json:"authsource,omitempty"`
 	TLS        bool     `toml:"tls,omitempty" json:"tls,omitempty"`
+	Transport  string   `toml:"transport,omitempty" json:"transport,omitempty"`
 
 	validationErrs []error
 }
@@ -183,6 +184,20 @@ func (m MongoDB) Schema() string {
 	return ""
 }
 
+func (m MongoDB) TransportRef() string {
+	return m.Transport
+}
+
+func (m MongoDB) SetHost(host string) DBConnection {
+	m.Hostname = host
+	return m
+}
+
+func (m MongoDB) SetPort(port int) DBConnection {
+	m.PortNumber = port
+	return m
+}
+
 func (m MongoDB) Username() string {
 	return m.User
 }
@@ -255,5 +270,6 @@ func (m MongoDB) Identity() string {
 		strconv.Itoa(m.PortNumber),
 		m.User,
 		m.DBName,
+		m.Transport,
 	)
 }

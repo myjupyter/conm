@@ -114,6 +114,8 @@ var MySQLFormFields = []FormField{
 			return nil
 		},
 	},
+	transportTypeField,
+	transportField,
 }
 
 var MySQLFormSpec = FormSpec[config.Connection]{
@@ -133,6 +135,7 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(mysqlFormFieldTLSMode),
 			},
 		},
+		transportSection,
 		metadataSection(
 			strings.ToLower(mysqlFormFieldName),
 			strings.ToLower(mysqlFormFieldDescription),
@@ -151,6 +154,8 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(mysqlFormFieldUsername):    my.User,
 			SecretProviderKey:                          mode,
 			SecretValueKey:                             value,
+			TransportTypeKey:                           transportTypeOf(my.Transport),
+			TransportKey:                               transportNameOf(my.Transport),
 			strings.ToLower(mysqlFormFieldDatabase):    my.DBName,
 			strings.ToLower(mysqlFormFieldTLSMode):     my.TLSMode,
 			strings.ToLower(mysqlFormFieldName):        my.Metadata.Name,
@@ -165,6 +170,7 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.MySQL{
+			Transport: JoinTransport(values[TransportTypeKey], values[TransportKey]),
 			Metadata: buildMeta(
 				values,
 				strings.ToLower(mysqlFormFieldName),

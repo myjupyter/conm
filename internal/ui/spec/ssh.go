@@ -28,7 +28,6 @@ const sshDefaultPort = 22
 
 const (
 	sshAdvancedSectionTitle = "advanced"
-	sshAdvancedSectionNote  = "all optional"
 )
 
 const (
@@ -229,7 +228,6 @@ var SSHFormSpec = FormSpec[config.Connection]{
 		},
 		{
 			Title: sshAdvancedSectionTitle,
-			Note:  sshAdvancedSectionNote,
 			Fields: []FormFieldKey{
 				strings.ToLower(sshFormFieldJump),
 				strings.ToLower(sshFormFieldForwardAgent),

@@ -25,7 +25,7 @@ func newLinkForm(t *testing.T, links []config.WebLink) formModel {
 	require.NotNil(t, initial)
 	spec.SeedLinks(links, initial)
 
-	m := newFormModel(config.PostgresConnType, spec.PostgresFormSpec, "edit", initial, true, nil)
+	m := newFormModel(config.PostgresConnType, spec.PostgresFormSpec, "edit", initial, true, formContext{})
 	require.True(t, m.hasLinks())
 	m.section = m.linkSect
 

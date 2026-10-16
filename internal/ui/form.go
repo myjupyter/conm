@@ -12,6 +12,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/secret"
+	"github.com/myjupyter/conm/internal/transport"
 	"github.com/myjupyter/conm/internal/ui/spec"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
@@ -34,7 +35,9 @@ type formModel struct {
 	// secrets backs the store modes of the secret field. It is nil on the
 	// setup path, where no repository exists yet — there the form is
 	// literal-only.
-	secrets *view.Secrets
+	secrets    *view.Secrets
+	sources    spec.Sources
+	transports transport.Provider
 
 	secretStashByProvider map[string]string
 
@@ -69,14 +72,23 @@ type secretPickedMsg struct {
 	err error
 }
 
-func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], title string, initial map[spec.FormFieldKey]spec.FormFieldValue, isEdit bool, secrets *view.Secrets) formModel {
+func newFormModel(
+	kind config.ConnType,
+	spc spec.FormSpec[config.Connection],
+	title string,
+	initial map[spec.FormFieldKey]spec.FormFieldValue,
+	isEdit bool,
+	ctx formContext,
+) formModel {
 	m := formModel{
 		spec:       spc,
 		kind:       kind,
 		title:      title,
 		isEdit:     isEdit,
 		fields:     slices.Clone(spc.Fields),
-		secrets:    secrets,
+		secrets:    ctx.secrets,
+		sources:    ctx.sources,
+		transports: ctx.transports,
 		vals:       make(map[string]string, len(spc.Fields)),
 		status:     statusReady,
 		statusKind: kindIdle,
@@ -90,7 +102,8 @@ func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], ti
 
 	if len(m.sections) == 0 {
 		keys := make([]spec.FormFieldKey, len(spc.Fields))
-		for i, f := range spc.Fields {
+		for i := range spc.Fields {
+			f := &spc.Fields[i]
 			keys[i] = f.Key
 		}
 		m.sections = []spec.FormSection{{Fields: keys}}
@@ -104,14 +117,15 @@ func newFormModel(kind config.ConnType, spc spec.FormSpec[config.Connection], ti
 		}
 	}
 
-	for _, f := range m.fields {
+	for i := range m.fields {
+		f := &m.fields[i]
 		seeded, ok := initial[f.Key]
 		switch {
 		case ok:
 			m.vals[f.Key] = seeded
-		case f.Kind == spec.SelectFieldKind:
+		case f.Kind == spec.SelectFieldKind || f.Kind == spec.SourceFieldKind:
 			m.vals[f.Key] = f.DefaultValue
-			if options := m.options(f); m.vals[f.Key] == "" && len(options) > 0 {
+			if options := m.options(*f); m.vals[f.Key] == "" && len(options) > 0 {
 				m.vals[f.Key] = options[0]
 			}
 		default:
@@ -180,7 +194,52 @@ func (m formModel) isProviderField(i int) bool {
 // to change, so ←/→ stays inert there rather than pretending to be a control.
 func (m formModel) isSelector(i int) bool {
 	f := m.fields[i]
-	return f.Kind == spec.SelectFieldKind && len(m.options(f)) > 0
+	return isSelect(f) && len(m.options(f)) > 0
+}
+
+func isSelect(f spec.FormField) bool {
+	return f.Kind == spec.SelectFieldKind || f.Kind == spec.SourceFieldKind
+}
+
+func (m formModel) isMissing(f spec.FormField) bool {
+	value := m.vals[f.Key]
+	return m.applies(f) && f.Kind == spec.SourceFieldKind && value != "" && value != f.DefaultValue &&
+		!slices.Contains(m.options(f), value)
+}
+
+func (m formModel) sourceName(f spec.FormField) string {
+	if f.Source.NameFunc != nil {
+		return f.Source.NameFunc(m.vals)
+	}
+	return f.Source.Name
+}
+
+func (m formModel) applies(f spec.FormField) bool {
+	return f.Kind != spec.SourceFieldKind || m.sourceName(f) != ""
+}
+
+func (m formModel) dependentSources() map[spec.FormFieldKey]string {
+	names := make(map[spec.FormFieldKey]string)
+	for i := range m.fields {
+		if f := &m.fields[i]; f.Kind == spec.SourceFieldKind && f.Source.NameFunc != nil {
+			names[f.Key] = m.sourceName(*f)
+		}
+	}
+	return names
+}
+
+func (m *formModel) resetDependents(was map[spec.FormFieldKey]string) {
+	for i := range m.fields {
+		f := &m.fields[i]
+		name, ok := was[f.Key]
+		if !ok || name == m.sourceName(*f) {
+			continue
+		}
+		m.vals[f.Key] = ""
+		if options := m.options(*f); len(options) > 0 {
+			m.vals[f.Key] = options[0]
+		}
+	}
 }
 
 func (m formModel) label(f spec.FormField) string {
@@ -198,14 +257,23 @@ func (m formModel) example(f spec.FormField) string {
 }
 
 func (m formModel) options(f spec.FormField) []string {
-	if f.OptionsFunc != nil {
+	switch {
+	case f.Kind == spec.SourceFieldKind && !m.applies(f):
+		return nil
+	case f.Kind == spec.SourceFieldKind && f.Property == spec.OptionalFieldProperty:
+		return append([]string{""}, m.sources[m.sourceName(f)]...)
+	case f.Kind == spec.SourceFieldKind:
+		return m.sources[m.sourceName(f)]
+	case f.OptionsFunc != nil:
 		return f.OptionsFunc(m.vals)
+	default:
+		return f.Options
 	}
-	return f.Options
 }
 
 func (m formModel) hasSecretMode() bool {
-	for _, f := range m.fields {
+	for i := range m.fields {
+		f := &m.fields[i]
 		if f.Key == spec.SecretProviderKey {
 			return true
 		}
@@ -412,7 +480,9 @@ func (m *formModel) navCycle(i, dir int) {
 	case m.isSelector(i):
 		was := m.vals[spec.SecretProviderKey]
 		wasProviders := m.secretProviders()
+		wasSources := m.dependentSources()
 		m.cycle(i, dir)
+		m.resetDependents(wasSources)
 		if providers := m.secretProviders(); !slices.Equal(providers, wasProviders) {
 			m.resetSecret(providers)
 		}
@@ -424,9 +494,10 @@ func (m *formModel) navCycle(i, dir int) {
 }
 
 func (m formModel) secretProviders() []string {
-	for _, f := range m.fields {
+	for i := range m.fields {
+		f := &m.fields[i]
 		if f.Key == spec.SecretProviderKey {
-			return m.options(f)
+			return m.options(*f)
 		}
 	}
 	return nil
@@ -441,11 +512,12 @@ func (m *formModel) resetSecret(providers []string) {
 }
 
 func (m *formModel) clampSelects() {
-	for _, f := range m.fields {
+	for i := range m.fields {
+		f := &m.fields[i]
 		if f.Kind != spec.SelectFieldKind || f.OptionsFunc == nil {
 			continue
 		}
-		options := m.options(f)
+		options := m.options(*f)
 		if len(options) > 0 && !slices.Contains(options, m.vals[f.Key]) {
 			m.vals[f.Key] = options[0]
 		}
@@ -462,7 +534,9 @@ func (m *formModel) navEdit(i int, cur spec.FormField) {
 		m.setStatus(m.storeLabel()+" entries are picked, not typed · use "+keyMap.Cycle.hint, kindWarn)
 	case m.isSelector(i):
 		m.setStatus(m.label(cur)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
-	case cur.Kind == spec.SelectFieldKind:
+	case isSelect(cur) && !m.applies(cur):
+		m.setStatus(m.label(cur)+" · "+m.example(cur), kindIdle)
+	case isSelect(cur):
 		m.setStatus(m.label(cur)+" has no options to pick from", kindWarn)
 	default:
 		m.insert = true
@@ -653,7 +727,8 @@ func (m formModel) sectionFields(si int) []int {
 	keys := m.sections[si].Fields
 	out := make([]int, 0, len(keys))
 	for _, key := range keys {
-		for i, f := range m.fields {
+		for i := range m.fields {
+			f := &m.fields[i]
 			if f.Key == key {
 				out = append(out, i)
 				break
@@ -681,6 +756,10 @@ func (m formModel) fieldError(i int) string {
 		return m.linkError(f.Key)
 	}
 
+	if !m.applies(f) {
+		return ""
+	}
+
 	v := m.vals[f.Key]
 	if f.Kind != spec.HiddenFieldKind {
 		v = strings.TrimSpace(v)
@@ -688,6 +767,9 @@ func (m formModel) fieldError(i int) string {
 
 	if f.Property == spec.RequiredFieldProperty && strings.TrimSpace(v) == "" {
 		return m.label(f) + " is required"
+	}
+	if m.isMissing(f) {
+		return v + " is no longer available · pick another with " + keyMap.Cycle.hint
 	}
 	if f.ValidateFunc != nil {
 		if err := f.ValidateFunc(v); err != nil {
@@ -758,12 +840,12 @@ func (m formModel) pingForm() (tea.Model, tea.Cmd) {
 
 	m.pong, m.ping = "", nil
 	m.setStatus("pinging "+cfg.Host()+" …", kindPending)
-	return m, pingFormCmd(cfg)
+	return m, pingFormCmd(cfg, m.transports)
 }
 
-func pingFormCmd(cfg config.Connection) tea.Cmd {
+func pingFormCmd(cfg config.Connection, transports transport.Provider) tea.Cmd {
 	return func() tea.Msg {
-		conn, err := network.NewConnection(cli.Launcher{}, cfg, secret.Default())
+		conn, err := network.NewRouted(cli.Launcher{}, cfg, transports, secret.Default())
 		if err != nil {
 			return formPingMsg{cfg: cfg, err: err}
 		}
@@ -802,7 +884,8 @@ func (m formModel) result() (config.Connection, error) {
 // be meaningful.
 func (m formModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
 	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.fields))
-	for _, f := range m.fields {
+	for i := range m.fields {
+		f := &m.fields[i]
 		v := m.vals[f.Key]
 		// A location is trimmed like any other field; only a literal password
 		// keeps its surrounding whitespace.

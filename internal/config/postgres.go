@@ -66,6 +66,7 @@ type Postgres struct {
 	DBName     string   `toml:"dbname" json:"dbname"`
 	SchemaName string   `toml:"schema,omitempty" json:"schema,omitempty"`
 	SSLMode    string   `toml:"sslmode,omitempty" json:"sslmode,omitempty"`
+	Transport  string   `toml:"transport,omitempty" json:"transport,omitempty"`
 
 	validationErrs []error
 }
@@ -285,6 +286,20 @@ func (p Postgres) Schema() string {
 	return p.SchemaName
 }
 
+func (p Postgres) TransportRef() string {
+	return p.Transport
+}
+
+func (p Postgres) SetHost(host string) DBConnection {
+	p.Hostname = host
+	return p
+}
+
+func (p Postgres) SetPort(port int) DBConnection {
+	p.PortNumber = port
+	return p
+}
+
 func (p Postgres) Username() string {
 	return p.User
 }
@@ -365,5 +380,6 @@ func (p Postgres) Identity() string {
 		p.User,
 		p.DBName,
 		p.SchemaName,
+		p.Transport,
 	)
 }

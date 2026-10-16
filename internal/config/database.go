@@ -20,6 +20,8 @@ type DBConnection interface {
 	Connection
 	Database() string
 	Schema() string
+	SetHost(host string) DBConnection
+	SetPort(port int) DBConnection
 }
 
 func ConnTypeNames() []string {

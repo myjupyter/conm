@@ -19,6 +19,7 @@ const (
 	HiddenFieldKind
 	IntFieldKind
 	SelectFieldKind
+	SourceFieldKind
 )
 
 const (
@@ -45,6 +46,13 @@ type FormFieldKey = string
 
 type FormFieldValue = string
 
+type Sources map[string][]string
+
+type FieldSource struct {
+	Name     string
+	NameFunc func(map[FormFieldKey]FormFieldValue) string
+}
+
 type FormField struct {
 	Key          string
 	Label        string
@@ -54,6 +62,7 @@ type FormField struct {
 	DefaultValue string
 	Options      []string // only used for SelectFieldKind
 	OptionsFunc  func(map[FormFieldKey]FormFieldValue) []string
+	Source       *FieldSource
 	TextFunc     func(map[FormFieldKey]FormFieldValue) FieldText
 	ValidateFunc func(string) error
 }

@@ -127,6 +127,8 @@ var RedisFormFields = []FormField{
 			return nil
 		},
 	},
+	transportTypeField,
+	transportField,
 }
 
 var RedisFormSpec = FormSpec[config.Connection]{
@@ -146,6 +148,7 @@ var RedisFormSpec = FormSpec[config.Connection]{
 				strings.ToLower(redisFormFieldTLSMode),
 			},
 		},
+		transportSection,
 		metadataSection(
 			strings.ToLower(redisFormFieldName),
 			strings.ToLower(redisFormFieldDescription),
@@ -164,6 +167,8 @@ var RedisFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(redisFormFieldUsername):    rd.User,
 			SecretProviderKey:                          mode,
 			SecretValueKey:                             value,
+			TransportTypeKey:                           transportTypeOf(rd.Transport),
+			TransportKey:                               transportNameOf(rd.Transport),
 			strings.ToLower(redisFormFieldDatabase):    strconv.Itoa(rd.DBIndex),
 			strings.ToLower(redisFormFieldTLSMode):     rd.TLSMode,
 			strings.ToLower(redisFormFieldName):        rd.Metadata.Name,
@@ -183,6 +188,7 @@ var RedisFormSpec = FormSpec[config.Connection]{
 		}
 
 		return config.Redis{
+			Transport: JoinTransport(values[TransportTypeKey], values[TransportKey]),
 			Metadata: buildMeta(
 				values,
 				strings.ToLower(redisFormFieldName),

@@ -39,7 +39,8 @@ func newSecretFormModel(spc spec.FormSpec[config.Secret], title string, initial 
 		statusKind: kindIdle,
 	}
 
-	for _, f := range spc.Fields {
+	for i := range spc.Fields {
+		f := &spc.Fields[i]
 		seeded, ok := initial[f.Key]
 		switch {
 		case ok:
@@ -251,7 +252,8 @@ func (m secretFormModel) result() (config.Secret, string, error) {
 // be meaningful.
 func (m secretFormModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
 	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.spec.Fields))
-	for _, f := range m.spec.Fields {
+	for i := range m.spec.Fields {
+		f := &m.spec.Fields[i]
 		v := m.vals[f.Key]
 		if f.Kind != spec.HiddenFieldKind {
 			v = strings.TrimSpace(v)

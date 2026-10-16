@@ -22,6 +22,7 @@ type ClickHouse struct {
 	Password   string   `toml:"password" json:"password"`
 	DBName     string   `toml:"dbname" json:"dbname"`
 	Secure     bool     `toml:"secure,omitempty" json:"secure,omitempty"`
+	Transport  string   `toml:"transport,omitempty" json:"transport,omitempty"`
 
 	validationErrs []error
 }
@@ -167,6 +168,20 @@ func (c ClickHouse) Schema() string {
 	return ""
 }
 
+func (c ClickHouse) TransportRef() string {
+	return c.Transport
+}
+
+func (c ClickHouse) SetHost(host string) DBConnection {
+	c.Hostname = host
+	return c
+}
+
+func (c ClickHouse) SetPort(port int) DBConnection {
+	c.PortNumber = port
+	return c
+}
+
 func (c ClickHouse) Username() string {
 	return c.User
 }
@@ -232,5 +247,6 @@ func (c ClickHouse) Identity() string {
 		strconv.Itoa(c.PortNumber),
 		c.User,
 		c.DBName,
+		c.Transport,
 	)
 }

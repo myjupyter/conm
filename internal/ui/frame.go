@@ -291,12 +291,19 @@ func frameErrPanel(w int, e *connError) []string {
 	if e.during != "" {
 		lines = append(lines, frameErrKV(w, "during", e.during, cErrValue))
 	}
-	lines = append(lines, frameErrKV(w, "error", e.detail, cErrCode))
-	if e.hint != "" {
+	lines = append(lines, frameErrKVWrapped(w, "error", e.detail, cErrCode)...)
+	for i, row := range wrapText(e.hint, w-4) {
+		if e.hint == "" {
+			break
+		}
+		arrow := gHintArrow + " "
+		if i > 0 {
+			arrow = "  "
+		}
 		lines = append(lines, frameLine(w, []span{
 			{text: "  ", fg: cDim},
-			{text: gHintArrow + " ", fg: cAmber},
-			{text: truncPad(e.hint, w-4, false), fg: cHint},
+			{text: arrow, fg: cAmber},
+			{text: truncPad(row, w-4, false), fg: cHint},
 		}, nil))
 	}
 	return append(lines, frameLine(w, []span{
@@ -306,6 +313,56 @@ func frameErrPanel(w int, e *connError) []string {
 		{text: keyMap.Cancel.hint, fg: cFg, bold: true},
 		{text: " dismiss", fg: cErrMuted},
 	}, nil))
+}
+
+func frameErrKVWrapped(w int, label, value string, valColor color.Color) []string {
+	rows := wrapText(value, w-11)
+	lines := make([]string, 0, len(rows))
+	for i, row := range rows {
+		if i > 0 {
+			label = ""
+		}
+		lines = append(lines, frameErrKV(w, label, row, valColor))
+	}
+	return lines
+}
+
+func wrapText(s string, w int) []string {
+	if w <= 0 {
+		return []string{s}
+	}
+
+	var rows []string
+	for paragraph := range strings.SplitSeq(s, "\n") {
+		row := ""
+		for word := range strings.FieldsSeq(paragraph) {
+			for len([]rune(word)) > w {
+				if row != "" {
+					rows = append(rows, row)
+					row = ""
+				}
+				runes := []rune(word)
+				rows = append(rows, string(runes[:w]))
+				word = string(runes[w:])
+			}
+			switch {
+			case row == "":
+				row = word
+			case len([]rune(row))+1+len([]rune(word)) <= w:
+				row += " " + word
+			default:
+				rows = append(rows, row)
+				row = word
+			}
+		}
+		if row != "" {
+			rows = append(rows, row)
+		}
+	}
+	if len(rows) == 0 {
+		return []string{""}
+	}
+	return rows
 }
 
 func frameErrKV(w int, label, value string, valColor color.Color) string {
