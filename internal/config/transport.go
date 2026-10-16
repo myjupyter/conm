@@ -11,6 +11,8 @@ type TransportKind = string
 
 const SSHTransportKind TransportKind = "ssh"
 
+const transportLocalHost = "127.0.0.1"
+
 var TransportKinds = []TransportKind{SSHTransportKind}
 
 var (
@@ -99,6 +101,10 @@ func (t Transport) Validate() []error {
 		ValidateTransportKeepAlive(t.KeepAlive),
 		ValidateTransportDescription(t.Description),
 	)
+}
+
+func (Transport) LocalHost() string {
+	return transportLocalHost
 }
 
 func (t Transport) Identity() string {

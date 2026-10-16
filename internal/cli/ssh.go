@@ -68,7 +68,7 @@ func sshTransportCommand(
 	if tr.KeepAlive > 0 {
 		cmd.args = append(cmd.args, "-o", "ServerAliveInterval="+strconv.Itoa(tr.KeepAlive))
 	}
-	local := net.JoinHostPort(transportLocalHost, strconv.Itoa(tr.LocalPort))
+	local := net.JoinHostPort(tr.LocalHost(), strconv.Itoa(tr.LocalPort))
 	remote := net.JoinHostPort(target.Host(), strconv.Itoa(target.Port()))
 	cmd.args = append(cmd.args, "-L", local+":"+remote, sshDestination(bastion))
 

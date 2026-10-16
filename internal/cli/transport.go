@@ -12,10 +12,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-const (
-	transportLocalHost = "127.0.0.1"
-	transportStopGrace = 3 * time.Second
-)
+const transportStopGrace = 3 * time.Second
 
 var transports = map[config.TransportKind]transportClient{
 	config.SSHTransportKind: {name: SSH, build: sshTransportCommand},

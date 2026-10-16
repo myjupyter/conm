@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	sshLocalHost      = "127.0.0.1"
 	sshConnectTimeout = 10 * time.Second
 	sshPollInterval   = 50 * time.Millisecond
 )
@@ -66,7 +65,7 @@ func (s *SSH) Open(ctx context.Context) (string, int, error) {
 	}
 	s.users++
 
-	return sshLocalHost, s.current.port, nil
+	return s.current.host, s.current.port, nil
 }
 
 func (s *SSH) Close(ctx context.Context) error {
@@ -93,12 +92,12 @@ func (s *SSH) open(ctx context.Context) (*tunnel, error) {
 	}
 
 	tr := s.tr
-	tr.LocalPort, err = reserveLocalPort(tr.LocalPort)
+	tr.LocalPort, err = reserveLocalPort(tr.LocalHost(), tr.LocalPort)
 	if err != nil {
 		return nil, err
 	}
 
-	return openTunnel(ctx, tr.LocalPort, s.connectTimeout(), func(ctx context.Context) error {
+	return openTunnel(ctx, tr.LocalHost(), tr.LocalPort, s.connectTimeout(), func(ctx context.Context) error {
 		return s.launcher.Run(ctx, s.bastion, tr, password, s.target)
 	})
 }
@@ -115,6 +114,7 @@ func (s *SSH) fail(err error) error {
 }
 
 type tunnel struct {
+	host   string
 	port   int
 	cancel context.CancelFunc
 	exited chan struct{}
@@ -123,12 +123,14 @@ type tunnel struct {
 
 func openTunnel(
 	ctx context.Context,
+	host string,
 	port int,
 	readyTimeout time.Duration,
 	run func(context.Context) error,
 ) (*tunnel, error) {
 	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	t := &tunnel{
+		host:   host,
 		port:   port,
 		cancel: cancel,
 		exited: make(chan struct{}),
@@ -162,7 +164,7 @@ func (t *tunnel) awaitReady(ctx context.Context, timeout time.Duration) error {
 	defer ticker.Stop()
 
 	dialer := net.Dialer{Timeout: sshPollInterval}
-	local := net.JoinHostPort(sshLocalHost, strconv.Itoa(t.port))
+	local := net.JoinHostPort(t.host, strconv.Itoa(t.port))
 	for {
 		select {
 		case <-t.exited:
@@ -191,8 +193,8 @@ func (t *tunnel) stop(ctx context.Context) error {
 	}
 }
 
-func reserveLocalPort(port int) (int, error) {
-	ln, err := net.Listen("tcp", net.JoinHostPort(sshLocalHost, strconv.Itoa(port)))
+func reserveLocalPort(host string, port int) (int, error) {
+	ln, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
 	if err != nil {
 		return 0, fmt.Errorf("%w: %d: %w", ErrLocalPortBusy, port, err)
 	}

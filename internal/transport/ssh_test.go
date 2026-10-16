@@ -42,7 +42,7 @@ func (f *fakeTransportLauncher) Run(
 		return f.exitWith
 	}
 	if f.listen {
-		ln, err := net.Listen("tcp", net.JoinHostPort(sshLocalHost, strconv.Itoa(tr.LocalPort)))
+		ln, err := net.Listen("tcp", net.JoinHostPort(tr.LocalHost(), strconv.Itoa(tr.LocalPort)))
 		if err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ func newTestSSH(launcher *fakeTransportLauncher, tr config.Transport) *SSH {
 }
 
 func localPortOpen(port int) bool {
-	conn, err := net.DialTimeout("tcp", net.JoinHostPort(sshLocalHost, strconv.Itoa(port)), time.Second)
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(config.Transport{}.LocalHost(), strconv.Itoa(port)), time.Second)
 	if err != nil {
 		return false
 	}
@@ -103,7 +103,7 @@ func localPortOpen(port int) bool {
 func freeLocalPort(t *testing.T) int {
 	t.Helper()
 
-	ln, err := net.Listen("tcp", net.JoinHostPort(sshLocalHost, "0"))
+	ln, err := net.Listen("tcp", net.JoinHostPort(config.Transport{}.LocalHost(), "0"))
 	require.NoError(t, err)
 	addr, ok := ln.Addr().(*net.TCPAddr)
 	require.True(t, ok)
@@ -115,7 +115,7 @@ func freeLocalPort(t *testing.T) int {
 func busyLocalPort(t *testing.T) int {
 	t.Helper()
 
-	ln, err := net.Listen("tcp", net.JoinHostPort(sshLocalHost, "0"))
+	ln, err := net.Listen("tcp", net.JoinHostPort(config.Transport{}.LocalHost(), "0"))
 	require.NoError(t, err)
 	t.Cleanup(func() { ln.Close() })
 	addr, ok := ln.Addr().(*net.TCPAddr)
@@ -210,7 +210,7 @@ func TestSSH_Open(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			is.Equal(sshLocalHost, got)
+			is.Equal(config.Transport{}.LocalHost(), got)
 			is.True(localPortOpen(got1))
 			if tt.fields.tr.LocalPort != 0 {
 				is.Equal(tt.fields.tr.LocalPort, got1)
