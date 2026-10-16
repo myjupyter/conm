@@ -66,6 +66,8 @@ func hintFor(code network.ErrorCode) string {
 		return "this connection has validation errors · press " + keyMap.Edit.hint + " to fix the config"
 	case network.TransportErrorCode:
 		return "the transport did not come up · check the connection it goes through and that it can reach this host"
+	case network.PortBusyErrorCode:
+		return "the transport's local port is taken · check which process holds it; if it is another connection, give this one its own transport"
 	case network.UnknownErrorCode:
 		return ""
 	}

@@ -36,6 +36,7 @@ const (
 	TLSErrorCode         ErrorCode = "ETLS"
 	InvalidErrorCode     ErrorCode = "EINVALID"
 	TransportErrorCode   ErrorCode = "ETRANSPORT"
+	PortBusyErrorCode    ErrorCode = "EADDRINUSE"
 )
 
 type OpError struct {

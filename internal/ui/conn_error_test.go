@@ -41,6 +41,11 @@ func Test_newConnError_through(t *testing.T) {
 			wantHint: "credentials were rejected",
 		},
 		{
+			name:     "a tunnel whose local port is taken",
+			args:     args{err: opErr(network.PortBusyErrorCode, "")},
+			wantHint: "give this one its own transport",
+		},
+		{
 			name:     "a direct database that refuses",
 			args:     args{err: opErr(network.RefusedErrorCode, "")},
 			wantHint: "is the server running",

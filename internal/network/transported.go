@@ -118,8 +118,11 @@ func (t *Transported) configuredAddress(err error, dialled string) error {
 
 func (t *Transported) fail(op Operation, err error) error {
 	code := TransportErrorCode
-	if errors.Is(err, transport.ErrSecret) {
+	switch {
+	case errors.Is(err, transport.ErrSecret):
 		code = SecretErrorCode
+	case errors.Is(err, transport.ErrLocalPortBusy):
+		code = PortBusyErrorCode
 	}
 
 	return &OpError{
