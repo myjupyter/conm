@@ -44,7 +44,6 @@ func readConm() (config.Conm, error) {
 	if err != nil {
 		return config.Conm{}, err
 	}
-	defer c.Close()
 
 	return c.Get(0), nil
 }

@@ -237,10 +237,6 @@ func (r *ConnectionRepository) Close() error {
 		_ = c.Close()
 	}
 
-	if err := r.file.Close(); err != nil {
-		return fmt.Errorf("close: %w", err)
-	}
-
 	return nil
 }
 

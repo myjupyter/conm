@@ -40,7 +40,6 @@ func CreateDatabaseConfig(t ConnType) error {
 		if err != nil {
 			return err
 		}
-		defer c.Close()
 
 		return c.Save()
 	case MySQLConnType:
@@ -48,7 +47,6 @@ func CreateDatabaseConfig(t ConnType) error {
 		if err != nil {
 			return err
 		}
-		defer c.Close()
 
 		return c.Save()
 	case MSSQLConnType:
@@ -56,7 +54,6 @@ func CreateDatabaseConfig(t ConnType) error {
 		if err != nil {
 			return err
 		}
-		defer c.Close()
 
 		return c.Save()
 	case ClickHouseConnType:
@@ -64,7 +61,6 @@ func CreateDatabaseConfig(t ConnType) error {
 		if err != nil {
 			return err
 		}
-		defer c.Close()
 
 		return c.Save()
 	case RedisConnType:
@@ -72,7 +68,6 @@ func CreateDatabaseConfig(t ConnType) error {
 		if err != nil {
 			return err
 		}
-		defer c.Close()
 
 		return c.Save()
 	case MongoDBConnType:
@@ -80,7 +75,6 @@ func CreateDatabaseConfig(t ConnType) error {
 		if err != nil {
 			return err
 		}
-		defer c.Close()
 
 		return c.Save()
 	case SSHConnType:
@@ -88,7 +82,6 @@ func CreateDatabaseConfig(t ConnType) error {
 		if err != nil {
 			return err
 		}
-		defer c.Close()
 
 		return c.Save()
 	default:

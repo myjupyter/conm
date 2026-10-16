@@ -58,7 +58,6 @@ type File[C any] interface {
 	Put(int, C)
 	Remove(int)
 	Save() error
-	Close() error
 }
 
 type Config[W ConfigWrapper[C], C any] struct {
@@ -125,8 +124,6 @@ func (c *Config[W, C]) Save() error {
 
 	return nil
 }
-
-func (c *Config[W, C]) Close() error { return nil }
 
 func writeFileAtomic(path string, data []byte) error {
 	if target, err := filepath.EvalSymlinks(path); err == nil {

@@ -19,7 +19,6 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		defer c.Close()
 
 		return ui.Run(c.Get(0))
 	},

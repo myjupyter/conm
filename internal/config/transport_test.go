@@ -128,7 +128,6 @@ func TestTransportConfigWrapper_Marshal(t *testing.T) {
 			require.NoError(t, err)
 			file.Add(tt.args.rec)
 			require.NoError(t, file.Save())
-			require.NoError(t, file.Close())
 
 			raw, err := os.ReadFile(path)
 			require.NoError(t, err)
@@ -136,7 +135,6 @@ func TestTransportConfigWrapper_Marshal(t *testing.T) {
 
 			reopened, err := OpenConfig[*TransportConfigWrapper](path)
 			require.NoError(t, err)
-			t.Cleanup(func() { reopened.Close() })
 
 			require.Equal(t, 1, reopened.Len())
 			got := reopened.Get(0)
