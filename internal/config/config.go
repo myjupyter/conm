@@ -126,8 +126,9 @@ func (c *Config[W, C]) Save() error {
 }
 
 func writeFileAtomic(path string, data []byte) error {
-	if target, err := filepath.EvalSymlinks(path); err == nil {
-		path = target
+	path, mode, err := resolveTarget(path)
+	if err != nil {
+		return err
 	}
 
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
@@ -135,12 +136,8 @@ func writeFileAtomic(path string, data []byte) error {
 		return err
 	}
 
-	if _, err := tmp.Write(data); err != nil {
-		return errors.Join(err, tmp.Close())
-	}
-
-	if err := tmp.Sync(); err != nil {
-		return errors.Join(err, tmp.Close())
+	if err := writeAndClose(tmp, data, mode); err != nil {
+		return errors.Join(err, os.Remove(tmp.Name()))
 	}
 
 	if err := os.Rename(tmp.Name(), path); err != nil {
@@ -148,4 +145,35 @@ func writeFileAtomic(path string, data []byte) error {
 	}
 
 	return nil
+}
+
+func resolveTarget(path string) (string, fs.FileMode, error) {
+	info, err := os.Stat(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		if _, lstatErr := os.Lstat(path); lstatErr == nil {
+			return "", 0, err
+		}
+
+		return path, 0o600, nil
+	case err != nil:
+		return "", 0, err
+	}
+
+	target, err := filepath.EvalSymlinks(path)
+
+	return target, info.Mode().Perm(), err
+}
+
+func writeAndClose(f *os.File, data []byte, mode fs.FileMode) error {
+	_, err := f.Write(data)
+	if err == nil {
+		err = f.Chmod(mode)
+	}
+
+	if err == nil {
+		err = f.Sync()
+	}
+
+	return errors.Join(err, f.Close())
 }

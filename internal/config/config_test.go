@@ -1,6 +1,7 @@
 package config
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,11 +17,12 @@ func TestWriteFileAtomic(t *testing.T) {
 		data []byte
 	}
 	tests := []struct {
-		name    string
-		prepare func(t *testing.T, dir, path string)
-		args    args
-		want    string
-		wantErr bool
+		name     string
+		prepare  func(t *testing.T, dir, path string)
+		args     args
+		want     string
+		wantMode fs.FileMode
+		wantErr  bool
 	}{
 		{
 			name: "replaces existing content",
@@ -28,14 +30,16 @@ func TestWriteFileAtomic(t *testing.T) {
 				t.Helper()
 				require.NoError(t, os.WriteFile(path, []byte("old"), 0o644))
 			},
-			args: args{data: []byte("new")},
-			want: "new",
+			args:     args{data: []byte("new")},
+			want:     "new",
+			wantMode: 0o644,
 		},
 		{
-			name:    "creates missing file",
-			prepare: func(*testing.T, string, string) {},
-			args:    args{data: []byte("new")},
-			want:    "new",
+			name:     "creates missing file",
+			prepare:  func(*testing.T, string, string) {},
+			args:     args{data: []byte("new")},
+			want:     "new",
+			wantMode: 0o600,
 		},
 		{
 			name: "writes through a symlink",
@@ -45,13 +49,26 @@ func TestWriteFileAtomic(t *testing.T) {
 				require.NoError(t, os.WriteFile(target, []byte("old"), 0o600))
 				require.NoError(t, os.Symlink(target, path))
 			},
-			args: args{data: []byte("new")},
-			want: "new",
+			args:     args{data: []byte("new")},
+			want:     "new",
+			wantMode: 0o600,
+		},
+		{
+			name: "dangling symlink is kept",
+			prepare: func(t *testing.T, dir, path string) {
+				t.Helper()
+				require.NoError(t, os.Symlink(filepath.Join(dir, "missing.toml"), path))
+			},
+			args:    args{data: []byte("new")},
+			wantErr: true,
 		},
 		{
 			name: "temp file can't be created",
 			prepare: func(t *testing.T, dir, path string) {
 				t.Helper()
+				if os.Geteuid() == 0 {
+					t.Skip("root ignores directory permissions")
+				}
 				require.NoError(t, os.WriteFile(path, []byte("old"), 0o600))
 				require.NoError(t, os.Chmod(dir, 0o500))
 				t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
@@ -77,21 +94,18 @@ func TestWriteFileAtomic(t *testing.T) {
 			dir := t.TempDir()
 			path := filepath.Join(dir, "conn.toml")
 			tt.prepare(t, dir, path)
-			before, err := os.ReadDir(dir)
-			require.NoError(t, err)
+			before := dirListing(t, dir)
 
-			err = writeFileAtomic(path, tt.args.data)
+			err := writeFileAtomic(path, tt.args.data)
 
-			after, readErr := os.ReadDir(dir)
-			require.NoError(t, readErr)
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.Len(t, after, len(before))
+				assert.Equal(t, before, dirListing(t, dir))
 			} else {
 				require.NoError(t, err)
 				info, statErr := os.Stat(path)
 				require.NoError(t, statErr)
-				assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+				assert.Equal(t, tt.wantMode, info.Mode().Perm())
 			}
 			if tt.want != "" {
 				got, readErr := os.ReadFile(path)
@@ -100,4 +114,15 @@ func TestWriteFileAtomic(t *testing.T) {
 			}
 		})
 	}
+}
+
+func dirListing(t *testing.T, dir string) map[string]fs.FileMode {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	listing := make(map[string]fs.FileMode, len(entries))
+	for _, entry := range entries {
+		listing[entry.Name()] = entry.Type()
+	}
+	return listing
 }
