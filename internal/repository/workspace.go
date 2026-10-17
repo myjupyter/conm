@@ -50,18 +50,18 @@ func NewWorkspace(cfg config.Conm) (*Workspace, error) {
 		if !known {
 			return nil, errors.Join(
 				fmt.Errorf("no repository for connection type %q", db.Type),
-				w.closeConnections(), trs.Close(),
+				w.closeConnections(),
 			)
 		}
 
 		repo, err := open(cfg, trs, connectionUsage)
 		if err != nil {
-			return nil, errors.Join(err, w.closeConnections(), trs.Close())
+			return nil, errors.Join(err, w.closeConnections())
 		}
 		if repo.Kind() != db.Type {
 			return nil, errors.Join(
 				fmt.Errorf("repository for %q claims connection type %q", db.Type, repo.Kind()),
-				repo.Close(), w.closeConnections(), trs.Close(),
+				repo.Close(), w.closeConnections(),
 			)
 		}
 
@@ -72,7 +72,7 @@ func NewWorkspace(cfg config.Conm) (*Workspace, error) {
 
 	kr, err := NewKeyringRepository(NewIndex(users...))
 	if err != nil {
-		return nil, errors.Join(err, w.closeConnections(), trs.Close())
+		return nil, errors.Join(err, w.closeConnections())
 	}
 	w.Keyring = kr
 
@@ -94,7 +94,7 @@ func (w *Workspace) ConnectionsOf(t config.ConnType) (Connections, bool) {
 }
 
 func (w *Workspace) Close() error {
-	return errors.Join(w.Keyring.Close(), w.Transports.Close(), w.closeConnections())
+	return w.closeConnections()
 }
 
 func (w *Workspace) Connection(t config.ConnType, name string) (config.Connection, bool) {

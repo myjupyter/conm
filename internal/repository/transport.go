@@ -178,13 +178,6 @@ func (r *TransportRepository) Remove(i int) error {
 	return nil
 }
 
-func (r *TransportRepository) Close() error {
-	r.mx.Lock()
-	defer r.mx.Unlock()
-
-	return r.file.Close()
-}
-
 func (r *TransportRepository) record(raw string) (config.Transport, error) {
 	kind, name, ok := transport.ParseRef(raw)
 	if !ok {

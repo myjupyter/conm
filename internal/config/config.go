@@ -1,11 +1,22 @@
 package config
 
 import (
+	"errors"
 	"fmt"
-	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
+)
+
+const (
+	permMode       = 0o600
+	maxSymlinkHops = 255
+)
+
+var (
+	errTooManySymlinks = errors.New("too many levels of symbolic links")
+	errNotRegularFile  = errors.New("not a regular file")
 )
 
 type Connection interface {
@@ -57,13 +68,12 @@ type File[C any] interface {
 	Put(int, C)
 	Remove(int)
 	Save() error
-	Close() error
 }
 
 type Config[W ConfigWrapper[C], C any] struct {
 	w W
 
-	file *os.File
+	path string
 }
 
 func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
@@ -72,23 +82,17 @@ func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
 		return nil, fmt.Errorf("couldn't create dir for %q: %w", path, err)
 	}
 
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't open file %q: %w", path, err)
-	}
-
 	var w W
 	if t := reflect.TypeOf(w); t != nil && t.Kind() == reflect.Pointer {
 		alloc, ok := reflect.TypeAssert[W](reflect.New(t.Elem()))
 		if !ok {
-			f.Close()
 			return nil, fmt.Errorf("couldn't allocate a %T wrapper for %q", w, path)
 		}
 		w = alloc
 	}
 
-	data, err := io.ReadAll(f)
-	if err != nil {
+	data, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("couldn't read file %q: %w", path, err)
 	}
 
@@ -100,7 +104,7 @@ func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
 
 	return &Config[W, C]{
 		w:    w,
-		file: f,
+		path: path,
 	}, nil
 }
 
@@ -121,25 +125,86 @@ func (c *Config[W, C]) Remove(i int) { c.w.Remove(i) }
 func (c *Config[W, C]) Save() error {
 	data, err := c.w.Marshal()
 	if err != nil {
-		return fmt.Errorf("couldn't marshal config for %q: %w", c.file.Name(), err)
+		return fmt.Errorf("couldn't marshal config for %q: %w", c.path, err)
 	}
 
-	if _, err := c.file.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("couldn't save config to %q: %w", c.file.Name(), err)
-	}
-
-	n, err := c.file.Write(data)
-	if err != nil {
-		return fmt.Errorf("couldn't save config to %q: %w", c.file.Name(), err)
-	}
-
-	if err := c.file.Truncate(int64(n)); err != nil {
-		return fmt.Errorf("couldn't save config to %q: %w", c.file.Name(), err)
+	if err := writeFileAtomic(c.path, data); err != nil {
+		return fmt.Errorf("couldn't save config to %q: %w", c.path, err)
 	}
 
 	return nil
 }
 
-func (c *Config[W, C]) Close() error {
-	return c.file.Close()
+func writeFileAtomic(path string, data []byte) error {
+	path, err := resolveTarget(path)
+	if err != nil {
+		return err
+	}
+
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+
+	err = writeAndClose(tmp, data)
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+
+	if err != nil {
+		return errors.Join(err, os.Remove(tmp.Name()))
+	}
+
+	return syncDir(filepath.Dir(path))
+}
+
+func resolveTarget(path string) (string, error) {
+	for range maxSymlinkHops {
+		info, err := os.Lstat(path)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return path, nil
+		case err != nil:
+			return "", err
+		case info.Mode().IsRegular():
+			return path, nil
+		case info.Mode()&fs.ModeSymlink == 0:
+			return "", fmt.Errorf("%q: %w", path, errNotRegularFile)
+		}
+
+		link, err := os.Readlink(path)
+		if err != nil {
+			return "", err
+		}
+
+		if !filepath.IsAbs(link) {
+			link = filepath.Dir(path) + string(filepath.Separator) + link
+		}
+
+		path = link
+	}
+
+	return "", fmt.Errorf("%q: %w", path, errTooManySymlinks)
+}
+
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+
+	return errors.Join(d.Sync(), d.Close())
+}
+
+func writeAndClose(f *os.File, data []byte) error {
+	_, err := f.Write(data)
+	if err == nil {
+		err = f.Chmod(permMode)
+	}
+
+	if err == nil {
+		err = f.Sync()
+	}
+
+	return errors.Join(err, f.Close())
 }

@@ -22,7 +22,6 @@ type Secrets interface {
 	Remove(ctx context.Context, i int) error
 
 	Save() error
-	Close() error
 }
 
 type SecretRepository struct {
@@ -148,17 +147,6 @@ func (r *SecretRepository) Save() error {
 
 	if err := r.file.Save(); err != nil {
 		return fmt.Errorf("save secrets: %w", err)
-	}
-
-	return nil
-}
-
-func (r *SecretRepository) Close() error {
-	r.mx.Lock()
-	defer r.mx.Unlock()
-
-	if err := r.file.Close(); err != nil {
-		return fmt.Errorf("close secrets: %w", err)
 	}
 
 	return nil

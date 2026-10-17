@@ -193,7 +193,7 @@ func CreateConm(conf Conm) error {
 		return err
 	}
 
-	return os.WriteFile(ConmPath(), raw, 0o600)
+	return writeFileAtomic(ConmPath(), raw)
 }
 
 func ReadConm(filename string) (Conm, error) {

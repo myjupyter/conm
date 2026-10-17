@@ -30,7 +30,6 @@ func testWorkspace(t *testing.T) linkedWorkspace {
 
 	file, err := config.OpenConfig[*config.TransportConfigWrapper](filepath.Join(dir, "transport.toml"))
 	require.NoError(t, err)
-	t.Cleanup(func() { file.Close() })
 
 	w := &Workspace{byKind: map[config.ConnType]Connections{}}
 	w.Transports = newTransportRepository(file, UsageLookupFunc(w.transportUsages), w)
