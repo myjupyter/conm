@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 
 	tea "charm.land/bubbletea/v2"
@@ -66,6 +67,26 @@ func enabledConnections(cfg config.Conm) int {
 		}
 	}
 	return n
+}
+
+func Connect(ctx context.Context, conm config.Conm, t config.ConnType, name string) error {
+	ws, repo, err := openConnections(conm, t)
+	if err != nil {
+		return err
+	}
+	defer ws.Close()
+
+	i, _, err := namedConnection(repo, name)
+	if err != nil {
+		return err
+	}
+
+	conn, ok := repo.ConnectionAt(i)
+	if !ok {
+		return fmt.Errorf("no %s connection named %q", t, name)
+	}
+
+	return conn.Run(ctx)
 }
 
 func RemoveConnection(conm config.Conm, t config.ConnType, name string) error {

@@ -11,14 +11,18 @@ import (
 
 func connTypeCmd(t config.ConnType) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:          t.String(),
-		Short:        fmt.Sprintf("Open the %s connections", t),
-		Args:         cobra.NoArgs,
+		Use:          t.String() + " [name]",
+		Short:        fmt.Sprintf("Open the %s connections, or connect to one", t),
+		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			conm, err := readConm()
 			if err != nil {
 				return err
+			}
+
+			if len(args) == 1 {
+				return ui.Connect(cmd.Context(), conm, t, args[0])
 			}
 
 			if settings, ok := conm.Connection(t); !ok || !settings.Enabled {
