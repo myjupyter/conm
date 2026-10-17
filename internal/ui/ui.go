@@ -3,10 +3,12 @@ package ui
 import (
 	"context"
 	"fmt"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
@@ -70,23 +72,53 @@ func enabledConnections(cfg config.Conm) int {
 }
 
 func Connect(ctx context.Context, conm config.Conm, t config.ConnType, name string) error {
-	ws, repo, err := openConnections(conm, t)
+	ws, conn, err := openNamedConnection(conm, t, name)
 	if err != nil {
 		return err
 	}
 	defer ws.Close()
 
+	return conn.Run(ctx)
+}
+
+func Ping(ctx context.Context, conm config.Conm, t config.ConnType, name string) (time.Duration, error) {
+	ws, conn, err := openNamedConnection(conm, t, name)
+	if err != nil {
+		return 0, err
+	}
+	defer ws.Close()
+
+	result, err := conn.Ping(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.PingTime, nil
+}
+
+func openNamedConnection(
+	conm config.Conm,
+	t config.ConnType,
+	name string,
+) (*repository.Workspace, network.Connection, error) {
+	ws, repo, err := openConnections(conm, t)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	i, _, err := namedConnection(repo, name)
 	if err != nil {
-		return err
+		_ = ws.Close()
+		return nil, nil, err
 	}
 
 	conn, ok := repo.ConnectionAt(i)
 	if !ok {
-		return fmt.Errorf("no %s connection named %q", t, name)
+		_ = ws.Close()
+		return nil, nil, fmt.Errorf("no %s connection named %q", t, name)
 	}
 
-	return conn.Run(ctx)
+	return ws, conn, nil
 }
 
 func RemoveConnection(conm config.Conm, t config.ConnType, name string) error {
