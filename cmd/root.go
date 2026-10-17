@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"errors"
 	"os"
+	"os/exec"
 	"runtime/debug"
 
 	"github.com/spf13/cobra"
@@ -35,6 +37,9 @@ func version() string {
 
 func Execute() {
 	err := rootCmd.Execute()
+	if exitErr := (*exec.ExitError)(nil); errors.As(err, &exitErr) {
+		os.Exit(exitErr.ExitCode())
+	}
 	if err != nil {
 		os.Exit(1)
 	}

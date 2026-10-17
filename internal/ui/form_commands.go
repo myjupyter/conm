@@ -74,25 +74,50 @@ func connectionForm(
 }
 
 func RunAddForm(conm config.Conm, t config.ConnType, initial formValues, warnings []string) (bool, error) {
-	ws, err := repository.NewWorkspace(conm)
+	ws, repo, ctx, err := openConnectionForm(conm, t)
 	if err != nil {
 		return false, err
 	}
 	defer ws.Close()
 
-	repo, ok := ws.ConnectionsOf(t)
-	if !ok {
-		return false, fmt.Errorf("%q is not enabled\nrun 'conm init' to enable it", t)
-	}
-
-	conns := view.NewConnections(ws.Connections()...)
-	ctx := connectionFormContext(conns, view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports))
 	loop, err := connectionForm(t, false, ctx, repo.Add)
 	if err != nil {
 		return false, err
 	}
 
 	return loop.run(initial, warnStatus(warnings))
+}
+
+func RunEditForm(conm config.Conm, t config.ConnType, name string) (bool, error) {
+	ws, repo, ctx, err := openConnectionForm(conm, t)
+	if err != nil {
+		return false, err
+	}
+	defer ws.Close()
+
+	i, cfg, err := namedConnection(repo, name)
+	if err != nil {
+		return false, err
+	}
+
+	return runEditConnection(t, cfg, ctx, func(edited config.Connection) error {
+		return repo.Edit(i, edited)
+	})
+}
+
+func openConnectionForm(
+	conm config.Conm,
+	t config.ConnType,
+) (*repository.Workspace, repository.Connections, formContext, error) {
+	ws, repo, err := openConnections(conm, t)
+	if err != nil {
+		return nil, nil, formContext{}, err
+	}
+
+	conns := view.NewConnections(ws.Connections()...)
+	ctx := connectionFormContext(conns, view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports))
+
+	return ws, repo, ctx, nil
 }
 
 func runAddConnection(

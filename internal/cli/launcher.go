@@ -17,9 +17,9 @@ func For(conm config.Conm, t config.ConnType) Launcher {
 	return Launcher{name: conm.CLI(t), kind: t}
 }
 
-func (l Launcher) Run(ctx context.Context, cfg config.Connection, password string) error {
+func (l Launcher) Run(ctx context.Context, cfg config.Connection, password string, query ...string) error {
 	if l.name == "" {
-		return fmt.Errorf("%w for %s, run conm init", ErrNoClient, l.kind)
+		return fmt.Errorf("%w for %s, run conm add", ErrNoClient, l.kind)
 	}
 
 	if !slices.Contains(Clients(l.kind), l.name) {
@@ -34,6 +34,14 @@ func (l Launcher) Run(ctx context.Context, cfg config.Connection, password strin
 	cmd, err := build(cfg, password)
 	if err != nil {
 		return err
+	}
+
+	if len(query) > 0 {
+		queryArgsOf, ok := queryArgs[l.name]
+		if !ok {
+			return fmt.Errorf("%w: %s", ErrNoQuery, l.name)
+		}
+		cmd.args = append(cmd.args, queryArgsOf(query)...)
 	}
 
 	return cmd.run(ctx, l.name)

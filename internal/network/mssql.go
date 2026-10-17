@@ -84,13 +84,13 @@ func (m *MSSQLClient) Ping(ctx context.Context) (PingResult, error) {
 	return PingResult{PingTime: time.Since(now)}, nil
 }
 
-func (m *MSSQLClient) Run(ctx context.Context) error {
+func (m *MSSQLClient) Run(ctx context.Context, query ...string) error {
 	password, err := m.sec.Resolve(ctx, m.ref)
 	if err != nil {
 		return m.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	if err := m.launcher.Run(ctx, m.cfg, password); err != nil {
+	if err := m.launcher.Run(ctx, m.cfg, password, query...); err != nil {
 		return m.fail(ConnectOperation, cliErrorCode(err, mssqlErrorCode), err)
 	}
 

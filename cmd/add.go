@@ -13,52 +13,77 @@ import (
 )
 
 var addCmd = &cobra.Command{
-	Use:   "add [type] [command line]",
-	Short: "Add a connection type, or a connection of one",
-	Long: `Add a connection type, or a connection of one.
-
-Without arguments it opens the setup table, where a type is enabled or
-disabled, and enter leaves for the connections of the type under the cursor.
-With a type it opens an empty connection form, and with a client command
-line after it the form opens filled in from what that command line describes; a
-saved connection leaves for the connections of that type:
-
-  conm add
-  conm add postgres
-  conm add postgres "psql -h localhost -p 5432 -U me mydb"
-  conm add postgres "postgres://me@localhost:5432/mydb?sslmode=require"
-  conm add postgres -- pgcli --host localhost --dbname mydb --user me
-  conm add ssh "ssh -p 2222 -i ~/.ssh/id_ed25519 deploy@bastion.internal"`,
-	Args:         cobra.ArbitraryArgs,
-	ValidArgs:    config.ConnTypeNames(),
+	Use:          "add",
+	Short:        "Enable or disable a connection type",
+	Long:         addLong(),
+	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return ui.RunInit()
-		}
-
-		t, err := config.ParseConnType(args[0])
-		if err != nil {
-			return fmt.Errorf("%w\nknown types: %s", err, strings.Join(config.ConnTypeNames(), ", "))
-		}
-
-		initial, warnings, err := parseConnection(t, args[1:])
-		if err != nil {
-			return err
-		}
-
-		conm, err := readConm()
-		if err != nil {
-			return err
-		}
-
-		saved, err := ui.RunAddForm(conm, t, initial, warnings)
-		if err != nil || !saved {
-			return err
-		}
-
-		return ui.RunOn(conm, t)
+		return ui.RunInit()
 	},
+}
+
+func addLong() string {
+	var b strings.Builder
+	b.WriteString(`Enable or disable a connection type.
+
+It opens the setup table, where a type is enabled or disabled and its client
+picked, and enter leaves for the connections of the type under the cursor.
+
+To add a connection of an enabled type:
+
+`)
+	for _, t := range config.ConnTypes {
+		fmt.Fprintf(&b, "  conm %s add\n", t)
+	}
+
+	return strings.TrimSuffix(b.String(), "\n")
+}
+
+func addConnectionLong(t config.ConnType) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, `Add a %[1]s connection.
+
+Without arguments it opens an empty form. Given a real %[1]s command line or
+URL, it is parsed and the form opens filled in from it; quote it as one
+argument, or pass it after --. A saved connection leaves for the %[1]s
+connections:
+
+  conm %[1]s add
+`, t)
+	for _, example := range params.Examples(t) {
+		fmt.Fprintf(&b, "  conm %s add %q\n", t, example)
+	}
+
+	return strings.TrimSuffix(b.String(), "\n")
+}
+
+func addConnectionCmd(t config.ConnType) *cobra.Command {
+	return &cobra.Command{
+		Use:          "add [command line]",
+		Short:        fmt.Sprintf("Add a %s connection", t),
+		Long:         addConnectionLong(t),
+		Args:         cobra.ArbitraryArgs,
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			initial, warnings, err := parseConnection(t, args)
+			if err != nil {
+				return err
+			}
+
+			conm, err := readConm()
+			if err != nil {
+				return err
+			}
+
+			saved, err := ui.RunAddForm(conm, t, initial, warnings)
+			if err != nil || !saved {
+				return err
+			}
+
+			return ui.RunOn(conm, t)
+		},
+	}
 }
 
 func readConm() (config.Conm, error) {

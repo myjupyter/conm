@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
@@ -66,4 +69,111 @@ func enabledConnections(cfg config.Conm) int {
 		}
 	}
 	return n
+}
+
+func Connect(ctx context.Context, conm config.Conm, t config.ConnType, name string, query ...string) error {
+	ws, conn, err := openNamedConnection(conm, t, name)
+	if err != nil {
+		return err
+	}
+	defer ws.Close()
+
+	return conn.Run(ctx, query...)
+}
+
+func Ping(ctx context.Context, conm config.Conm, t config.ConnType, name string) (time.Duration, error) {
+	ws, conn, err := openNamedConnection(conm, t, name)
+	if err != nil {
+		return 0, err
+	}
+	defer ws.Close()
+
+	result, err := conn.Ping(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.PingTime, nil
+}
+
+func openNamedConnection(
+	conm config.Conm,
+	t config.ConnType,
+	name string,
+) (*repository.Workspace, network.Connection, error) {
+	ws, repo, err := openConnections(conm, t)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	i, _, err := namedConnection(repo, name)
+	if err != nil {
+		_ = ws.Close()
+		return nil, nil, err
+	}
+
+	conn, ok := repo.ConnectionAt(i)
+	if !ok {
+		_ = ws.Close()
+		return nil, nil, fmt.Errorf("no %s connection named %q", t, name)
+	}
+
+	return ws, conn, nil
+}
+
+func Connections(conm config.Conm, t config.ConnType) ([]config.Connection, error) {
+	ws, repo, err := openConnections(conm, t)
+	if err != nil {
+		return nil, err
+	}
+	defer ws.Close()
+
+	conns := make([]config.Connection, 0, repo.Len())
+	for i := range repo.Len() {
+		if cfg, ok := repo.ConfigAt(i); ok {
+			conns = append(conns, cfg)
+		}
+	}
+
+	return conns, nil
+}
+
+func RemoveConnection(conm config.Conm, t config.ConnType, name string) error {
+	ws, repo, err := openConnections(conm, t)
+	if err != nil {
+		return err
+	}
+	defer ws.Close()
+
+	i, _, err := namedConnection(repo, name)
+	if err != nil {
+		return err
+	}
+
+	return repo.Remove(i)
+}
+
+func openConnections(conm config.Conm, t config.ConnType) (*repository.Workspace, repository.Connections, error) {
+	ws, err := repository.NewWorkspace(conm)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	repo, ok := ws.ConnectionsOf(t)
+	if !ok {
+		_ = ws.Close()
+		return nil, nil, fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
+	}
+
+	return ws, repo, nil
+}
+
+func namedConnection(repo repository.Connections, name string) (int, config.Connection, error) {
+	for i := range repo.Len() {
+		if cfg, ok := repo.ConfigAt(i); ok && cfg.Meta().Name == name {
+			return i, cfg, nil
+		}
+	}
+
+	return 0, nil, fmt.Errorf("no %s connection named %q", repo.Kind(), name)
 }
