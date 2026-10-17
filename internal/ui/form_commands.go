@@ -82,7 +82,7 @@ func RunAddForm(conm config.Conm, t config.ConnType, initial formValues, warning
 
 	repo, ok := ws.ConnectionsOf(t)
 	if !ok {
-		return false, fmt.Errorf("%q is not enabled\nrun 'conm init' to enable it", t)
+		return false, fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
 	}
 
 	conns := view.NewConnections(ws.Connections()...)

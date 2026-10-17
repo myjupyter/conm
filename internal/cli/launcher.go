@@ -19,7 +19,7 @@ func For(conm config.Conm, t config.ConnType) Launcher {
 
 func (l Launcher) Run(ctx context.Context, cfg config.Connection, password string) error {
 	if l.name == "" {
-		return fmt.Errorf("%w for %s, run conm init", ErrNoClient, l.kind)
+		return fmt.Errorf("%w for %s, run conm add", ErrNoClient, l.kind)
 	}
 
 	if !slices.Contains(Clients(l.kind), l.name) {
