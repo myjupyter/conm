@@ -10,7 +10,7 @@ import (
 )
 
 func connTypeCmd(t config.ConnType) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          t.String(),
 		Short:        fmt.Sprintf("Open the %s connections", t),
 		Args:         cobra.NoArgs,
@@ -28,6 +28,9 @@ func connTypeCmd(t config.ConnType) *cobra.Command {
 			return ui.RunOn(conm, t)
 		},
 	}
+	cmd.AddCommand(addConnectionCmd(t))
+
+	return cmd
 }
 
 func init() {
