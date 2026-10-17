@@ -95,30 +95,23 @@ func RunEditForm(conm config.Conm, t config.ConnType, name string) (bool, error)
 	}
 	defer ws.Close()
 
-	for i := range repo.Len() {
-		if cfg, ok := repo.ConfigAt(i); ok && cfg.Meta().Name == name {
-			return runEditConnection(t, cfg, ctx, func(edited config.Connection) error {
-				return repo.Edit(i, edited)
-			})
-		}
+	i, cfg, err := namedConnection(repo, name)
+	if err != nil {
+		return false, err
 	}
 
-	return false, fmt.Errorf("no %s connection named %q", t, name)
+	return runEditConnection(t, cfg, ctx, func(edited config.Connection) error {
+		return repo.Edit(i, edited)
+	})
 }
 
 func openConnectionForm(
 	conm config.Conm,
 	t config.ConnType,
 ) (*repository.Workspace, repository.Connections, formContext, error) {
-	ws, err := repository.NewWorkspace(conm)
+	ws, repo, err := openConnections(conm, t)
 	if err != nil {
 		return nil, nil, formContext{}, err
-	}
-
-	repo, ok := ws.ConnectionsOf(t)
-	if !ok {
-		ws.Close()
-		return nil, nil, formContext{}, fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
 	}
 
 	conns := view.NewConnections(ws.Connections()...)

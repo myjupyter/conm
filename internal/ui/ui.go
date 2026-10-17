@@ -67,3 +67,43 @@ func enabledConnections(cfg config.Conm) int {
 	}
 	return n
 }
+
+func RemoveConnection(conm config.Conm, t config.ConnType, name string) error {
+	ws, repo, err := openConnections(conm, t)
+	if err != nil {
+		return err
+	}
+	defer ws.Close()
+
+	i, _, err := namedConnection(repo, name)
+	if err != nil {
+		return err
+	}
+
+	return repo.Remove(i)
+}
+
+func openConnections(conm config.Conm, t config.ConnType) (*repository.Workspace, repository.Connections, error) {
+	ws, err := repository.NewWorkspace(conm)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	repo, ok := ws.ConnectionsOf(t)
+	if !ok {
+		_ = ws.Close()
+		return nil, nil, fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
+	}
+
+	return ws, repo, nil
+}
+
+func namedConnection(repo repository.Connections, name string) (int, config.Connection, error) {
+	for i := range repo.Len() {
+		if cfg, ok := repo.ConfigAt(i); ok && cfg.Meta().Name == name {
+			return i, cfg, nil
+		}
+	}
+
+	return 0, nil, fmt.Errorf("no %s connection named %q", repo.Kind(), name)
+}
