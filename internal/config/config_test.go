@@ -54,10 +54,48 @@ func TestWriteFileAtomic(t *testing.T) {
 			wantMode: 0o600,
 		},
 		{
-			name: "dangling symlink is kept",
+			name: "creates the target of a dangling symlink",
+			prepare: func(t *testing.T, _, path string) {
+				t.Helper()
+				require.NoError(t, os.Symlink("missing.toml", path))
+			},
+			args:     args{data: []byte("new")},
+			want:     "new",
+			wantMode: 0o600,
+		},
+		{
+			name: "writes through a chain of symlinks",
 			prepare: func(t *testing.T, dir, path string) {
 				t.Helper()
-				require.NoError(t, os.Symlink(filepath.Join(dir, "missing.toml"), path))
+				target := filepath.Join(dir, "target.toml")
+				require.NoError(t, os.WriteFile(target, []byte("old"), 0o644))
+				require.NoError(t, os.Symlink(target, filepath.Join(dir, "middle.toml")))
+				require.NoError(t, os.Symlink("middle.toml", path))
+			},
+			args:     args{data: []byte("new")},
+			want:     "new",
+			wantMode: 0o600,
+		},
+		{
+			name: "resolves a relative parent link through a symlinked directory",
+			prepare: func(t *testing.T, dir, path string) {
+				t.Helper()
+				store := filepath.Join(dir, "real")
+				require.NoError(t, os.MkdirAll(filepath.Join(store, "conm"), 0o700))
+				require.NoError(t, os.WriteFile(filepath.Join(store, "shared.toml"), []byte("old"), 0o644))
+				require.NoError(t, os.Symlink("../shared.toml", filepath.Join(store, "conm", "target.toml")))
+				require.NoError(t, os.Symlink(filepath.Join(store, "conm"), filepath.Join(dir, "conm")))
+				require.NoError(t, os.Symlink("conm/target.toml", path))
+			},
+			args:     args{data: []byte("new")},
+			want:     "new",
+			wantMode: 0o600,
+		},
+		{
+			name: "symlink loop",
+			prepare: func(t *testing.T, _, path string) {
+				t.Helper()
+				require.NoError(t, os.Symlink("conn.toml", path))
 			},
 			args:    args{data: []byte("new")},
 			wantErr: true,
@@ -78,7 +116,7 @@ func TestWriteFileAtomic(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "rename fails",
+			name: "target is a directory",
 			prepare: func(t *testing.T, _, path string) {
 				t.Helper()
 				require.NoError(t, os.MkdirAll(filepath.Join(path, "occupied"), 0o700))
@@ -112,6 +150,49 @@ func TestWriteFileAtomic(t *testing.T) {
 				require.NoError(t, readErr)
 				assert.Equal(t, tt.want, string(got))
 			}
+		})
+	}
+}
+
+func TestWriteAndClose(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		prepare func(t *testing.T, f *os.File)
+		wantErr bool
+	}{
+		{
+			name:    "writes and closes",
+			prepare: func(*testing.T, *os.File) {},
+		},
+		{
+			name: "write fails",
+			prepare: func(t *testing.T, f *os.File) {
+				t.Helper()
+				require.NoError(t, f.Close())
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			f, err := os.CreateTemp(t.TempDir(), "conn")
+			require.NoError(t, err)
+			tt.prepare(t, f)
+
+			err = writeAndClose(f, []byte("new"))
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			got, readErr := os.ReadFile(f.Name())
+			require.NoError(t, readErr)
+			assert.Equal(t, "new", string(got))
 		})
 	}
 }

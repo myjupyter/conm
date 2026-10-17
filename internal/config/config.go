@@ -9,7 +9,15 @@ import (
 	"reflect"
 )
 
-const permMode = 0o600
+const (
+	permMode       = 0o600
+	maxSymlinkHops = 255
+)
+
+var (
+	errTooManySymlinks = errors.New("too many levels of symbolic links")
+	errNotRegularFile  = errors.New("not a regular file")
+)
 
 type Connection interface {
 	Meta() ConnMeta
@@ -138,31 +146,54 @@ func writeFileAtomic(path string, data []byte) error {
 		return err
 	}
 
-	if err := writeAndClose(tmp, data); err != nil {
+	err = writeAndClose(tmp, data)
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+
+	if err != nil {
 		return errors.Join(err, os.Remove(tmp.Name()))
 	}
 
-	if err := os.Rename(tmp.Name(), path); err != nil {
-		return errors.Join(err, os.Remove(tmp.Name()))
-	}
-
-	return nil
+	return syncDir(filepath.Dir(path))
 }
 
 func resolveTarget(path string) (string, error) {
-	_, err := os.Stat(path)
-	switch {
-	case errors.Is(err, fs.ErrNotExist):
-		if _, lstatErr := os.Lstat(path); lstatErr == nil {
+	for range maxSymlinkHops {
+		info, err := os.Lstat(path)
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+			return path, nil
+		case err != nil:
+			return "", err
+		case info.Mode().IsRegular():
+			return path, nil
+		case info.Mode()&fs.ModeSymlink == 0:
+			return "", fmt.Errorf("%q: %w", path, errNotRegularFile)
+		}
+
+		link, err := os.Readlink(path)
+		if err != nil {
 			return "", err
 		}
 
-		return path, nil
-	case err != nil:
-		return "", err
+		if !filepath.IsAbs(link) {
+			link = filepath.Dir(path) + string(filepath.Separator) + link
+		}
+
+		path = link
 	}
 
-	return filepath.EvalSymlinks(path)
+	return "", fmt.Errorf("%q: %w", path, errTooManySymlinks)
+}
+
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+
+	return errors.Join(d.Sync(), d.Close())
 }
 
 func writeAndClose(f *os.File, data []byte) error {
