@@ -28,7 +28,10 @@ func connTypeCmd(t config.ConnType) *cobra.Command {
 			return ui.RunOn(conm, t)
 		},
 	}
-	cmd.AddCommand(addConnectionCmd(t))
+	cmd.AddCommand(
+		addConnectionCmd(t),
+		editConnectionCmd(t),
+	)
 
 	return cmd
 }
