@@ -1,71 +1,38 @@
 package cmd
 
 import (
-	"os"
-	"os/exec"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/ui"
 )
 
-var editCmd = &cobra.Command{
-	Use:   "edit",
-	Short: "Open a config file in $EDITOR",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		const defaultEditor = "vim"
-		editorCmd := os.Getenv("EDITOR")
-		if editorCmd == "" {
-			editorCmd = defaultEditor
-		}
+func editConnectionCmd(t config.ConnType) *cobra.Command {
+	return &cobra.Command{
+		Use:   "edit <name>",
+		Short: fmt.Sprintf("Edit a %s connection", t),
+		Long: fmt.Sprintf(`Edit a %[1]s connection.
+		
+It opens the edit form of the %[1]s connection with that name; a saved
+connection leaves for the %[1]s connections:
+		
+conm %[1]s edit <name>`, t),
+		Args:         cobra.ExactArgs(1),
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			conm, err := readConm()
+			if err != nil {
+				return err
+			}
 
-		var configPath string
-		switch {
-		case cmd.Flags().Changed("postgres"):
-			configPath = config.PostgresPath()
-		case cmd.Flags().Changed("mysql"):
-			configPath = config.MySQLPath()
-		case cmd.Flags().Changed("mssql"):
-			configPath = config.MSSQLPath()
-		case cmd.Flags().Changed("clickhouse"):
-			configPath = config.ClickHousePath()
-		case cmd.Flags().Changed("redis"):
-			configPath = config.RedisPath()
-		case cmd.Flags().Changed("mongodb"):
-			configPath = config.MongoDBPath()
-		case cmd.Flags().Changed("ssh"):
-			configPath = config.SSHPath()
-		default:
-			configPath = config.ConmPath()
-		}
+			saved, err := ui.RunEditForm(conm, t, args[0])
+			if err != nil || !saved {
+				return err
+			}
 
-		shellCmd := exec.
-			CommandContext(
-				cmd.Context(),
-				editorCmd,
-				configPath,
-			)
-
-		shellCmd.Stdin = os.Stdin
-		shellCmd.Stdout = os.Stdout
-		shellCmd.Stderr = os.Stderr
-
-		if err := shellCmd.Run(); err != nil {
-			return err
-		}
-
-		return nil
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(editCmd)
-
-	editCmd.Flags().Bool("postgres", false, "Edit postgres.toml")
-	editCmd.Flags().Bool("mysql", false, "Edit mysql.toml")
-	editCmd.Flags().Bool("mssql", false, "Edit mssql.toml")
-	editCmd.Flags().Bool("clickhouse", false, "Edit clickhouse.toml")
-	editCmd.Flags().Bool("redis", false, "Edit redis.toml")
-	editCmd.Flags().Bool("mongodb", false, "Edit mongodb.toml")
-	editCmd.Flags().Bool("ssh", false, "Edit ssh.toml")
+			return ui.RunOn(conm, t)
+		},
+	}
 }
