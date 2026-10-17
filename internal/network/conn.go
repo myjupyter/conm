@@ -20,7 +20,7 @@ const (
 
 type Connection interface {
 	Ping(ctx context.Context) (PingResult, error)
-	Run(ctx context.Context) error
+	Run(ctx context.Context, query ...string) error
 	Close() error
 }
 

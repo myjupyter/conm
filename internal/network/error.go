@@ -63,7 +63,7 @@ func (f *OpError) Unwrap() error {
 }
 
 func cliErrorCode(err error, driver func(error) ErrorCode) ErrorCode {
-	if errors.Is(err, cli.ErrNoClient) || errors.Is(err, cli.ErrConnType) {
+	if errors.Is(err, cli.ErrNoClient) || errors.Is(err, cli.ErrConnType) || errors.Is(err, cli.ErrNoQuery) {
 		return InvalidErrorCode
 	}
 

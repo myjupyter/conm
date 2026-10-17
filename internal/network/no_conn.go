@@ -25,7 +25,7 @@ func (n *NoClient) Ping(ctx context.Context) (PingResult, error) {
 	return PingResult{}, n.fail(PingOperation)
 }
 
-func (n *NoClient) Run(ctx context.Context) error {
+func (n *NoClient) Run(ctx context.Context, query ...string) error {
 	return n.fail(ConnectOperation)
 }
 

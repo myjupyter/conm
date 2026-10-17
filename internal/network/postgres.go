@@ -59,13 +59,13 @@ func (p *PGClient) Ping(ctx context.Context) (PingResult, error) {
 	return PingResult{PingTime: time.Since(now)}, nil
 }
 
-func (p *PGClient) Run(ctx context.Context) error {
+func (p *PGClient) Run(ctx context.Context, query ...string) error {
 	password, err := p.sec.Resolve(ctx, p.ref)
 	if err != nil {
 		return p.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	if err := p.launcher.Run(ctx, p.cfg, password); err != nil {
+	if err := p.launcher.Run(ctx, p.cfg, password, query...); err != nil {
 		return p.fail(ConnectOperation, cliErrorCode(err, pgErrorCode), err)
 	}
 

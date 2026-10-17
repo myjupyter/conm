@@ -71,13 +71,13 @@ func (r *RedisClient) Ping(ctx context.Context) (PingResult, error) {
 	return PingResult{PingTime: time.Since(now)}, nil
 }
 
-func (r *RedisClient) Run(ctx context.Context) error {
+func (r *RedisClient) Run(ctx context.Context, query ...string) error {
 	password, err := r.sec.Resolve(ctx, r.ref)
 	if err != nil {
 		return r.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	if err := r.launcher.Run(ctx, r.cfg, password); err != nil {
+	if err := r.launcher.Run(ctx, r.cfg, password, query...); err != nil {
 		return r.fail(ConnectOperation, cliErrorCode(err, redisErrorCode), err)
 	}
 

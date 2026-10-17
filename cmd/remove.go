@@ -25,7 +25,7 @@ func removeConnectionCmd(t config.ConnType) *cobra.Command {
 				return err
 			}
 
-			cmd.Printf("removed %s connection %q\n", t, args[0])
+			fmt.Fprintf(cmd.OutOrStdout(), "removed %s connection %q\n", t, args[0])
 
 			return nil
 		},

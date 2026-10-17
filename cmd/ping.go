@@ -27,7 +27,7 @@ func pingConnectionCmd(t config.ConnType) *cobra.Command {
 				return err
 			}
 
-			cmd.Printf("%s %s: ok in %s\n", t, args[0], took.Round(time.Millisecond))
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %s: ok in %s\n", t, args[0], took.Round(time.Millisecond))
 
 			return nil
 		},

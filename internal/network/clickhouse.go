@@ -81,13 +81,13 @@ func (c *ClickHouseClient) Ping(ctx context.Context) (PingResult, error) {
 	return PingResult{PingTime: time.Since(now)}, nil
 }
 
-func (c *ClickHouseClient) Run(ctx context.Context) error {
+func (c *ClickHouseClient) Run(ctx context.Context, query ...string) error {
 	password, err := c.sec.Resolve(ctx, c.ref)
 	if err != nil {
 		return c.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	if err := c.launcher.Run(ctx, c.cfg, password); err != nil {
+	if err := c.launcher.Run(ctx, c.cfg, password, query...); err != nil {
 		return c.fail(ConnectOperation, cliErrorCode(err, clickhouseErrorCode), err)
 	}
 

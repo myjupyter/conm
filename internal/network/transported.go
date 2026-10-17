@@ -73,9 +73,9 @@ func (t *Transported) Ping(ctx context.Context) (PingResult, error) {
 	return result, err
 }
 
-func (t *Transported) Run(ctx context.Context) error {
+func (t *Transported) Run(ctx context.Context, query ...string) error {
 	return t.through(ctx, ConnectOperation, func(inner Connection) error {
-		return inner.Run(ctx)
+		return inner.Run(ctx, query...)
 	})
 }
 

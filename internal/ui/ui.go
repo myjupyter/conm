@@ -71,14 +71,14 @@ func enabledConnections(cfg config.Conm) int {
 	return n
 }
 
-func Connect(ctx context.Context, conm config.Conm, t config.ConnType, name string) error {
+func Connect(ctx context.Context, conm config.Conm, t config.ConnType, name string, query ...string) error {
 	ws, conn, err := openNamedConnection(conm, t, name)
 	if err != nil {
 		return err
 	}
 	defer ws.Close()
 
-	return conn.Run(ctx)
+	return conn.Run(ctx, query...)
 }
 
 func Ping(ctx context.Context, conm config.Conm, t config.ConnType, name string) (time.Duration, error) {
