@@ -121,6 +121,23 @@ func openNamedConnection(
 	return ws, conn, nil
 }
 
+func Connections(conm config.Conm, t config.ConnType) ([]config.Connection, error) {
+	ws, repo, err := openConnections(conm, t)
+	if err != nil {
+		return nil, err
+	}
+	defer ws.Close()
+
+	conns := make([]config.Connection, 0, repo.Len())
+	for i := range repo.Len() {
+		if cfg, ok := repo.ConfigAt(i); ok {
+			conns = append(conns, cfg)
+		}
+	}
+
+	return conns, nil
+}
+
 func RemoveConnection(conm config.Conm, t config.ConnType, name string) error {
 	ws, repo, err := openConnections(conm, t)
 	if err != nil {
