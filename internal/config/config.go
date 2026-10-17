@@ -9,6 +9,8 @@ import (
 	"reflect"
 )
 
+const permMode = 0o600
+
 type Connection interface {
 	Meta() ConnMeta
 
@@ -126,7 +128,7 @@ func (c *Config[W, C]) Save() error {
 }
 
 func writeFileAtomic(path string, data []byte) error {
-	path, mode, err := resolveTarget(path)
+	path, err := resolveTarget(path)
 	if err != nil {
 		return err
 	}
@@ -136,7 +138,7 @@ func writeFileAtomic(path string, data []byte) error {
 		return err
 	}
 
-	if err := writeAndClose(tmp, data, mode); err != nil {
+	if err := writeAndClose(tmp, data); err != nil {
 		return errors.Join(err, os.Remove(tmp.Name()))
 	}
 
@@ -147,28 +149,26 @@ func writeFileAtomic(path string, data []byte) error {
 	return nil
 }
 
-func resolveTarget(path string) (string, fs.FileMode, error) {
-	info, err := os.Stat(path)
+func resolveTarget(path string) (string, error) {
+	_, err := os.Stat(path)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 		if _, lstatErr := os.Lstat(path); lstatErr == nil {
-			return "", 0, err
+			return "", err
 		}
 
-		return path, 0o600, nil
+		return path, nil
 	case err != nil:
-		return "", 0, err
+		return "", err
 	}
 
-	target, err := filepath.EvalSymlinks(path)
-
-	return target, info.Mode().Perm(), err
+	return filepath.EvalSymlinks(path)
 }
 
-func writeAndClose(f *os.File, data []byte, mode fs.FileMode) error {
+func writeAndClose(f *os.File, data []byte) error {
 	_, err := f.Write(data)
 	if err == nil {
-		err = f.Chmod(mode)
+		err = f.Chmod(permMode)
 	}
 
 	if err == nil {

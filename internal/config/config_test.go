@@ -25,14 +25,14 @@ func TestWriteFileAtomic(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "replaces existing content",
+			name: "replaces existing content and tightens mode to 0600",
 			prepare: func(t *testing.T, _, path string) {
 				t.Helper()
 				require.NoError(t, os.WriteFile(path, []byte("old"), 0o644))
 			},
 			args:     args{data: []byte("new")},
 			want:     "new",
-			wantMode: 0o644,
+			wantMode: 0o600,
 		},
 		{
 			name:     "creates missing file",
@@ -46,7 +46,7 @@ func TestWriteFileAtomic(t *testing.T) {
 			prepare: func(t *testing.T, dir, path string) {
 				t.Helper()
 				target := filepath.Join(dir, "target.toml")
-				require.NoError(t, os.WriteFile(target, []byte("old"), 0o600))
+				require.NoError(t, os.WriteFile(target, []byte("old"), 0o644))
 				require.NoError(t, os.Symlink(target, path))
 			},
 			args:     args{data: []byte("new")},
