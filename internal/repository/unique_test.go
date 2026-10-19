@@ -166,3 +166,29 @@ func TestSSHUniqueness(t *testing.T) {
 		})
 	}
 }
+
+func TestIndexOf(t *testing.T) {
+	repo := testRepo(t)
+
+	require.NoError(t, repo.Add(pg("prod", "db.example.com", "metrics")))
+	require.NoError(t, repo.Add(pg("stage", "db.example.com", "events")))
+
+	tests := map[string]struct {
+		name      string
+		wantIndex int
+		wantOK    bool
+	}{
+		"first":   {name: "prod", wantIndex: 0, wantOK: true},
+		"second":  {name: "stage", wantIndex: 1, wantOK: true},
+		"missing": {name: "dev", wantIndex: -1, wantOK: false},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			i, ok := repo.IndexOf(tt.name)
+
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.wantIndex, i)
+		})
+	}
+}

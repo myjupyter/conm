@@ -106,16 +106,11 @@ func openNamedConnection(
 		return nil, nil, err
 	}
 
-	i, _, err := namedConnection(repo, name)
-	if err != nil {
-		_ = ws.Close()
-		return nil, nil, err
-	}
-
+	i, _ := repo.IndexOf(name)
 	conn, ok := repo.ConnectionAt(i)
 	if !ok {
 		_ = ws.Close()
-		return nil, nil, fmt.Errorf("no %s connection named %q", t, name)
+		return nil, nil, noConnectionNamed(repo, name)
 	}
 
 	return ws, conn, nil
@@ -169,11 +164,15 @@ func openConnections(conm config.Conm, t config.ConnType) (*repository.Workspace
 }
 
 func namedConnection(repo repository.Connections, name string) (int, config.Connection, error) {
-	for i := range repo.Len() {
-		if cfg, ok := repo.ConfigAt(i); ok && cfg.Meta().Name == name {
-			return i, cfg, nil
-		}
+	i, _ := repo.IndexOf(name)
+	cfg, ok := repo.ConfigAt(i)
+	if !ok {
+		return 0, nil, noConnectionNamed(repo, name)
 	}
 
-	return 0, nil, fmt.Errorf("no %s connection named %q", repo.Kind(), name)
+	return i, cfg, nil
+}
+
+func noConnectionNamed(repo repository.Connections, name string) error {
+	return fmt.Errorf("no %s connection named %q", repo.Kind(), name)
 }

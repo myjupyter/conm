@@ -22,6 +22,7 @@ type stubConnections struct {
 func (stubConnections) Kind() config.ConnType                       { return config.PostgresConnType }
 func (stubConnections) ClientInfo(context.Context) cli.Info         { return cli.Info{} }
 func (r stubConnections) Len() int                                  { return len(r.confs) }
+func (stubConnections) IndexOf(string) (int, bool)                  { return -1, false }
 func (stubConnections) ConnectionAt(int) (network.Connection, bool) { return nil, false }
 func (stubConnections) Add(config.Connection) error                 { return nil }
 func (stubConnections) Edit(int, config.Connection) error           { return nil }
