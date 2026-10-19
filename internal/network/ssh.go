@@ -95,13 +95,13 @@ func awaitSSHBanner(conn net.Conn) error {
 	return errNoSSHBanner
 }
 
-func (s *SSHClient) Run(ctx context.Context) error {
+func (s *SSHClient) Run(ctx context.Context, query ...string) error {
 	password, err := s.sec.Resolve(ctx, s.ref)
 	if err != nil {
 		return s.fail(ConnectOperation, SecretErrorCode, err)
 	}
 
-	if err := s.launcher.Run(ctx, s.cfg, password); err != nil {
+	if err := s.launcher.Run(ctx, s.cfg, password, query...); err != nil {
 		return s.fail(ConnectOperation, cliErrorCode(err, transportErrorCode), err)
 	}
 

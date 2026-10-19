@@ -75,7 +75,7 @@ func (c command) runInBackground(ctx context.Context, name string) error {
 	case reason != "":
 		return fmt.Errorf("%w: %s", ErrTransport, reason)
 	case err != nil:
-		return fmt.Errorf("%w: %w", ErrTransport, err)
+		return fmt.Errorf("%w: %s", ErrTransport, err.Error())
 	default:
 		return fmt.Errorf("%w: %s exited", ErrTransport, name)
 	}

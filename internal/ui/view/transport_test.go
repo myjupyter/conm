@@ -142,6 +142,7 @@ type fakeConnections struct {
 func (f fakeConnections) Kind() config.ConnType                     { return f.kind }
 func (fakeConnections) ClientInfo(context.Context) cli.Info         { return cli.Info{} }
 func (f fakeConnections) Len() int                                  { return len(f.configs) }
+func (fakeConnections) IndexOf(string) (int, bool)                  { return -1, false }
 func (fakeConnections) ConnectionAt(int) (network.Connection, bool) { return nil, false }
 func (f fakeConnections) ConfigAt(i int) (config.Connection, bool)  { return f.configs[i], true }
 func (fakeConnections) Add(config.Connection) error                 { return nil }

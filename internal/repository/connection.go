@@ -19,6 +19,7 @@ type Connections interface {
 	ClientInfo(ctx context.Context) cli.Info
 
 	Len() int
+	IndexOf(name string) (int, bool)
 	ConnectionAt(int) (network.Connection, bool)
 	ConfigAt(int) (config.Connection, bool)
 
@@ -284,17 +285,33 @@ func (r *ConnectionRepository) build(c config.Connection) (network.Connection, e
 	return network.NewRouted(r.launcher, c, r.transports, r.sec)
 }
 
+func (r *ConnectionRepository) IndexOf(name string) (int, bool) {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	return r.indexOf(name)
+}
+
 func (r *ConnectionRepository) byName(name string) (config.Connection, bool) {
 	r.mx.RLock()
 	defer r.mx.RUnlock()
 
+	i, ok := r.indexOf(name)
+	if !ok {
+		return nil, false
+	}
+
+	return r.file.Get(i), true
+}
+
+func (r *ConnectionRepository) indexOf(name string) (int, bool) {
 	for i := range r.file.Len() {
-		if c := r.file.Get(i); c.Meta().Name == name {
-			return c, true
+		if r.file.Get(i).Meta().Name == name {
+			return i, true
 		}
 	}
 
-	return nil, false
+	return -1, false
 }
 
 func (r *ConnectionRepository) check(cfg config.Connection, self int) error {

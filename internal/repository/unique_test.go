@@ -69,6 +69,28 @@ func TestAddRejectsTheSameName(t *testing.T) {
 	assert.Equal(t, 1, repo.Len())
 }
 
+func TestAddRejectsAReservedName(t *testing.T) {
+	repo := testRepo(t)
+
+	err := repo.Add(pg("list", "db.example.com", "metrics"))
+
+	require.Error(t, err)
+	assert.Equal(t, 0, repo.Len())
+}
+
+func TestEditRejectsAReservedName(t *testing.T) {
+	repo := testRepo(t)
+
+	require.NoError(t, repo.Add(pg("prod", "db.example.com", "metrics")))
+
+	err := repo.Edit(0, pg("exec", "db.example.com", "metrics"))
+
+	require.Error(t, err)
+	cfg, ok := repo.ConfigAt(0)
+	require.True(t, ok)
+	assert.Equal(t, "prod", cfg.Meta().Name)
+}
+
 func TestAddAcceptsADifferentEndpoint(t *testing.T) {
 	repo := testRepo(t)
 
@@ -141,6 +163,32 @@ func TestSSHUniqueness(t *testing.T) {
 			}
 			_, ok := errors.AsType[*DuplicateConnectionError](err)
 			assert.Truef(t, ok, "error = %v, want *DuplicateConnectionError", err)
+		})
+	}
+}
+
+func TestIndexOf(t *testing.T) {
+	repo := testRepo(t)
+
+	require.NoError(t, repo.Add(pg("prod", "db.example.com", "metrics")))
+	require.NoError(t, repo.Add(pg("stage", "db.example.com", "events")))
+
+	tests := map[string]struct {
+		name      string
+		wantIndex int
+		wantOK    bool
+	}{
+		"first":   {name: "prod", wantIndex: 0, wantOK: true},
+		"second":  {name: "stage", wantIndex: 1, wantOK: true},
+		"missing": {name: "dev", wantIndex: -1, wantOK: false},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			i, ok := repo.IndexOf(tt.name)
+
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.wantIndex, i)
 		})
 	}
 }

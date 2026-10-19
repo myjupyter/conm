@@ -88,3 +88,29 @@ func TestConnMetaLinksRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateReservedName(t *testing.T) {
+	tests := map[string]struct {
+		name    string
+		wantErr bool
+	}{
+		"plain name":          {name: "prod", wantErr: false},
+		"dash inside":         {name: "prod-primary", wantErr: false},
+		"subcommand":          {name: "list", wantErr: true},
+		"help":                {name: "help", wantErr: true},
+		"leading dash":        {name: "-prod", wantErr: true},
+		"leading double dash": {name: "--prod", wantErr: true},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := ValidateReservedName(tt.name)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
