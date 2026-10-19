@@ -13,9 +13,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:     "conm",
-	Short:   "Terminal connection manager",
-	Version: version(),
+	Use:           "conm",
+	Short:         "Terminal connection manager",
+	Version:       version(),
+	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
 		if err != nil {
@@ -41,6 +42,7 @@ func Execute() {
 		os.Exit(exitErr.ExitCode())
 	}
 	if err != nil {
+		rootCmd.PrintErrln(rootCmd.ErrPrefix(), err)
 		os.Exit(1)
 	}
 }

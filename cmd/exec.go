@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"os/exec"
 
 	"github.com/spf13/cobra"
 
@@ -30,12 +28,7 @@ Quote the query, or the shell expands * and ends the command at ;:
 				return err
 			}
 
-			err = ui.Connect(cmd.Context(), conm, t, args[0], args[1:]...)
-			if exitErr := (*exec.ExitError)(nil); errors.As(err, &exitErr) {
-				cmd.SilenceErrors = true
-			}
-
-			return err
+			return ui.Connect(cmd.Context(), conm, t, args[0], args[1:]...)
 		},
 	}
 }
