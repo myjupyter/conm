@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var ReservedNames = []string{"add", "edit", "remove", "ping", "list", "exec"}
+var ReservedNames = []string{"add", "edit", "remove", "ping", "list", "exec", "help"}
 
 type WebLink struct {
 	Name string `toml:"name"`
@@ -55,6 +55,9 @@ func ValidateWebLinkURL(raw string) error {
 func ValidateReservedName(name string) error {
 	if slices.Contains(ReservedNames, name) {
 		return fmt.Errorf("name '%s' is reserved and cannot be used", name)
+	}
+	if strings.HasPrefix(name, "-") {
+		return fmt.Errorf("name '%s' cannot start with '-'", name)
 	}
 	return nil
 }

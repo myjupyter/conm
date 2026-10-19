@@ -14,11 +14,11 @@ func editConnectionCmd(t config.ConnType) *cobra.Command {
 		Use:   "edit <name>",
 		Short: fmt.Sprintf("Edit a %s connection", t),
 		Long: fmt.Sprintf(`Edit a %[1]s connection.
-		
+
 It opens the edit form of the %[1]s connection with that name; a saved
 connection leaves for the %[1]s connections:
-		
-conm %[1]s edit <name>`, t),
+
+  conm %[1]s edit <name>`, t),
 		Args:         cobra.ExactArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
