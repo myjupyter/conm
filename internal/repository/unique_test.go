@@ -69,6 +69,28 @@ func TestAddRejectsTheSameName(t *testing.T) {
 	assert.Equal(t, 1, repo.Len())
 }
 
+func TestAddRejectsAReservedName(t *testing.T) {
+	repo := testRepo(t)
+
+	err := repo.Add(pg("list", "db.example.com", "metrics"))
+
+	require.Error(t, err)
+	assert.Equal(t, 0, repo.Len())
+}
+
+func TestEditRejectsAReservedName(t *testing.T) {
+	repo := testRepo(t)
+
+	require.NoError(t, repo.Add(pg("prod", "db.example.com", "metrics")))
+
+	err := repo.Edit(0, pg("exec", "db.example.com", "metrics"))
+
+	require.Error(t, err)
+	cfg, ok := repo.ConfigAt(0)
+	require.True(t, ok)
+	assert.Equal(t, "prod", cfg.Meta().Name)
+}
+
 func TestAddAcceptsADifferentEndpoint(t *testing.T) {
 	repo := testRepo(t)
 

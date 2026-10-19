@@ -4,8 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 )
+
+var ReservedNames = []string{"add", "edit", "remove", "ping", "list", "exec"}
 
 type WebLink struct {
 	Name string `toml:"name"`
@@ -45,6 +48,13 @@ func ValidateWebLinkURL(raw string) error {
 	}
 	if u.Host == "" {
 		return errors.New("link url must have a host")
+	}
+	return nil
+}
+
+func ValidateReservedName(name string) error {
+	if slices.Contains(ReservedNames, name) {
+		return fmt.Errorf("name '%s' is reserved and cannot be used", name)
 	}
 	return nil
 }
