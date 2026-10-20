@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/transport"
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -182,7 +183,7 @@ func (m formModel) openLink(key spec.FormFieldKey) (tea.Model, tea.Cmd) {
 
 	name := strings.TrimSpace(m.vals[spec.LinkNameKey(i)])
 	if name == "" {
-		name = fmt.Sprintf("link %d", i+1)
+		name = i18n.Sprintf("link %d", i+1)
 	}
 
 	url := strings.TrimSpace(m.vals[spec.LinkURLKey(i)])
@@ -192,7 +193,7 @@ func (m formModel) openLink(key spec.FormFieldKey) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.setStatus("opening "+name+" · "+url, kindPending)
+	m.setStatus(i18n.Sprintf("opening %s · %s", name, url), kindPending)
 	return m, openURLCmd(name, url)
 }
 
@@ -223,10 +224,10 @@ func openURLCmd(name, url string) tea.Cmd {
 
 func (m formModel) applyLinkOpened(msg linkOpenedMsg) formModel {
 	if msg.err != nil {
-		m.setStatus("couldn't open "+msg.name+" · "+msg.err.Error(), kindErr)
+		m.setStatus(i18n.Sprintf("couldn't open %s · %s", msg.name, msg.err.Error()), kindErr)
 		return m
 	}
-	m.setStatus("opened "+msg.name+" in the browser", kindOK)
+	m.setStatus(i18n.Sprintf("opened %s in the browser", msg.name), kindOK)
 	return m
 }
 

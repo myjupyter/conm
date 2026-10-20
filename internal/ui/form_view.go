@@ -8,6 +8,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -19,11 +22,11 @@ const (
 	// The rail bracketing a link's two rows takes its width out of the label,
 	// so every input box still starts in the same column.
 	railW = 2
+)
 
-	// The metadata section is drawn as two titled blocks rather than one
-	// undifferentiated pile: the fields every entity shares, then the links.
-	commonHeadTitle = "common"
-	linksHeadTitle  = "links"
+var (
+	commonHeadTitle = i18n.Sprintf("common")
+	linksHeadTitle  = i18n.Sprintf("links")
 )
 
 func (m formModel) View() tea.View {
@@ -75,21 +78,21 @@ func (m formModel) render() string {
 }
 
 func (m formModel) formTopLine() string {
-	crumb := "new connection"
+	crumb := i18n.Sprintf("new connection")
 	if m.isEdit {
-		crumb = "edit connection"
+		crumb = i18n.Sprintf("edit connection")
 	}
 	return frameTop(formInner, crumb, "")
 }
 
 func (m formModel) badgeLine() string {
-	title := "new connection"
+	title := i18n.Sprintf("new connection")
 	if m.isEdit {
 		name := strings.TrimSpace(m.vals["name"])
 		if name == "" {
 			name = strings.TrimSpace(m.vals["host"])
 		}
-		title = "editing " + name
+		title = i18n.Sprintf("editing %s", name)
 	}
 	return frameBadge(formInner, m.kind.String(), typeColor(m.kind), title)
 }
@@ -124,7 +127,7 @@ func (m formModel) linkHeadLines() []string {
 	// empty and there is nothing else to say what to do.
 	note := ""
 	if m.linkCount() == 0 {
-		note = "nothing linked yet — " + keyMap.Add.hint + " adds one"
+		note = i18n.Sprintf("nothing linked yet — %s adds one", keyMap.Add.hint)
 	}
 
 	return frameHead(formInner, linksHeadTitle, note)
@@ -245,10 +248,10 @@ func selectSpans(value string, options []string, missing, active bool, borderFg,
 	if value == "" {
 		value = gEmpty
 	}
-	mid := max(formBoxW-8-len([]rune(pos)), 0)
+	mid := max(formBoxW-8-ansi.StringWidth(pos), 0)
 	value = truncPad(value, mid, false)
-	left := max((mid-len([]rune(value)))/2, 0)
-	right := max(mid-left-len([]rune(value)), 0)
+	left := max((mid-ansi.StringWidth(value))/2, 0)
+	right := max(mid-left-ansi.StringWidth(value), 0)
 
 	valFg, posFg := cValue, cMuted
 	if missing {
@@ -275,14 +278,14 @@ func (m formModel) display(i int, active bool) (string, bool) {
 		return m.example(f), true
 	}
 	if m.isSecretField(i) && m.noSecret() {
-		return "no password sent", true
+		return i18n.Sprintf("no password sent"), true
 	}
 
 	// A reference is a name, not a password: it is shown as typed, never
 	// masked, because hiding which entry is attached helps nobody.
 	if m.isSecretField(i) && m.isRef() {
 		if raw == "" {
-			return "no entry — " + keyMap.Cycle.hint + " to pick", true
+			return i18n.Sprintf("no entry — %s to pick", keyMap.Cycle.hint), true
 		}
 		return raw, false
 	}
@@ -295,7 +298,7 @@ func (m formModel) display(i int, active bool) (string, bool) {
 	}
 	switch {
 	case f.DefaultValue != "":
-		return f.DefaultValue + " (default)", true
+		return i18n.Sprintf("%s (default)", f.DefaultValue), true
 	case active:
 		return m.example(f), true
 	case f.Property == spec.RequiredFieldProperty:
@@ -343,7 +346,7 @@ func (m formModel) messageRow(i int) string {
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
 	return frameLine(formInner, []span{
 		{text: prefix, fg: cDim, bg: bg},
-		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: col, bg: bg},
+		{text: truncPad(text, formInner-ansi.StringWidth(prefix)-2, false), fg: col, bg: bg},
 	}, bg)
 }
 

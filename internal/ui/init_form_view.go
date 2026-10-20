@@ -6,6 +6,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -17,7 +20,7 @@ func (m initFormModel) View() tea.View {
 
 func (m initFormModel) render() string {
 	lines := []string{
-		frameTop(formInner, "database availability", ""),
+		frameTop(formInner, i18n.Sprintf("database availability"), ""),
 		frameBadge(formInner, m.kind.String(), typeColor(m.kind), m.spec.EditTitle),
 		m.initFormNoteLine(),
 		frameLine(formInner, nil, nil),
@@ -114,7 +117,7 @@ func (m initFormModel) initFormMessageRow(i int) string {
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
 	return frameLine(formInner, []span{
 		{text: prefix, fg: cDim},
-		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: cRed},
+		{text: truncPad(text, formInner-ansi.StringWidth(prefix)-2, false), fg: cRed},
 	}, nil)
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/parser/params"
 	"github.com/myjupyter/conm/internal/ui"
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -14,7 +15,7 @@ import (
 
 var addCmd = &cobra.Command{
 	Use:          "add",
-	Short:        "Enable or disable a connection type",
+	Short:        i18n.Sprintf("Enable or disable a connection type"),
 	Long:         addLong(),
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
@@ -61,7 +62,7 @@ connections:
 func addConnectionCmd(t config.ConnType) *cobra.Command {
 	return &cobra.Command{
 		Use:          "add [command line]",
-		Short:        fmt.Sprintf("Add a %s connection", t),
+		Short:        i18n.Sprintf("Add a %s connection", t),
 		Long:         addConnectionLong(t),
 		Args:         cobra.ArbitraryArgs,
 		SilenceUsage: true,

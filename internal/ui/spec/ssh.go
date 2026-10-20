@@ -2,11 +2,11 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/secret"
 )
 
@@ -17,18 +17,14 @@ const (
 	sshExampleJump         = "deploy@bastion.internal.corp"
 	sshExampleKeyPath      = "~/.ssh/id_ed25519"
 	sshExampleKey          = "-----BEGIN OPENSSH PRIVATE KEY-----"
-	sshExampleKeepAlive    = "seconds between probes"
 	sshExampleLocalForward = "5432:localhost:5432"
 	sshExampleName         = "bastion-eu"
-	sshExampleDescription  = "Entry point for every eu-west box"
 	sshExampleTags         = "prod,bastion"
 )
 
 const sshDefaultPort = 22
 
-const (
-	sshAdvancedSectionTitle = "advanced"
-)
+var sshAdvancedSectionTitle = i18n.Sprintf("advanced")
 
 const (
 	SSHForwardAgentNo  FormFieldValue = "no"
@@ -97,22 +93,22 @@ func sshSecretValueText(values map[FormFieldKey]FormFieldValue) FieldText {
 	case values[strings.ToLower(sshFormFieldAuth)] != config.SSHAuthKey:
 		return FieldText{Label: passwordField.Label, Example: passwordField.Example}
 	case values[SecretProviderKey] == secret.Filepath:
-		return FieldText{Label: sshFormFieldKeyPath, Example: sshExampleKeyPath}
+		return FieldText{Label: i18n.Sprintf("Private key path"), Example: sshExampleKeyPath}
 	default:
-		return FieldText{Label: sshFormFieldKey, Example: sshExampleKey}
+		return FieldText{Label: i18n.Sprintf("Private key"), Example: sshExampleKey}
 	}
 }
 
 var SSHFormFields = []FormField{
 	{
 		Key:          strings.ToLower(sshFormFieldHost),
-		Label:        sshFormFieldHost,
+		Label:        i18n.Sprintf("Host"),
 		Example:      sshExampleHost,
 		ValidateFunc: config.ValidateSSHHost,
 	},
 	{
 		Key:          strings.ToLower(sshFormFieldPort),
-		Label:        sshFormFieldPort,
+		Label:        i18n.Sprintf("Port"),
 		Example:      sshExamplePort,
 		Kind:         IntFieldKind,
 		Property:     OptionalFieldProperty,
@@ -123,20 +119,20 @@ var SSHFormFields = []FormField{
 			}
 			port, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("port must be a number")
+				return errors.New(i18n.Sprintf("port must be a number"))
 			}
 			return config.ValidateSSHPort(port)
 		},
 	},
 	{
 		Key:          strings.ToLower(sshFormFieldUsername),
-		Label:        sshFormFieldUsername,
+		Label:        i18n.Sprintf("Username"),
 		Example:      sshExampleUsername,
 		ValidateFunc: config.ValidateSSHUsername,
 	},
 	{
 		Key:          strings.ToLower(sshFormFieldAuth),
-		Label:        sshFormFieldAuth,
+		Label:        i18n.Sprintf("Auth"),
 		Kind:         SelectFieldKind,
 		DefaultValue: config.SSHAuthAgent,
 		Options:      SSHAuthOrder,
@@ -146,22 +142,22 @@ var SSHFormFields = []FormField{
 	sshSecretValueField,
 	{
 		Key:          strings.ToLower(sshFormFieldJump),
-		Label:        sshFormFieldJump,
+		Label:        i18n.Sprintf("Proxy jump"),
 		Example:      sshExampleJump,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateSSHJump,
 	},
 	{
 		Key:          strings.ToLower(sshFormFieldForwardAgent),
-		Label:        sshFormFieldForwardAgent,
+		Label:        i18n.Sprintf("Forward agent"),
 		Kind:         SelectFieldKind,
 		DefaultValue: SSHForwardAgentNo,
 		Options:      []string{SSHForwardAgentNo, SSHForwardAgentYes},
 	},
 	{
 		Key:      strings.ToLower(sshFormFieldKeepAlive),
-		Label:    sshFormFieldKeepAlive,
-		Example:  sshExampleKeepAlive,
+		Label:    i18n.Sprintf("Keepalive"),
+		Example:  i18n.Sprintf("seconds between probes"),
 		Kind:     IntFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
@@ -170,40 +166,40 @@ var SSHFormFields = []FormField{
 			}
 			seconds, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("keepalive must be a number of seconds")
+				return errors.New(i18n.Sprintf("keepalive must be a number of seconds"))
 			}
 			return config.ValidateSSHKeepAlive(seconds)
 		},
 	},
 	{
 		Key:          strings.ToLower(sshFormFieldLocalForward),
-		Label:        sshFormFieldLocalForward,
+		Label:        i18n.Sprintf("Local forward"),
 		Example:      sshExampleLocalForward,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateSSHLocalForward,
 	},
 	{
 		Key:          strings.ToLower(sshFormFieldName),
-		Label:        sshFormFieldName,
+		Label:        i18n.Sprintf("Name"),
 		Example:      sshExampleName,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateSSHName,
 	},
 	{
 		Key:          strings.ToLower(sshFormFieldDescription),
-		Label:        sshFormFieldDescription,
-		Example:      sshExampleDescription,
+		Label:        i18n.Sprintf("Description"),
+		Example:      i18n.Sprintf("Entry point for every eu-west box"),
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateSSHDescription,
 	},
 	{
 		Key:      strings.ToLower(sshFormFieldTags),
-		Label:    sshFormFieldTags,
+		Label:    i18n.Sprintf("Tags"),
 		Example:  sshExampleTags,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
+				return errors.New(i18n.Sprintf("tags must be at most %d characters long", tagsMaxLength))
 			}
 			return nil
 		},
@@ -211,8 +207,8 @@ var SSHFormFields = []FormField{
 }
 
 var SSHFormSpec = FormSpec[config.Connection]{
-	AddTitle:  "Add a new SSH connection",
-	EditTitle: "Edit an SSH connection",
+	AddTitle:  i18n.Sprintf("Add a new SSH connection"),
+	EditTitle: i18n.Sprintf("Edit an SSH connection"),
 	Fields:    SSHFormFields,
 	Sections: []FormSection{
 		{

@@ -1,9 +1,10 @@
 package ui
 
 import (
-	"fmt"
 	"net"
 	"strconv"
+
+	"github.com/myjupyter/conm/internal/i18n"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -227,7 +228,7 @@ func (m Model) switchKind(key string) Model {
 	}
 
 	if !step() {
-		m.status = m.conns.Active().String() + " is the only database enabled · " + keyMap.AddDB.hint + " to add one"
+		m.status = i18n.Sprintf("%s is the only database enabled · %s to add one", m.conns.Active().String(), keyMap.AddDB.hint)
 		m.statusKind = kindWarn
 		return m
 	}
@@ -314,7 +315,7 @@ func (m Model) currentPong() string {
 	if !ok {
 		return ""
 	}
-	return fmt.Sprintf("%s:%d answered in %dms", cfg.Host(), cfg.Port(), st.pingResult.PingTime.Milliseconds())
+	return i18n.Sprintf("%s:%d answered in %dms", cfg.Host(), cfg.Port(), st.pingResult.PingTime.Milliseconds())
 }
 
 func (m Model) retry() (tea.Model, tea.Cmd) {
@@ -326,7 +327,7 @@ func (m Model) retry() (tea.Model, tea.Cmd) {
 	case network.PingOperation:
 		return m.pingOne()
 	case network.ConnectOperation:
-		m.status, m.statusKind = "reconnecting …", kindPending
+		m.status, m.statusKind = i18n.Sprintf("reconnecting …"), kindPending
 		return m, m.runCmd()
 	}
 	return m, nil
@@ -371,14 +372,14 @@ func (m Model) applyRunResult(msg runResultMsg) Model {
 			st.pingStatus = pingFailed
 			st.connErr = e
 		}
-		m.status, m.statusKind = "connect failed · "+name+" · "+e.code, kindErr
+		m.status, m.statusKind = i18n.Sprintf("connect failed · %s · %s", name, e.code), kindErr
 		return m
 	}
 
 	if st != nil {
 		st.connErr = nil
 	}
-	m.status, m.statusKind = "session closed · "+name, kindOK
+	m.status, m.statusKind = i18n.Sprintf("session closed · %s", name), kindOK
 	return m
 }
 
@@ -447,11 +448,4 @@ func connLabel(cfg config.Connection) string {
 		return name
 	}
 	return cfg.Host()
-}
-
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
 }

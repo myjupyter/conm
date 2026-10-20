@@ -9,13 +9,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui"
 )
 
 func listConnectionsCmd(t config.ConnType) *cobra.Command {
 	return &cobra.Command{
 		Use:          "list",
-		Short:        fmt.Sprintf("List the %s connections", t),
+		Short:        i18n.Sprintf("List the %s connections", t),
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

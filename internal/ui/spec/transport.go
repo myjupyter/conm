@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/transport"
 )
 
@@ -16,9 +17,11 @@ const (
 const (
 	TransportDirect      = "direct"
 	TransportTypesSource = "transport types"
+)
 
-	transportSectionTitle = "transport"
-	tunnelSectionTitle    = "tunnel"
+var (
+	transportSectionTitle = i18n.Sprintf("transport")
+	tunnelSectionTitle    = i18n.Sprintf("tunnel")
 )
 
 const (
@@ -35,7 +38,7 @@ const transportDefaultConnectTimeout = "10"
 
 var transportTypeField = FormField{
 	Key:          TransportTypeKey,
-	Label:        "Type",
+	Label:        i18n.Sprintf("Type"),
 	Kind:         SourceFieldKind,
 	DefaultValue: TransportDirect,
 	Source:       &FieldSource{Name: TransportTypesSource},
@@ -43,9 +46,9 @@ var transportTypeField = FormField{
 
 var transportField = FormField{
 	Key:     TransportKey,
-	Label:   "Transport",
+	Label:   i18n.Sprintf("Transport"),
 	Kind:    SourceFieldKind,
-	Example: "connects directly",
+	Example: i18n.Sprintf("connects directly"),
 	Source: &FieldSource{NameFunc: func(values map[FormFieldKey]FormFieldValue) string {
 		kind := values[TransportTypeKey]
 		if kind == "" || kind == TransportDirect {
@@ -57,7 +60,7 @@ var transportField = FormField{
 
 var transportSection = FormSection{
 	Title:  transportSectionTitle,
-	Note:   "host and port above are the address as the transport sees it",
+	Note:   i18n.Sprintf("host and port above are the address as the transport sees it"),
 	Fields: []FormFieldKey{TransportTypeKey, TransportKey},
 }
 
@@ -93,57 +96,57 @@ func transportNameOf(ref string) FormFieldValue {
 var TransportKindsOrder = []config.TransportKind{config.SSHTransportKind}
 
 var TransportFormSpec = FormSpec[config.Transport]{
-	AddTitle:  "Add a transport",
-	EditTitle: "Edit a transport",
+	AddTitle:  i18n.Sprintf("Add a transport"),
+	EditTitle: i18n.Sprintf("Edit a transport"),
 	Fields: []FormField{
 		{
 			Key:          TransportNameKey,
-			Label:        "Name",
+			Label:        i18n.Sprintf("Name"),
 			Example:      "prod-bastion",
 			ValidateFunc: config.ValidateTransportName,
 		},
 		{
 			Key:     transportFormFieldKind,
-			Label:   "Kind",
+			Label:   i18n.Sprintf("Kind"),
 			Kind:    SelectFieldKind,
 			Options: TransportKindsOrder,
 		},
 		{
 			Key:    TransportViaKey,
-			Label:  "Via",
+			Label:  i18n.Sprintf("Via"),
 			Kind:   SourceFieldKind,
 			Source: &FieldSource{Name: config.SSHConnType.String()},
 		},
 		{
 			Key:          transportFormFieldLocalPort,
-			Label:        "Local port",
+			Label:        i18n.Sprintf("Local port"),
 			Kind:         IntFieldKind,
 			Property:     OptionalFieldProperty,
-			Example:      "picked automatically",
+			Example:      i18n.Sprintf("picked automatically"),
 			ValidateFunc: intValidator(config.ValidateTransportLocalPort),
 		},
 		{
 			Key:          transportFormFieldConnectTimeout,
-			Label:        "Connect timeout",
+			Label:        i18n.Sprintf("Connect timeout"),
 			Kind:         IntFieldKind,
 			Property:     OptionalFieldProperty,
 			DefaultValue: transportDefaultConnectTimeout,
-			Example:      "seconds",
+			Example:      i18n.Sprintf("seconds"),
 			ValidateFunc: intValidator(config.ValidateTransportConnectTimeout),
 		},
 		{
 			Key:          transportFormFieldKeepAlive,
-			Label:        "Keepalive",
+			Label:        i18n.Sprintf("Keepalive"),
 			Kind:         IntFieldKind,
 			Property:     OptionalFieldProperty,
-			Example:      "seconds between probes",
+			Example:      i18n.Sprintf("seconds between probes"),
 			ValidateFunc: intValidator(config.ValidateTransportKeepAlive),
 		},
 		{
 			Key:          transportFormFieldDescription,
-			Label:        "Description",
+			Label:        i18n.Sprintf("Description"),
 			Property:     OptionalFieldProperty,
-			Example:      "Tunnel into the eu-west private network",
+			Example:      i18n.Sprintf("Tunnel into the eu-west private network"),
 			ValidateFunc: config.ValidateTransportDescription,
 		},
 	},
@@ -205,7 +208,7 @@ func intValidator(validate func(int) error) func(string) error {
 		}
 		value, err := strconv.Atoi(raw)
 		if err != nil {
-			return errors.New("must be a number")
+			return errors.New(i18n.Sprintf("must be a number"))
 		}
 		return validate(value)
 	}

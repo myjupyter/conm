@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 func metadataSection(nameKey, descriptionKey, tagsKey FormFieldKey) FormSection {
@@ -23,7 +24,7 @@ func intValue(values map[FormFieldKey]FormFieldValue, key FormFieldKey, fallback
 
 	value, err := strconv.Atoi(raw)
 	if err != nil {
-		return 0, fmt.Errorf("invalid %s value: %w", key, err)
+		return 0, fmt.Errorf("%s: %w", i18n.Sprintf("invalid %s value", key), err)
 	}
 
 	return value, nil

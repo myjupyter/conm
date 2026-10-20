@@ -2,21 +2,20 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const (
-	redisExampleHost        = "localhost"
-	redisExamplePort        = "6379"
-	redisExampleUsername    = "default"
-	redisExampleDatabase    = "0"
-	redisExampleName        = "cache-primary"
-	redisExampleDescription = "Session cache"
-	redisExampleTags        = "prod,eu-west,cache"
+	redisExampleHost     = "localhost"
+	redisExamplePort     = "6379"
+	redisExampleUsername = "default"
+	redisExampleDatabase = "0"
+	redisExampleName     = "cache-primary"
+	redisExampleTags     = "prod,eu-west,cache"
 )
 
 const redisDefaultPort = 6379
@@ -44,13 +43,13 @@ var TLSModesOrder = []config.RedisTLSMode{
 var RedisFormFields = []FormField{
 	{
 		Key:          strings.ToLower(redisFormFieldHost),
-		Label:        redisFormFieldHost,
+		Label:        i18n.Sprintf("Host"),
 		Example:      redisExampleHost,
 		ValidateFunc: config.ValidateRedisHost,
 	},
 	{
 		Key:          strings.ToLower(redisFormFieldPort),
-		Label:        redisFormFieldPort,
+		Label:        i18n.Sprintf("Port"),
 		Example:      redisExamplePort,
 		Kind:         IntFieldKind,
 		Property:     OptionalFieldProperty,
@@ -61,14 +60,14 @@ var RedisFormFields = []FormField{
 			}
 			port, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("port must be a number")
+				return errors.New(i18n.Sprintf("port must be a number"))
 			}
 			return config.ValidateRedisPort(port)
 		},
 	},
 	{
 		Key:          strings.ToLower(redisFormFieldUsername),
-		Label:        redisFormFieldUsername,
+		Label:        i18n.Sprintf("Username"),
 		Example:      redisExampleUsername,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateRedisUsername,
@@ -77,7 +76,7 @@ var RedisFormFields = []FormField{
 	passwordField,
 	{
 		Key:          strings.ToLower(redisFormFieldDatabase),
-		Label:        redisFormFieldDatabase,
+		Label:        i18n.Sprintf("Database"),
 		Example:      redisExampleDatabase,
 		Kind:         IntFieldKind,
 		Property:     OptionalFieldProperty,
@@ -88,14 +87,14 @@ var RedisFormFields = []FormField{
 			}
 			db, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("database must be a number")
+				return errors.New(i18n.Sprintf("database must be a number"))
 			}
 			return config.ValidateRedisDatabase(db)
 		},
 	},
 	{
 		Key:          strings.ToLower(redisFormFieldTLSMode),
-		Label:        redisFormFieldTLSMode,
+		Label:        i18n.Sprintf("TLS"),
 		Kind:         SelectFieldKind,
 		DefaultValue: config.RedisTLSModeDisable,
 		Options:      TLSModesOrder,
@@ -103,26 +102,26 @@ var RedisFormFields = []FormField{
 	},
 	{
 		Key:          strings.ToLower(redisFormFieldName),
-		Label:        redisFormFieldName,
+		Label:        i18n.Sprintf("Name"),
 		Example:      redisExampleName,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateRedisName,
 	},
 	{
 		Key:          strings.ToLower(redisFormFieldDescription),
-		Label:        redisFormFieldDescription,
-		Example:      redisExampleDescription,
+		Label:        i18n.Sprintf("Description"),
+		Example:      i18n.Sprintf("Session cache"),
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateRedisDescription,
 	},
 	{
 		Key:      strings.ToLower(redisFormFieldTags),
-		Label:    redisFormFieldTags,
+		Label:    i18n.Sprintf("Tags"),
 		Example:  redisExampleTags,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
+				return errors.New(i18n.Sprintf("tags must be at most %d characters long", tagsMaxLength))
 			}
 			return nil
 		},
@@ -132,8 +131,8 @@ var RedisFormFields = []FormField{
 }
 
 var RedisFormSpec = FormSpec[config.Connection]{
-	AddTitle:  "Add a new Redis connection",
-	EditTitle: "Edit a Redis connection",
+	AddTitle:  i18n.Sprintf("Add a new Redis connection"),
+	EditTitle: i18n.Sprintf("Edit a Redis connection"),
 	Fields:    RedisFormFields,
 	Sections: []FormSection{
 		{

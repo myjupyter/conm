@@ -2,21 +2,20 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const (
-	mssqlExampleHost        = "localhost"
-	mssqlExamplePort        = "1433"
-	mssqlExampleUsername    = "sa"
-	mssqlExampleDatabase    = "master"
-	mssqlExampleName        = "prod-primary"
-	mssqlExampleDescription = "Production primary database"
-	mssqlExampleTags        = "prod,eu-west,primary"
+	mssqlExampleHost     = "localhost"
+	mssqlExamplePort     = "1433"
+	mssqlExampleUsername = "sa"
+	mssqlExampleDatabase = "master"
+	mssqlExampleName     = "prod-primary"
+	mssqlExampleTags     = "prod,eu-west,primary"
 )
 
 const mssqlDefaultPort = 1433
@@ -50,13 +49,13 @@ var MSSQLEncryptModesOrder = []config.MSSQLEncryptMode{
 var MSSQLFormFields = []FormField{
 	{
 		Key:          strings.ToLower(mssqlFormFieldHost),
-		Label:        mssqlFormFieldHost,
+		Label:        i18n.Sprintf("Host"),
 		Example:      mssqlExampleHost,
 		ValidateFunc: config.ValidateMSSQLHost,
 	},
 	{
 		Key:          strings.ToLower(mssqlFormFieldPort),
-		Label:        mssqlFormFieldPort,
+		Label:        i18n.Sprintf("Port"),
 		Example:      mssqlExamplePort,
 		Kind:         IntFieldKind,
 		Property:     OptionalFieldProperty,
@@ -67,14 +66,14 @@ var MSSQLFormFields = []FormField{
 			}
 			port, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("port must be a number")
+				return errors.New(i18n.Sprintf("port must be a number"))
 			}
 			return config.ValidateMSSQLPort(port)
 		},
 	},
 	{
 		Key:          strings.ToLower(mssqlFormFieldUsername),
-		Label:        mssqlFormFieldUsername,
+		Label:        i18n.Sprintf("Username"),
 		Example:      mssqlExampleUsername,
 		ValidateFunc: config.ValidateMSSQLUsername,
 	},
@@ -82,13 +81,13 @@ var MSSQLFormFields = []FormField{
 	passwordField,
 	{
 		Key:          strings.ToLower(mssqlFormFieldDatabase),
-		Label:        mssqlFormFieldDatabase,
+		Label:        i18n.Sprintf("Database"),
 		Example:      mssqlExampleDatabase,
 		ValidateFunc: config.ValidateMSSQLDatabase,
 	},
 	{
 		Key:          strings.ToLower(mssqlFormFieldEncrypt),
-		Label:        mssqlFormFieldEncrypt,
+		Label:        i18n.Sprintf("Encrypt"),
 		Kind:         SelectFieldKind,
 		DefaultValue: config.MSSQLEncryptLogin,
 		Options:      MSSQLEncryptModesOrder,
@@ -96,33 +95,33 @@ var MSSQLFormFields = []FormField{
 	},
 	{
 		Key:          strings.ToLower(mssqlFormFieldTrustCert),
-		Label:        mssqlFormFieldTrustCert,
+		Label:        i18n.Sprintf("TrustCert"),
 		Kind:         SelectFieldKind,
 		DefaultValue: mssqlTrustDisabled,
 		Options:      []string{mssqlTrustDisabled, mssqlTrustEnabled},
 	},
 	{
 		Key:          strings.ToLower(mssqlFormFieldName),
-		Label:        mssqlFormFieldName,
+		Label:        i18n.Sprintf("Name"),
 		Example:      mssqlExampleName,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateMSSQLName,
 	},
 	{
 		Key:          strings.ToLower(mssqlFormFieldDescription),
-		Label:        mssqlFormFieldDescription,
-		Example:      mssqlExampleDescription,
+		Label:        i18n.Sprintf("Description"),
+		Example:      i18n.Sprintf("Production primary database"),
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateMSSQLDescription,
 	},
 	{
 		Key:      strings.ToLower(mssqlFormFieldTags),
-		Label:    mssqlFormFieldTags,
+		Label:    i18n.Sprintf("Tags"),
 		Example:  mssqlExampleTags,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
+				return errors.New(i18n.Sprintf("tags must be at most %d characters long", tagsMaxLength))
 			}
 			return nil
 		},
@@ -132,8 +131,8 @@ var MSSQLFormFields = []FormField{
 }
 
 var MSSQLFormSpec = FormSpec[config.Connection]{
-	AddTitle:  "Add a new SQL Server connection",
-	EditTitle: "Edit a SQL Server connection",
+	AddTitle:  i18n.Sprintf("Add a new SQL Server connection"),
+	EditTitle: i18n.Sprintf("Edit a SQL Server connection"),
 	Fields:    MSSQLFormFields,
 	Sections: []FormSection{
 		{

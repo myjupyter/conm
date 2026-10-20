@@ -6,13 +6,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui"
 )
 
 func connTypeCmd(t config.ConnType) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          t.String() + " [name]",
-		Short:        fmt.Sprintf("Open the %s connections, or connect to one", t),
+		Short:        i18n.Sprintf("Open the %s connections, or connect to one", t),
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

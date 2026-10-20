@@ -3,11 +3,12 @@ package spec
 import (
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
-const (
-	ConnectionEnabled  FormFieldValue = "enabled"
-	ConnectionDisabled FormFieldValue = "disabled"
+var (
+	ConnectionEnabled  = i18n.Sprintf("enabled")
+	ConnectionDisabled = i18n.Sprintf("disabled")
 )
 
 type databaseFormField = string
@@ -36,18 +37,18 @@ func ConnectionState(enabled bool) FormFieldValue {
 
 func connectionFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
 	return FormSpec[config.ConnectionSettings]{
-		EditTitle: "availability",
+		EditTitle: i18n.Sprintf("availability"),
 		Fields: []FormField{
 			{
 				Key:          databaseFormFieldState,
-				Label:        databaseFormFieldState,
+				Label:        i18n.Sprintf("state"),
 				Kind:         SelectFieldKind,
 				Options:      []string{ConnectionEnabled, ConnectionDisabled},
 				DefaultValue: ConnectionDisabled,
 			},
 			{
 				Key:          databaseFormFieldClient,
-				Label:        databaseFormFieldClient,
+				Label:        i18n.Sprintf("client"),
 				Kind:         SelectFieldKind,
 				Options:      cli.Clients(t),
 				ValidateFunc: func(name string) error { return cli.Validate(t, name) },
@@ -55,8 +56,8 @@ func connectionFormSpec(t config.ConnType) FormSpec[config.ConnectionSettings] {
 		},
 		Sections: []FormSection{
 			{
-				Title:  "availability",
-				Note:   "a disabled database keeps its connections but leaves the table",
+				Title:  i18n.Sprintf("availability"),
+				Note:   i18n.Sprintf("a disabled database keeps its connections but leaves the table"),
 				Fields: []FormFieldKey{databaseFormFieldState, databaseFormFieldClient},
 			},
 		},

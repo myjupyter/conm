@@ -2,15 +2,16 @@ package spec
 
 import (
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const tagsMaxLength = 255
 
 // The section a connection form is split into, shared by every entity spec so
 // the copy reads the same whatever database the form is for.
-const (
-	connectionSectionTitle = "connection"
-	MetadataSectionTitle   = "meta"
+var (
+	connectionSectionTitle = i18n.Sprintf("connection")
+	MetadataSectionTitle   = i18n.Sprintf("meta")
 )
 
 const (
@@ -20,6 +21,7 @@ const (
 	IntFieldKind
 	SelectFieldKind
 	SourceFieldKind
+	StringArrayFieldKind
 )
 
 const (
@@ -90,9 +92,9 @@ type FormSpec[T any] struct {
 func (f FieldProperty) String() string {
 	switch f {
 	case RequiredFieldProperty:
-		return "required"
+		return i18n.Sprintf("required")
 	case OptionalFieldProperty:
-		return "optional"
+		return i18n.Sprintf("optional")
 	default:
 		return ""
 	}

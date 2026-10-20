@@ -1,12 +1,12 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -89,13 +89,13 @@ func (m secretFormModel) applyPaste(raw string, err error) secretFormModel {
 
 	cur := m.spec.Fields[m.idx]
 	if cur.Kind == spec.SelectFieldKind {
-		m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
+		m.setStatus(i18n.Sprintf("%s is a list · use %s", strings.ToLower(cur.Label), keyMap.Cycle.hint), kindWarn)
 		return m
 	}
 
 	m.insert = true
 	m.vals[cur.Key] += text
-	m.setStatus("pasted · "+keyMap.Cancel.hint+" when done", kindIdle)
+	m.setStatus(i18n.Sprintf("pasted · %s when done", keyMap.Cancel.hint), kindIdle)
 	return m
 }
 
@@ -122,18 +122,18 @@ func (m secretFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case keyMap.Edit.matches(key):
 		if cur.Kind == spec.SelectFieldKind {
-			m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
+			m.setStatus(i18n.Sprintf("%s is a list · use %s", strings.ToLower(cur.Label), keyMap.Cycle.hint), kindWarn)
 		} else {
 			m.insert = true
-			m.setStatus("editing "+strings.ToLower(cur.Label)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
+			m.setStatus(i18n.Sprintf("editing %s · %s when done", strings.ToLower(cur.Label), keyMap.Cancel.hint), kindIdle)
 		}
 	case keyMap.Secret.matches(key):
 		if cur.Kind == spec.HiddenFieldKind {
 			m.reveal = !m.reveal
 			if m.reveal {
-				m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)
+				m.setStatus(i18n.Sprintf("password visible · %s to hide", keyMap.Secret.hint), kindIdle)
 			} else {
-				m.setStatus("password hidden", kindIdle)
+				m.setStatus(i18n.Sprintf("password hidden"), kindIdle)
 			}
 		}
 	case keyMap.Confirm.matches(key):
@@ -155,7 +155,7 @@ func (m secretFormModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case keyMap.Cancel.matches(key):
 		m.insert = false
-		m.setStatus("done editing · "+keyMap.MoveVertical.hint+" to move", kindIdle)
+		m.setStatus(i18n.Sprintf("done editing · %s to move", keyMap.MoveVertical.hint), kindIdle)
 		return m, nil
 	case keyMap.Confirm.matches(key):
 		m.insert = false
@@ -203,7 +203,7 @@ func (m secretFormModel) fieldError(i int) string {
 	}
 
 	if f.Property == spec.RequiredFieldProperty && strings.TrimSpace(v) == "" {
-		return strings.ToLower(f.Label) + " is required"
+		return i18n.Sprintf("%s is required", strings.ToLower(f.Label))
 	}
 	if f.ValidateFunc != nil {
 		if err := f.ValidateFunc(v); err != nil {
@@ -228,7 +228,7 @@ func (m secretFormModel) submit() (tea.Model, tea.Cmd) {
 
 	if bad > 0 {
 		m.idx, m.insert = badIdx, false
-		m.setStatus(fmt.Sprintf("%d %s need attention", bad, plural(bad, "field", "fields")), kindErr)
+		m.setStatus(i18n.Sprintf("%d fields need attention", bad), kindErr)
 		return m, nil
 	}
 

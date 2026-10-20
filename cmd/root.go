@@ -9,12 +9,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui"
 )
 
 var rootCmd = &cobra.Command{
 	Use:           "conm",
-	Short:         "Terminal connection manager",
+	Short:         i18n.Sprintf("Terminal connection manager"),
 	Version:       version(),
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {

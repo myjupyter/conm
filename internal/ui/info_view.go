@@ -1,11 +1,14 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const (
@@ -22,7 +25,7 @@ func (m infoModel) View() tea.View {
 
 func (m infoModel) render() string {
 	lines := []string{
-		frameTop(infoInner, "connection info", ""),
+		frameTop(infoInner, i18n.Sprintf("connection info"), ""),
 		m.titleLine(),
 		frameRule(infoInner, gTeeL, gTeeR),
 		m.infoTabsLine(),
@@ -120,19 +123,19 @@ func infoRowLine(r infoRow, chunk string, first, on bool) string {
 		{text: "  " + chunk, fg: fg, bg: bg},
 	}
 	if on && first {
-		spans = append(spans, infoHintSpans(r, len([]rune(chunk)), bg)...)
+		spans = append(spans, infoHintSpans(r, ansi.StringWidth(chunk), bg)...)
 	}
 
 	return frameLine(infoInner, spans, bg)
 }
 
 func infoHintSpans(r infoRow, valueWidth int, bg color.Color) []span {
-	hint := keyMap.Yank.hint + " yanks"
+	hint := i18n.Sprintf("%s yanks", keyMap.Yank.hint)
 	if r.link {
-		hint = keyMap.Confirm.hint + " opens · " + hint
+		hint = i18n.Sprintf("%s opens · %s", keyMap.Confirm.hint, hint)
 	}
 
-	pad := infoInner - 4 - wInfoLbl - valueWidth - len([]rune(hint)) - 1
+	pad := infoInner - 4 - wInfoLbl - valueWidth - ansi.StringWidth(hint) - 1
 	if pad <= 0 {
 		return nil
 	}
@@ -144,26 +147,27 @@ func infoHintSpans(r infoRow, valueWidth int, bg color.Color) []span {
 }
 
 func wrapValue(s string, w int) []string {
-	r := []rune(s)
-	if w <= 0 || len(r) <= w {
+	if w <= 0 || ansi.StringWidth(s) <= w {
 		return []string{s}
 	}
 
 	var out []string
-	for len(r) > w {
-		out, r = append(out, string(r[:w])), r[w:]
+	for ansi.StringWidth(s) > w {
+		var head string
+		head, s = cutCells(s, w)
+		out = append(out, head)
 	}
 
-	return append(out, string(r))
+	return append(out, s)
 }
 
 func scrollNote(above, below int) string {
 	var parts []string
 	if above > 0 {
-		parts = append(parts, fmt.Sprintf("%s %d above", gScrollUp, above))
+		parts = append(parts, i18n.Sprintf("%s %d above", gScrollUp, above))
 	}
 	if below > 0 {
-		parts = append(parts, fmt.Sprintf("%s %d below", gScrollDown, below))
+		parts = append(parts, i18n.Sprintf("%s %d below", gScrollDown, below))
 	}
 
 	return strings.Join(parts, " · ")

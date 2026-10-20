@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
@@ -10,6 +9,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/secret"
 	"github.com/myjupyter/conm/internal/transport"
@@ -302,7 +302,7 @@ func (m formModel) refEntries() []string {
 func (m *formModel) cycleRef(dir int) {
 	list := m.refEntries()
 	if len(list) == 0 {
-		m.setStatus(m.storeLabel()+" is empty · s on provider to add an entry", kindWarn)
+		m.setStatus(i18n.Sprintf("%s is empty · %s on provider to add an entry", m.storeLabel(), keyMap.Secret.hint), kindWarn)
 		return
 	}
 
@@ -322,7 +322,7 @@ func (m *formModel) cycleRef(dir int) {
 
 	next := list[(at+dir+len(list))%len(list)]
 	m.vals[spec.SecretValueKey] = next
-	m.setStatus(next+" · "+m.storeLabel()+" entry", kindIdle)
+	m.setStatus(i18n.Sprintf("%s · %s entry", next, m.storeLabel()), kindIdle)
 }
 
 // onSecretModeChange keeps the value field consistent with the mode it just
@@ -338,11 +338,11 @@ func (m *formModel) onSecretModeChange(was string) {
 	switch {
 	case m.noSecret():
 		m.vals[spec.SecretValueKey] = ""
-		m.setStatus(secret.None+" · this connection sends no password", kindIdle)
+		m.setStatus(i18n.Sprintf("%s · this connection sends no password", secret.None), kindIdle)
 	case m.isLiteral():
-		m.setStatus("literal · password stored as plain text", kindWarn)
+		m.setStatus(i18n.Sprintf("%s · password stored as plain text", secret.Literal), kindWarn)
 	case !m.isRef():
-		m.setStatus(m.storeLabel()+" · a location conm hands over, never reads", kindIdle)
+		m.setStatus(i18n.Sprintf("%s · a location conm hands over, never reads", m.storeLabel()), kindIdle)
 	default:
 		list := m.refEntries()
 		if !slices.Contains(list, m.vals[spec.SecretValueKey]) {
@@ -351,7 +351,7 @@ func (m *formModel) onSecretModeChange(was string) {
 				m.vals[spec.SecretValueKey] = list[0]
 			}
 		}
-		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Secret.hint+" on provider to manage", kindIdle)
+		m.setStatus(i18n.Sprintf("%s · pick an entry with %s, or %s on provider to manage", m.storeLabel(), keyMap.Cycle.hint, keyMap.Secret.hint), kindIdle)
 	}
 }
 
@@ -361,9 +361,9 @@ func (m formModel) applyPicked(msg secretPickedMsg) formModel {
 		m.setStatus(msg.err.Error(), kindErr)
 	case msg.ok:
 		m.vals[spec.SecretValueKey] = msg.ref
-		m.setStatus("attached "+msg.ref+" from "+m.storeLabel(), kindOK)
+		m.setStatus(i18n.Sprintf("attached %s from %s", msg.ref, m.storeLabel()), kindOK)
 	default:
-		m.setStatus("nothing picked", kindIdle)
+		m.setStatus(i18n.Sprintf("nothing picked"), kindIdle)
 	}
 	return m
 }
@@ -467,7 +467,7 @@ func (m formModel) applyPaste(raw string, err error) formModel {
 	}
 
 	m.vals[m.fields[i].Key] += text
-	m.setStatus("pasted · "+keyMap.Cancel.hint+" when done", kindIdle)
+	m.setStatus(i18n.Sprintf("pasted · %s when done", keyMap.Cancel.hint), kindIdle)
 	return m
 }
 
@@ -529,18 +529,18 @@ func (m *formModel) clampSelects() {
 func (m *formModel) navEdit(i int, cur spec.FormField) {
 	switch {
 	case m.isSecretField(i) && m.noSecret():
-		m.setStatus("no secret store · pick a provider with "+keyMap.Cycle.hint+" to set a password", kindWarn)
+		m.setStatus(i18n.Sprintf("no secret store · pick a provider with %s to set a password", keyMap.Cycle.hint), kindWarn)
 	case m.isSecretField(i) && m.isRef():
-		m.setStatus(m.storeLabel()+" entries are picked, not typed · use "+keyMap.Cycle.hint, kindWarn)
+		m.setStatus(i18n.Sprintf("%s entries are picked, not typed · use %s", m.storeLabel(), keyMap.Cycle.hint), kindWarn)
 	case m.isSelector(i):
-		m.setStatus(m.label(cur)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
+		m.setStatus(i18n.Sprintf("%s is a list · use %s", m.label(cur), keyMap.Cycle.hint), kindWarn)
 	case isSelect(cur) && !m.applies(cur):
 		m.setStatus(m.label(cur)+" · "+m.example(cur), kindIdle)
 	case isSelect(cur):
-		m.setStatus(m.label(cur)+" has no options to pick from", kindWarn)
+		m.setStatus(i18n.Sprintf("%s has no options to pick from", m.label(cur)), kindWarn)
 	default:
 		m.insert = true
-		m.setStatus("editing "+m.label(cur)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
+		m.setStatus(i18n.Sprintf("editing %s · %s when done", m.label(cur), keyMap.Cancel.hint), kindIdle)
 	}
 }
 
@@ -555,9 +555,9 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 	case cur.Kind == spec.HiddenFieldKind && m.isLiteral():
 		m.reveal = !m.reveal
 		if m.reveal {
-			m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)
+			m.setStatus(i18n.Sprintf("password visible · %s to hide", keyMap.Secret.hint), kindIdle)
 		} else {
-			m.setStatus("password hidden", kindIdle)
+			m.setStatus(i18n.Sprintf("password hidden"), kindIdle)
 		}
 	}
 	return nil, false
@@ -574,7 +574,7 @@ func (m formModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case keyMap.Cancel.matches(key):
 		m.insert = false
-		m.setStatus("done editing · "+keyMap.MoveVertical.hint+" to move", kindIdle)
+		m.setStatus(i18n.Sprintf("done editing · %s to move", keyMap.MoveVertical.hint), kindIdle)
 		return m, nil
 	case keyMap.Confirm.matches(key):
 		m.insert = false
@@ -666,7 +666,7 @@ func (m *formModel) addLink() {
 	m.section = m.linkSect
 	m.idx = m.linkBase + n*2
 	m.insert = true
-	m.setStatus(fmt.Sprintf("link %d · type a name, %s for the url", n+1, keyMap.Confirm.hint), kindIdle)
+	m.setStatus(i18n.Sprintf("link %d · type a name, %s for the url", n+1, keyMap.Confirm.hint), kindIdle)
 }
 
 // removeLink drops link at and renumbers the ones after it, so the keys stay a
@@ -686,7 +686,7 @@ func (m *formModel) removeLink(at int) {
 
 	m.idx = min(m.idx, len(sect.Fields)-1)
 	m.insert = false
-	m.setStatus("link removed", kindWarn)
+	m.setStatus(i18n.Sprintf("link removed"), kindWarn)
 }
 
 // linkPair reports how field i sits in the link it belongs to: a link is one
@@ -766,10 +766,10 @@ func (m formModel) fieldError(i int) string {
 	}
 
 	if f.Property == spec.RequiredFieldProperty && strings.TrimSpace(v) == "" {
-		return m.label(f) + " is required"
+		return i18n.Sprintf("%s is required", m.label(f))
 	}
 	if m.isMissing(f) {
-		return v + " is no longer available · pick another with " + keyMap.Cycle.hint
+		return i18n.Sprintf("%s is no longer available · pick another with %s", v, keyMap.Cycle.hint)
 	}
 	if f.ValidateFunc != nil {
 		if err := f.ValidateFunc(v); err != nil {
@@ -787,12 +787,12 @@ func (m formModel) refError() string {
 	store := m.storeLabel()
 
 	if ref == "" {
-		return "pick a " + store + " entry — " + keyMap.Cycle.hint + ", or " + keyMap.Secret.hint + " on provider"
+		return i18n.Sprintf("pick a %s entry — %s, or %s on provider", store, keyMap.Cycle.hint, keyMap.Secret.hint)
 	}
 	if slices.Contains(m.refEntries(), ref) {
 		return ""
 	}
-	return ref + " is not in " + store
+	return i18n.Sprintf("%s is not in %s", ref, store)
 }
 
 func (m formModel) sectionErrCount(si int) int {
@@ -822,7 +822,7 @@ func (m formModel) submit() (tea.Model, tea.Cmd) {
 
 	if bad > 0 {
 		m.section, m.idx, m.insert = badSection, badIdx, false
-		m.setStatus(fmt.Sprintf("%d %s need attention", bad, plural(bad, "field", "fields")), kindErr)
+		m.setStatus(i18n.Sprintf("%d fields need attention", bad), kindErr)
 		return m, nil
 	}
 
@@ -834,12 +834,12 @@ func (m formModel) pingForm() (tea.Model, tea.Cmd) {
 	cfg, err := m.spec.BuildFunc(m.values())
 	if err != nil || cfg.Host() == "" {
 		m.attempted = true
-		m.setStatus("fill host before pinging", kindErr)
+		m.setStatus(i18n.Sprintf("fill host before pinging"), kindErr)
 		return m, nil
 	}
 
 	m.pong, m.ping = "", nil
-	m.setStatus("pinging "+cfg.Host()+" …", kindPending)
+	m.setStatus(i18n.Sprintf("pinging %s …", cfg.Host()), kindPending)
 	return m, pingFormCmd(cfg, m.transports)
 }
 
@@ -864,14 +864,14 @@ func (m formModel) applyPing(msg formPingMsg) formModel {
 		e := newConnError(msg.err, network.PingOperation)
 		m.ping = e
 		m.pong = ""
-		m.setStatus("ping failed · "+label+" · "+e.code, kindErr)
+		m.setStatus(i18n.Sprintf("ping failed · %s · %s", label, e.code), kindErr)
 		return m
 	}
 
 	ms := msg.result.PingTime.Milliseconds()
 	m.ping = nil
-	m.pong = fmt.Sprintf("%s:%d answered in %dms", cfg.Host(), cfg.Port(), ms)
-	m.setStatus(fmt.Sprintf("pong · %dms", ms), kindOK)
+	m.pong = i18n.Sprintf("%s:%d answered in %dms", cfg.Host(), cfg.Port(), ms)
+	m.setStatus(i18n.Sprintf("pong · %dms", ms), kindOK)
 	return m
 }
 

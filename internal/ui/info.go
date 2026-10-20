@@ -9,6 +9,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
@@ -24,15 +25,18 @@ const (
 	infoTabCount
 )
 
-var infoTabTitles = [infoTabCount]string{"general", "endpoint", "links"}
+var infoTabTitles = [infoTabCount]string{i18n.Sprintf("general"), i18n.Sprintf("endpoint"), i18n.Sprintf("links")}
 
 const (
-	infoDSNLabel      = "dsn"
-	infoEndpointLabel = "endpoint"
-	infoCLILabel      = "cli"
-	infoVersionLabel  = "version"
-	infoPathLabel     = "path"
-	infoLinksLabel    = "links"
+	infoDSNLabel = "dsn"
+	infoCLILabel = "cli"
+)
+
+var (
+	infoEndpointLabel = i18n.Sprintf("endpoint")
+	infoVersionLabel  = i18n.Sprintf("version")
+	infoPathLabel     = i18n.Sprintf("path")
+	infoLinksLabel    = i18n.Sprintf("links")
 )
 
 type infoRow struct {
@@ -86,24 +90,24 @@ func (m infoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clipboardWrittenMsg:
 		if msg.err != nil {
-			m.setInfoStatus("couldn't yank "+msg.label+" · "+msg.err.Error(), kindErr)
+			m.setInfoStatus(i18n.Sprintf("couldn't yank %s · %s", msg.label, msg.err), kindErr)
 			break
 		}
-		m.setInfoStatus("yanked "+msg.label, kindOK)
+		m.setInfoStatus(i18n.Sprintf("yanked %s", msg.label), kindOK)
 
 	case linkOpenedMsg:
 		if msg.err != nil {
-			m.setInfoStatus("couldn't open "+msg.name+" · "+msg.err.Error(), kindErr)
+			m.setInfoStatus(i18n.Sprintf("couldn't open %s · %s", msg.name, msg.err), kindErr)
 			break
 		}
-		m.setInfoStatus("opened "+msg.name+" in the browser", kindOK)
+		m.setInfoStatus(i18n.Sprintf("opened %s in the browser", msg.name), kindOK)
 
 	case infoRanMsg:
 		if msg.err != nil {
 			m.setInfoStatus(msg.err.Error(), kindErr)
 			break
 		}
-		m.setInfoStatus("session closed · "+m.title(), kindOK)
+		m.setInfoStatus(i18n.Sprintf("session closed · %s", m.title()), kindOK)
 	}
 
 	return m, nil
@@ -200,13 +204,13 @@ func (m infoModel) yankRow() (tea.Model, tea.Cmd) {
 	row, ok := m.cursorRow()
 	switch {
 	case !ok:
-		m.setInfoStatus("move the cursor onto a field first · "+keyMap.MoveVertical.hint, kindWarn)
+		m.setInfoStatus(i18n.Sprintf("move the cursor onto a field first · %s", keyMap.MoveVertical.hint), kindWarn)
 	case m.yank:
 		m.yank = false
 		return m, writeClipboardCmd(row.label, row.value)
 	default:
 		m.yank = true
-		m.setInfoStatus("press again to yank "+row.label, kindIdle)
+		m.setInfoStatus(i18n.Sprintf("press again to yank %s", row.label), kindIdle)
 	}
 
 	return m, nil
@@ -215,7 +219,7 @@ func (m infoModel) yankRow() (tea.Model, tea.Cmd) {
 func (m infoModel) openRow() (tea.Model, tea.Cmd) {
 	row, ok := m.cursorRow()
 	if !ok || !row.link {
-		m.setInfoStatus("connecting to "+m.title()+" …", kindPending)
+		m.setInfoStatus(i18n.Sprintf("connecting to %s …", m.title()), kindPending)
 		return m, m.connectCmd()
 	}
 
@@ -224,7 +228,7 @@ func (m infoModel) openRow() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.setInfoStatus("opening "+row.label+" · "+row.value, kindPending)
+	m.setInfoStatus(i18n.Sprintf("opening %s · %s", row.label, row.value), kindPending)
 
 	return m, openURLCmd(row.label, row.value)
 }
@@ -297,11 +301,11 @@ func (m infoModel) clientRows() []infoRow {
 	case !m.probed:
 		name, version, path, tone = gEllipsis, gEllipsis, gEllipsis, cFaint
 	case name == "":
-		name, version, path, tone = "no client configured", gEmpty, gEmpty, cAmber
+		name, version, path, tone = i18n.Sprintf("no client configured"), gEmpty, gEmpty, cAmber
 	case !m.client.Installed:
-		version, path, tone = "not installed", "not on PATH", cAmber
+		version, path, tone = i18n.Sprintf("not installed"), i18n.Sprintf("not on PATH"), cAmber
 	case version == "":
-		version = "unknown"
+		version = i18n.Sprintf("unknown")
 	}
 
 	return []infoRow{

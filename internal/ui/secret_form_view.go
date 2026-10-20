@@ -6,6 +6,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -41,9 +44,9 @@ func (m secretFormModel) render() string {
 }
 
 func (m secretFormModel) secretFormTopLine() string {
-	crumb := "new keyring entry"
+	crumb := i18n.Sprintf("new keyring entry")
 	if m.isEdit {
-		crumb = "edit keyring entry"
+		crumb = i18n.Sprintf("edit keyring entry")
 	}
 	return frameTop(formInner, crumb, "")
 }
@@ -52,7 +55,7 @@ func (m secretFormModel) secretBadgeLine() string {
 	title := m.title
 	if m.isEdit {
 		if id := strings.TrimSpace(m.vals[spec.KeyringIDKey]); id != "" {
-			title = "editing " + id
+			title = i18n.Sprintf("editing %s", id)
 		}
 	}
 	return frameBadge(formInner, "keyring", cAccent, title)
@@ -133,9 +136,9 @@ func (m secretFormModel) secretDisplay(i int, active bool) (string, bool) {
 	// An edit leaves the password blank on purpose: the material is write-only,
 	// and an untouched field must not look like an empty password.
 	case f.Kind == spec.HiddenFieldKind && m.isEdit:
-		return "unchanged", true
+		return i18n.Sprintf("unchanged"), true
 	case f.Kind == spec.HiddenFieldKind:
-		return "already in the keyring", true
+		return i18n.Sprintf("already in the keyring"), true
 	case active:
 		return f.Example, true
 	case f.Property == spec.RequiredFieldProperty:
@@ -174,7 +177,7 @@ func (m secretFormModel) secretMessageRow(i int) string {
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
 	return frameLine(formInner, []span{
 		{text: prefix, fg: cDim},
-		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: cRed},
+		{text: truncPad(text, formInner-ansi.StringWidth(prefix)-2, false), fg: cRed},
 	}, nil)
 }
 

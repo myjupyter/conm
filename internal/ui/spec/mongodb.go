@@ -2,22 +2,21 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const (
-	mongodbExampleHost        = "localhost"
-	mongodbExamplePort        = "27017"
-	mongodbExampleUsername    = "root"
-	mongodbExampleDatabase    = "app"
-	mongodbExampleAuthSource  = "admin"
-	mongodbExampleName        = "orders-primary"
-	mongodbExampleDescription = "Orders document store"
-	mongodbExampleTags        = "prod,eu-west,documents"
+	mongodbExampleHost       = "localhost"
+	mongodbExamplePort       = "27017"
+	mongodbExampleUsername   = "root"
+	mongodbExampleDatabase   = "app"
+	mongodbExampleAuthSource = "admin"
+	mongodbExampleName       = "orders-primary"
+	mongodbExampleTags       = "prod,eu-west,documents"
 )
 
 const mongodbDefaultPort = 27017
@@ -44,13 +43,13 @@ const (
 var MongoDBFormFields = []FormField{
 	{
 		Key:          strings.ToLower(mongodbFormFieldHost),
-		Label:        mongodbFormFieldHost,
+		Label:        i18n.Sprintf("Host"),
 		Example:      mongodbExampleHost,
 		ValidateFunc: config.ValidateMongoDBHost,
 	},
 	{
 		Key:          strings.ToLower(mongodbFormFieldPort),
-		Label:        mongodbFormFieldPort,
+		Label:        i18n.Sprintf("Port"),
 		Example:      mongodbExamplePort,
 		Kind:         IntFieldKind,
 		Property:     OptionalFieldProperty,
@@ -61,14 +60,14 @@ var MongoDBFormFields = []FormField{
 			}
 			port, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("port must be a number")
+				return errors.New(i18n.Sprintf("port must be a number"))
 			}
 			return config.ValidateMongoDBPort(port)
 		},
 	},
 	{
 		Key:          strings.ToLower(mongodbFormFieldUsername),
-		Label:        mongodbFormFieldUsername,
+		Label:        i18n.Sprintf("Username"),
 		Example:      mongodbExampleUsername,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateMongoDBUsername,
@@ -77,46 +76,46 @@ var MongoDBFormFields = []FormField{
 	passwordField,
 	{
 		Key:          strings.ToLower(mongodbFormFieldDatabase),
-		Label:        mongodbFormFieldDatabase,
+		Label:        i18n.Sprintf("Database"),
 		Example:      mongodbExampleDatabase,
 		ValidateFunc: config.ValidateMongoDBDatabase,
 	},
 	{
 		Key:          strings.ToLower(mongodbFormFieldAuthSource),
-		Label:        mongodbFormFieldAuthSource,
+		Label:        i18n.Sprintf("Auth source"),
 		Example:      mongodbExampleAuthSource,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateMongoDBAuthSource,
 	},
 	{
 		Key:          strings.ToLower(mongodbFormFieldTLS),
-		Label:        mongodbFormFieldTLS,
+		Label:        i18n.Sprintf("TLS"),
 		Kind:         SelectFieldKind,
 		DefaultValue: mongodbTLSDisabled,
 		Options:      []string{mongodbTLSDisabled, mongodbTLSEnabled},
 	},
 	{
 		Key:          strings.ToLower(mongodbFormFieldName),
-		Label:        mongodbFormFieldName,
+		Label:        i18n.Sprintf("Name"),
 		Example:      mongodbExampleName,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateMongoDBName,
 	},
 	{
 		Key:          strings.ToLower(mongodbFormFieldDescription),
-		Label:        mongodbFormFieldDescription,
-		Example:      mongodbExampleDescription,
+		Label:        i18n.Sprintf("Description"),
+		Example:      i18n.Sprintf("Orders document store"),
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateMongoDBDescription,
 	},
 	{
 		Key:      strings.ToLower(mongodbFormFieldTags),
-		Label:    mongodbFormFieldTags,
+		Label:    i18n.Sprintf("Tags"),
 		Example:  mongodbExampleTags,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
+				return errors.New(i18n.Sprintf("tags must be at most %d characters long", tagsMaxLength))
 			}
 			return nil
 		},
@@ -126,8 +125,8 @@ var MongoDBFormFields = []FormField{
 }
 
 var MongoDBFormSpec = FormSpec[config.Connection]{
-	AddTitle:  "Add a new MongoDB connection",
-	EditTitle: "Edit a MongoDB connection",
+	AddTitle:  i18n.Sprintf("Add a new MongoDB connection"),
+	EditTitle: i18n.Sprintf("Edit a MongoDB connection"),
 	Fields:    MongoDBFormFields,
 	Sections: []FormSection{
 		{

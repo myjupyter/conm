@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
@@ -54,11 +55,11 @@ func (m transportFormModel) pingViaCmd() (tea.Model, tea.Cmd) {
 	via := m.vals[spec.TransportViaKey]
 	if via == "" || m.pingVia == nil {
 		m.attempted = true
-		m.setStatus("pick a connection to go through before pinging", kindErr)
+		m.setStatus(i18n.Sprintf("pick a connection to go through before pinging"), kindErr)
 		return m, nil
 	}
 
-	m.setStatus("pinging "+via+" …", kindPending)
+	m.setStatus(i18n.Sprintf("pinging %s …", via), kindPending)
 	pingVia := m.pingVia
 	return m, func() tea.Msg {
 		result, err := pingVia(context.Background(), via)

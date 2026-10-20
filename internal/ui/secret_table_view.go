@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 // The secrets table is narrower than the connections table: four short columns
@@ -30,7 +32,7 @@ func (m secretModel) render() string {
 	total := m.secrets.CountOf(m.secrets.Active())
 
 	lines := []string{
-		frameTop(secretInner, m.crumb(), fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "entry", "entries"))),
+		frameTop(secretInner, m.crumb(), " "+i18n.Sprintf("%d entries", total)+" "+gLineH),
 		m.storeTabsLine(total),
 		frameRule(secretInner, gTeeL, gTeeR),
 		m.secretHeaderLine(),
@@ -70,14 +72,14 @@ func (m secretModel) secretFooterLines(n int) []string {
 
 func (m secretModel) emptySecretText() string {
 	if m.secrets.Filtered() {
-		return "   no entry matches the filter"
+		return "   " + i18n.Sprintf("no entry matches the filter")
 	}
-	return "   " + m.secrets.Active() + " is empty · press " + keyMap.Add.hint + " to add an entry"
+	return "   " + i18n.Sprintf("%s is empty · press %s to add an entry", m.secrets.Active(), keyMap.Add.hint)
 }
 
 func (m secretModel) crumb() string {
 	if m.secrets.Picking() {
-		return "keyring · pick an entry"
+		return i18n.Sprintf("keyring · pick an entry")
 	}
 	return "keyring"
 }
@@ -88,7 +90,7 @@ func (m secretModel) storeTabsLine(n int) string {
 		{text: " ", fg: cDim},
 		{text: label, fg: cInvFg, bg: cAccent, bold: true},
 		{text: "  ", fg: cDim},
-		{text: "tab to switch store", fg: cFaint},
+		{text: i18n.Sprintf("tab to switch store"), fg: cFaint},
 	}, nil)
 }
 
@@ -96,9 +98,9 @@ func (m secretModel) secretHeaderLine() string {
 	return frameLine(secretInner, []span{
 		{text: truncPad("", wMark, false), fg: cDim},
 		{text: " " + truncPad("ID", wSecID, false), fg: cDim},
-		{text: " " + truncPad("LOCATION", wSecLoc, false), fg: cDim},
-		{text: " " + truncPad("USED BY", wSecUsed, false), fg: cDim},
-		{text: " " + truncPad("DESCRIPTION", wSecDesc, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("LOCATION"), wSecLoc, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("USED BY"), wSecUsed, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("DESCRIPTION"), wSecDesc, false), fg: cDim},
 	}, nil)
 }
 
@@ -134,10 +136,10 @@ func (m secretModel) secretRowLine(i int) string {
 		mark = gDotOn
 	}
 
-	usedText := "unused"
+	usedText := i18n.Sprintf("unused")
 	usedFg := soft
 	if used > 0 {
-		usedText = fmt.Sprintf("%d %s", used, plural(used, "connection", "connections"))
+		usedText = i18n.Sprintf("%d connections", used)
 		usedFg = cValue
 		if sel {
 			usedFg = cInvFg
@@ -157,7 +159,7 @@ func (m secretModel) secretStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	text := m.status
 	if m.secrets.Confirming() {
-		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q from the keyring? y/n", m.cursorSecretLabel())
+		icon, col, text = gStatusWarn, cAmber, i18n.Sprintf("delete %q from the keyring? y/n", m.cursorSecretLabel())
 	}
 	return frameStatus(secretInner, icon, col, text, "")
 }

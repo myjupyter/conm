@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
@@ -89,7 +90,7 @@ func (m transportModel) handleTransportKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Down.matches(key):
 		m.transports.MoveDown()
 	case keyMap.SwitchKind.matches(key):
-		m.setTransportStatus(m.transports.Active()+" is the only transport kind", kindWarn)
+		m.setTransportStatus(i18n.Sprintf("%s is the only transport kind", m.transports.Active()), kindWarn)
 	case keyMap.Confirm.matches(key):
 		return m.describe(), nil
 	case keyMap.Add.matches(key):
@@ -127,18 +128,18 @@ func (m transportModel) describe() transportModel {
 
 	used := m.transports.Usages()
 	if len(used) == 0 {
-		m.setTransportStatus(fmt.Sprintf("%s via %s · unused", t.Name, m.viaText(t)), kindOK)
+		m.setTransportStatus(i18n.Sprintf("%s via %s · unused", t.Name, m.viaText(t)), kindOK)
 		return m
 	}
 
-	m.setTransportStatus(fmt.Sprintf("%s via %s · used by %s", t.Name, m.viaText(t), usageNames(used)), kindOK)
+	m.setTransportStatus(i18n.Sprintf("%s via %s · used by %s", t.Name, m.viaText(t), usageNames(used)), kindOK)
 	return m
 }
 
 func (m transportModel) viaText(t config.Transport) string {
 	via, ok := m.conns.Named(config.SSHConnType, t.Via)
 	if !ok {
-		return t.Via + " (missing)"
+		return i18n.Sprintf("%s (missing)", t.Via)
 	}
 	return fmt.Sprintf("%s (%s:%d)", t.Via, via.Host(), via.Port())
 }
@@ -151,7 +152,7 @@ func (m transportModel) applyTransportChange(err error) transportModel {
 	}
 
 	n := m.transports.Len()
-	m.setTransportStatus(fmt.Sprintf("%d %s", n, plural(n, "transport", "transports")), kindOK)
+	m.setTransportStatus(i18n.Sprintf("%d transports", n), kindOK)
 	return m
 }
 

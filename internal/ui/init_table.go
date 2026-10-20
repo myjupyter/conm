@@ -7,6 +7,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -109,8 +110,8 @@ func (m initModel) toggle() (tea.Model, tea.Cmd) {
 		db.CLI = m.installedClient(db.Type)
 	}
 	if db.CLI == "" {
-		m.setInitStatus("no client for "+db.Type.String()+" · install "+
-			strings.Join(cli.Clients(db.Type), " or "), kindErr)
+		m.setInitStatus(i18n.Sprintf("no client for %s · install %s",
+			db.Type, strings.Join(cli.Clients(db.Type), " "+i18n.Sprintf("or")+" ")), kindErr)
 		return m, nil
 	}
 
@@ -135,7 +136,7 @@ func (m initModel) openConnections() (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
-	m.setInitStatus(db.Type.String()+" is disabled · "+keyMap.Toggle.hint+" to enable it", kindWarn)
+	m.setInitStatus(i18n.Sprintf("%s is disabled · %s to enable it", db.Type, keyMap.Toggle.hint), kindWarn)
 	return m, nil
 }
 

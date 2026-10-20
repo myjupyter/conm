@@ -2,22 +2,21 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const (
-	postgresExampleHost        = "localhost"
-	postgresExamplePort        = "5432"
-	postgresExampleUsername    = "postgres"
-	postgresExampleDatabase    = "master"
-	postgresExampleSchema      = "public"
-	postgresExampleName        = "prod-primary"
-	postgresExampleDescription = "Production primary database"
-	postgresExampleTags        = "prod,eu-west,primary"
+	postgresExampleHost     = "localhost"
+	postgresExamplePort     = "5432"
+	postgresExampleUsername = "postgres"
+	postgresExampleDatabase = "master"
+	postgresExampleSchema   = "public"
+	postgresExampleName     = "prod-primary"
+	postgresExampleTags     = "prod,eu-west,primary"
 )
 
 type postgresFormField = string
@@ -51,13 +50,13 @@ var PostgresFormFields = []FormField{
 	// Connection information
 	{
 		Key:          strings.ToLower(postgresFormFieldHost),
-		Label:        postgresFormFieldHost,
+		Label:        i18n.Sprintf("Host"),
 		Example:      postgresExampleHost,
 		ValidateFunc: config.ValidatePostgresHost,
 	},
 	{
 		Key:          strings.ToLower(postgresFormFieldPort),
-		Label:        postgresFormFieldPort,
+		Label:        i18n.Sprintf("Port"),
 		Example:      postgresExamplePort,
 		Kind:         IntFieldKind,
 		Property:     OptionalFieldProperty,
@@ -68,14 +67,14 @@ var PostgresFormFields = []FormField{
 			}
 			port, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("port must be a number")
+				return errors.New(i18n.Sprintf("port must be a number"))
 			}
 			return config.ValidatePostgresPort(port)
 		},
 	},
 	{
 		Key:          strings.ToLower(postgresFormFieldUsername),
-		Label:        postgresFormFieldUsername,
+		Label:        i18n.Sprintf("Username"),
 		Example:      postgresExampleUsername,
 		ValidateFunc: config.ValidatePostgresUsername,
 	},
@@ -83,20 +82,20 @@ var PostgresFormFields = []FormField{
 	passwordField,
 	{
 		Key:          strings.ToLower(postgresFormFieldDatabase),
-		Label:        postgresFormFieldDatabase,
+		Label:        i18n.Sprintf("Database"),
 		Example:      postgresExampleDatabase,
 		ValidateFunc: config.ValidatePostgresDatabase,
 	},
 	{
 		Key:          strings.ToLower(postgresFormFieldSchema),
-		Label:        postgresFormFieldSchema,
+		Label:        i18n.Sprintf("Schema"),
 		Example:      postgresExampleSchema,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidatePostgresSchema,
 	},
 	{
 		Key:          strings.ToLower(postgresFormFieldSSLMode),
-		Label:        postgresFormFieldSSLMode,
+		Label:        i18n.Sprintf("SSLMode"),
 		Kind:         SelectFieldKind,
 		DefaultValue: config.PostgresSSLModePrefer,
 		Options:      SSLModesOrder,
@@ -105,26 +104,26 @@ var PostgresFormFields = []FormField{
 	// Meta information (optinal)
 	{
 		Key:          strings.ToLower(postgresFormFieldName),
-		Label:        postgresFormFieldName,
+		Label:        i18n.Sprintf("Name"),
 		Example:      postgresExampleName,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidatePostgresName,
 	},
 	{
 		Key:          strings.ToLower(postgresFormFieldDescription),
-		Label:        postgresFormFieldDescription,
-		Example:      postgresExampleDescription,
+		Label:        i18n.Sprintf("Description"),
+		Example:      i18n.Sprintf("Production primary database"),
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidatePostgresDescription,
 	},
 	{
 		Key:      strings.ToLower(postgresFormFieldTags),
-		Label:    postgresFormFieldTags,
+		Label:    i18n.Sprintf("Tags"),
 		Example:  postgresExampleTags,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
+				return errors.New(i18n.Sprintf("tags must be at most %d characters long", tagsMaxLength))
 			}
 			return nil
 		},
@@ -134,8 +133,8 @@ var PostgresFormFields = []FormField{
 }
 
 var PostgresFormSpec = FormSpec[config.Connection]{
-	AddTitle:  "Add a new Postgres connection",
-	EditTitle: "Edit a Postgres connection",
+	AddTitle:  i18n.Sprintf("Add a new Postgres connection"),
+	EditTitle: i18n.Sprintf("Edit a Postgres connection"),
 	Fields:    PostgresFormFields,
 	Sections: []FormSection{
 		{

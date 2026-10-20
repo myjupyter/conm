@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const transportInner = 88
@@ -30,7 +32,7 @@ func (m transportModel) render() string {
 	total := m.transports.CountOf(m.transports.Active())
 
 	lines := []string{
-		frameTop(transportInner, "transports", fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "transport", "transports"))),
+		frameTop(transportInner, i18n.Sprintf("transports"), " "+i18n.Sprintf("%d transports", total)+" "+gLineH),
 		m.kindTabsLine(total),
 		frameRule(transportInner, gTeeL, gTeeR),
 		m.transportHeaderLine(),
@@ -70,9 +72,9 @@ func (m transportModel) transportFooterLines(n int) []string {
 
 func (m transportModel) emptyTransportText() string {
 	if m.transports.Filtered() {
-		return "   no transport matches the filter"
+		return "   " + i18n.Sprintf("no transport matches the filter")
 	}
-	return "   no transports yet · press " + keyMap.Add.hint + " to add one"
+	return "   " + i18n.Sprintf("no transports yet · press %s to add one", keyMap.Add.hint)
 }
 
 func (m transportModel) kindTabsLine(n int) string {
@@ -86,11 +88,11 @@ func (m transportModel) kindTabsLine(n int) string {
 func (m transportModel) transportHeaderLine() string {
 	return frameLine(transportInner, []span{
 		{text: truncPad("", wMark, false), fg: cDim},
-		{text: " " + truncPad("NAME", wTrName, false), fg: cDim},
-		{text: " " + truncPad("KIND", wTrKind, false), fg: cDim},
-		{text: " " + truncPad("VIA", wTrVia, false), fg: cDim},
-		{text: " " + truncPad("LOCAL PORT", wTrPort, false), fg: cDim},
-		{text: " " + truncPad("USED BY", wTrUsed, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("NAME"), wTrName, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("KIND"), wTrKind, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("VIA"), wTrVia, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("LOCAL PORT"), wTrPort, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("USED BY"), wTrUsed, false), fg: cDim},
 	}, nil)
 }
 
@@ -126,15 +128,15 @@ func (m transportModel) transportRowLine(i int) string {
 		mark = gDotOn
 	}
 
-	port := "auto"
+	port := i18n.Sprintf("auto")
 	if t.LocalPort != 0 {
 		port = strconv.Itoa(t.LocalPort)
 	}
 
-	usedText := "unused"
+	usedText := i18n.Sprintf("unused")
 	usedFg := soft
 	if used > 0 {
-		usedText = fmt.Sprintf("%d %s", used, plural(used, "connection", "connections"))
+		usedText = i18n.Sprintf("%d connections", used)
 		usedFg = cValue
 		if sel {
 			usedFg = cInvFg
@@ -155,7 +157,7 @@ func (m transportModel) transportStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	text := m.status
 	if m.transports.Confirming() {
-		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete transport %q? y/n", m.cursorTransportLabel())
+		icon, col, text = gStatusWarn, cAmber, i18n.Sprintf("delete transport %q? y/n", m.cursorTransportLabel())
 	}
 	return frameStatus(transportInner, icon, col, text, "")
 }

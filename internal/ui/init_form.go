@@ -1,12 +1,12 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -109,7 +109,7 @@ func (m initFormModel) fieldError(i int) string {
 	value := m.vals[f.Key]
 
 	if f.Property == spec.RequiredFieldProperty && value == "" {
-		return strings.ToLower(f.Label) + " is required"
+		return i18n.Sprintf("%s is required", strings.ToLower(f.Label))
 	}
 	if f.ValidateFunc != nil {
 		if err := f.ValidateFunc(value); err != nil {
@@ -134,7 +134,7 @@ func (m initFormModel) submit() (tea.Model, tea.Cmd) {
 
 	if bad > 0 {
 		m.idx = badIdx
-		m.setFormStatus(fmt.Sprintf("%d %s need attention", bad, plural(bad, "field", "fields")), kindErr)
+		m.setFormStatus(i18n.Sprintf("%d fields need attention", bad), kindErr)
 		return m, nil
 	}
 

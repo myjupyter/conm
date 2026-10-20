@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
@@ -34,9 +35,9 @@ func newSecretModel(secrets *view.Secrets) secretModel {
 func newSecretPicker(secrets *view.Secrets) secretModel {
 	m := newSecretModel(secrets)
 	if m.secrets.Len() == 0 {
-		m.setSecretStatus(m.secrets.Active()+" is empty · press "+keyMap.Add.hint+" to add an entry", kindWarn)
+		m.setSecretStatus(i18n.Sprintf("%s is empty · press %s to add an entry", m.secrets.Active(), keyMap.Add.hint), kindWarn)
 	} else {
-		m.setSecretStatus("pick an entry · "+keyMap.Confirm.hint+" to attach it", kindOK)
+		m.setSecretStatus(i18n.Sprintf("pick an entry · %s to attach it", keyMap.Confirm.hint), kindOK)
 	}
 	return m
 }
@@ -99,7 +100,7 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 		m.secrets.MoveDown()
 	case keyMap.SwitchKind.matches(key):
 		// One store is configured, so switching is a no-op worth saying out loud.
-		m.setSecretStatus(m.secrets.Active()+" is the only store configured", kindWarn)
+		m.setSecretStatus(i18n.Sprintf("%s is the only store configured", m.secrets.Active()), kindWarn)
 	case keyMap.Confirm.matches(key):
 		if m.secrets.Picking() {
 			if _, ok := m.secrets.Pick(); ok {
@@ -145,12 +146,11 @@ func (m secretModel) describe() secretModel {
 
 	used := m.secrets.Usages()
 	if len(used) == 0 {
-		m.setSecretStatus(fmt.Sprintf("%s:%s · unused", s.Provider(), s.Location()), kindOK)
+		m.setSecretStatus(i18n.Sprintf("%s:%s · unused", s.Provider(), s.Location()), kindOK)
 		return m
 	}
 
-	m.setSecretStatus(fmt.Sprintf("%s:%s · used by %d %s",
-		s.Provider(), s.Location(), len(used), plural(len(used), "connection", "connections")), kindOK)
+	m.setSecretStatus(fmt.Sprintf("%s:%s · %s", s.Provider(), s.Location(), i18n.Sprintf("used by %d connections", len(used))), kindOK)
 	return m
 }
 
@@ -162,7 +162,7 @@ func (m secretModel) applySecretChange(err error) secretModel {
 	}
 
 	n := m.secrets.Len()
-	m.setSecretStatus(fmt.Sprintf("%s · %d %s", m.secrets.Active(), n, plural(n, "entry", "entries")), kindOK)
+	m.setSecretStatus(m.secrets.Active()+" · "+i18n.Sprintf("%d entries", n), kindOK)
 	return m
 }
 
