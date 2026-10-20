@@ -3,7 +3,52 @@ package config
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
+
+var errSharedKey = errors.New("shares key")
+
+const keybindingPathPrefix = "conm.keybinding."
+
+const (
+	navigationUpPath          = "navigation.up"
+	navigationDownPath        = "navigation.down"
+	navigationLeftPath        = "navigation.left"
+	navigationRightPath       = "navigation.right"
+	navigationNextSectionPath = "navigation.next_section"
+	navigationPrevSectionPath = "navigation.prev_section"
+
+	actionConfirmPath   = "action.confirm"
+	actionPingPath      = "action.ping"
+	actionRetryPath     = "action.retry"
+	actionAddPath       = "action.add"
+	actionEditPath      = "action.edit"
+	actionDeletePath    = "action.delete"
+	actionSecretPath    = "action.secret"
+	actionTransportPath = "action.transport"
+	actionSearchPath    = "action.search"
+	actionInfoPath      = "action.info"
+	actionYankPath      = "action.yank"
+	actionTogglePath    = "action.toggle"
+	actionAddDBPath     = "action.add_db"
+	actionBackspacePath = "action.backspace"
+	actionPastePath     = "action.paste"
+	actionYesPath       = "action.yes"
+	actionNoPath        = "action.no"
+
+	screenQuitPath      = "screen.quit"
+	screenInterruptPath = "screen.interrupt"
+	screenCancelPath    = "screen.cancel"
+	screenHelpPath      = "screen.help"
+)
+
+var mayShareKeys = [][2]string{
+	{screenQuitPath, screenCancelPath},
+	{screenQuitPath, actionNoPath},
+	{screenCancelPath, actionNoPath},
+	{screenQuitPath, screenInterruptPath},
+	{actionYankPath, actionYesPath},
+}
 
 type KeybindingSettings struct {
 	Navigation NavigationKeybindingSettings `toml:"navigation"`
@@ -92,35 +137,35 @@ type keybindingField struct {
 
 func (k *KeybindingSettings) fields() []keybindingField {
 	return []keybindingField{
-		{"navigation.up", &k.Navigation.Up},
-		{"navigation.down", &k.Navigation.Down},
-		{"navigation.left", &k.Navigation.Left},
-		{"navigation.right", &k.Navigation.Right},
-		{"navigation.next_section", &k.Navigation.NextSection},
-		{"navigation.prev_section", &k.Navigation.PrevSection},
+		{navigationUpPath, &k.Navigation.Up},
+		{navigationDownPath, &k.Navigation.Down},
+		{navigationLeftPath, &k.Navigation.Left},
+		{navigationRightPath, &k.Navigation.Right},
+		{navigationNextSectionPath, &k.Navigation.NextSection},
+		{navigationPrevSectionPath, &k.Navigation.PrevSection},
 
-		{"action.confirm", &k.Action.Confirm},
-		{"action.ping", &k.Action.Ping},
-		{"action.retry", &k.Action.Retry},
-		{"action.add", &k.Action.Add},
-		{"action.edit", &k.Action.Edit},
-		{"action.delete", &k.Action.Delete},
-		{"action.secret", &k.Action.Secret},
-		{"action.transport", &k.Action.Transport},
-		{"action.search", &k.Action.Search},
-		{"action.info", &k.Action.Info},
-		{"action.yank", &k.Action.Yank},
-		{"action.toggle", &k.Action.Toggle},
-		{"action.add_db", &k.Action.AddDB},
-		{"action.backspace", &k.Action.Backspace},
-		{"action.paste", &k.Action.Paste},
-		{"action.yes", &k.Action.Yes},
-		{"action.no", &k.Action.No},
+		{actionConfirmPath, &k.Action.Confirm},
+		{actionPingPath, &k.Action.Ping},
+		{actionRetryPath, &k.Action.Retry},
+		{actionAddPath, &k.Action.Add},
+		{actionEditPath, &k.Action.Edit},
+		{actionDeletePath, &k.Action.Delete},
+		{actionSecretPath, &k.Action.Secret},
+		{actionTransportPath, &k.Action.Transport},
+		{actionSearchPath, &k.Action.Search},
+		{actionInfoPath, &k.Action.Info},
+		{actionYankPath, &k.Action.Yank},
+		{actionTogglePath, &k.Action.Toggle},
+		{actionAddDBPath, &k.Action.AddDB},
+		{actionBackspacePath, &k.Action.Backspace},
+		{actionPastePath, &k.Action.Paste},
+		{actionYesPath, &k.Action.Yes},
+		{actionNoPath, &k.Action.No},
 
-		{"screen.quit", &k.Screen.Quit},
-		{"screen.interrupt", &k.Screen.Interrupt},
-		{"screen.cancel", &k.Screen.Cancel},
-		{"screen.help", &k.Screen.Help},
+		{screenQuitPath, &k.Screen.Quit},
+		{screenInterruptPath, &k.Screen.Interrupt},
+		{screenCancelPath, &k.Screen.Cancel},
+		{screenHelpPath, &k.Screen.Help},
 	}
 }
 
@@ -136,11 +181,38 @@ func (k *KeybindingSettings) fillDefaults() {
 }
 
 func (k *KeybindingSettings) validate() error {
+	return errors.Join(k.validateKeys(), k.validateSharedKeys())
+}
+
+func (k *KeybindingSettings) validateKeys() error {
 	var errs []error
 	for _, field := range k.fields() {
 		for _, key := range *field.keys {
 			if err := validateKey(key); err != nil {
-				errs = append(errs, fmt.Errorf("conm.keybinding.%s: %w", field.path, err))
+				errs = append(errs, fmt.Errorf("%s%s: %w", keybindingPathPrefix, field.path, err))
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (k *KeybindingSettings) validateSharedKeys() error {
+	var errs []error
+	fields := k.fields()
+
+	mayShareKey := func(a, b string) bool {
+		return slices.Contains(mayShareKeys, [2]string{a, b}) || slices.Contains(mayShareKeys, [2]string{b, a})
+	}
+
+	for i, first := range fields {
+		for _, second := range fields[i+1:] {
+			if mayShareKey(first.path, second.path) {
+				continue
+			}
+			for _, key := range *first.keys {
+				if slices.Contains(*second.keys, key) {
+					errs = append(errs, fmt.Errorf("%s%s: %w %q with %s", keybindingPathPrefix, second.path, errSharedKey, key, first.path))
+				}
 			}
 		}
 	}
