@@ -1,0 +1,19 @@
+['%d connections']
+one = '%d connection'
+other = '%d connections'
+
+['%d entries']
+one = '%d entry'
+other = '%d entries'
+
+['%d fields need attention']
+one = '%d field needs attention'
+other = '%d fields need attention'
+
+['%d transports']
+one = '%d transport'
+other = '%d transports'
+
+['used by %d connections']
+one = 'used by %d connection'
+other = 'used by %d connections'
