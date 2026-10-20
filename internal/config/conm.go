@@ -1,10 +1,7 @@
 package config
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"slices"
 
 	"github.com/pelletier/go-toml/v2"
@@ -196,25 +193,10 @@ func CreateConm(conf Conm) error {
 }
 
 func ReadConm(filename string) (Conm, error) {
-	t := struct {
-		Conm Conm `toml:"conm"`
-	}{}
-
-	raw, err := os.ReadFile(filename)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return Conm{}, err
-	}
-
-	err = toml.Unmarshal(raw, &t)
+	c, err := OpenConfig[*ConmConfigWrapper](filename)
 	if err != nil {
 		return Conm{}, err
 	}
 
-	if err := t.Conm.Keybindings.validate(); err != nil {
-		return Conm{}, err
-	}
-
-	t.Conm.complete()
-
-	return t.Conm, nil
+	return c.Get(0), nil
 }

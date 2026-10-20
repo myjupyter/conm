@@ -23,20 +23,20 @@ func Test_newKeymap(t *testing.T) {
 		wantMatchesW     bool
 	}{
 		{
-			name:             "defaults keep the written hints",
+			name:             "defaults",
 			args:             args{settings: config.DefaultKeybindings()},
 			wantUpHint:       "↑/k",
-			wantMoveVertical: "↑↓/jk",
+			wantMoveVertical: "↑↓/k/j",
 		},
 		{
-			name: "an override spells its own hint",
+			name: "an override",
 			args: args{settings: func() config.KeybindingSettings {
 				k := config.DefaultKeybindings()
 				k.Navigation.Up = []string{"up", "w"}
 				return k
 			}()},
 			wantUpHint:       "↑/w",
-			wantMoveVertical: "↑/w ↓/j",
+			wantMoveVertical: "↑↓/w/j",
 			wantMatchesW:     true,
 		},
 	}

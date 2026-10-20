@@ -15,29 +15,27 @@ var keyGlyphs = map[string]string{
 }
 
 type binding struct {
-	keys       []string
-	hint       string
-	overridden bool
+	keys []string
+	hint string
 }
 
-func newBinding(hint string, keys ...string) binding {
-	return binding{keys: keys, hint: hint}
-}
-
-func bind(defaultHint string, keys, defaultKeys []string) binding {
-	if slices.Equal(keys, defaultKeys) {
-		return newBinding(defaultHint, keys...)
-	}
-	return binding{keys: keys, hint: hintOf(keys), overridden: true}
+func newBinding(keys ...string) binding {
+	return binding{keys: keys, hint: hintOf(keys)}
 }
 
 func hintOf(keys []string) string {
+	var arrows strings.Builder
 	spelled := make([]string, 0, len(keys))
 	for _, key := range keys {
 		if glyph, ok := keyGlyphs[key]; ok {
-			key = glyph
+			arrows.WriteString(glyph)
+			continue
 		}
 		spelled = append(spelled, key)
+	}
+
+	if arrows.Len() > 0 {
+		spelled = append([]string{arrows.String()}, spelled...)
 	}
 	return strings.Join(spelled, "/")
 }
@@ -46,20 +44,12 @@ func (b binding) matches(key string) bool {
 	return slices.Contains(b.keys, key)
 }
 
-// merge joins bindings into one that any of their keys triggers, spelled as a
-// single hint: "↑↓/jk" for the pair "↑/k · ↓/j".
-func merge(hint string, binds ...binding) binding {
-	m := binding{hint: hint}
-	hints := make([]string, 0, len(binds))
+func merge(binds ...binding) binding {
+	var keys []string
 	for _, b := range binds {
-		m.keys = append(m.keys, b.keys...)
-		hints = append(hints, b.hint)
-		m.overridden = m.overridden || b.overridden
+		keys = append(keys, b.keys...)
 	}
-	if m.overridden {
-		m.hint = strings.Join(hints, " ")
-	}
-	return m
+	return newBinding(keys...)
 }
 
 type keymap struct {
@@ -114,51 +104,48 @@ type keymap struct {
 var keyMap = newKeymap(config.DefaultKeybindings())
 
 func newKeymap(s config.KeybindingSettings) keymap {
-	d := config.DefaultKeybindings()
-	nav, dnav := s.Navigation, d.Navigation
-	act, dact := s.Action, d.Action
-	scr, dscr := s.Screen, d.Screen
+	nav, act, scr := s.Navigation, s.Action, s.Screen
 
 	k := keymap{
-		Up:          bind("↑/k", nav.Up, dnav.Up),
-		Down:        bind("↓/j", nav.Down, dnav.Down),
-		Left:        bind("←", nav.Left, dnav.Left),
-		Right:       bind("→", nav.Right, dnav.Right),
-		NextSection: bind("tab", nav.NextSection, dnav.NextSection),
-		PrevSection: bind("shift+tab", nav.PrevSection, dnav.PrevSection),
+		Up:          newBinding(nav.Up...),
+		Down:        newBinding(nav.Down...),
+		Left:        newBinding(nav.Left...),
+		Right:       newBinding(nav.Right...),
+		NextSection: newBinding(nav.NextSection...),
+		PrevSection: newBinding(nav.PrevSection...),
 
-		Confirm:   bind("enter", act.Confirm, dact.Confirm),
-		Ping:      bind("p", act.Ping, dact.Ping),
-		Retry:     bind("r", act.Retry, dact.Retry),
-		Add:       bind("a", act.Add, dact.Add),
-		Edit:      bind("e", act.Edit, dact.Edit),
-		Delete:    bind("d", act.Delete, dact.Delete),
-		Secret:    bind("s", act.Secret, dact.Secret),
-		Settings:  bind("ss", act.Settings, dact.Settings),
-		Transport: bind("t", act.Transport, dact.Transport),
-		Search:    bind("/", act.Search, dact.Search),
-		Info:      bind("i", act.Info, dact.Info),
-		Yank:      bind("yy", act.Yank, dact.Yank),
-		Toggle:    bind("space", act.Toggle, dact.Toggle),
-		AddDB:     bind("ctrl+a", act.AddDB, dact.AddDB),
+		Confirm:   newBinding(act.Confirm...),
+		Ping:      newBinding(act.Ping...),
+		Retry:     newBinding(act.Retry...),
+		Add:       newBinding(act.Add...),
+		Edit:      newBinding(act.Edit...),
+		Delete:    newBinding(act.Delete...),
+		Secret:    newBinding(act.Secret...),
+		Setting:   newBinding(act.Settings),
+		Transport: newBinding(act.Transport...),
+		Search:    newBinding(act.Search...),
+		Info:      newBinding(act.Info...),
+		Yank:      newBinding(act.Yank...),
+		Toggle:    newBinding(act.Toggle...),
+		AddDB:     newBinding(act.AddDB...),
 
-		Backspace: bind("backspace", act.Backspace, dact.Backspace),
-		Paste:     bind("ctrl+v", act.Paste, dact.Paste),
+		Backspace: newBinding(act.Backspace...),
+		Paste:     newBinding(act.Paste...),
 
-		Yes: bind("y", act.Yes, dact.Yes),
-		No:  bind("n", act.No, dact.No),
+		Yes: newBinding(act.Yes...),
+		No:  newBinding(act.No...),
 
-		Quit:      bind("q/esc", scr.Quit, dscr.Quit),
-		Interrupt: bind("ctrl+c", scr.Interrupt, dscr.Interrupt),
-		Cancel:    bind("esc", scr.Cancel, dscr.Cancel),
+		Quit:      newBinding(scr.Quit...),
+		Interrupt: newBinding(scr.Interrupt...),
+		Cancel:    newBinding(scr.Cancel...),
 
-		Help: bind("?", scr.Help, dscr.Help),
+		Help: newBinding(scr.Help...),
 	}
 
-	k.MoveVertical = merge("↑↓/jk", k.Up, k.Down)
-	k.Cycle = merge("←/→", k.Left, k.Right)
-	k.SwitchKind = merge("tab/←→/hl", k.NextSection, k.PrevSection, k.Left, k.Right)
-	k.Back = merge("i/q/esc", k.Info, k.Quit)
+	k.MoveVertical = merge(k.Up, k.Down)
+	k.Cycle = merge(k.Left, k.Right)
+	k.SwitchKind = merge(k.NextSection, k.PrevSection, k.Left, k.Right)
+	k.Back = merge(k.Info, k.Quit)
 
 	return k
 }
