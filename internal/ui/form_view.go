@@ -8,6 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
@@ -246,10 +248,10 @@ func selectSpans(value string, options []string, missing, active bool, borderFg,
 	if value == "" {
 		value = gEmpty
 	}
-	mid := max(formBoxW-8-len([]rune(pos)), 0)
+	mid := max(formBoxW-8-ansi.StringWidth(pos), 0)
 	value = truncPad(value, mid, false)
-	left := max((mid-len([]rune(value)))/2, 0)
-	right := max(mid-left-len([]rune(value)), 0)
+	left := max((mid-ansi.StringWidth(value))/2, 0)
+	right := max(mid-left-ansi.StringWidth(value), 0)
 
 	valFg, posFg := cValue, cMuted
 	if missing {
@@ -344,7 +346,7 @@ func (m formModel) messageRow(i int) string {
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
 	return frameLine(formInner, []span{
 		{text: prefix, fg: cDim, bg: bg},
-		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: col, bg: bg},
+		{text: truncPad(text, formInner-ansi.StringWidth(prefix)-2, false), fg: col, bg: bg},
 	}, bg)
 }
 

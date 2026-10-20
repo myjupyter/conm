@@ -6,6 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -142,7 +144,7 @@ func (m initModel) clientSpans(db config.ConnectionSettings, sel bool, bg color.
 		}
 
 		spans = append(spans, span{text: text, fg: fg, bg: bg, bold: cli.Name == db.CLI})
-		used += len([]rune(text))
+		used += ansi.StringWidth(text)
 	}
 
 	return append(spans, span{text: strings.Repeat(" ", max(wInitClient+1-used, 1)), bg: bg})

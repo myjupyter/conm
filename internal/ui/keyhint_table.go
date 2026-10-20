@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/myjupyter/conm/internal/i18n"
 
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -58,7 +60,7 @@ func keyhintPrompt(w int, f keyhintFooter) string {
 			used += s.width()
 		}
 		spans = append(spans,
-			span{text: strings.Repeat(" ", max(w-used-len([]rune(f.pos))-1, 0)), fg: cDim},
+			span{text: strings.Repeat(" ", max(w-used-ansi.StringWidth(f.pos)-1, 0)), fg: cDim},
 			span{text: f.pos + " ", fg: cMuted},
 		)
 	}
@@ -135,7 +137,7 @@ func keyhintTable(w int, groups []keyhintGroup) []string {
 	keyW := 0
 	for _, g := range groups {
 		for _, b := range g.binds {
-			keyW = max(keyW, len([]rune(b.key)))
+			keyW = max(keyW, ansi.StringWidth(b.key))
 		}
 	}
 

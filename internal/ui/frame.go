@@ -5,6 +5,8 @@ import (
 	"image/color"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/myjupyter/conm/internal/i18n"
 
 	"charm.land/lipgloss/v2"
@@ -63,7 +65,7 @@ func (s span) render() string {
 	return st.Render(s.text)
 }
 
-func (s span) width() int { return len([]rune(s.text)) }
+func (s span) width() int { return ansi.StringWidth(s.text) }
 
 // border paints box-drawing runes in the frame's own colour.
 func border(s string) string {
@@ -76,18 +78,18 @@ func truncPad(s string, w int, right bool) string {
 	if w <= 0 {
 		return ""
 	}
-	r := []rune(s)
-	switch {
-	case len(r) > w:
+	if ansi.StringWidth(s) > w {
+		tail := gEllipsis
 		if w == 1 {
-			return string(r[:1])
+			tail = ""
 		}
-		return string(r[:w-1]) + gEllipsis
-	case right:
-		return strings.Repeat(" ", w-len(r)) + s
-	default:
-		return s + strings.Repeat(" ", w-len(r))
+		s = ansi.Truncate(s, w, tail)
 	}
+	pad := strings.Repeat(" ", w-ansi.StringWidth(s))
+	if right {
+		return pad + s
+	}
+	return s + pad
 }
 
 // frameTop draws the top border with the app name, the screen's breadcrumb on
@@ -99,7 +101,7 @@ func frameTop(w int, crumb, right string) string {
 		{text: " · " + crumb + " ", fg: cDim},
 	}
 
-	used := len([]rune(right))
+	used := ansi.StringWidth(right)
 	for _, s := range left {
 		used += s.width()
 	}
@@ -173,7 +175,7 @@ func frameBadge(w int, label string, labelBg color.Color, title string) string {
 // frameStatus draws the status line: a glyph, a message truncated to fit, and
 // a position counter pinned to the right border.
 func frameStatus(w int, icon string, fg color.Color, text, pos string) string {
-	textW := max(w-4-len([]rune(pos)), 0)
+	textW := max(w-4-ansi.StringWidth(pos), 0)
 	return frameLine(w, []span{
 		{text: " ", fg: cDim},
 		{text: icon, fg: fg},
@@ -222,7 +224,7 @@ func frameKeybar(w int, binds []keybind) []string {
 			sep = ""
 		}
 		seg := b.key + " " + b.label + sep
-		if used+len([]rune(seg)) > w && len(spans) > 1 {
+		if used+ansi.StringWidth(seg) > w && len(spans) > 1 {
 			lines = append(lines, frameLine(w, spans, nil))
 			spans = newLine()
 			used = 1
@@ -231,7 +233,7 @@ func frameKeybar(w int, binds []keybind) []string {
 			span{text: b.key, fg: cFg, bold: true},
 			span{text: " " + b.label + sep, fg: cDim},
 		)
-		used += len([]rune(seg))
+		used += ansi.StringWidth(seg)
 	}
 	return append(lines, frameLine(w, spans, nil))
 }
@@ -242,18 +244,18 @@ func frameSearch(w int, query string, typing bool) string {
 		cursor = gInputCursor
 	}
 
-	room := max(w-3-len([]rune(keyMap.Search.hint)), 0)
-	shown := []rune(query)
-	if len(shown) > room {
-		shown = shown[len(shown)-room:]
+	room := max(w-3-ansi.StringWidth(keyMap.Search.hint), 0)
+	shown := query
+	if overflow := ansi.StringWidth(query) - room; overflow > 0 {
+		shown = ansi.TruncateLeft(query, overflow, "")
 	}
 
 	return frameLine(w, []span{
 		{text: "  ", fg: cDim},
 		{text: keyMap.Search.hint, fg: cAccent, bold: true},
-		{text: string(shown), fg: cFg},
+		{text: shown, fg: cFg},
 		{text: cursor, fg: cAccent},
-		{text: strings.Repeat(" ", room-len(shown)), fg: cDim},
+		{text: strings.Repeat(" ", max(room-ansi.StringWidth(shown), 0)), fg: cDim},
 	}, nil)
 }
 
@@ -328,6 +330,14 @@ func frameErrKVWrapped(w int, label, value string, valColor color.Color) []strin
 	return lines
 }
 
+func cutCells(s string, w int) (head, rest string) {
+	head = ansi.Truncate(s, w, "")
+	if head == "" {
+		head = string([]rune(s)[:1])
+	}
+	return head, s[len(head):]
+}
+
 func wrapText(s string, w int) []string {
 	if w <= 0 {
 		return []string{s}
@@ -337,19 +347,19 @@ func wrapText(s string, w int) []string {
 	for paragraph := range strings.SplitSeq(s, "\n") {
 		row := ""
 		for word := range strings.FieldsSeq(paragraph) {
-			for len([]rune(word)) > w {
+			for ansi.StringWidth(word) > w {
 				if row != "" {
 					rows = append(rows, row)
 					row = ""
 				}
-				runes := []rune(word)
-				rows = append(rows, string(runes[:w]))
-				word = string(runes[w:])
+				var head string
+				head, word = cutCells(word, w)
+				rows = append(rows, head)
 			}
 			switch {
 			case row == "":
 				row = word
-			case len([]rune(row))+1+len([]rune(word)) <= w:
+			case ansi.StringWidth(row)+1+ansi.StringWidth(word) <= w:
 				row += " " + word
 			default:
 				rows = append(rows, row)
@@ -400,15 +410,15 @@ func frameSelectBox(w int, s selectBox, bg color.Color) []span {
 	}
 
 	pos := fmt.Sprintf("%d/%d", s.at, s.n)
-	mid := max(w-8-len([]rune(pos)), 0)
-	value := truncPad(s.value, min(len([]rune(s.value)), mid), false)
-	left := (mid - len([]rune(value))) / 2
+	mid := max(w-8-ansi.StringWidth(pos), 0)
+	value := truncPad(s.value, min(ansi.StringWidth(s.value), mid), false)
+	left := (mid - ansi.StringWidth(value)) / 2
 
 	return []span{
 		{text: gLineV + " " + gSelectPrev + " ", fg: borderFg, bg: bg},
 		{text: strings.Repeat(" ", left), bg: bg},
 		{text: value, fg: valFg, bg: bg, bold: true},
-		{text: strings.Repeat(" ", mid-left-len([]rune(value))), bg: bg},
+		{text: strings.Repeat(" ", mid-left-ansi.StringWidth(value)), bg: bg},
 		{text: pos + " ", fg: posFg, bg: bg},
 		{text: gSelectNext + " " + gLineV, fg: borderFg, bg: bg},
 	}
