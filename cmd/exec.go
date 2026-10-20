@@ -6,13 +6,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui"
 )
 
 func execConnectionCmd(t config.ConnType) *cobra.Command {
 	return &cobra.Command{
 		Use:   "exec <name> -- <query>",
-		Short: fmt.Sprintf("Run a single query on a %s connection", t),
+		Short: i18n.Sprintf("Run a single query on a %s connection", t),
 		Long: fmt.Sprintf(`Run a single query on a %[1]s connection.
 
 The query goes to the client picked for %[1]s, which prints its result on

@@ -6,13 +6,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui"
 )
 
 func editConnectionCmd(t config.ConnType) *cobra.Command {
 	return &cobra.Command{
 		Use:   "edit <name>",
-		Short: fmt.Sprintf("Edit a %s connection", t),
+		Short: i18n.Sprintf("Edit a %s connection", t),
 		Long: fmt.Sprintf(`Edit a %[1]s connection.
 
 It opens the edit form of the %[1]s connection with that name; a saved
