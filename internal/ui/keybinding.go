@@ -1,28 +1,98 @@
 package ui
 
-import "slices"
+import (
+	"slices"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/myjupyter/conm/internal/config"
+)
+
+var keyGlyphs = map[string]string{
+	"up":    "↑",
+	"down":  "↓",
+	"left":  "←",
+	"right": "→",
+}
 
 type binding struct {
 	keys []string
 	hint string
 }
 
-func newBinding(hint string, keys ...string) binding {
-	return binding{keys: keys, hint: hint}
+func newBinding(keys ...string) binding {
+	strokes := make([]string, 0, len(keys))
+	for _, key := range keys {
+		strokes = append(strokes, keystroke(key))
+	}
+	return binding{keys: strokes, hint: hintOf(strokes)}
+}
+
+func keystroke(raw string) string {
+	key, err := config.ParseKey(raw)
+	if err != nil {
+		return raw
+	}
+
+	if key.Shift && !key.Ctrl && !key.Alt && utf8.RuneCountInString(key.Name) == 1 {
+		return strings.ToUpper(key.Name)
+	}
+
+	var stroke strings.Builder
+	if key.Ctrl {
+		stroke.WriteString("ctrl+")
+	}
+	if key.Alt {
+		stroke.WriteString("alt+")
+	}
+	if key.Shift {
+		stroke.WriteString("shift+")
+	}
+	stroke.WriteString(key.Name)
+	return stroke.String()
+}
+
+func hintOf(keys []string) string {
+	var arrows strings.Builder
+	spelled := make([]string, 0, len(keys))
+	for _, key := range keys {
+		if glyph, ok := keyGlyphs[key]; ok {
+			arrows.WriteString(glyph)
+			continue
+		}
+		spelled = append(spelled, key)
+	}
+
+	if arrows.Len() > 0 {
+		spelled = append([]string{arrows.String()}, spelled...)
+	}
+	return strings.Join(spelled, "/")
+}
+
+func pressedTwice(b binding) binding {
+	hints := make([]string, 0, len(b.keys))
+	for _, key := range b.keys {
+		once := hintOf([]string{key})
+		if utf8.RuneCountInString(once) == 1 {
+			hints = append(hints, once+once)
+		} else {
+			hints = append(hints, once+" "+once)
+		}
+	}
+	b.hint = strings.Join(hints, "/")
+	return b
 }
 
 func (b binding) matches(key string) bool {
 	return slices.Contains(b.keys, key)
 }
 
-// merge joins bindings into one that any of their keys triggers, spelled as a
-// single hint: "↑↓/jk" for the pair "↑/k · ↓/j".
-func merge(hint string, binds ...binding) binding {
-	m := binding{hint: hint}
+func merge(binds ...binding) binding {
+	var keys []string
 	for _, b := range binds {
-		m.keys = append(m.keys, b.keys...)
+		keys = append(keys, b.keys...)
 	}
-	return m
+	return newBinding(keys...)
 }
 
 type keymap struct {
@@ -73,48 +143,50 @@ type keymap struct {
 	Back         binding
 }
 
-var keyMap = defaultKeymap()
+var keyMap = newKeymap(config.DefaultKeybindings())
 
-func defaultKeymap() keymap {
+func newKeymap(s config.KeybindingSettings) keymap {
+	nav, act, scr := s.Navigation, s.Action, s.Screen
+
 	k := keymap{
-		Up:          newBinding("↑/k", "up", "k"),
-		Down:        newBinding("↓/j", "down", "j"),
-		Left:        newBinding("←", "left", "h"),
-		Right:       newBinding("→", "right", "l"),
-		NextSection: newBinding("tab", "tab"),
-		PrevSection: newBinding("shift+tab", "shift+tab"),
+		Up:          newBinding(nav.Up...),
+		Down:        newBinding(nav.Down...),
+		Left:        newBinding(nav.Left...),
+		Right:       newBinding(nav.Right...),
+		NextSection: newBinding(nav.NextSection...),
+		PrevSection: newBinding(nav.PrevSection...),
 
-		Confirm:   newBinding("enter", "enter"),
-		Ping:      newBinding("p", "p"),
-		Retry:     newBinding("r", "r", "R"),
-		Add:       newBinding("a", "a"),
-		Edit:      newBinding("e", "e"),
-		Delete:    newBinding("d", "d"),
-		Secret:    newBinding("s", "s"),
-		Transport: newBinding("t", "t"),
-		Search:    newBinding("/", "/"),
-		Info:      newBinding("i", "i"),
-		Yank:      newBinding("yy", "y"),
-		Toggle:    newBinding("space", "space"),
-		AddDB:     newBinding("ctrl+a", "ctrl+a"),
+		Confirm:   newBinding(act.Confirm...),
+		Ping:      newBinding(act.Ping...),
+		Retry:     newBinding(act.Retry...),
+		Add:       newBinding(act.Add...),
+		Edit:      newBinding(act.Edit...),
+		Delete:    newBinding(act.Delete...),
+		Secret:    newBinding(act.Secret...),
+		Transport: newBinding(act.Transport...),
+		Search:    newBinding(act.Search...),
+		Info:      newBinding(act.Info...),
+		Yank:      pressedTwice(newBinding(act.Yank...)),
+		Toggle:    newBinding(act.Toggle...),
+		AddDB:     newBinding(act.AddDB...),
 
-		Backspace: newBinding("backspace", "backspace"),
-		Paste:     newBinding("ctrl+v", "ctrl+v"),
+		Backspace: newBinding(act.Backspace...),
+		Paste:     newBinding(act.Paste...),
 
-		Yes: newBinding("y", "y"),
-		No:  newBinding("n", "n", "esc"),
+		Yes: newBinding(act.Yes...),
+		No:  newBinding(act.No...),
 
-		Quit:      newBinding("q/esc", "ctrl+c", "q", "esc"),
-		Interrupt: newBinding("ctrl+c", "ctrl+c"),
-		Cancel:    newBinding("esc", "esc"),
+		Quit:      newBinding(scr.Quit...),
+		Interrupt: newBinding(scr.Interrupt...),
+		Cancel:    newBinding(scr.Cancel...),
 
-		Help: newBinding("?", "?"),
+		Help: newBinding(scr.Help...),
 	}
 
-	k.MoveVertical = merge("↑↓/jk", k.Up, k.Down)
-	k.Cycle = merge("←/→", k.Left, k.Right)
-	k.SwitchKind = merge("tab/←→/hl", k.NextSection, k.PrevSection, k.Left, k.Right)
-	k.Back = merge("i/q/esc", k.Info, k.Quit)
+	k.MoveVertical = merge(k.Up, k.Down)
+	k.Cycle = merge(k.Left, k.Right)
+	k.SwitchKind = merge(k.NextSection, k.PrevSection, k.Left, k.Right)
+	k.Back = merge(k.Info, k.Quit)
 
 	return k
 }

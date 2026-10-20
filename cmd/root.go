@@ -18,12 +18,12 @@ var rootCmd = &cobra.Command{
 	Version:       version(),
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
+		conm, err := config.ReadConm(config.ConmPath())
 		if err != nil {
 			return err
 		}
 
-		return ui.Run(c.Get(0))
+		return ui.Run(conm)
 	},
 }
 

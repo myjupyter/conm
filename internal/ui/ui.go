@@ -21,6 +21,8 @@ func Run(cfg config.Conm) error {
 
 func RunOn(cfg config.Conm, active config.ConnType) error {
 	for {
+		keyMap = newKeymap(cfg.Keybindings)
+
 		if enabledConnections(cfg) == 0 {
 			return RunInit()
 		}

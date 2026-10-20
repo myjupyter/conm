@@ -22,6 +22,7 @@ func RunInit() error {
 	if err != nil {
 		return err
 	}
+	keyMap = newKeymap(conm.Keybindings)
 
 	m, err := tea.NewProgram(newInitModel(conm)).Run()
 	if err != nil {
@@ -40,12 +41,7 @@ func RunInit() error {
 }
 
 func readConm() (config.Conm, error) {
-	c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
-	if err != nil {
-		return config.Conm{}, err
-	}
-
-	return c.Get(0), nil
+	return config.ReadConm(config.ConmPath())
 }
 
 func runDatabaseTable() (config.ConnType, bool, error) {
