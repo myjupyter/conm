@@ -31,6 +31,7 @@ const (
 
 type Conm struct {
 	Connections []ConnectionSettings `toml:"connection"`
+	Keybindings KeybindingSettings   `toml:"keybinding"`
 }
 
 type ConnectionSettings struct {
@@ -61,6 +62,11 @@ func (c *Conm) SetConnection(s ConnectionSettings) {
 	}
 
 	c.Connections = append(c.Connections, s)
+}
+
+func (c *Conm) complete() {
+	c.Connections = withKnownTypes(c.Connections)
+	c.Keybindings.fillDefaults()
 }
 
 func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {
@@ -159,7 +165,7 @@ func (w *ConmConfigWrapper) ConnectionConfigs() []Connection {
 func (w *ConmConfigWrapper) Remove(_ int) {}
 
 func (w *ConmConfigWrapper) Validate() {
-	w.Conm.Connections = withKnownTypes(w.Conm.Connections)
+	w.Conm.complete()
 }
 
 func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
@@ -167,7 +173,11 @@ func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
 		return nil
 	}
 
-	return toml.Unmarshal(data, w)
+	if err := toml.Unmarshal(data, w); err != nil {
+		return err
+	}
+
+	return w.Conm.Keybindings.validate()
 }
 
 func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
@@ -200,7 +210,11 @@ func ReadConm(filename string) (Conm, error) {
 		return Conm{}, err
 	}
 
-	t.Conm.Connections = withKnownTypes(t.Conm.Connections)
+	if err := t.Conm.Keybindings.validate(); err != nil {
+		return Conm{}, err
+	}
+
+	t.Conm.complete()
 
 	return t.Conm, nil
 }
