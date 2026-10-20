@@ -3,6 +3,7 @@ package ui
 import (
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -20,7 +21,35 @@ type binding struct {
 }
 
 func newBinding(keys ...string) binding {
-	return binding{keys: keys, hint: hintOf(keys)}
+	strokes := make([]string, 0, len(keys))
+	for _, key := range keys {
+		strokes = append(strokes, keystroke(key))
+	}
+	return binding{keys: strokes, hint: hintOf(strokes)}
+}
+
+func keystroke(raw string) string {
+	key, err := config.ParseKey(raw)
+	if err != nil {
+		return raw
+	}
+
+	if key.Shift && !key.Ctrl && !key.Alt && utf8.RuneCountInString(key.Name) == 1 {
+		return strings.ToUpper(key.Name)
+	}
+
+	var stroke strings.Builder
+	if key.Ctrl {
+		stroke.WriteString("ctrl+")
+	}
+	if key.Alt {
+		stroke.WriteString("alt+")
+	}
+	if key.Shift {
+		stroke.WriteString("shift+")
+	}
+	stroke.WriteString(key.Name)
+	return stroke.String()
 }
 
 func hintOf(keys []string) string {
@@ -38,6 +67,20 @@ func hintOf(keys []string) string {
 		spelled = append([]string{arrows.String()}, spelled...)
 	}
 	return strings.Join(spelled, "/")
+}
+
+func pressedTwice(b binding) binding {
+	hints := make([]string, 0, len(b.keys))
+	for _, key := range b.keys {
+		once := hintOf([]string{key})
+		if utf8.RuneCountInString(once) == 1 {
+			hints = append(hints, once+once)
+		} else {
+			hints = append(hints, once+" "+once)
+		}
+	}
+	b.hint = strings.Join(hints, "/")
+	return b
 }
 
 func (b binding) matches(key string) bool {
@@ -125,7 +168,7 @@ func newKeymap(s config.KeybindingSettings) keymap {
 		Transport: newBinding(act.Transport...),
 		Search:    newBinding(act.Search...),
 		Info:      newBinding(act.Info...),
-		Yank:      newBinding(act.Yank...),
+		Yank:      pressedTwice(newBinding(act.Yank...)),
 		Toggle:    newBinding(act.Toggle...),
 		AddDB:     newBinding(act.AddDB...),
 
