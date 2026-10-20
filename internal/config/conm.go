@@ -177,6 +177,7 @@ func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
 		return err
 	}
 
+	w.Conm.complete()
 	return w.Conm.Keybindings.validate()
 }
 

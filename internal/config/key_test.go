@@ -68,6 +68,12 @@ func Test_validateKey(t *testing.T) {
 func TestKeybindingSettings_validate(t *testing.T) {
 	t.Parallel()
 
+	withKeybindings := func(override func(*KeybindingSettings)) KeybindingSettings {
+		k := DefaultKeybindings()
+		override(&k)
+		return k
+	}
+
 	tests := []struct {
 		name     string
 		settings KeybindingSettings
@@ -80,13 +86,39 @@ func TestKeybindingSettings_validate(t *testing.T) {
 		},
 		{
 			name: "unknown key names its field",
-			settings: func() KeybindingSettings {
-				k := DefaultKeybindings()
+			settings: withKeybindings(func(k *KeybindingSettings) {
 				k.Navigation.Up = []string{"up", "skdfjs;adjf"}
-				return k
-			}(),
+			}),
 			wantErr:  errUnknownKey,
-			wantPath: "conm.keybinding.navigation.up",
+			wantPath: keybindingPathPrefix + navigationUpPath,
+		},
+		{
+			name: "two actions share a key",
+			settings: withKeybindings(func(k *KeybindingSettings) {
+				k.Action.Ping = []string{"d"}
+			}),
+			wantErr:  errSharedKey,
+			wantPath: keybindingPathPrefix + actionDeletePath,
+		},
+		{
+			name: "an action shares a key with navigation",
+			settings: withKeybindings(func(k *KeybindingSettings) {
+				k.Action.Ping = []string{"j"}
+			}),
+			wantErr:  errSharedKey,
+			wantPath: keybindingPathPrefix + actionPingPath,
+		},
+		{
+			name: "a pair that may share keys",
+			settings: withKeybindings(func(k *KeybindingSettings) {
+				k.Screen.Cancel = []string{"esc", "q"}
+			}),
+		},
+		{
+			name: "a key repeated within one field",
+			settings: withKeybindings(func(k *KeybindingSettings) {
+				k.Action.Ping = []string{"p", "p"}
+			}),
 		},
 	}
 	for _, tt := range tests {

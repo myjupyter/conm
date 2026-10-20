@@ -68,6 +68,11 @@ func TestReadConm(t *testing.T) {
 			wantKeybindings: DefaultKeybindings(),
 		},
 		{
+			name:    "key shared with a default is refused",
+			args:    args{toml: "[conm.keybinding.action]\nping = [\"d\"]\n"},
+			wantErr: errSharedKey,
+		},
+		{
 			name:    "unknown key is refused",
 			args:    args{toml: "[conm.keybinding.navigation]\nup = [\"up\", \"skdfjs;adjf\"]\n"},
 			wantErr: errUnknownKey,
