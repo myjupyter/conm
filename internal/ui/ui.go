@@ -2,8 +2,11 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/myjupyter/conm/internal/i18n"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -157,7 +160,7 @@ func openConnections(conm config.Conm, t config.ConnType) (*repository.Workspace
 	repo, ok := ws.ConnectionsOf(t)
 	if !ok {
 		_ = ws.Close()
-		return nil, nil, fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
+		return nil, nil, errors.New(i18n.Sprintf("%q is not enabled\nrun 'conm add' to enable it", t))
 	}
 
 	return ws, repo, nil
@@ -174,5 +177,5 @@ func namedConnection(repo repository.Connections, name string) (int, config.Conn
 }
 
 func noConnectionNamed(repo repository.Connections, name string) error {
-	return fmt.Errorf("no %s connection named %q", repo.Kind(), name)
+	return errors.New(i18n.Sprintf("no %s connection named %q", repo.Kind(), name))
 }

@@ -139,7 +139,7 @@ func TestTransportFormModel_submit(t *testing.T) {
 				values:  formValues{"name": "prod", spec.TransportViaKey: "old-bastion"},
 				sources: spec.Sources{"ssh": {"bastion"}},
 			},
-			wantStatus: "1 field need attention",
+			wantStatus: "1 field needs attention",
 		},
 		{
 			name: "a name is required",
@@ -147,7 +147,7 @@ func TestTransportFormModel_submit(t *testing.T) {
 				values:  formValues{spec.TransportViaKey: "bastion"},
 				sources: spec.Sources{"ssh": {"bastion"}},
 			},
-			wantStatus: "1 field need attention",
+			wantStatus: "1 field needs attention",
 		},
 	}
 	for _, tt := range tests {

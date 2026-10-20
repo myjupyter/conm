@@ -1,11 +1,12 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const (
@@ -22,7 +23,7 @@ func (m infoModel) View() tea.View {
 
 func (m infoModel) render() string {
 	lines := []string{
-		frameTop(infoInner, "connection info", ""),
+		frameTop(infoInner, i18n.Sprintf("connection info"), ""),
 		m.titleLine(),
 		frameRule(infoInner, gTeeL, gTeeR),
 		m.infoTabsLine(),
@@ -127,9 +128,9 @@ func infoRowLine(r infoRow, chunk string, first, on bool) string {
 }
 
 func infoHintSpans(r infoRow, valueWidth int, bg color.Color) []span {
-	hint := keyMap.Yank.hint + " yanks"
+	hint := i18n.Sprintf("%s yanks", keyMap.Yank.hint)
 	if r.link {
-		hint = keyMap.Confirm.hint + " opens · " + hint
+		hint = i18n.Sprintf("%s opens · %s", keyMap.Confirm.hint, hint)
 	}
 
 	pad := infoInner - 4 - wInfoLbl - valueWidth - len([]rune(hint)) - 1
@@ -160,10 +161,10 @@ func wrapValue(s string, w int) []string {
 func scrollNote(above, below int) string {
 	var parts []string
 	if above > 0 {
-		parts = append(parts, fmt.Sprintf("%s %d above", gScrollUp, above))
+		parts = append(parts, i18n.Sprintf("%s %d above", gScrollUp, above))
 	}
 	if below > 0 {
-		parts = append(parts, fmt.Sprintf("%s %d below", gScrollDown, below))
+		parts = append(parts, i18n.Sprintf("%s %d below", gScrollDown, below))
 	}
 
 	return strings.Join(parts, " · ")

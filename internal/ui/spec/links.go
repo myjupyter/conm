@@ -5,15 +5,13 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const (
 	linkKeyPrefix  = "link."
 	linkNameSuffix = ".name"
 	linkURLSuffix  = ".url"
-
-	linkNameLabel = "name"
-	linkURLLabel  = "url"
 
 	linkNameExample = "grafana"
 	linkURLExample  = "https://grafana.internal/d/db"
@@ -70,7 +68,7 @@ func LinkCount(values map[FormFieldKey]FormFieldValue) int {
 func LinkNameField(i int) FormField {
 	return FormField{
 		Key:      LinkNameKey(i),
-		Label:    linkNameLabel,
+		Label:    i18n.Sprintf("name"),
 		Example:  linkNameExample,
 		Property: OptionalFieldProperty,
 	}
@@ -79,7 +77,7 @@ func LinkNameField(i int) FormField {
 func LinkURLField(i int) FormField {
 	return FormField{
 		Key:      LinkURLKey(i),
-		Label:    linkURLLabel,
+		Label:    i18n.Sprintf("url"),
 		Example:  linkURLExample,
 		Property: OptionalFieldProperty,
 	}

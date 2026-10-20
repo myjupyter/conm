@@ -2,21 +2,20 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 )
 
 const (
-	mysqlExampleHost        = "localhost"
-	mysqlExamplePort        = "3306"
-	mysqlExampleUsername    = "root"
-	mysqlExampleDatabase    = "app"
-	mysqlExampleName        = "prod-primary"
-	mysqlExampleDescription = "Production primary database"
-	mysqlExampleTags        = "prod,eu-west,primary"
+	mysqlExampleHost     = "localhost"
+	mysqlExamplePort     = "3306"
+	mysqlExampleUsername = "root"
+	mysqlExampleDatabase = "app"
+	mysqlExampleName     = "prod-primary"
+	mysqlExampleTags     = "prod,eu-west,primary"
 )
 
 const mysqlDefaultPort = 3306
@@ -44,13 +43,13 @@ var MySQLTLSModesOrder = []config.MySQLTLSMode{
 var MySQLFormFields = []FormField{
 	{
 		Key:          strings.ToLower(mysqlFormFieldHost),
-		Label:        mysqlFormFieldHost,
+		Label:        i18n.Sprintf("Host"),
 		Example:      mysqlExampleHost,
 		ValidateFunc: config.ValidateMySQLHost,
 	},
 	{
 		Key:          strings.ToLower(mysqlFormFieldPort),
-		Label:        mysqlFormFieldPort,
+		Label:        i18n.Sprintf("Port"),
 		Example:      mysqlExamplePort,
 		Kind:         IntFieldKind,
 		Property:     OptionalFieldProperty,
@@ -61,14 +60,14 @@ var MySQLFormFields = []FormField{
 			}
 			port, err := strconv.Atoi(value)
 			if err != nil {
-				return errors.New("port must be a number")
+				return errors.New(i18n.Sprintf("port must be a number"))
 			}
 			return config.ValidateMySQLPort(port)
 		},
 	},
 	{
 		Key:          strings.ToLower(mysqlFormFieldUsername),
-		Label:        mysqlFormFieldUsername,
+		Label:        i18n.Sprintf("Username"),
 		Example:      mysqlExampleUsername,
 		ValidateFunc: config.ValidateMySQLUsername,
 	},
@@ -76,13 +75,13 @@ var MySQLFormFields = []FormField{
 	passwordField,
 	{
 		Key:          strings.ToLower(mysqlFormFieldDatabase),
-		Label:        mysqlFormFieldDatabase,
+		Label:        i18n.Sprintf("Database"),
 		Example:      mysqlExampleDatabase,
 		ValidateFunc: config.ValidateMySQLDatabase,
 	},
 	{
 		Key:          strings.ToLower(mysqlFormFieldTLSMode),
-		Label:        mysqlFormFieldTLSMode,
+		Label:        i18n.Sprintf("TLS"),
 		Kind:         SelectFieldKind,
 		DefaultValue: config.MySQLTLSModePreferred,
 		Options:      MySQLTLSModesOrder,
@@ -90,26 +89,26 @@ var MySQLFormFields = []FormField{
 	},
 	{
 		Key:          strings.ToLower(mysqlFormFieldName),
-		Label:        mysqlFormFieldName,
+		Label:        i18n.Sprintf("Name"),
 		Example:      mysqlExampleName,
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateMySQLName,
 	},
 	{
 		Key:          strings.ToLower(mysqlFormFieldDescription),
-		Label:        mysqlFormFieldDescription,
-		Example:      mysqlExampleDescription,
+		Label:        i18n.Sprintf("Description"),
+		Example:      i18n.Sprintf("Production primary database"),
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateMySQLDescription,
 	},
 	{
 		Key:      strings.ToLower(mysqlFormFieldTags),
-		Label:    mysqlFormFieldTags,
+		Label:    i18n.Sprintf("Tags"),
 		Example:  mysqlExampleTags,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
+				return errors.New(i18n.Sprintf("tags must be at most %d characters long", tagsMaxLength))
 			}
 			return nil
 		},
@@ -119,8 +118,8 @@ var MySQLFormFields = []FormField{
 }
 
 var MySQLFormSpec = FormSpec[config.Connection]{
-	AddTitle:  "Add a new MySQL connection",
-	EditTitle: "Edit a MySQL connection",
+	AddTitle:  i18n.Sprintf("Add a new MySQL connection"),
+	EditTitle: i18n.Sprintf("Edit a MySQL connection"),
 	Fields:    MySQLFormFields,
 	Sections: []FormSection{
 		{

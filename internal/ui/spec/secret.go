@@ -3,6 +3,7 @@ package spec
 import (
 	"slices"
 
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/secret"
 )
 
@@ -33,7 +34,7 @@ var SecretProvidersOrder = []string{
 var (
 	secretProviderField = FormField{
 		Key:          secretNestedFormFieldSecretProvider,
-		Label:        secretNestedFormFieldSecretProvider,
+		Label:        i18n.Sprintf("provider"),
 		Kind:         SelectFieldKind,
 		DefaultValue: secret.Literal,
 		Options:      SecretProvidersOrder,
@@ -41,7 +42,7 @@ var (
 
 	passwordField = FormField{
 		Key:      SecretValueKey,
-		Label:    postgresFormFieldPassword,
+		Label:    i18n.Sprintf("Password"),
 		Kind:     HiddenFieldKind,
 		Example:  examplePassword,
 		Property: OptionalFieldProperty,

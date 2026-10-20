@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -17,7 +18,7 @@ func (m initFormModel) View() tea.View {
 
 func (m initFormModel) render() string {
 	lines := []string{
-		frameTop(formInner, "database availability", ""),
+		frameTop(formInner, i18n.Sprintf("database availability"), ""),
 		frameBadge(formInner, m.kind.String(), typeColor(m.kind), m.spec.EditTitle),
 		m.initFormNoteLine(),
 		frameLine(formInner, nil, nil),

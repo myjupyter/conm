@@ -1,13 +1,13 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -30,7 +30,7 @@ func (m initModel) render() string {
 	n := len(m.dbs)
 
 	lines := []string{
-		frameTop(initInner, m.initCrumb(), fmt.Sprintf(" %d of %d enabled "+gLineH, m.enabledCount(), n)),
+		frameTop(initInner, m.initCrumb(), " "+i18n.Sprintf("%d of %d enabled", m.enabledCount(), n)+" "+gLineH),
 		frameLine(initInner, []span{
 			{text: "  ", fg: cDim},
 			{text: m.initIntro(), fg: cFg},
@@ -52,31 +52,31 @@ func (m initModel) render() string {
 func (m initModel) initCrumb() string {
 	switch {
 	case m.adding:
-		return "add a database"
+		return i18n.Sprintf("add a database")
 	case m.enabledCount() == 0:
-		return "first run"
+		return i18n.Sprintf("first run")
 	default:
-		return "databases"
+		return i18n.Sprintf("databases")
 	}
 }
 
 func (m initModel) initIntro() string {
 	switch {
 	case m.adding:
-		return "add another database · " + keyMap.Toggle.hint + " to enable it"
+		return i18n.Sprintf("add another database · %s to enable it", keyMap.Toggle.hint)
 	case m.enabledCount() == 0:
-		return "no database enabled yet — pick the one you are connecting to"
+		return i18n.Sprintf("no database enabled yet — pick the one you are connecting to")
 	default:
-		return "the databases conm manages · " + keyMap.Edit.hint + " to change one"
+		return i18n.Sprintf("the databases conm manages · %s to change one", keyMap.Edit.hint)
 	}
 }
 
 func (m initModel) initHeaderLine() string {
 	return frameLine(initInner, []span{
 		{text: truncPad("", wMark, false), fg: cDim},
-		{text: " " + truncPad("DATABASE", wInitType, false), fg: cDim},
-		{text: " " + truncPad("CLIENTS", wInitClient, false), fg: cDim},
-		{text: " " + truncPad("STATE", wInitState, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("DATABASE"), wInitType, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("CLIENTS"), wInitClient, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("STATE"), wInitState, false), fg: cDim},
 	}, nil)
 }
 

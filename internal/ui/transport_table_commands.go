@@ -2,12 +2,13 @@ package ui
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/secret"
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -21,7 +22,7 @@ func (m transportModel) formContext() transportFormContext {
 		pingVia: func(ctx context.Context, name string) (network.PingResult, error) {
 			cfg, ok := conns.Named(config.SSHConnType, name)
 			if !ok {
-				return network.PingResult{}, fmt.Errorf("no ssh connection named %q", name)
+				return network.PingResult{}, errors.New(i18n.Sprintf("no ssh connection named %q", name))
 			}
 
 			conn, err := network.NewConnection(cli.Launcher{}, cfg, secret.Default())

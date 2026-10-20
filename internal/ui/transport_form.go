@@ -2,13 +2,13 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
@@ -163,12 +163,12 @@ func (m transportFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 func (m *transportFormModel) edit(cur spec.FormField) {
 	switch {
 	case isSelect(cur) && len(m.options(cur)) > 0:
-		m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
+		m.setStatus(i18n.Sprintf("%s is a list · use %s", strings.ToLower(cur.Label), keyMap.Cycle.hint), kindWarn)
 	case isSelect(cur):
-		m.setStatus(strings.ToLower(cur.Label)+" has no options to pick from", kindWarn)
+		m.setStatus(i18n.Sprintf("%s has no options to pick from", strings.ToLower(cur.Label)), kindWarn)
 	default:
 		m.insert = true
-		m.setStatus("editing "+strings.ToLower(cur.Label)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
+		m.setStatus(i18n.Sprintf("editing %s · %s when done", strings.ToLower(cur.Label), keyMap.Cancel.hint), kindIdle)
 	}
 }
 
@@ -181,13 +181,13 @@ func (m transportFormModel) applyPaste(raw string, err error) transportFormModel
 
 	cur := m.current()
 	if isSelect(cur) {
-		m.setStatus(strings.ToLower(cur.Label)+" is a list · use "+keyMap.Cycle.hint, kindWarn)
+		m.setStatus(i18n.Sprintf("%s is a list · use %s", strings.ToLower(cur.Label), keyMap.Cycle.hint), kindWarn)
 		return m
 	}
 
 	m.insert = true
 	m.vals[cur.Key] += text
-	m.setStatus("pasted · "+keyMap.Cancel.hint+" when done", kindIdle)
+	m.setStatus(i18n.Sprintf("pasted · %s when done", keyMap.Cancel.hint), kindIdle)
 	return m
 }
 
@@ -201,7 +201,7 @@ func (m transportFormModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 		return m, tea.Quit
 	case keyMap.Cancel.matches(key):
 		m.insert = false
-		m.setStatus("done editing · "+keyMap.MoveVertical.hint+" to move", kindIdle)
+		m.setStatus(i18n.Sprintf("done editing · %s to move", keyMap.MoveVertical.hint), kindIdle)
 		return m, nil
 	case keyMap.Confirm.matches(key):
 		m.insert = false
@@ -241,10 +241,10 @@ func (m transportFormModel) fieldError(i int) string {
 	v := strings.TrimSpace(m.vals[f.Key])
 
 	if f.Property == spec.RequiredFieldProperty && v == "" {
-		return strings.ToLower(f.Label) + " is required"
+		return i18n.Sprintf("%s is required", strings.ToLower(f.Label))
 	}
 	if m.isMissing(f) {
-		return v + " is no longer available · pick another with " + keyMap.Cycle.hint
+		return i18n.Sprintf("%s is no longer available · pick another with %s", v, keyMap.Cycle.hint)
 	}
 	if f.ValidateFunc != nil {
 		if err := f.ValidateFunc(v); err != nil {
@@ -269,7 +269,7 @@ func (m transportFormModel) submit() (tea.Model, tea.Cmd) {
 
 	if bad > 0 {
 		m.idx, m.insert = badAt, false
-		m.setStatus(fmt.Sprintf("%d %s need attention", bad, plural(bad, "field", "fields")), kindErr)
+		m.setStatus(i18n.Sprintf("%d fields need attention", bad), kindErr)
 		return m, nil
 	}
 
@@ -279,11 +279,11 @@ func (m transportFormModel) submit() (tea.Model, tea.Cmd) {
 
 func (m transportFormModel) applyPing(msg transportPingMsg) transportFormModel {
 	if msg.err != nil {
-		m.setStatus("ping failed · "+msg.via+" · "+msg.err.Error(), kindErr)
+		m.setStatus(i18n.Sprintf("ping failed · %s · %s", msg.via, msg.err), kindErr)
 		return m
 	}
 
-	m.setStatus(fmt.Sprintf("pong · %s answered in %dms", msg.via, msg.result.PingTime.Milliseconds()), kindOK)
+	m.setStatus(i18n.Sprintf("pong · %s answered in %dms", msg.via, msg.result.PingTime.Milliseconds()), kindOK)
 	return m
 }
 

@@ -3,6 +3,8 @@ package ui
 import (
 	"errors"
 
+	"github.com/myjupyter/conm/internal/i18n"
+
 	"github.com/myjupyter/conm/internal/network"
 )
 
@@ -44,7 +46,7 @@ func newConnError(err error, attempted network.Operation) *connError {
 func hintThrough(code network.ErrorCode, through, fallback string) string {
 	switch code {
 	case network.RefusedErrorCode, network.TimeoutErrorCode, network.UnreachableErrorCode, network.UnknownErrorCode:
-		return "the tunnel " + through + " is up but could not reach the database · host and port must be the address as the bastion sees it"
+		return i18n.Sprintf("the tunnel %s is up but could not reach the database · host and port must be the address as the bastion sees it", through)
 	default:
 		return fallback
 	}
@@ -53,25 +55,25 @@ func hintThrough(code network.ErrorCode, through, fallback string) string {
 func hintFor(code network.ErrorCode) string {
 	switch code {
 	case network.RefusedErrorCode:
-		return "is the server running and accepting connections on that host and port?"
+		return i18n.Sprintf("is the server running and accepting connections on that host and port?")
 	case network.TimeoutErrorCode, network.UnreachableErrorCode:
-		return "host unreachable from this network · check the address, VPN, or firewall"
+		return i18n.Sprintf("host unreachable from this network · check the address, VPN, or firewall")
 	case network.UnresolvedErrorCode:
-		return "the host name does not resolve · check the address or your DNS"
+		return i18n.Sprintf("the host name does not resolve · check the address or your DNS")
 	case network.LocalNetErrorCode:
-		return "macOS may be blocking local network access · allow your terminal in System Settings › Privacy & Security › Local Network"
+		return i18n.Sprintf("macOS may be blocking local network access · allow your terminal in System Settings › Privacy & Security › Local Network")
 	case network.SecretErrorCode:
-		return "the password could not be read · press " + keyMap.Secret.hint + " to check the secret store"
+		return i18n.Sprintf("the password could not be read · press %s to check the secret store", keyMap.Secret.hint)
 	case network.AuthErrorCode:
-		return "credentials were rejected · press " + keyMap.Edit.hint + " to update the username or password"
+		return i18n.Sprintf("credentials were rejected · press %s to update the username or password", keyMap.Edit.hint)
 	case network.TLSErrorCode:
-		return "TLS handshake failed · check the connection's SSL settings and the CA certificate"
+		return i18n.Sprintf("TLS handshake failed · check the connection's SSL settings and the CA certificate")
 	case network.InvalidErrorCode:
-		return "this connection has validation errors · press " + keyMap.Edit.hint + " to fix the config"
+		return i18n.Sprintf("this connection has validation errors · press %s to fix the config", keyMap.Edit.hint)
 	case network.TransportErrorCode:
-		return "the transport did not come up · check the connection it goes through and that it can reach this host"
+		return i18n.Sprintf("the transport did not come up · check the connection it goes through and that it can reach this host")
 	case network.PortBusyErrorCode:
-		return "the transport's local port is taken · check which process holds it; if it is another connection, give this one its own transport"
+		return i18n.Sprintf("the transport's local port is taken · check which process holds it; if it is another connection, give this one its own transport")
 	case network.UnknownErrorCode:
 		return ""
 	}

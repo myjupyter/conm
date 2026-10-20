@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"testing"
 
 	"github.com/pelletier/go-toml/v2"
 	"golang.org/x/text/feature/plural"
@@ -23,11 +24,19 @@ var locales embed.FS
 var (
 	localeVariables = []string{"LC_ALL", "LC_MESSAGES", "LANG"}
 	pluralForms     = []string{"zero", "one", "two", "few", "many", "other"}
-	printer         = mustPrinter(locales, os.Getenv)
+	printer         = mustPrinter(locales, localeEnv)
 )
 
 func Sprintf(format string, args ...any) string {
 	return printer.Sprintf(format, args...)
+}
+
+func localeEnv(name string) string {
+	if testing.Testing() {
+		return ""
+	}
+
+	return os.Getenv(name)
 }
 
 func mustPrinter(fsys fs.FS, getenv func(string) string) *message.Printer {

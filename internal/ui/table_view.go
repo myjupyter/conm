@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/i18n"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
@@ -36,7 +38,7 @@ func (m Model) render() string {
 	total := m.conns.CountOf(m.conns.Active())
 
 	lines := []string{
-		frameTop(tableInner, "connections", fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "connection", "connections"))),
+		frameTop(tableInner, i18n.Sprintf("connections"), " "+i18n.Sprintf("%d connections", total)+" "+gLineH),
 		m.tabsLine(),
 		frameRule(tableInner, gTeeL, gTeeR),
 		m.headerLine(),
@@ -82,9 +84,9 @@ func (m Model) footerLines(n int) []string {
 
 func (m Model) emptyText() string {
 	if m.conns.Filtered() {
-		return "  no connection matches the filter"
+		return "  " + i18n.Sprintf("no connection matches the filter")
 	}
-	return "  no connections · press " + keyMap.Add.hint + " to add one"
+	return "  " + i18n.Sprintf("no connections · press %s to add one", keyMap.Add.hint)
 }
 
 func (m Model) tabsLine() string {
@@ -115,15 +117,15 @@ func (m Model) hostWidth() int {
 func (m Model) headerLine() string {
 	spans := []span{
 		{text: truncPad("", wMark, false), fg: cDim},
-		{text: " " + truncPad("NAME", wName, false), fg: cDim},
-		{text: " " + truncPad("USERNAME", wUser, false), fg: cDim},
-		{text: " " + truncPad("HOST", m.hostWidth(), false), fg: cDim},
-		{text: " " + truncPad("PORT", wPort, true), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("NAME"), wName, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("USERNAME"), wUser, false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("HOST"), m.hostWidth(), false), fg: cDim},
+		{text: " " + truncPad(i18n.Sprintf("PORT"), wPort, true), fg: cDim},
 	}
 	if m.hasDatabaseColumn() {
-		spans = append(spans, span{text: " " + truncPad("DBNAME", wDB, false), fg: cDim})
+		spans = append(spans, span{text: " " + truncPad(i18n.Sprintf("DBNAME"), wDB, false), fg: cDim})
 	}
-	spans = append(spans, span{text: " " + truncPad("PING", wPing, true), fg: cDim})
+	spans = append(spans, span{text: " " + truncPad(i18n.Sprintf("PING"), wPing, true), fg: cDim})
 
 	return frameLine(tableInner, spans, nil)
 }
@@ -196,7 +198,7 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 	case st.connErr != nil:
 		text, fg = st.connErr.code, cRed
 	case st.pingStatus == pingFailed:
-		text, fg = "timeout", cRed
+		text, fg = i18n.Sprintf("timeout"), cRed
 	case st.pingStatus == pingOK:
 		ms := st.pingResult.PingTime.Milliseconds()
 		text = fmt.Sprintf("%dms", ms)
@@ -216,7 +218,7 @@ func (m Model) statusLine() string {
 	text := m.status
 	switch {
 	case m.conns.Confirming():
-		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q? y/n", m.cursorLabel())
+		icon, col, text = gStatusWarn, cAmber, i18n.Sprintf("delete %q? y/n", m.cursorLabel())
 	case m.statusKind == kindPing:
 		return framePing(tableInner, text)
 	}

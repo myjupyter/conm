@@ -2,14 +2,14 @@ package spec
 
 import (
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/secret"
 )
 
 const (
-	keyringExampleID          = "prod-orders-rw"
-	keyringExampleLocation    = "conm/prod-orders-rw"
-	keyringExamplePassword    = "hunter2hunter2"
-	keyringExampleDescription = "Order write path credentials"
+	keyringExampleID       = "prod-orders-rw"
+	keyringExampleLocation = "conm/prod-orders-rw"
+	keyringExamplePassword = "hunter2hunter2"
 )
 
 type keyringFormField = string
@@ -31,19 +31,19 @@ const (
 var KeyringFormFields = []FormField{
 	{
 		Key:          keyringFormFieldID,
-		Label:        keyringFormFieldID,
+		Label:        i18n.Sprintf("id"),
 		Example:      keyringExampleID,
 		ValidateFunc: config.ValidateSecretID,
 	},
 	{
 		Key:          keyringFormFieldLocation,
-		Label:        keyringFormFieldLocation,
+		Label:        i18n.Sprintf("location"),
 		Example:      keyringExampleLocation,
 		ValidateFunc: config.ValidateSecretLocation,
 	},
 	{
 		Key:      keyringFormFieldPassword,
-		Label:    keyringFormFieldPassword,
+		Label:    i18n.Sprintf("password"),
 		Kind:     HiddenFieldKind,
 		Example:  keyringExamplePassword,
 		Property: OptionalFieldProperty,
@@ -53,8 +53,8 @@ var KeyringFormFields = []FormField{
 	},
 	{
 		Key:          keyringFormFieldDescription,
-		Label:        keyringFormFieldDescription,
-		Example:      keyringExampleDescription,
+		Label:        i18n.Sprintf("description"),
+		Example:      i18n.Sprintf("Order write path credentials"),
 		Property:     OptionalFieldProperty,
 		ValidateFunc: config.ValidateSecretDescription,
 	},
@@ -63,13 +63,13 @@ var KeyringFormFields = []FormField{
 // KeyringFormSpec drives both the add and the edit keyring form. It is a single
 // section: an entry is four fields, too few to be worth splitting into tabs.
 var KeyringFormSpec = FormSpec[config.Secret]{
-	AddTitle:  "new entry",
-	EditTitle: "editing an entry",
+	AddTitle:  i18n.Sprintf("new entry"),
+	EditTitle: i18n.Sprintf("editing an entry"),
 	Fields:    KeyringFormFields,
 	Sections: []FormSection{
 		{
-			Title: "secret",
-			Note:  "where the password lives · conm never writes it to disk",
+			Title: i18n.Sprintf("secret"),
+			Note:  i18n.Sprintf("where the password lives · conm never writes it to disk"),
 			Fields: []FormFieldKey{
 				keyringFormFieldID,
 				keyringFormFieldLocation,

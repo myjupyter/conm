@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/i18n"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -16,14 +17,14 @@ func (m transportFormModel) View() tea.View {
 }
 
 func (m transportFormModel) render() string {
-	crumb := "new transport"
+	crumb := i18n.Sprintf("new transport")
 	if m.isEdit {
-		crumb = "edit transport"
+		crumb = i18n.Sprintf("edit transport")
 	}
 
 	lines := []string{
 		frameTop(formInner, crumb, ""),
-		frameBadge(formInner, "transport", cAccent, m.badgeTitle()),
+		frameBadge(formInner, i18n.Sprintf("transport"), cAccent, m.badgeTitle()),
 	}
 
 	at := 0
@@ -52,7 +53,7 @@ func (m transportFormModel) render() string {
 
 func (m transportFormModel) badgeTitle() string {
 	if name := strings.TrimSpace(m.vals[spec.TransportNameKey]); m.isEdit && name != "" {
-		return "editing " + name
+		return i18n.Sprintf("editing %s", name)
 	}
 	return m.title
 }
@@ -132,7 +133,7 @@ func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color
 func (m transportFormModel) placeholder(f spec.FormField, active bool) string {
 	switch {
 	case f.DefaultValue != "":
-		return f.DefaultValue + " (default)"
+		return i18n.Sprintf("%s (default)", f.DefaultValue)
 	case active:
 		return f.Example
 	case f.Property == spec.RequiredFieldProperty:

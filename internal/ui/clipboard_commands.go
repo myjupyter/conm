@@ -4,6 +4,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/myjupyter/conm/internal/i18n"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/cli"
@@ -34,12 +36,12 @@ func pasteText(raw string) string {
 
 func pasteReady(raw string, err error) (text string, refusal formStatus) {
 	if err != nil {
-		return "", formStatus{text: "couldn't read the clipboard · " + err.Error(), kind: kindErr}
+		return "", formStatus{text: i18n.Sprintf("couldn't read the clipboard · %v", err), kind: kindErr}
 	}
 
 	text = pasteText(raw)
 	if text == "" {
-		return "", formStatus{text: "clipboard is empty", kind: kindWarn}
+		return "", formStatus{text: i18n.Sprintf("clipboard is empty"), kind: kindWarn}
 	}
 	return text, formStatus{}
 }

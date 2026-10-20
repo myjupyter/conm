@@ -5,6 +5,8 @@ import (
 	"image/color"
 	"strings"
 
+	"github.com/myjupyter/conm/internal/i18n"
+
 	"charm.land/lipgloss/v2"
 )
 
@@ -19,8 +21,7 @@ import (
 // keybind is one hint in the key bar at the bottom of a screen.
 type keybind struct{ key, label string }
 
-// statusReady is the resting status message every screen falls back to.
-const statusReady = "ready"
+var statusReady = i18n.Sprintf("ready")
 
 // statusKind picks the glyph and colour of the status line; the message itself
 // is free text the screen sets.
@@ -275,7 +276,7 @@ func frameTagged(w int, tag string, bg color.Color, text string) string {
 // frameErrPanel draws the failure panel: a titled rule, the key/value lines
 // describing what went wrong, an optional hint and the way out.
 func frameErrPanel(w int, e *connError) []string {
-	tag := " " + strings.ToUpper(string(e.op)) + " FAILED "
+	tag := " " + i18n.Sprintf("%s FAILED", strings.ToUpper(string(e.op))) + " "
 
 	lines := []string{
 		frameRule(w, gTeeL, gTeeR),
@@ -286,12 +287,12 @@ func frameErrPanel(w int, e *connError) []string {
 		}, nil),
 	}
 	if e.target != "" {
-		lines = append(lines, frameErrKV(w, "target", e.target, cErrValue))
+		lines = append(lines, frameErrKV(w, i18n.Sprintf("target"), e.target, cErrValue))
 	}
 	if e.during != "" {
-		lines = append(lines, frameErrKV(w, "during", e.during, cErrValue))
+		lines = append(lines, frameErrKV(w, i18n.Sprintf("during"), e.during, cErrValue))
 	}
-	lines = append(lines, frameErrKVWrapped(w, "error", e.detail, cErrCode)...)
+	lines = append(lines, frameErrKVWrapped(w, i18n.Sprintf("error"), e.detail, cErrCode)...)
 	for i, row := range wrapText(e.hint, w-4) {
 		if e.hint == "" {
 			break
@@ -309,9 +310,9 @@ func frameErrPanel(w int, e *connError) []string {
 	return append(lines, frameLine(w, []span{
 		{text: "  ", fg: cDim},
 		{text: keyMap.Retry.hint, fg: cFg, bold: true},
-		{text: " retry · ", fg: cErrMuted},
+		{text: " " + i18n.Sprintf("retry") + " · ", fg: cErrMuted},
 		{text: keyMap.Cancel.hint, fg: cFg, bold: true},
-		{text: " dismiss", fg: cErrMuted},
+		{text: " " + i18n.Sprintf("dismiss"), fg: cErrMuted},
 	}, nil))
 }
 
