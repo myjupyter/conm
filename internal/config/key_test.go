@@ -86,7 +86,7 @@ func TestKeybindingSettings_validate(t *testing.T) {
 				return k
 			}(),
 			wantErr:  errUnknownKey,
-			wantPath: "keybinding.navigation.up",
+			wantPath: "conm.keybinding.navigation.up",
 		},
 	}
 	for _, tt := range tests {

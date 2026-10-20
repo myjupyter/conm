@@ -140,7 +140,7 @@ func (k *KeybindingSettings) validate() error {
 	for _, field := range k.fields() {
 		for _, key := range *field.keys {
 			if err := validateKey(key); err != nil {
-				errs = append(errs, fmt.Errorf("keybinding.%s: %w", field.path, err))
+				errs = append(errs, fmt.Errorf("conm.keybinding.%s: %w", field.path, err))
 			}
 		}
 	}

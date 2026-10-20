@@ -87,12 +87,12 @@ func addConnectionCmd(t config.ConnType) *cobra.Command {
 }
 
 func readConm() (config.Conm, error) {
-	c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
+	conm, err := config.ReadConm(config.ConmPath())
 	if err != nil {
 		return config.Conm{}, fmt.Errorf("failed to open conm config: %w", err)
 	}
 
-	return c.Get(0), nil
+	return conm, nil
 }
 
 func parseConnection(
