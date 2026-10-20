@@ -1,11 +1,14 @@
 package i18n
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -217,11 +220,43 @@ func TestLocales(t *testing.T) {
 
 			translations, err := readTranslations(locales, file)
 			require.NoError(t, err)
-			for key := range translations {
+			for key, translation := range translations {
 				assert.Contains(t, used, key, "translated text is never passed to i18n.Sprintf")
+				for _, text := range translationTexts(translation) {
+					assert.Equal(t, formatVerbs(key), formatVerbs(text), "verbs of %q differ in %q", key, text)
+				}
 			}
 		})
 	}
+}
+
+var (
+	formatVerb      = regexp.MustCompile(`%(\[\d+\])?[-+# 0]*\d*(\.\d+)?[a-zA-Z%]`)
+	formatVerbIndex = regexp.MustCompile(`\[\d+\]`)
+)
+
+func formatVerbs(format string) []string {
+	verbs := formatVerb.FindAllString(format, -1)
+	for i, verb := range verbs {
+		verbs[i] = formatVerbIndex.ReplaceAllString(verb, "")
+	}
+	slices.Sort(verbs)
+
+	return verbs
+}
+
+func translationTexts(translation any) []string {
+	forms, ok := translation.(map[string]any)
+	if !ok {
+		return []string{fmt.Sprint(translation)}
+	}
+
+	texts := make([]string, 0, len(forms))
+	for _, form := range forms {
+		texts = append(texts, fmt.Sprint(form))
+	}
+
+	return texts
 }
 
 func literalFormats(t *testing.T, root string) map[string]bool {
