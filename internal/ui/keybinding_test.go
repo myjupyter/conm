@@ -21,23 +21,27 @@ func Test_newKeymap(t *testing.T) {
 		wantUpHint       string
 		wantMoveVertical string
 		wantMatchesW     bool
+		wantYankHint     string
 	}{
 		{
 			name:             "defaults",
 			args:             args{settings: config.DefaultKeybindings()},
 			wantUpHint:       "↑/k",
 			wantMoveVertical: "↑↓/k/j",
+			wantYankHint:     "yy",
 		},
 		{
 			name: "an override",
 			args: args{settings: func() config.KeybindingSettings {
 				k := config.DefaultKeybindings()
 				k.Navigation.Up = []string{"up", "w"}
+				k.Action.Yank = []string{"y", "ctrl+y"}
 				return k
 			}()},
 			wantUpHint:       "↑/w",
 			wantMoveVertical: "↑↓/w/j",
 			wantMatchesW:     true,
+			wantYankHint:     "yy/ctrl+y ctrl+y",
 		},
 	}
 	for _, tt := range tests {
@@ -50,6 +54,40 @@ func Test_newKeymap(t *testing.T) {
 			is.Equal(tt.wantUpHint, got.Up.hint)
 			is.Equal(tt.wantMoveVertical, got.MoveVertical.hint)
 			is.Equal(tt.wantMatchesW, got.MoveVertical.matches("w"))
+			is.Equal(tt.wantYankHint, got.Yank.hint)
+		})
+	}
+}
+
+func Test_keystroke(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		raw string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		pressed tea.Key
+	}{
+		{name: "letter", args: args{raw: "k"}, pressed: tea.Key{Code: 'k', Text: "k"}},
+		{name: "symbol", args: args{raw: "?"}, pressed: tea.Key{Code: '?', Text: "?"}},
+		{name: "space", args: args{raw: "space"}, pressed: tea.Key{Code: tea.KeySpace, Text: " "}},
+		{name: "uppercase letter", args: args{raw: "R"}, pressed: tea.Key{Code: 'r', ShiftedCode: 'R', Mod: tea.ModShift, Text: "R"}},
+		{name: "shift letter", args: args{raw: "shift+r"}, pressed: tea.Key{Code: 'r', ShiftedCode: 'R', Mod: tea.ModShift, Text: "R"}},
+		{name: "shift non-latin letter", args: args{raw: "shift+ж"}, pressed: tea.Key{Code: 'ж', ShiftedCode: 'Ж', Mod: tea.ModShift, Text: "Ж"}},
+		{name: "ctrl letter", args: args{raw: "ctrl+a"}, pressed: tea.Key{Code: 'a', Mod: tea.ModCtrl}},
+		{name: "ctrl uppercase letter", args: args{raw: "ctrl+A"}, pressed: tea.Key{Code: 'a', Mod: tea.ModCtrl | tea.ModShift}},
+		{name: "modifiers out of order", args: args{raw: "shift+alt+ctrl+a"}, pressed: tea.Key{Code: 'a', Mod: tea.ModCtrl | tea.ModAlt | tea.ModShift}},
+		{name: "ctrl plus", args: args{raw: "ctrl++"}, pressed: tea.Key{Code: '+', Mod: tea.ModCtrl}},
+		{name: "shift named key", args: args{raw: "shift+tab"}, pressed: tea.Key{Code: tea.KeyTab, Mod: tea.ModShift}},
+		{name: "alt named key", args: args{raw: "alt+enter"}, pressed: tea.Key{Code: tea.KeyEnter, Mod: tea.ModAlt}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.pressed.String(), keystroke(tt.args.raw))
 		})
 	}
 }

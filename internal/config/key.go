@@ -14,9 +14,8 @@ var (
 	errUnknownModifier  = errors.New("unknown modifier")
 	errRepeatedModifier = errors.New("repeated modifier")
 	errUnknownKey       = errors.New("unknown key")
+	errShiftedSymbol    = errors.New("shift with a symbol depends on the keyboard layout, write the symbol itself")
 )
-
-var keyModifiers = []string{"ctrl", "alt", "shift"}
 
 var namedKeys = func() []string {
 	names := []string{
@@ -33,48 +32,74 @@ func NamedKeys() []string {
 	return slices.Clone(namedKeys)
 }
 
-func validateKey(key string) error {
-	modifiers, base := splitKey(key)
-
-	if err := validateModifiers(modifiers); err != nil {
-		return fmt.Errorf("%q: %w", key, err)
-	}
-
-	if !isKeyName(base) {
-		return fmt.Errorf("%q: %w %q", key, errUnknownKey, base)
-	}
-	return nil
+type Key struct {
+	Ctrl  bool
+	Alt   bool
+	Shift bool
+	Name  string
 }
 
-func splitKey(key string) (modifiers []string, base string) {
-	if key == "" {
+func ParseKey(raw string) (Key, error) {
+	modifiers, name := splitKey(raw)
+
+	key, err := withModifiers(modifiers)
+	if err != nil {
+		return Key{}, fmt.Errorf("%q: %w", raw, err)
+	}
+
+	if slices.Contains(namedKeys, name) {
+		key.Name = name
+		return key, nil
+	}
+
+	char, size := utf8.DecodeRuneInString(name)
+	if size == 0 || size != len(name) || char == ' ' || !unicode.IsPrint(char) {
+		return Key{}, fmt.Errorf("%q: %w %q", raw, errUnknownKey, name)
+	}
+
+	if unicode.IsUpper(char) {
+		key.Shift = true
+		char = unicode.ToLower(char)
+	}
+	if key.Shift && !key.Ctrl && !key.Alt && !unicode.IsLetter(char) {
+		return Key{}, fmt.Errorf("%q: %w", raw, errShiftedSymbol)
+	}
+
+	key.Name = string(char)
+	return key, nil
+}
+
+func splitKey(raw string) (modifiers []string, name string) {
+	if raw == "" {
 		return nil, ""
 	}
 
-	cut := strings.LastIndex(key[:len(key)-1], "+")
+	cut := strings.LastIndex(raw[:len(raw)-1], "+")
 	if cut < 0 {
-		return nil, key
+		return nil, raw
 	}
-	return strings.Split(key[:cut], "+"), key[cut+1:]
+	return strings.Split(raw[:cut], "+"), raw[cut+1:]
 }
 
-func validateModifiers(modifiers []string) error {
-	for i, modifier := range modifiers {
-		if !slices.Contains(keyModifiers, modifier) {
-			return fmt.Errorf("%w %q", errUnknownModifier, modifier)
+func withModifiers(modifiers []string) (Key, error) {
+	var key Key
+	for _, modifier := range modifiers {
+		var held *bool
+		switch modifier {
+		case "ctrl":
+			held = &key.Ctrl
+		case "alt":
+			held = &key.Alt
+		case "shift":
+			held = &key.Shift
+		default:
+			return Key{}, fmt.Errorf("%w %q", errUnknownModifier, modifier)
 		}
-		if slices.Contains(modifiers[:i], modifier) {
-			return fmt.Errorf("%w %q", errRepeatedModifier, modifier)
+
+		if *held {
+			return Key{}, fmt.Errorf("%w %q", errRepeatedModifier, modifier)
 		}
+		*held = true
 	}
-	return nil
-}
-
-func isKeyName(base string) bool {
-	if slices.Contains(namedKeys, base) {
-		return true
-	}
-
-	char, size := utf8.DecodeRuneInString(base)
-	return size > 0 && size == len(base) && char != ' ' && unicode.IsPrint(char)
+	return key, nil
 }

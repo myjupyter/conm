@@ -188,7 +188,7 @@ func (k *KeybindingSettings) validateKeys() error {
 	var errs []error
 	for _, field := range k.fields() {
 		for _, key := range *field.keys {
-			if err := validateKey(key); err != nil {
+			if _, err := ParseKey(key); err != nil {
 				errs = append(errs, fmt.Errorf("%s%s: %w", keybindingPathPrefix, field.path, err))
 			}
 		}
@@ -210,11 +210,25 @@ func (k *KeybindingSettings) validateSharedKeys() error {
 				continue
 			}
 			for _, key := range *first.keys {
-				if slices.Contains(*second.keys, key) {
-					errs = append(errs, fmt.Errorf("%s%s: %w %q with %s", keybindingPathPrefix, second.path, errSharedKey, key, first.path))
+				if shared, ok := findKey(*second.keys, key); ok {
+					errs = append(errs, fmt.Errorf("%s%s: %w %q with %s", keybindingPathPrefix, second.path, errSharedKey, shared, first.path))
 				}
 			}
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func findKey(keys []string, raw string) (string, bool) {
+	wanted, err := ParseKey(raw)
+	if err != nil {
+		return "", false
+	}
+
+	for _, candidate := range keys {
+		if key, err := ParseKey(candidate); err == nil && key == wanted {
+			return candidate, true
+		}
+	}
+	return "", false
 }
