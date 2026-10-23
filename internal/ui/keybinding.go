@@ -42,6 +42,7 @@ type keymap struct {
 	Edit      binding
 	Delete    binding
 	Secret    binding
+	Settings  binding
 	Transport binding
 	Search    binding
 	Info      binding
@@ -91,12 +92,13 @@ func defaultKeymap() keymap {
 		Edit:      newBinding("e", "e"),
 		Delete:    newBinding("d", "d"),
 		Secret:    newBinding("s", "s"),
+		Settings:  newBinding("ss", "s"),
 		Transport: newBinding("t", "t"),
 		Search:    newBinding("/", "/"),
 		Info:      newBinding("i", "i"),
 		Yank:      newBinding("yy", "y"),
 		Toggle:    newBinding("space", "space"),
-		AddDB:     newBinding("ctrl+a", "ctrl+a"),
+		AddDB:     newBinding("aa", "a"),
 
 		Backspace: newBinding("backspace", "backspace"),
 		Paste:     newBinding("ctrl+v", "ctrl+v"),

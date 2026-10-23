@@ -21,16 +21,12 @@ func Run(cfg config.Conm) error {
 
 func RunOn(cfg config.Conm, active config.ConnType) error {
 	for {
-		if enabledConnections(cfg) == 0 {
-			return RunInit()
-		}
-
 		m, err := runConnections(cfg, active)
 		if err != nil || !m.reload {
 			return err
 		}
 
-		cfg, err = readConm()
+		cfg, err = config.ReadConm(config.ConmPath())
 		if err != nil {
 			return err
 		}
@@ -46,9 +42,17 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	defer ws.Close()
 
 	conns := view.NewConnections(ws.Connections()...)
+	secrets, transports := view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports)
+	if conns.Total() == 0 {
+		first, saved, err := runFirstConnection(connectionFormContext(conns, secrets, transports), conns.Add)
+		if err != nil || !saved {
+			return Model{}, err
+		}
+		active = first
+	}
 	conns.SetActive(active)
 
-	m, err := tea.NewProgram(New(conns, view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports))).Run()
+	m, err := tea.NewProgram(New(conns, secrets, transports)).Run()
 	if err != nil {
 		return Model{}, err
 	}
@@ -61,14 +65,18 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	return cm, nil
 }
 
-func enabledConnections(cfg config.Conm) int {
-	n := 0
-	for _, conn := range cfg.Connections {
-		if conn.Enabled {
-			n++
+func runFirstConnection(ctx formContext, save func(config.Connection) error) (config.ConnType, bool, error) {
+	for {
+		t, picked, err := runTypePicker(newInitModel())
+		if err != nil || !picked {
+			return 0, false, err
+		}
+
+		saved, err := runAddConnection(t, ctx, save)
+		if err != nil || saved {
+			return t, saved, err
 		}
 	}
-	return n
 }
 
 func Connect(ctx context.Context, conm config.Conm, t config.ConnType, name string, query ...string) error {
@@ -157,7 +165,7 @@ func openConnections(conm config.Conm, t config.ConnType) (*repository.Workspace
 	repo, ok := ws.ConnectionsOf(t)
 	if !ok {
 		_ = ws.Close()
-		return nil, nil, fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
+		return nil, nil, fmt.Errorf("unknown connection type %q", t)
 	}
 
 	return ws, repo, nil

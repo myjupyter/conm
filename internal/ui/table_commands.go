@@ -6,7 +6,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
@@ -85,19 +84,35 @@ func (m Model) transportsCmd() tea.Cmd {
 	return changeExec(func() error { return runTransportTable(m.transports, m.conns) })
 }
 
-func (m Model) databasesCmd() tea.Cmd {
-	var (
-		kind   config.ConnType
-		chosen bool
-	)
+func (m Model) settingsCmd() tea.Cmd {
+	var changed bool
 	return tea.Exec(
 		runExec{run: func() error {
 			var err error
-			kind, chosen, err = runDatabaseTable()
+			changed, err = runSettings()
 			return err
 		}},
-		func(err error) tea.Msg { return databasesChangedMsg{kind: kind, chosen: chosen, err: err} },
+		func(err error) tea.Msg {
+			if err != nil || !changed {
+				return connChangedMsg{err: err}
+			}
+			return settingsChangedMsg{}
+		},
 	)
+}
+
+func (m Model) addOfTypeCmd() tea.Cmd {
+	return changeExec(func() error {
+		t, picked, err := runTypePicker(newAddConnectionModel())
+		if err != nil || !picked {
+			return err
+		}
+
+		m.conns.SetActive(t)
+		_, err = runAddConnection(t, m.formContext(), m.conns.Add)
+
+		return err
+	})
 }
 
 func (m Model) removeCmd() tea.Cmd {

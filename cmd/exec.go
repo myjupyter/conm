@@ -23,7 +23,7 @@ Quote the query, or the shell expands * and ends the command at ;:
 		Args:         cobra.MinimumNArgs(2),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conm, err := readConm()
+			conm, err := config.ReadConm(config.ConmPath())
 			if err != nil {
 				return err
 			}

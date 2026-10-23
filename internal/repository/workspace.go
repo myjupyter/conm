@@ -42,10 +42,6 @@ func NewWorkspace(cfg config.Conm) (*Workspace, error) {
 
 	users := make([]SecretUser, 0, len(connectionRepositories))
 	for _, db := range cfg.Connections {
-		if !db.Enabled {
-			continue
-		}
-
 		open, known := connectionRepositories[db.Type]
 		if !known {
 			return nil, errors.Join(

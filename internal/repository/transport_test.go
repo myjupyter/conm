@@ -24,8 +24,8 @@ func testWorkspace(t *testing.T) linkedWorkspace {
 
 	dir := t.TempDir()
 	conm := config.Conm{Connections: []config.ConnectionSettings{
-		{Type: config.PostgresConnType, CLI: "psql", Enabled: true},
-		{Type: config.SSHConnType, CLI: "ssh", Enabled: true},
+		{Type: config.PostgresConnType, CLI: "psql"},
+		{Type: config.SSHConnType, CLI: "ssh"},
 	}}
 
 	file, err := config.OpenConfig[*config.TransportConfigWrapper](filepath.Join(dir, "transport.toml"))

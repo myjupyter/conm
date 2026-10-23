@@ -16,7 +16,7 @@ func testRepo(t *testing.T) *ConnectionRepository {
 	t.Helper()
 
 	conm := config.Conm{Connections: []config.ConnectionSettings{
-		{Type: config.PostgresConnType, CLI: "psql", Enabled: true},
+		{Type: config.PostgresConnType, CLI: "psql"},
 	}}
 
 	repo, err := openConnections[*config.PostgresConfigWrapper](

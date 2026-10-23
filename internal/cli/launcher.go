@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -14,12 +15,12 @@ type Launcher struct {
 }
 
 func For(conm config.Conm, t config.ConnType) Launcher {
-	return Launcher{name: conm.CLI(t), kind: t}
+	return Launcher{name: Resolve(t, conm.CLI(t)), kind: t}
 }
 
 func (l Launcher) Run(ctx context.Context, cfg config.Connection, password string, query ...string) error {
 	if l.name == "" {
-		return fmt.Errorf("%w for %s, run conm add", ErrNoClient, l.kind)
+		return fmt.Errorf("%w for %s, install %s", ErrNoClient, l.kind, strings.Join(Clients(l.kind), " or "))
 	}
 
 	if !slices.Contains(Clients(l.kind), l.name) {

@@ -1,73 +1,61 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-// initModel is the setup screen: one row per database conm knows, the clients
-// found on this host, and whether the database is enabled. It runs before a
-// workspace exists, so it holds a config.Conm instead of a view.
 type initModel struct {
-	conm    config.Conm
-	dbs     []config.ConnectionSettings
+	types   []config.ConnType
 	clients map[config.ConnType][]cli.Info
 
 	cursor int
 	help   bool
-	open   bool
-	chosen config.ConnType
 	adding bool
+
+	chosen config.ConnType
+	picked bool
 
 	status     string
 	statusKind statusKind
 }
 
-type initChangedMsg struct {
-	conm  config.Conm
-	saved bool
-	err   error
-}
-
-func newInitModel(conm config.Conm) initModel {
+func newInitModel() initModel {
 	m := initModel{
-		conm:       conm,
-		dbs:        conm.Connections,
+		types:      config.ConnTypes,
+		clients:    make(map[config.ConnType][]cli.Info, len(config.ConnTypes)),
 		status:     statusReady,
 		statusKind: kindIdle,
 	}
 
-	m.clients = make(map[config.ConnType][]cli.Info, len(m.dbs))
-	for _, db := range m.dbs {
-		m.clients[db.Type] = cli.Detect(db.Type)
+	for _, t := range m.types {
+		m.clients[t] = cli.Detect(t)
+	}
+
+	if i := slices.IndexFunc(m.types, m.available); i >= 0 {
+		m.cursor = i
 	}
 
 	return m
 }
 
-// newAddDatabaseModel opens the same screen from the connections table, where
-// it is the way to add another database: enter goes back there instead of
-// opening the connections again.
-func newAddDatabaseModel(conm config.Conm) initModel {
-	m := newInitModel(conm)
+func newAddConnectionModel() initModel {
+	m := newInitModel()
 	m.adding = true
+
 	return m
 }
 
 func (m initModel) Init() tea.Cmd { return nil }
 
 func (m initModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
+	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		return m.handleInitKey(msg.String())
-
-	case initChangedMsg:
-		return m.applyInitChange(msg), nil
 	}
 
 	return m, nil
@@ -82,15 +70,11 @@ func (m initModel) handleInitKey(key string) (tea.Model, tea.Cmd) {
 			m.cursor--
 		}
 	case keyMap.Down.matches(key):
-		if m.cursor < len(m.dbs)-1 {
+		if m.cursor < len(m.types)-1 {
 			m.cursor++
 		}
-	case keyMap.Toggle.matches(key):
-		return m.toggle()
 	case keyMap.Confirm.matches(key):
-		return m.openConnections()
-	case keyMap.Edit.matches(key):
-		return m, m.editDatabaseCmd()
+		return m.pick()
 	case keyMap.Help.matches(key):
 		m.help = !m.help
 		m.setInitStatus(keyhintStatus(m.help), kindIdle)
@@ -99,87 +83,46 @@ func (m initModel) handleInitKey(key string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m initModel) toggle() (tea.Model, tea.Cmd) {
-	db, ok := m.database()
+func (m initModel) pick() (tea.Model, tea.Cmd) {
+	t, ok := m.connType()
 	if !ok {
 		return m, nil
 	}
 
-	if !db.Enabled && db.CLI == "" {
-		db.CLI = m.installedClient(db.Type)
-	}
-	if db.CLI == "" {
-		m.setInitStatus("no client for "+db.Type.String()+" · install "+
-			strings.Join(cli.Clients(db.Type), " or "), kindErr)
+	if !m.available(t) {
+		m.setInitStatus("no client for "+t.String()+" · install "+
+			strings.Join(cli.Clients(t), " or "), kindErr)
 		return m, nil
 	}
 
-	db.Enabled = !db.Enabled
-	return m, m.saveDatabaseCmd(db)
+	m.chosen, m.picked = t, true
+
+	return m, tea.Quit
 }
 
-// openConnections leaves the setup screen for the connection table of the
-// database under the cursor; RunInit opens it once this program is done.
-func (m initModel) openConnections() (tea.Model, tea.Cmd) {
-	db, ok := m.database()
-	if !ok {
-		return m, nil
+func (m initModel) connType() (config.ConnType, bool) {
+	if m.cursor < 0 || m.cursor >= len(m.types) {
+		return 0, false
 	}
 
-	if db.Enabled {
-		m.chosen, m.open = db.Type, true
-		return m, tea.Quit
-	}
-
-	if m.adding {
-		return m, tea.Quit
-	}
-
-	m.setInitStatus(db.Type.String()+" is disabled · "+keyMap.Toggle.hint+" to enable it", kindWarn)
-	return m, nil
+	return m.types[m.cursor], true
 }
 
-func (m initModel) applyInitChange(msg initChangedMsg) initModel {
-	if msg.err != nil {
-		m.setInitStatus(msg.err.Error(), kindErr)
-		return m
-	}
-	if !msg.saved {
-		return m
-	}
-
-	m.conm = msg.conm
-	m.dbs = m.conm.Connections
-	if db, ok := m.database(); ok {
-		m.setInitStatus(connectionSummary(db), kindOK)
-	}
-	return m
+func (m initModel) available(t config.ConnType) bool {
+	return slices.ContainsFunc(m.clients[t], func(c cli.Info) bool { return c.Installed })
 }
 
-func (m initModel) database() (config.ConnectionSettings, bool) {
-	if m.cursor < 0 || m.cursor >= len(m.dbs) {
-		return config.ConnectionSettings{}, false
-	}
-	return m.dbs[m.cursor], true
-}
-
-func (m initModel) installedClient(t config.ConnType) string {
-	for _, cli := range m.clients[t] {
-		if cli.Installed {
-			return cli.Name
+func (m initModel) availableCount() int {
+	n := 0
+	for _, t := range m.types {
+		if m.available(t) {
+			n++
 		}
 	}
-	return ""
-}
 
-func (m initModel) enabledCount() int {
-	return enabledConnections(m.conm)
+	return n
 }
 
 func (m *initModel) setInitStatus(s string, k statusKind) {
 	m.status, m.statusKind = s, k
-}
-
-func connectionSummary(conn config.ConnectionSettings) string {
-	return conn.Type.String() + " " + spec.ConnectionState(conn.Enabled) + " · " + conn.CLI
 }

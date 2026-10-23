@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -62,19 +63,7 @@ func (m infoModel) titleLine() string {
 }
 
 func (m infoModel) infoTabsLine() string {
-	tabs := m.tabs()
-
-	spans := make([]span, 0, 1+2*len(tabs))
-	spans = append(spans, span{text: " ", fg: cDim})
-	for _, tab := range tabs {
-		s := span{text: " " + infoTabTitles[tab] + " ", fg: cDim}
-		if tab == m.tab {
-			s = span{text: s.text, fg: cInvFg, bg: cAccent, bold: true}
-		}
-		spans = append(spans, s, span{text: " ", fg: cDim})
-	}
-
-	return frameLine(infoInner, spans, nil)
+	return frameTabs(infoInner, m.tabTitles(), slices.Index(m.tabs(), m.tab), "")
 }
 
 func (m infoModel) infoRowLines() []string {

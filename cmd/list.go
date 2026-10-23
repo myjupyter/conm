@@ -19,7 +19,7 @@ func listConnectionsCmd(t config.ConnType) *cobra.Command {
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conm, err := readConm()
+			conm, err := config.ReadConm(config.ConmPath())
 			if err != nil {
 				return err
 			}

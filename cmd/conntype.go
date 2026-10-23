@@ -16,7 +16,7 @@ func connTypeCmd(t config.ConnType) *cobra.Command {
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			conm, err := readConm()
+			conm, err := config.ReadConm(config.ConmPath())
 			if err != nil {
 				return err
 			}
@@ -25,15 +25,10 @@ func connTypeCmd(t config.ConnType) *cobra.Command {
 				return ui.Connect(cmd.Context(), conm, t, args[0])
 			}
 
-			if settings, ok := conm.Connection(t); !ok || !settings.Enabled {
-				return fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
-			}
-
 			return ui.RunOn(conm, t)
 		},
 	}
 	cmd.AddCommand(
-		addConnectionCmd(t),
 		editConnectionCmd(t),
 		removeConnectionCmd(t),
 		pingConnectionCmd(t),
