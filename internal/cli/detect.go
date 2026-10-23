@@ -33,3 +33,23 @@ func lookup(name string) Info {
 		Installed: err == nil,
 	}
 }
+
+func Installed(t config.ConnType) (string, bool) {
+	for _, name := range Clients(t) {
+		if lookup(name).Installed {
+			return name, true
+		}
+	}
+
+	return "", false
+}
+
+func Resolve(t config.ConnType, configured string) string {
+	if configured != "" {
+		return configured
+	}
+
+	name, _ := Installed(t)
+
+	return name
+}

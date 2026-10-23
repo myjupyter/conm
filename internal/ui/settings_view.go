@@ -9,7 +9,6 @@ import (
 
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
 const (
@@ -59,7 +58,11 @@ func (m settingsModel) render() string {
 }
 
 func (m settingsModel) sectionLines(db config.ConnectionSettings, on bool) []string {
-	lines := frameHead(infoInner, db.Type.String(), spec.ConnectionState(db.Enabled))
+	note := ""
+	if !m.installed(db.Type) {
+		note = "no client installed"
+	}
+	lines := frameHead(infoInner, db.Type.String(), note)
 
 	for _, r := range m.clientRows(db) {
 		for i, chunk := range wrapValue(r.value, infoInner-4-wInfoLbl) {
@@ -112,20 +115,20 @@ func (m settingsModel) supportsSpans(db config.ConnectionSettings) []span {
 
 		fg := cMuted
 		switch {
-		case c.Name == db.CLI:
+		case c.Name == m.current(db):
 			fg = cAccent
 		case c.Installed:
 			fg = cFg
 		}
 
-		spans = append(spans, span{text: text, fg: fg, bold: c.Name == db.CLI})
+		spans = append(spans, span{text: text, fg: fg, bold: c.Name == m.current(db)})
 	}
 
 	return spans
 }
 
 func (m settingsModel) selectorSpans(db config.ConnectionSettings, on bool) []span {
-	value := db.CLI
+	value := m.current(db)
 	if value == "" {
 		value = gEmpty
 	}
@@ -137,7 +140,7 @@ func (m settingsModel) selectorSpans(db config.ConnectionSettings, on bool) []sp
 
 	return frameSelectBox(formBoxW, selectBox{
 		value:  value,
-		at:     slices.Index(cli.Clients(db.Type), db.CLI) + 1,
+		at:     slices.Index(cli.Clients(db.Type), m.current(db)) + 1,
 		n:      len(cli.Clients(db.Type)),
 		active: on,
 	}, bg)

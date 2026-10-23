@@ -202,7 +202,7 @@ func (m Model) keyhints() []keyhintGroup {
 				{keyMap.Confirm.hint, "connect"},
 				{keyMap.Ping.hint, "ping"},
 				{keyMap.Add.hint, "add new"},
-				{keyMap.AddDB.hint, "add new database"},
+				{keyMap.AddDB.hint, "add a connection of any type"},
 				{keyMap.Edit.hint, "edit"},
 				{keyMap.Delete.hint, "delete"},
 			},
@@ -349,18 +349,14 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 }
 
 func (m initModel) keyhints() []keyhintGroup {
-	confirm, leave := "open the connections", keybind{keyMap.Quit.hint, "quit"}
+	leave := keybind{keyMap.Quit.hint, "quit"}
 	if m.adding {
-		confirm, leave = keyhintBackToList, keybind{keyMap.Cancel.hint, keyhintBackToList}
+		leave = keybind{keyMap.Quit.hint, keyhintBackToList}
 	}
 
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, "move"}}},
-		{title: keyhintAction, binds: []keybind{
-			{keyMap.Toggle.hint, "enable / disable"},
-			{keyMap.Confirm.hint, confirm},
-			{keyMap.Edit.hint, "edit"},
-		}},
+		{title: keyhintAction, binds: []keybind{{keyMap.Confirm.hint, "add a connection of this type"}}},
 		{title: keyhintScreen, binds: []keybind{leave}},
 	}
 }
@@ -372,17 +368,6 @@ func (m settingsModel) keyhints() []keyhintGroup {
 			{keyMap.Cycle.hint, "change the client"},
 		}},
 		{title: keyhintScreen, binds: []keybind{{keyMap.Quit.hint, keyhintBackToList}}},
-	}
-}
-
-func (m initFormModel) keyhints() []keyhintGroup {
-	return []keyhintGroup{
-		{title: keyhintNavigation, binds: []keybind{
-			{keyMap.MoveVertical.hint, keyhintMoveFields},
-			{keyMap.Cycle.hint, "change the value"},
-		}},
-		{title: keyhintAction, binds: []keybind{{keyMap.Confirm.hint, "save and go back"}}},
-		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "back without saving"}}},
 	}
 }
 

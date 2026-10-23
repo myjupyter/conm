@@ -33,8 +33,13 @@ func (m settingsModel) saveClientCmd(db config.ConnectionSettings) tea.Cmd {
 	next := config.Conm{Connections: slices.Clone(m.conm.Connections)}
 
 	return func() tea.Msg {
-		err := saveDatabase(&next, db)
-		return settingsSavedMsg{conm: next, err: err}
+		if err := cli.Validate(db.Type, db.CLI); err != nil {
+			return settingsSavedMsg{err: err}
+		}
+
+		next.SetConnection(db)
+
+		return settingsSavedMsg{conm: next, err: config.CreateConm(next)}
 	}
 }
 

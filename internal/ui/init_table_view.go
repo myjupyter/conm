@@ -8,10 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-// The setup table is as narrow as the forms: three columns and no live state.
 const initInner = 88
 
 const (
@@ -27,10 +25,10 @@ func (m initModel) View() tea.View {
 }
 
 func (m initModel) render() string {
-	n := len(m.dbs)
+	n := len(m.types)
 
 	lines := []string{
-		frameTop(initInner, m.initCrumb(), fmt.Sprintf(" %d of %d enabled "+gLineH, m.enabledCount(), n)),
+		frameTop(initInner, m.initCrumb(), fmt.Sprintf(" %d of %d available "+gLineH, m.availableCount(), n)),
 		frameLine(initInner, []span{
 			{text: "  ", fg: cDim},
 			{text: m.initIntro(), fg: cFg},
@@ -50,25 +48,19 @@ func (m initModel) render() string {
 }
 
 func (m initModel) initCrumb() string {
-	switch {
-	case m.adding:
-		return "add a database"
-	case m.enabledCount() == 0:
-		return "first run"
-	default:
-		return "databases"
+	if m.adding {
+		return "add a connection"
 	}
+
+	return "first run"
 }
 
 func (m initModel) initIntro() string {
-	switch {
-	case m.adding:
-		return "add another database · " + keyMap.Toggle.hint + " to enable it"
-	case m.enabledCount() == 0:
-		return "no database enabled yet — pick the one you are connecting to"
-	default:
-		return "the databases conm manages · " + keyMap.Edit.hint + " to change one"
+	if m.adding {
+		return "pick the type of the new connection"
 	}
+
+	return "no connections yet — pick the type of the first one"
 }
 
 func (m initModel) initHeaderLine() string {
@@ -81,20 +73,20 @@ func (m initModel) initHeaderLine() string {
 }
 
 func (m initModel) initRowLine(i int) string {
-	db := m.dbs[i]
+	t := m.types[i]
 	sel := i == m.cursor
-	installed := m.installedClient(db.Type) != ""
+	available := m.available(t)
 
 	var bg, fg, markC, stateC color.Color
 	switch {
-	case sel:
+	case sel && available:
 		bg, fg, markC, stateC = cAccent, cInvFg, cInvFg, cInvFg
-	case !installed:
+	case sel:
+		bg, fg, markC, stateC = cDead, cInvFg, cInvFg, cInvFg
+	case !available:
 		fg, markC, stateC = cDead, cFaint, cDim
-	case db.Enabled:
-		fg, markC, stateC = cFg, typeColor(db.Type), cAccent
 	default:
-		fg, markC, stateC = cFg, typeColor(db.Type), cDim
+		fg, markC, stateC = cFg, typeColor(t), cAccent
 	}
 
 	caret := " "
@@ -102,26 +94,28 @@ func (m initModel) initRowLine(i int) string {
 		caret = gCaret
 	}
 
-	clients := m.clientSpans(db, sel, bg)
+	state := "available"
+	if !available {
+		state = "no client"
+	}
+
+	clients := m.clientSpans(t, sel, bg)
 	spans := make([]span, 0, 3+len(clients))
 	spans = append(spans,
 		span{text: caret + gDotOn, fg: markC, bg: bg},
-		span{text: " " + truncPad(db.Type.String(), wInitType, false), fg: fg, bg: bg},
+		span{text: " " + truncPad(t.String(), wInitType, false), fg: fg, bg: bg},
 	)
 	spans = append(spans, clients...)
 	spans = append(spans, span{
-		text: " " + truncPad(spec.ConnectionState(db.Enabled), wInitState, false),
-		fg:   stateC, bg: bg, bold: db.Enabled,
+		text: " " + truncPad(state, wInitState, false),
+		fg:   stateC, bg: bg, bold: available,
 	})
 
 	return frameLine(initInner, spans, bg)
 }
 
-// clientSpans lists every client conm can drive this database with: the
-// configured one accented, the ones found on this host readable, the rest
-// muted — the whole list padded out to one column.
-func (m initModel) clientSpans(db config.ConnectionSettings, sel bool, bg color.Color) []span {
-	clients := m.clients[db.Type]
+func (m initModel) clientSpans(t config.ConnType, sel bool, bg color.Color) []span {
+	clients := m.clients[t]
 
 	spans := make([]span, 0, len(clients)+1)
 	used := 0
@@ -135,13 +129,11 @@ func (m initModel) clientSpans(db config.ConnectionSettings, sel bool, bg color.
 		switch {
 		case sel:
 			fg = cInvFg
-		case cli.Name == db.CLI:
-			fg = cAccent
 		case cli.Installed:
 			fg = cFg
 		}
 
-		spans = append(spans, span{text: text, fg: fg, bg: bg, bold: cli.Name == db.CLI})
+		spans = append(spans, span{text: text, fg: fg, bg: bg})
 		used += len([]rune(text))
 	}
 

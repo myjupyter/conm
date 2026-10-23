@@ -30,11 +30,11 @@ func TestReadConm(t *testing.T) {
 		want ConnectionSettings
 	}{
 		"connection row is kept": {
-			toml: "[[conm.connection]]\ntype = \"postgres\"\ncli = \"psql\"\nenabled = true\n",
-			want: ConnectionSettings{Type: PostgresConnType, CLI: "psql", Enabled: true},
+			toml: "[[conm.connection]]\ntype = \"postgres\"\ncli = \"psql\"\n",
+			want: ConnectionSettings{Type: PostgresConnType, CLI: "psql"},
 		},
 		"old database section is dropped": {
-			toml: "[[conm.database]]\ntype = \"postgres\"\ncli = \"psql\"\nenabled = true\n",
+			toml: "[[conm.database]]\ntype = \"postgres\"\ncli = \"psql\"\n",
 			want: ConnectionSettings{Type: PostgresConnType},
 		},
 	}
@@ -57,7 +57,7 @@ func TestReadConm(t *testing.T) {
 
 func TestConmMarshalsConnectionSection(t *testing.T) {
 	raw, err := toml.Marshal(ConmConfigWrapper{Conm: Conm{Connections: []ConnectionSettings{
-		{Type: PostgresConnType, CLI: "psql", Enabled: true},
+		{Type: PostgresConnType, CLI: "psql"},
 	}}})
 	require.NoError(t, err)
 

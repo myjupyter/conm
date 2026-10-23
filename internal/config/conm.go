@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 
 	"github.com/pelletier/go-toml/v2"
@@ -33,9 +32,8 @@ type Conm struct {
 }
 
 type ConnectionSettings struct {
-	Type    ConnType `toml:"type"`
-	CLI     string   `toml:"cli"`
-	Enabled bool     `toml:"enabled"`
+	Type ConnType `toml:"type"`
+	CLI  string   `toml:"cli"`
 }
 
 func (c Conm) Connection(t ConnType) (ConnectionSettings, bool) {
@@ -172,17 +170,6 @@ func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
 
 func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
 	return toml.Marshal(w)
-}
-
-func CreateConmConfigPath() error {
-	dirs := []string{filepath.Dir(conmConfigPath), filepath.Dir(secretConfigPath)}
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func CreateConm(conf Conm) error {

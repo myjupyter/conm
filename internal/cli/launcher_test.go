@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -18,11 +21,6 @@ func TestLauncherInfo(t *testing.T) {
 		cli  string
 		want Info
 	}{
-		{
-			name: "no client configured",
-			kind: config.PostgresConnType,
-			want: Info{},
-		},
 		{
 			name: "client of another database",
 			kind: config.PostgresConnType,
@@ -61,4 +59,33 @@ func TestLauncherInfoResolvesConfiguredClient(t *testing.T) {
 	assert.Equal(t, err == nil, info.Installed)
 	assert.Equal(t, path, info.Path)
 	assert.Equal(t, Version(t.Context(), Psql), info.Version)
+}
+
+func TestLauncherInfoFallsBackToInstalledClient(t *testing.T) {
+	tests := []struct {
+		name      string
+		installed []string
+		want      Info
+	}{
+		{name: "nothing installed", want: Info{}},
+		{name: "first installed client", installed: []string{Pgcli, USQL}, want: Info{Name: Pgcli, Installed: true}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for _, name := range tt.installed {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"), 0o700))
+			}
+			t.Setenv("PATH", dir)
+
+			conm := config.Conm{Connections: []config.ConnectionSettings{{Type: config.PostgresConnType}}}
+			got := For(conm, config.PostgresConnType).Info(t.Context())
+
+			if tt.want.Installed {
+				tt.want.Path = filepath.Join(dir, tt.want.Name)
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

@@ -43,8 +43,8 @@ func TestSettingsModel_nextInstalled(t *testing.T) {
 		{name: "forward skips a missing client", current: cli.Psql, step: 1, want: cli.USQL, wantOK: true},
 		{name: "forward wraps around", current: cli.USQL, step: 1, want: cli.Psql, wantOK: true},
 		{name: "backward skips a missing client", current: cli.USQL, step: -1, want: cli.Psql, wantOK: true},
-		{name: "unset picks the first installed", current: "", step: 1, want: cli.Psql, wantOK: true},
-		{name: "unset backward picks the last installed", current: "", step: -1, want: cli.USQL, wantOK: true},
+		{name: "unset counts from the first installed", current: "", step: 1, want: cli.USQL, wantOK: true},
+		{name: "unset backward counts from the first installed", current: "", step: -1, want: cli.USQL, wantOK: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -14,23 +14,28 @@ import (
 
 var addCmd = &cobra.Command{
 	Use:          "add",
-	Short:        "Enable or disable a connection type",
+	Short:        "Add a connection of a type picked from a list",
 	Long:         addLong(),
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return ui.RunInit()
+		conm, err := readConm()
+		if err != nil {
+			return err
+		}
+
+		return ui.RunAdd(conm)
 	},
 }
 
 func addLong() string {
 	var b strings.Builder
-	b.WriteString(`Enable or disable a connection type.
+	b.WriteString(`Add a connection of a type picked from a list.
 
-It opens the setup table, where a type is enabled or disabled and its client
-picked, and enter leaves for the connections of the type under the cursor.
+It opens the list of connection types; a type is available once one of its
+clients is installed. enter opens the add form of the type under the cursor.
 
-To add a connection of an enabled type:
+To add a connection of a known type:
 
 `)
 	for _, t := range config.ConnTypes {

@@ -25,10 +25,6 @@ func connTypeCmd(t config.ConnType) *cobra.Command {
 				return ui.Connect(cmd.Context(), conm, t, args[0])
 			}
 
-			if settings, ok := conm.Connection(t); !ok || !settings.Enabled {
-				return fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
-			}
-
 			return ui.RunOn(conm, t)
 		},
 	}

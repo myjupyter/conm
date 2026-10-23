@@ -98,7 +98,7 @@ func defaultKeymap() keymap {
 		Info:      newBinding("i", "i"),
 		Yank:      newBinding("yy", "y"),
 		Toggle:    newBinding("space", "space"),
-		AddDB:     newBinding("ctrl+a", "ctrl+a"),
+		AddDB:     newBinding("aa", "a"),
 
 		Backspace: newBinding("backspace", "backspace"),
 		Paste:     newBinding("ctrl+v", "ctrl+v"),

@@ -133,14 +133,12 @@ func (m settingsModel) cycleClient(step int) (tea.Model, tea.Cmd) {
 func (m settingsModel) nextInstalled(db config.ConnectionSettings, step int) (string, bool) {
 	clients := m.clients[db.Type]
 	n := len(clients)
-	at := slices.IndexFunc(clients, func(c cli.Info) bool { return c.Name == db.CLI })
-	if at < 0 && step < 0 {
-		at = 0
-	}
+	current := m.current(db)
+	at := max(slices.IndexFunc(clients, func(c cli.Info) bool { return c.Name == current }), 0)
 
 	for i := 1; i <= n; i++ {
 		c := clients[((at+step*i)%n+n)%n]
-		if c.Installed && c.Name != db.CLI {
+		if c.Installed && c.Name != current {
 			return c.Name, true
 		}
 	}
@@ -156,8 +154,26 @@ func (m settingsModel) database() (config.ConnectionSettings, bool) {
 	return m.conm.Connections[m.cursor], true
 }
 
+func (m settingsModel) current(db config.ConnectionSettings) string {
+	if db.CLI != "" {
+		return db.CLI
+	}
+
+	i := slices.IndexFunc(m.clients[db.Type], func(c cli.Info) bool { return c.Installed })
+	if i < 0 {
+		return ""
+	}
+
+	return m.clients[db.Type][i].Name
+}
+
+func (m settingsModel) installed(t config.ConnType) bool {
+	return slices.ContainsFunc(m.clients[t], func(c cli.Info) bool { return c.Installed })
+}
+
 func (m settingsModel) clientInfo(db config.ConnectionSettings) (cli.Info, bool) {
-	i := slices.IndexFunc(m.clients[db.Type], func(c cli.Info) bool { return c.Name == db.CLI })
+	current := m.current(db)
+	i := slices.IndexFunc(m.clients[db.Type], func(c cli.Info) bool { return c.Name == current })
 	if i < 0 {
 		return cli.Info{}, false
 	}

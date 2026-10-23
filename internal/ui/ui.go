@@ -3,10 +3,12 @@ package ui
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/repository"
@@ -21,10 +23,6 @@ func Run(cfg config.Conm) error {
 
 func RunOn(cfg config.Conm, active config.ConnType) error {
 	for {
-		if enabledConnections(cfg) == 0 {
-			return RunInit()
-		}
-
 		m, err := runConnections(cfg, active)
 		if err != nil || !m.reload {
 			return err
@@ -45,10 +43,18 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	}
 	defer ws.Close()
 
-	conns := view.NewConnections(ws.Connections()...)
+	conns := view.NewConnections(shownConnections(ws.Connections())...)
+	secrets, transports := view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports)
+	if conns.Total() == 0 {
+		first, saved, err := runFirstConnection(connectionFormContext(conns, secrets, transports), conns.Add)
+		if err != nil || !saved {
+			return Model{}, err
+		}
+		active = first
+	}
 	conns.SetActive(active)
 
-	m, err := tea.NewProgram(New(conns, view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports))).Run()
+	m, err := tea.NewProgram(New(conns, secrets, transports)).Run()
 	if err != nil {
 		return Model{}, err
 	}
@@ -61,14 +67,25 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	return cm, nil
 }
 
-func enabledConnections(cfg config.Conm) int {
-	n := 0
-	for _, conn := range cfg.Connections {
-		if conn.Enabled {
-			n++
+func shownConnections(repos []repository.Connections) []repository.Connections {
+	return slices.DeleteFunc(repos, func(repo repository.Connections) bool {
+		_, installed := cli.Installed(repo.Kind())
+		return repo.Len() == 0 && !installed
+	})
+}
+
+func runFirstConnection(ctx formContext, save func(config.Connection) error) (config.ConnType, bool, error) {
+	for {
+		t, picked, err := runTypePicker(newInitModel())
+		if err != nil || !picked {
+			return 0, false, err
+		}
+
+		saved, err := runAddConnection(t, ctx, save)
+		if err != nil || saved {
+			return t, saved, err
 		}
 	}
-	return n
 }
 
 func Connect(ctx context.Context, conm config.Conm, t config.ConnType, name string, query ...string) error {
@@ -157,7 +174,7 @@ func openConnections(conm config.Conm, t config.ConnType) (*repository.Workspace
 	repo, ok := ws.ConnectionsOf(t)
 	if !ok {
 		_ = ws.Close()
-		return nil, nil, fmt.Errorf("%q is not enabled\nrun 'conm add' to enable it", t)
+		return nil, nil, fmt.Errorf("unknown connection type %q", t)
 	}
 
 	return ws, repo, nil

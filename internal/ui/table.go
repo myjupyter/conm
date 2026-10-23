@@ -26,8 +26,8 @@ type Model struct {
 	reload bool
 	active config.ConnType
 
-	secretChord   bool
-	secretChordID int
+	chord   string
+	chordID int
 }
 
 type connState struct {
@@ -71,13 +71,9 @@ type infoClosedMsg struct {
 
 const chordTimeout = 400 * time.Millisecond
 
-type secretChordExpiredMsg struct{ id int }
+type chordExpiredMsg struct{ id int }
 
-type databasesChangedMsg struct {
-	kind   config.ConnType
-	chosen bool
-	err    error
-}
+type settingsChangedMsg struct{}
 
 func newConnState() *connState {
 	s := spinner.New()
@@ -126,13 +122,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case infoClosedMsg:
 		return m.applyInfoClosed(msg)
 
-	case databasesChangedMsg:
-		return m.applyDatabaseChange(msg)
+	case settingsChangedMsg:
+		return m.reloadAfterSettings()
 
-	case secretChordExpiredMsg:
-		if m.secretChord && msg.id == m.secretChordID {
-			m.secretChord = false
-			return m, m.secretsCmd()
+	case chordExpiredMsg:
+		if m.chord != "" && msg.id == m.chordID {
+			return m.finishChord("")
 		}
 
 	case spinner.TickMsg:
@@ -144,8 +139,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
-	if m.secretChord {
-		return m.finishSecretChord(key)
+	if m.chord != "" {
+		return m.finishChord(key)
 	}
 	if m.conns.Searching() {
 		return m.handleSearchKey(msg)
@@ -202,8 +197,8 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		return m.switchKind(key), nil
 	case keyMap.Confirm.matches(key):
 		return m, m.runCmd()
-	case keyMap.Add.matches(key):
-		return m, m.addCmd()
+	case keyMap.Add.matches(key), keyMap.Secret.matches(key):
+		return m.startChord(key)
 	case keyMap.Edit.matches(key):
 		if m.conns.Len() > 0 {
 			return m, m.editCmd()
@@ -216,8 +211,6 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		}
 	case keyMap.Help.matches(key):
 		m.conns.ToggleHelp()
-	case keyMap.Secret.matches(key):
-		return m.startSecretChord()
 	default:
 		return m, m.screenCmd(key)
 	}
@@ -226,8 +219,6 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 
 func (m Model) screenCmd(key string) tea.Cmd {
 	switch {
-	case keyMap.AddDB.matches(key):
-		return m.databasesCmd()
 	case keyMap.Info.matches(key) && m.conns.Len() > 0:
 		return m.infoCmd()
 	case keyMap.Transport.matches(key):
@@ -237,21 +228,28 @@ func (m Model) screenCmd(key string) tea.Cmd {
 	}
 }
 
-func (m Model) startSecretChord() (tea.Model, tea.Cmd) {
-	m.secretChord = true
-	m.secretChordID++
-	id := m.secretChordID
+func (m Model) startChord(key string) (tea.Model, tea.Cmd) {
+	m.chord = key
+	m.chordID++
+	id := m.chordID
 
-	return m, tea.Tick(chordTimeout, func(time.Time) tea.Msg { return secretChordExpiredMsg{id: id} })
+	return m, tea.Tick(chordTimeout, func(time.Time) tea.Msg { return chordExpiredMsg{id: id} })
 }
 
-func (m Model) finishSecretChord(key string) (tea.Model, tea.Cmd) {
-	m.secretChord = false
-	if keyMap.Settings.matches(key) {
-		return m, m.settingsCmd()
-	}
+func (m Model) finishChord(second string) (tea.Model, tea.Cmd) {
+	first := m.chord
+	m.chord = ""
 
-	return m, m.secretsCmd()
+	switch {
+	case keyMap.Secret.matches(first) && keyMap.Settings.matches(second):
+		return m, m.settingsCmd()
+	case keyMap.Secret.matches(first):
+		return m, m.secretsCmd()
+	case keyMap.Add.matches(first) && keyMap.AddDB.matches(second):
+		return m, m.addOfTypeCmd()
+	default:
+		return m, m.addCmd()
+	}
 }
 
 func (m Model) switchKind(key string) Model {
@@ -261,7 +259,7 @@ func (m Model) switchKind(key string) Model {
 	}
 
 	if !step() {
-		m.status = m.conns.Active().String() + " is the only database enabled · " + keyMap.AddDB.hint + " to add one"
+		m.status = m.conns.Active().String() + " is the only connection type shown · " + keyMap.AddDB.hint + " to add another"
 		m.statusKind = kindWarn
 		return m
 	}
@@ -272,17 +270,8 @@ func (m Model) switchKind(key string) Model {
 	return m
 }
 
-func (m Model) applyDatabaseChange(msg databasesChangedMsg) (tea.Model, tea.Cmd) {
-	if msg.err != nil {
-		m.status, m.statusKind = msg.err.Error(), kindErr
-		return m, nil
-	}
-
-	m.active = m.conns.Active()
-	if msg.chosen {
-		m.active = msg.kind
-	}
-	m.reload = true
+func (m Model) reloadAfterSettings() (tea.Model, tea.Cmd) {
+	m.active, m.reload = m.conns.Active(), true
 
 	return m, tea.Quit
 }
