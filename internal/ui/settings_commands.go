@@ -44,7 +44,7 @@ func (m settingsModel) saveClientCmd(db config.ConnectionSettings) tea.Cmd {
 }
 
 func runSettings() (bool, error) {
-	conm, err := readConm()
+	conm, err := config.ReadConm(config.ConmPath())
 	if err != nil {
 		return false, err
 	}

@@ -26,15 +26,18 @@ var _ Connection = hostOnly{}
 
 func TestReadConm(t *testing.T) {
 	tests := map[string]struct {
-		toml string
+		toml *string
 		want ConnectionSettings
 	}{
+		"missing file reads as empty": {
+			want: ConnectionSettings{Type: PostgresConnType},
+		},
 		"connection row is kept": {
-			toml: "[[conm.connection]]\ntype = \"postgres\"\ncli = \"psql\"\n",
+			toml: new("[[conm.connection]]\ntype = \"postgres\"\ncli = \"psql\"\n"),
 			want: ConnectionSettings{Type: PostgresConnType, CLI: "psql"},
 		},
 		"old database section is dropped": {
-			toml: "[[conm.database]]\ntype = \"postgres\"\ncli = \"psql\"\n",
+			toml: new("[[conm.database]]\ntype = \"postgres\"\ncli = \"psql\"\n"),
 			want: ConnectionSettings{Type: PostgresConnType},
 		},
 	}
@@ -42,7 +45,9 @@ func TestReadConm(t *testing.T) {
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "conm.toml")
-			require.NoError(t, os.WriteFile(path, []byte(tt.toml), 0o600))
+			if tt.toml != nil {
+				require.NoError(t, os.WriteFile(path, []byte(*tt.toml), 0o600))
+			}
 
 			conm, err := ReadConm(path)
 			require.NoError(t, err)

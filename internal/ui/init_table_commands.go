@@ -8,29 +8,6 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-func RunAdd(conm config.Conm) error {
-	t, picked, err := runTypePicker(newAddConnectionModel())
-	if err != nil || !picked {
-		return err
-	}
-
-	saved, err := RunAddForm(conm, t, nil, nil)
-	if err != nil || !saved {
-		return err
-	}
-
-	return RunOn(conm, t)
-}
-
-func readConm() (config.Conm, error) {
-	c, err := config.OpenConfig[*config.ConmConfigWrapper](config.ConmPath())
-	if err != nil {
-		return config.Conm{}, err
-	}
-
-	return c.Get(0), nil
-}
-
 func runTypePicker(start initModel) (config.ConnType, bool, error) {
 	m, err := tea.NewProgram(start).Run()
 	if err != nil {

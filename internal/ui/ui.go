@@ -26,7 +26,7 @@ func RunOn(cfg config.Conm, active config.ConnType) error {
 			return err
 		}
 
-		cfg, err = readConm()
+		cfg, err = config.ReadConm(config.ConmPath())
 		if err != nil {
 			return err
 		}

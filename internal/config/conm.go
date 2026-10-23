@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"slices"
 
@@ -189,7 +191,7 @@ func ReadConm(filename string) (Conm, error) {
 	}{}
 
 	raw, err := os.ReadFile(filename)
-	if err != nil {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return Conm{}, err
 	}
 
