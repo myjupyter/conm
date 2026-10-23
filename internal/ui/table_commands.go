@@ -85,6 +85,23 @@ func (m Model) transportsCmd() tea.Cmd {
 	return changeExec(func() error { return runTransportTable(m.transports, m.conns) })
 }
 
+func (m Model) settingsCmd() tea.Cmd {
+	var changed bool
+	return tea.Exec(
+		runExec{run: func() error {
+			var err error
+			changed, err = runSettings()
+			return err
+		}},
+		func(err error) tea.Msg {
+			if err != nil || !changed {
+				return connChangedMsg{err: err}
+			}
+			return databasesChangedMsg{}
+		},
+	)
+}
+
 func (m Model) databasesCmd() tea.Cmd {
 	var (
 		kind   config.ConnType

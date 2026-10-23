@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -24,6 +25,9 @@ type Model struct {
 
 	reload bool
 	active config.ConnType
+
+	secretChord   bool
+	secretChordID int
 }
 
 type connState struct {
@@ -64,6 +68,10 @@ type infoClosedMsg struct {
 	edit bool
 	err  error
 }
+
+const chordTimeout = 400 * time.Millisecond
+
+type secretChordExpiredMsg struct{ id int }
 
 type databasesChangedMsg struct {
 	kind   config.ConnType
@@ -121,6 +129,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case databasesChangedMsg:
 		return m.applyDatabaseChange(msg)
 
+	case secretChordExpiredMsg:
+		if m.secretChord && msg.id == m.secretChordID {
+			m.secretChord = false
+			return m, m.secretsCmd()
+		}
+
 	case spinner.TickMsg:
 		return m.tickSpinners(msg)
 	}
@@ -130,6 +144,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
+	if m.secretChord {
+		return m.finishSecretChord(key)
+	}
 	if m.conns.Searching() {
 		return m.handleSearchKey(msg)
 	}
@@ -199,6 +216,8 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		}
 	case keyMap.Help.matches(key):
 		m.conns.ToggleHelp()
+	case keyMap.Secret.matches(key):
+		return m.startSecretChord()
 	default:
 		return m, m.screenCmd(key)
 	}
@@ -211,13 +230,28 @@ func (m Model) screenCmd(key string) tea.Cmd {
 		return m.databasesCmd()
 	case keyMap.Info.matches(key) && m.conns.Len() > 0:
 		return m.infoCmd()
-	case keyMap.Secret.matches(key):
-		return m.secretsCmd()
 	case keyMap.Transport.matches(key):
 		return m.transportsCmd()
 	default:
 		return nil
 	}
+}
+
+func (m Model) startSecretChord() (tea.Model, tea.Cmd) {
+	m.secretChord = true
+	m.secretChordID++
+	id := m.secretChordID
+
+	return m, tea.Tick(chordTimeout, func(time.Time) tea.Msg { return secretChordExpiredMsg{id: id} })
+}
+
+func (m Model) finishSecretChord(key string) (tea.Model, tea.Cmd) {
+	m.secretChord = false
+	if keyMap.Settings.matches(key) {
+		return m, m.settingsCmd()
+	}
+
+	return m, m.secretsCmd()
 }
 
 func (m Model) switchKind(key string) Model {

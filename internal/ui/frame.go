@@ -153,6 +153,29 @@ func frameHead(w int, title, note string) []string {
 	}
 }
 
+func frameTabs(w int, titles []string, active int, note string) string {
+	spans := make([]span, 0, 3+2*len(titles))
+	spans = append(spans, span{text: " ", fg: cDim})
+	used := 1
+	for i, title := range titles {
+		s := span{text: " " + title + " ", fg: cDim}
+		if i == active {
+			s = span{text: s.text, fg: cInvFg, bg: cAccent, bold: true}
+		}
+		spans = append(spans, s, span{text: " ", fg: cDim})
+		used += s.width() + 1
+	}
+
+	if note != "" {
+		spans = append(spans,
+			span{text: strings.Repeat(" ", max(w-used-len([]rune(note))-1, 0)), fg: cDim},
+			span{text: note + " ", fg: cFaint},
+		)
+	}
+
+	return frameLine(w, spans, nil)
+}
+
 // frameRule draws a horizontal divider; left and right are its end runes.
 func frameRule(w int, left, right string) string {
 	return border(left) + border(strings.Repeat(gLineH, w)) + border(right)

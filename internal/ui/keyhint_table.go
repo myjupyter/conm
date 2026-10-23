@@ -216,6 +216,7 @@ func (m Model) keyhints() []keyhintGroup {
 			binds: []keybind{
 				{keyMap.Info.hint, "info"},
 				{keyMap.Secret.hint, "secrets"},
+				{keyMap.Settings.hint, "settings"},
 				{keyMap.Transport.hint, "transports"},
 				{keyMap.Quit.hint, "quit"},
 			},
@@ -361,6 +362,16 @@ func (m initModel) keyhints() []keyhintGroup {
 			{keyMap.Edit.hint, "edit"},
 		}},
 		{title: keyhintScreen, binds: []keybind{leave}},
+	}
+}
+
+func (m settingsModel) keyhints() []keyhintGroup {
+	return []keyhintGroup{
+		{title: keyhintNavigation, binds: []keybind{
+			{keyMap.MoveVertical.hint, "move between databases"},
+			{keyMap.Cycle.hint, "change the client"},
+		}},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Quit.hint, keyhintBackToList}}},
 	}
 }
 
