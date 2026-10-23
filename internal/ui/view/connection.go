@@ -3,6 +3,7 @@ package view
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/myjupyter/conm/internal/cli"
@@ -33,8 +34,40 @@ func NewConnections(repos ...repository.Connections) *Connections {
 	}
 
 	v.Reindex()
+	if i := slices.IndexFunc(v.tableState.Kinds(), v.filled); i >= 0 {
+		v.SetActive(v.tableState.Kinds()[i])
+	}
 
 	return v
+}
+
+func (v *Connections) Kinds() []config.ConnType {
+	return slices.DeleteFunc(v.tableState.Kinds(), func(kind config.ConnType) bool {
+		return kind != v.Active() && !v.filled(kind)
+	})
+}
+
+func (v *Connections) NextKind() bool {
+	return v.stepKind(1)
+}
+
+func (v *Connections) PrevKind() bool {
+	return v.stepKind(-1)
+}
+
+func (v *Connections) stepKind(step int) bool {
+	kinds := v.Kinds()
+	if len(kinds) < 2 {
+		return false
+	}
+
+	i := slices.Index(kinds, v.Active())
+
+	return v.SetActive(kinds[(i+step+len(kinds))%len(kinds)])
+}
+
+func (v *Connections) filled(kind config.ConnType) bool {
+	return v.CountOf(kind) > 0
 }
 
 func (v *Connections) Reindex() {

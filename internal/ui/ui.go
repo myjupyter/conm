@@ -3,12 +3,10 @@ package ui
 import (
 	"context"
 	"fmt"
-	"slices"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/repository"
@@ -43,7 +41,7 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	}
 	defer ws.Close()
 
-	conns := view.NewConnections(shownConnections(ws.Connections())...)
+	conns := view.NewConnections(ws.Connections()...)
 	secrets, transports := view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports)
 	if conns.Total() == 0 {
 		first, saved, err := runFirstConnection(connectionFormContext(conns, secrets, transports), conns.Add)
@@ -65,13 +63,6 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	}
 
 	return cm, nil
-}
-
-func shownConnections(repos []repository.Connections) []repository.Connections {
-	return slices.DeleteFunc(repos, func(repo repository.Connections) bool {
-		_, installed := cli.Installed(repo.Kind())
-		return repo.Len() == 0 && !installed
-	})
 }
 
 func runFirstConnection(ctx formContext, save func(config.Connection) error) (config.ConnType, bool, error) {
