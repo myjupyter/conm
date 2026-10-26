@@ -80,6 +80,10 @@ func (m *formModel) commitChip(f spec.FormField) {
 	case draft == "":
 		m.setStatus("nothing added to "+m.label(f), kindIdle)
 		return
+	case m.isDuplicate(items, draft):
+		m.insert, m.chipDraft = true, draft
+		m.setStatus(draft+" is already in "+m.label(f), kindWarn)
+		return
 	case m.chipAt < len(items):
 		items[m.chipAt] = draft
 	default:
@@ -131,4 +135,13 @@ func (m formModel) insertChipKey(msg tea.KeyPressMsg, cur spec.FormField) (tea.M
 		m.chipDraft += msg.Text
 	}
 	return m, nil
+}
+
+func (m formModel) isDuplicate(items []string, draft string) bool {
+	for j, item := range items {
+		if j != m.chipAt && item == draft {
+			return true
+		}
+	}
+	return false
 }

@@ -2,7 +2,6 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -116,10 +115,7 @@ var MongoDBFormFields = []FormField{
 		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
-			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
-			}
-			return nil
+			return config.ValidateTags(SplitStringArray(value))
 		},
 	},
 	transportTypeField,

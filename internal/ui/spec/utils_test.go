@@ -7,23 +7,68 @@ import (
 )
 
 func TestSplitStringArray(t *testing.T) {
-	tests := map[string]struct {
-		raw  FormFieldValue
+	type args struct {
+		raw FormFieldValue
+	}
+	tests := []struct {
+		name string
+		args args
 		want []string
 	}{
-		"empty":                   {raw: "", want: nil},
-		"one":                     {raw: "prod", want: []string{"prod"}},
-		"whitespace is trimmed":   {raw: " prod ,  eu-west ", want: []string{"prod", "eu-west"}},
-		"blank items are dropped": {raw: "prod,, ,eu-west,", want: []string{"prod", "eu-west"}},
+		{
+			name: "empty",
+			args: args{raw: ""},
+			want: nil,
+		},
+		{
+			name: "one value",
+			args: args{raw: "prod"},
+			want: []string{"prod"},
+		},
+		{
+			name: "whitespace is trimmed",
+			args: args{raw: " prod ,  eu-west "},
+			want: []string{"prod", "eu-west"},
+		},
+		{
+			name: "blank values are dropped",
+			args: args{raw: "prod,, ,eu-west,"},
+			want: []string{"prod", "eu-west"},
+		},
 	}
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			assert.Equal(t, tt.want, SplitStringArray(tt.raw))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, SplitStringArray(tt.args.raw))
 		})
 	}
 }
 
-func TestStringArrayRoundTrip(t *testing.T) {
-	items := []string{"prod", "eu-west", "analytics"}
-	assert.Equal(t, items, SplitStringArray(JoinStringArray(items)))
+func TestJoinStringArray(t *testing.T) {
+	type args struct {
+		items []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want FormFieldValue
+	}{
+		{
+			name: "none",
+			args: args{items: nil},
+			want: "",
+		},
+		{
+			name: "several values",
+			args: args{items: []string{"prod", "eu-west", "analytics"}},
+			want: "prod, eu-west, analytics",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := JoinStringArray(tt.args.items)
+
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.args.items, SplitStringArray(got))
+		})
+	}
 }

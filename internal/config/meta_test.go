@@ -114,3 +114,56 @@ func TestValidateReservedName(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateTags(t *testing.T) {
+	type args struct {
+		tags []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "no tags",
+			args: args{tags: nil},
+		},
+		{
+			name: "distinct tags",
+			args: args{tags: []string{"prod", "eu-west"}},
+		},
+		{
+			name: "tags differing in case are distinct",
+			args: args{tags: []string{"prod", "Prod"}},
+		},
+		{
+			name:    "a duplicate tag",
+			args:    args{tags: []string{"prod", "eu-west", "prod"}},
+			wantErr: true,
+		},
+		{
+			name: "a tag at the limit",
+			args: args{tags: []string{strings.Repeat("a", tagMaxLength)}},
+		},
+		{
+			name:    "a tag over the limit",
+			args:    args{tags: []string{"prod", strings.Repeat("a", tagMaxLength+1)}},
+			wantErr: true,
+		},
+		{
+			name: "every tag at the limit",
+			args: args{tags: []string{strings.Repeat("a", tagMaxLength), strings.Repeat("b", tagMaxLength)}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateTags(tt.args.tags)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

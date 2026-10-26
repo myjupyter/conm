@@ -36,8 +36,9 @@ func typeKeys(t *testing.T, m formModel, keys ...tea.KeyPressMsg) formModel {
 	return m
 }
 
-func TestFormArrayKeys(t *testing.T) {
-	char := func(r rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: r, Text: string(r)} }
+func char(r rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: r, Text: string(r)} }
+
+func TestFormModel_UpdateArray(t *testing.T) {
 	var (
 		add    = char('a')
 		edit   = char('e')
@@ -49,91 +50,161 @@ func TestFormArrayKeys(t *testing.T) {
 		back   = tea.KeyPressMsg{Code: tea.KeyBackspace}
 	)
 
-	tests := map[string]struct {
-		tags     []string
-		keys     []tea.KeyPressMsg
-		want     []string
-		wantChip int
+	type args struct {
+		tags []string
+		keys []tea.KeyPressMsg
+	}
+	tests := []struct {
+		name       string
+		args       args
+		want       []string
+		wantChip   int
+		wantInsert bool
 	}{
-		"add appends": {
-			tags: []string{"prod"},
-			keys: []tea.KeyPressMsg{add, char('e'), char('u'), enter},
-			want: []string{"prod", "eu"}, wantChip: 1,
+		{
+			name:     "a appends a value",
+			args:     args{tags: []string{"prod"}, keys: []tea.KeyPressMsg{add, char('e'), char('u'), enter}},
+			want:     []string{"prod", "eu"},
+			wantChip: 1,
 		},
-		"add to none": {
-			keys: []tea.KeyPressMsg{add, char('x'), enter},
+		{
+			name: "a adds to an empty list",
+			args: args{keys: []tea.KeyPressMsg{add, char('x'), enter}},
 			want: []string{"x"},
 		},
-		"esc discards": {
-			tags: []string{"prod"},
-			keys: []tea.KeyPressMsg{add, char('x'), esc},
+		{
+			name:       "a starts typing a value rather than adding a link",
+			args:       args{keys: []tea.KeyPressMsg{add}},
+			wantInsert: true,
+		},
+		{
+			name: "esc discards the value being typed",
+			args: args{tags: []string{"prod"}, keys: []tea.KeyPressMsg{add, char('x'), esc}},
 			want: []string{"prod"},
 		},
-		"blank add is dropped": {
-			tags: []string{"prod"},
-			keys: []tea.KeyPressMsg{add, char(' '), enter},
+		{
+			name: "a blank value is dropped",
+			args: args{tags: []string{"prod"}, keys: []tea.KeyPressMsg{add, char(' '), enter}},
 			want: []string{"prod"},
 		},
-		"edit replaces the focused value": {
-			tags: []string{"prod", "eu"},
-			keys: []tea.KeyPressMsg{right, edit, back, back, char('u'), char('s'), enter},
-			want: []string{"prod", "us"}, wantChip: 1,
+		{
+			name:       "a duplicate is refused and stays open",
+			args:       args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{add, char('e'), char('u'), enter}},
+			want:       []string{"prod", "eu"},
+			wantInsert: true,
 		},
-		"edit to blank removes": {
-			tags: []string{"prod", "eu"},
-			keys: []tea.KeyPressMsg{edit, back, back, back, back, enter},
+		{
+			name: "a value edited to itself is kept",
+			args: args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{edit, enter}},
+			want: []string{"prod", "eu"},
+		},
+		{
+			name:     "e replaces the focused value",
+			args:     args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{right, edit, back, back, char('u'), char('s'), enter}},
+			want:     []string{"prod", "us"},
+			wantChip: 1,
+		},
+		{
+			name: "a value edited to blank is removed",
+			args: args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{edit, back, back, back, back, enter}},
 			want: []string{"eu"},
 		},
-		"d removes the focused value": {
-			tags: []string{"prod", "eu", "pci"},
-			keys: []tea.KeyPressMsg{right, remove},
-			want: []string{"prod", "pci"}, wantChip: 1,
+		{
+			name:     "d removes the focused value",
+			args:     args{tags: []string{"prod", "eu", "pci"}, keys: []tea.KeyPressMsg{right, remove}},
+			want:     []string{"prod", "pci"},
+			wantChip: 1,
 		},
-		"d on the last keeps the cursor in range": {
-			tags: []string{"prod", "eu"},
-			keys: []tea.KeyPressMsg{right, remove},
+		{
+			name: "d on the last value keeps the cursor in range",
+			args: args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{right, remove}},
 			want: []string{"prod"},
 		},
-		"d on none is a no-op": {
-			keys: []tea.KeyPressMsg{remove},
+		{
+			name: "d on an empty list does nothing",
+			args: args{keys: []tea.KeyPressMsg{remove}},
 		},
-		"moves stop at the ends": {
-			tags: []string{"prod", "eu"},
-			keys: []tea.KeyPressMsg{right, right, right},
-			want: []string{"prod", "eu"}, wantChip: 1,
+		{
+			name:     "moving right stops at the last value",
+			args:     args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{right, right, right}},
+			want:     []string{"prod", "eu"},
+			wantChip: 1,
 		},
-		"left from the first stays": {
-			tags: []string{"prod", "eu"},
-			keys: []tea.KeyPressMsg{left},
+		{
+			name: "moving left stops at the first value",
+			args: args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{left}},
 			want: []string{"prod", "eu"},
 		},
 	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			m := typeKeys(t, newTagsForm(t, tt.tags), tt.keys...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := typeKeys(t, newTagsForm(t, tt.args.tags), tt.args.keys...)
 
 			assert.Equal(t, tt.want, spec.SplitStringArray(m.vals["tags"]))
 			assert.Equal(t, tt.wantChip, m.chipAtCursor(m.fields[m.currentField()]))
-			assert.False(t, m.insert)
+			assert.Equal(t, tt.wantInsert, m.insert)
+			assert.Zero(t, m.linkCount())
 		})
 	}
 }
 
-func TestFormArrayAddDoesNotAddLink(t *testing.T) {
-	m := typeKeys(t, newTagsForm(t, nil), tea.KeyPressMsg{Code: 'a', Text: "a"})
+func TestFormModel_fieldErrorTags(t *testing.T) {
+	type args struct {
+		tags []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "distinct tags",
+			args: args{tags: []string{"prod", "eu"}},
+			want: "",
+		},
+		{
+			name: "a duplicate tag",
+			args: args{tags: []string{"prod", "eu", "prod"}},
+			want: "tag 'prod' is set more than once",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newTagsForm(t, tt.args.tags)
 
-	assert.Zero(t, m.linkCount())
-	assert.True(t, m.insert)
+			assert.Equal(t, tt.want, m.fieldError(m.currentField()))
+		})
+	}
 }
 
-func TestFormArrayBuildsTags(t *testing.T) {
-	m := newTagsForm(t, []string{"prod", "eu"})
+func TestFormModel_resultTags(t *testing.T) {
+	type args struct {
+		tags []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			name: "no tags",
+			args: args{tags: nil},
+			want: nil,
+		},
+		{
+			name: "tags in order",
+			args: args{tags: []string{"prod", "eu"}},
+			want: []string{"prod", "eu"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := newTagsForm(t, tt.args.tags).result()
 
-	got, err := m.result()
-
-	require.NoError(t, err)
-	pg, ok := got.(config.Postgres)
-	require.True(t, ok)
-	assert.Equal(t, []string{"prod", "eu"}, pg.Metadata.Tags)
+			require.NoError(t, err)
+			pg, ok := got.(config.Postgres)
+			require.True(t, ok)
+			assert.Equal(t, tt.want, pg.Metadata.Tags)
+		})
+	}
 }
