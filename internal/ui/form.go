@@ -47,7 +47,11 @@ type formModel struct {
 	idx     int
 	insert  bool
 	reveal  bool
-	help    bool // the key hints table, expanded over the key bar
+
+	chip      int
+	chipAt    int
+	chipDraft string
+	help      bool // the key hints table, expanded over the key bar
 
 	attempted bool
 	submitted bool
@@ -375,7 +379,7 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	key := msg.String()
 
-	if model, cmd, handled := m.navLink(key, cur); handled {
+	if model, cmd, handled := m.navList(key, cur); handled {
 		return model, cmd
 	}
 
@@ -390,9 +394,9 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Quit
 	case keyMap.Down.matches(key):
-		m.idx = (m.idx + 1) % n
+		m.idx, m.chip = (m.idx+1)%n, 0
 	case keyMap.Up.matches(key):
-		m.idx = (m.idx - 1 + n) % n
+		m.idx, m.chip = (m.idx-1+n)%n, 0
 	case keyMap.NextSection.matches(key):
 		m.switchSection(1)
 	case keyMap.PrevSection.matches(key):
@@ -420,6 +424,13 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.setStatus(keyhintStatus(m.help), kindIdle)
 	}
 	return m, nil
+}
+
+func (m *formModel) navList(key string, cur spec.FormField) (tea.Model, tea.Cmd, bool) {
+	if m.navArray(key, cur) {
+		return *m, nil, true
+	}
+	return m.navLink(key, cur)
 }
 
 // navLink handles the keys the link list owns: a grows one anywhere in the
@@ -466,7 +477,11 @@ func (m formModel) applyPaste(raw string, err error) formModel {
 		}
 	}
 
-	m.vals[m.fields[i].Key] += text
+	if isArray(m.fields[i]) {
+		m.chipDraft += text
+	} else {
+		m.vals[m.fields[i].Key] += text
+	}
 	m.setStatus("pasted · "+keyMap.Cancel.hint+" when done", kindIdle)
 	return m
 }
@@ -538,6 +553,8 @@ func (m *formModel) navEdit(i int, cur spec.FormField) {
 		m.setStatus(m.label(cur)+" · "+m.example(cur), kindIdle)
 	case isSelect(cur):
 		m.setStatus(m.label(cur)+" has no options to pick from", kindWarn)
+	case isArray(cur):
+		m.editChip(cur)
 	default:
 		m.insert = true
 		m.setStatus("editing "+m.label(cur)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
@@ -568,6 +585,10 @@ func (m formModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	cur := m.fields[fields[m.idx]]
 
 	key := msg.String()
+
+	if isArray(cur) {
+		return m.insertChipKey(msg, cur)
+	}
 
 	switch {
 	case keyMap.Interrupt.matches(key):
@@ -610,7 +631,7 @@ func (m *formModel) setStatus(s string, k statusKind) {
 
 func (m *formModel) switchSection(dir int) {
 	m.section = (m.section + dir + len(m.sections)) % len(m.sections)
-	m.idx = 0
+	m.idx, m.chip = 0, 0
 	m.setStatus(m.sections[m.section].Title, kindIdle)
 }
 

@@ -119,6 +119,7 @@ var MSSQLFormFields = []FormField{
 		Key:      strings.ToLower(mssqlFormFieldTags),
 		Label:    mssqlFormFieldTags,
 		Example:  mssqlExampleTags,
+		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
@@ -175,7 +176,7 @@ var MSSQLFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(mssqlFormFieldTrustCert):   strconv.FormatBool(ms.TrustCert),
 			strings.ToLower(mssqlFormFieldName):        ms.Metadata.Name,
 			strings.ToLower(mssqlFormFieldDescription): ms.Metadata.Description,
-			strings.ToLower(mssqlFormFieldTags):        strings.Join(ms.Metadata.Tags, ", "),
+			strings.ToLower(mssqlFormFieldTags):        JoinStringArray(ms.Metadata.Tags),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {

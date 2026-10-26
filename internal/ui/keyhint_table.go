@@ -21,6 +21,7 @@ const (
 
 	keyhintMoveFields = "move between fields"
 	keyhintBackToList = "back to connections"
+	keyhintPaste      = "paste"
 
 	keyhintRows   = 2
 	keyhintIndent = 2
@@ -240,21 +241,24 @@ func (m infoModel) keyhints() []keyhintGroup {
 }
 
 func (m formModel) keyhints() []keyhintGroup {
-	if m.insert {
-		return []keyhintGroup{
-			{
-				title: "editing",
-				binds: []keybind{
-					{keyMap.Cancel.hint, "stop editing"},
-					{keyMap.Confirm.hint, "confirm and next"},
-					{keyMap.Paste.hint, "paste"},
-					{keyMap.NextSection.hint, "switch section"},
-				},
-			},
-		}
-	}
-
 	cur := m.currentField()
+
+	if m.insert {
+		binds := []keybind{
+			{keyMap.Cancel.hint, "stop editing"},
+			{keyMap.Confirm.hint, "confirm and next"},
+			{keyMap.Paste.hint, keyhintPaste},
+			{keyMap.NextSection.hint, "switch section"},
+		}
+		if isArray(m.fields[cur]) {
+			binds = []keybind{
+				{keyMap.Confirm.hint, "keep the value"},
+				{keyMap.Cancel.hint, "discard"},
+				{keyMap.Paste.hint, keyhintPaste},
+			}
+		}
+		return []keyhintGroup{{title: "editing", binds: binds}}
+	}
 
 	nav := []keybind{{keyMap.MoveVertical.hint, keyhintMoveFields}, {keyMap.NextSection.hint, "switch section"}}
 	switch {
@@ -262,9 +266,11 @@ func (m formModel) keyhints() []keyhintGroup {
 		nav = append(nav, keybind{keyMap.Cycle.hint, "change a selector"})
 	case m.isSecretField(cur) && m.isRef():
 		nav = append(nav, keybind{keyMap.Cycle.hint, "pick an entry"})
+	case isArray(m.fields[cur]):
+		nav = append(nav, keybind{keyMap.Cycle.hint, "previous / next value"})
 	}
 
-	action := []keybind{{keyMap.Edit.hint, "edit field"}}
+	action := m.editKeyhints(cur)
 	switch {
 	case m.isProviderField(cur) && m.isRef():
 		action = append(action, keybind{keyMap.Secret.hint, "open " + m.storeLabel()})
@@ -281,7 +287,7 @@ func (m formModel) keyhints() []keyhintGroup {
 			keybind{keyMap.Delete.hint, "remove the link"},
 		)
 	}
-	if m.hasLinks() && m.section == m.linkSect {
+	if m.hasLinks() && m.section == m.linkSect && !isArray(m.fields[cur]) {
 		action = append(action, keybind{keyMap.Add.hint, "add a link"})
 	}
 
@@ -326,7 +332,7 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 			{title: "editing", binds: []keybind{
 				{keyMap.Cancel.hint, "stop editing"},
 				{keyMap.Confirm.hint, "confirm and next"},
-				{keyMap.Paste.hint, "paste"},
+				{keyMap.Paste.hint, keyhintPaste},
 			}},
 		}
 	}
@@ -395,7 +401,7 @@ func (m transportFormModel) keyhints() []keyhintGroup {
 				binds: []keybind{
 					{keyMap.Cancel.hint, "stop editing"},
 					{keyMap.Confirm.hint, "confirm and next"},
-					{keyMap.Paste.hint, "paste"},
+					{keyMap.Paste.hint, keyhintPaste},
 				},
 			},
 		}
@@ -415,4 +421,15 @@ func (m transportFormModel) keyhints() []keyhintGroup {
 		}},
 		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, "cancel"}}},
 	}
+}
+
+func (m formModel) editKeyhints(cur int) []keybind {
+	if isArray(m.fields[cur]) {
+		return []keybind{
+			{keyMap.Add.hint, "add a value"},
+			{keyMap.Edit.hint, "edit the value"},
+			{keyMap.Delete.hint, "remove the value"},
+		}
+	}
+	return []keybind{{keyMap.Edit.hint, "edit field"}}
 }

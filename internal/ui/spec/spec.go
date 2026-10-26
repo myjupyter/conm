@@ -20,6 +20,7 @@ const (
 	IntFieldKind
 	SelectFieldKind
 	SourceFieldKind
+	StringArrayFieldKind
 )
 
 const (

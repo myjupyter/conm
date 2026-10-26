@@ -121,6 +121,7 @@ var PostgresFormFields = []FormField{
 		Key:      strings.ToLower(postgresFormFieldTags),
 		Label:    postgresFormFieldTags,
 		Example:  postgresExampleTags,
+		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
@@ -177,7 +178,7 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(postgresFormFieldSSLMode):     pg.SSLMode,
 			strings.ToLower(postgresFormFieldName):        pg.Metadata.Name,
 			strings.ToLower(postgresFormFieldDescription): pg.Metadata.Description,
-			strings.ToLower(postgresFormFieldTags):        strings.Join(pg.Metadata.Tags, ", "),
+			strings.ToLower(postgresFormFieldTags):        JoinStringArray(pg.Metadata.Tags),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {

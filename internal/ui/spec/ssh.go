@@ -200,6 +200,7 @@ var SSHFormFields = []FormField{
 		Key:      strings.ToLower(sshFormFieldTags),
 		Label:    sshFormFieldTags,
 		Example:  sshExampleTags,
+		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
@@ -268,7 +269,7 @@ var SSHFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(sshFormFieldLocalForward): s.LocalForward,
 			strings.ToLower(sshFormFieldName):         s.Metadata.Name,
 			strings.ToLower(sshFormFieldDescription):  s.Metadata.Description,
-			strings.ToLower(sshFormFieldTags):         strings.Join(s.Metadata.Tags, ", "),
+			strings.ToLower(sshFormFieldTags):         JoinStringArray(s.Metadata.Tags),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {

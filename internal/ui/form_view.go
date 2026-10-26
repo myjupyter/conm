@@ -15,6 +15,7 @@ const (
 	formInner  = 88
 	formLabelW = 18
 	formBoxW   = 46
+	chipMaxW   = formBoxW - 8
 
 	// The rail bracketing a link's two rows takes its width out of the label,
 	// so every input box still starts in the same column.
@@ -214,6 +215,9 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 	if isSelect(f) && m.applies(f) {
 		return m.selectBox(f, active, borderFg, bg)
 	}
+	if isArray(f) {
+		return m.chipsBox(f, active, bg)
+	}
 
 	disp, ghost := m.display(i, active)
 	if active && m.insert {
@@ -231,6 +235,113 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 		{text: truncPad(disp, formBoxW-2, false), fg: valFg, bg: bg},
 		{text: gLineV, fg: borderFg, bg: bg},
 	}
+}
+
+type chip struct {
+	text    string
+	focused bool
+}
+
+func (m formModel) chips(f spec.FormField, active bool) []chip {
+	items := m.items(f)
+	if active && m.insert {
+		draft := m.chipDraft + gInputCursor
+		if m.chipAt < len(items) {
+			items[m.chipAt] = draft
+		} else {
+			items = append(items, draft)
+		}
+	}
+
+	focus := -1
+	switch {
+	case active && m.insert:
+		focus = m.chipAt
+	case active:
+		focus = m.chipAtCursor(f)
+	}
+
+	out := make([]chip, len(items))
+	for j, item := range items {
+		out[j] = chip{text: fitChip(item, active && m.insert && j == m.chipAt), focused: j == focus}
+	}
+	return out
+}
+
+func fitChip(text string, typing bool) string {
+	r := []rune(text)
+	switch {
+	case len(r) <= chipMaxW:
+		return text
+	case typing:
+		return gEllipsis + string(r[len(r)-chipMaxW+1:])
+	default:
+		return truncPad(text, chipMaxW, false)
+	}
+}
+
+func (c chip) label() string {
+	if c.focused {
+		return "[" + c.text + "]"
+	}
+	return " " + c.text + " "
+}
+
+func chipsWindow(chips []chip, w int) (from, to int) {
+	focus := max(slices.IndexFunc(chips, func(c chip) bool { return c.focused }), 0)
+	width := func(from, to int) int {
+		n := 0
+		for _, c := range chips[from:to] {
+			n += len([]rune(c.label())) + 1
+		}
+		return n
+	}
+	for from < focus && width(from, focus+1) > w {
+		from++
+	}
+	to = from
+	for to < len(chips) && width(from, to+1) <= w {
+		to++
+	}
+	return from, max(to, min(focus+1, len(chips)))
+}
+
+func (m formModel) chipsBox(f spec.FormField, active bool, bg color.Color) []span {
+	chips := m.chips(f, active)
+	if len(chips) == 0 {
+		fg := cFaint
+		if active {
+			fg = cInvFg
+		}
+		return []span{{text: truncPad(" "+gEmptyList, formBoxW, false), fg: fg, bg: bg}}
+	}
+
+	fg := cFg
+	if active {
+		fg = cInvFg
+	}
+
+	from, to := chipsWindow(chips, formBoxW-5)
+	spans := make([]span, 0, 2*(to-from)+4)
+	used := 0
+	add := func(s span) {
+		spans = append(spans, s)
+		used += s.width()
+	}
+	add(span{text: " ", bg: bg})
+	if from > 0 {
+		add(span{text: gEllipsis + " ", fg: fg, bg: bg})
+	}
+	for j := from; j < to; j++ {
+		if j > from {
+			add(span{text: " ", bg: bg})
+		}
+		add(span{text: chips[j].label(), fg: fg, bg: bg, bold: true})
+	}
+	if to < len(chips) {
+		add(span{text: " " + gEllipsis, fg: fg, bg: bg})
+	}
+	return append(spans, span{text: strings.Repeat(" ", max(formBoxW-used, 0)), bg: bg})
 }
 
 func (m formModel) selectBox(f spec.FormField, active bool, borderFg, bg color.Color) []span {

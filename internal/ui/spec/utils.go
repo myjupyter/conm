@@ -8,6 +8,8 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
+const stringArraySeparator = ","
+
 func metadataSection(nameKey, descriptionKey, tagsKey FormFieldKey) FormSection {
 	return FormSection{
 		Title:  MetadataSectionTitle,
@@ -33,17 +35,21 @@ func buildMeta(values map[FormFieldKey]FormFieldValue, nameKey, descriptionKey, 
 	return config.ConnMeta{
 		Name:        values[nameKey],
 		Description: values[descriptionKey],
-		Tags:        parseTags(values[tagsKey]),
+		Tags:        SplitStringArray(values[tagsKey]),
 		Links:       LinksFrom(values),
 	}
 }
 
-func parseTags(raw string) []string {
-	var tags []string
-	for t := range strings.SplitSeq(raw, ",") {
-		if t = strings.TrimSpace(t); t != "" {
-			tags = append(tags, t)
+func JoinStringArray(items []string) FormFieldValue {
+	return strings.Join(items, stringArraySeparator+" ")
+}
+
+func SplitStringArray(raw FormFieldValue) []string {
+	var items []string
+	for item := range strings.SplitSeq(raw, stringArraySeparator) {
+		if item = strings.TrimSpace(item); item != "" {
+			items = append(items, item)
 		}
 	}
-	return tags
+	return items
 }

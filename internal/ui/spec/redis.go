@@ -119,6 +119,7 @@ var RedisFormFields = []FormField{
 		Key:      strings.ToLower(redisFormFieldTags),
 		Label:    redisFormFieldTags,
 		Example:  redisExampleTags,
+		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
@@ -173,7 +174,7 @@ var RedisFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(redisFormFieldTLSMode):     rd.TLSMode,
 			strings.ToLower(redisFormFieldName):        rd.Metadata.Name,
 			strings.ToLower(redisFormFieldDescription): rd.Metadata.Description,
-			strings.ToLower(redisFormFieldTags):        strings.Join(rd.Metadata.Tags, ", "),
+			strings.ToLower(redisFormFieldTags):        JoinStringArray(rd.Metadata.Tags),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {

@@ -105,6 +105,7 @@ var ClickHouseFormFields = []FormField{
 		Key:      strings.ToLower(clickhouseFormFieldTags),
 		Label:    clickhouseFormFieldTags,
 		Example:  clickhouseExampleTags,
+		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
 			if len(value) > tagsMaxLength {
@@ -159,7 +160,7 @@ var ClickHouseFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(clickhouseFormFieldSecure):      strconv.FormatBool(ch.Secure),
 			strings.ToLower(clickhouseFormFieldName):        ch.Metadata.Name,
 			strings.ToLower(clickhouseFormFieldDescription): ch.Metadata.Description,
-			strings.ToLower(clickhouseFormFieldTags):        strings.Join(ch.Metadata.Tags, ", "),
+			strings.ToLower(clickhouseFormFieldTags):        JoinStringArray(ch.Metadata.Tags),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
