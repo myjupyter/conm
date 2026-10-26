@@ -164,7 +164,7 @@ func newKeymap(s config.KeybindingSettings) keymap {
 		Edit:      newBinding(act.Edit...),
 		Delete:    newBinding(act.Delete...),
 		Secret:    newBinding(act.Secret...),
-		Setting:   newBinding(act.Settings),
+		Settings:  newBinding(act.Settings...),
 		Transport: newBinding(act.Transport...),
 		Search:    newBinding(act.Search...),
 		Info:      newBinding(act.Info...),

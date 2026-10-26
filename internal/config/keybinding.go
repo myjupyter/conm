@@ -25,6 +25,7 @@ const (
 	actionEditPath      = "action.edit"
 	actionDeletePath    = "action.delete"
 	actionSecretPath    = "action.secret"
+	actionSettingsPath  = "action.settings"
 	actionTransportPath = "action.transport"
 	actionSearchPath    = "action.search"
 	actionInfoPath      = "action.info"
@@ -48,6 +49,7 @@ var mayShareKeys = [][2]string{
 	{screenCancelPath, actionNoPath},
 	{screenQuitPath, screenInterruptPath},
 	{actionYankPath, actionYesPath},
+	{actionSecretPath, actionSettingsPath},
 }
 
 type KeybindingSettings struct {
@@ -73,6 +75,7 @@ type ActionKeybindingSettings struct {
 	Edit      []string `toml:"edit"`
 	Delete    []string `toml:"delete"`
 	Secret    []string `toml:"secret"`
+	Settings  []string `toml:"settings"`
 	Transport []string `toml:"transport"`
 	Search    []string `toml:"search"`
 	Info      []string `toml:"info"`
@@ -110,6 +113,7 @@ func DefaultKeybindings() KeybindingSettings {
 			Edit:      []string{"e"},
 			Delete:    []string{"d"},
 			Secret:    []string{"s"},
+			Settings:  []string{"s"},
 			Transport: []string{"t"},
 			Search:    []string{"/"},
 			Info:      []string{"i"},
@@ -151,6 +155,7 @@ func (k *KeybindingSettings) fields() []keybindingField {
 		{actionEditPath, &k.Action.Edit},
 		{actionDeletePath, &k.Action.Delete},
 		{actionSecretPath, &k.Action.Secret},
+		{actionSettingsPath, &k.Action.Settings},
 		{actionTransportPath, &k.Action.Transport},
 		{actionSearchPath, &k.Action.Search},
 		{actionInfoPath, &k.Action.Info},
