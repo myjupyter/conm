@@ -4,61 +4,63 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 )
 
-var errSharedKey = errors.New("shares key")
+var (
+	errSharedKey      = errors.New("shares key")
+	errLocked         = errors.New("is locked")
+	errDefaultRemoved = errors.New("must keep its default key")
+	errLongSequence   = errors.New("a sequence is at most two keys")
+)
 
 const keybindingPathPrefix = "conm.keybinding."
 
 const (
-	navigationUpPath          = "navigation.up"
-	navigationDownPath        = "navigation.down"
-	navigationLeftPath        = "navigation.left"
-	navigationRightPath       = "navigation.right"
-	navigationNextSectionPath = "navigation.next_section"
-	navigationPrevSectionPath = "navigation.prev_section"
-
-	actionConfirmPath   = "action.confirm"
-	actionPingPath      = "action.ping"
-	actionRetryPath     = "action.retry"
-	actionAddPath       = "action.add"
-	actionEditPath      = "action.edit"
-	actionDeletePath    = "action.delete"
-	actionSecretPath    = "action.secret"
-	actionSettingsPath  = "action.settings"
-	actionTransportPath = "action.transport"
-	actionSearchPath    = "action.search"
-	actionInfoPath      = "action.info"
-	actionYankPath      = "action.yank"
-	actionTogglePath    = "action.toggle"
-	actionAddDBPath     = "action.add_db"
-	actionBackspacePath = "action.backspace"
-	actionPastePath     = "action.paste"
-	actionYesPath       = "action.yes"
-	actionNoPath        = "action.no"
-
-	screenQuitPath      = "screen.quit"
-	screenInterruptPath = "screen.interrupt"
-	screenCancelPath    = "screen.cancel"
-	screenHelpPath      = "screen.help"
+	navigationGroup = "navigation"
+	generalGroup    = "general"
+	screenGroup     = "screen"
+	connectionGroup = "connection"
+	formGroup       = "form"
+	secretGroup     = "secret"
+	transportGroup  = "transport"
+	settingsGroup   = "settings"
+	promptGroup     = "prompt"
 )
 
-var mayShareKeys = [][2]string{
-	{screenQuitPath, screenCancelPath},
-	{screenQuitPath, actionNoPath},
-	{screenCancelPath, actionNoPath},
-	{screenQuitPath, screenInterruptPath},
-	{actionYankPath, actionYesPath},
-	{actionSecretPath, actionSettingsPath},
+const (
+	addAction    = "add"
+	editAction   = "edit"
+	deleteAction = "delete"
+	pingAction   = "ping"
+	retryAction  = "retry"
+)
+
+const confirmPath = generalGroup + ".confirm"
+
+var keybindingScreens = [][]string{
+	{screenGroup, connectionGroup},
+	{formGroup, confirmPath, connectionGroup + "." + pingAction, connectionGroup + "." + retryAction},
+	{secretGroup, confirmPath},
+	{transportGroup, confirmPath},
+	{settingsGroup, confirmPath},
 }
+
+var keybindingEverywhere = []string{navigationGroup, generalGroup}
 
 type KeybindingSettings struct {
-	Navigation NavigationKeybindingSettings `toml:"navigation"`
-	Action     ActionKeybindingSettings     `toml:"action"`
-	Screen     ScreenKeybindingSettings     `toml:"screen"`
+	Navigation NavigationKeybindings `toml:"navigation"`
+	General    GeneralKeybindings    `toml:"general"`
+	Screen     ScreenKeybindings     `toml:"screen"`
+	Connection ConnectionKeybindings `toml:"connection"`
+	Form       FormKeybindings       `toml:"form"`
+	Secret     EntityKeybindings     `toml:"secret"`
+	Transport  EntityKeybindings     `toml:"transport"`
+	Settings   SettingsKeybindings   `toml:"settings"`
+	Prompt     PromptKeybindings     `toml:"prompt"`
 }
 
-type NavigationKeybindingSettings struct {
+type NavigationKeybindings struct {
 	Up          []string `toml:"up"`
 	Down        []string `toml:"down"`
 	Left        []string `toml:"left"`
@@ -67,37 +69,83 @@ type NavigationKeybindingSettings struct {
 	PrevSection []string `toml:"prev_section"`
 }
 
-type ActionKeybindingSettings struct {
+type GeneralKeybindings struct {
 	Confirm   []string `toml:"confirm"`
-	Ping      []string `toml:"ping"`
-	Retry     []string `toml:"retry"`
-	Add       []string `toml:"add"`
-	Edit      []string `toml:"edit"`
-	Delete    []string `toml:"delete"`
-	Secret    []string `toml:"secret"`
-	Settings  []string `toml:"settings"`
-	Transport []string `toml:"transport"`
-	Search    []string `toml:"search"`
-	Info      []string `toml:"info"`
-	Yank      []string `toml:"yank"`
-	Toggle    []string `toml:"toggle"`
-	AddDB     []string `toml:"add_db"`
-	Backspace []string `toml:"backspace"`
+	Cancel    []string `toml:"cancel"`
+	Back      []string `toml:"back"`
 	Paste     []string `toml:"paste"`
-	Yes       []string `toml:"yes"`
-	No        []string `toml:"no"`
+	Copy      []string `toml:"copy"`
+	Search    []string `toml:"search"`
+	Help      []string `toml:"help"`
+	Interrupt []string `toml:"interrupt"`
+	Backspace []string `toml:"backspace"`
 }
 
-type ScreenKeybindingSettings struct {
-	Quit      []string `toml:"quit"`
-	Interrupt []string `toml:"interrupt"`
-	Cancel    []string `toml:"cancel"`
-	Help      []string `toml:"help"`
+type ScreenKeybindings struct {
+	Transport         []string `toml:"transport"`
+	Secrets           []string `toml:"secrets"`
+	Settings          []string `toml:"settings"`
+	AddConnection     []string `toml:"add_connection"`
+	AddConnectionType []string `toml:"add_connection_type"`
+}
+
+type ConnectionKeybindings struct {
+	Connect []string `toml:"connect"`
+	Edit    []string `toml:"edit"`
+	Delete  []string `toml:"delete"`
+	Info    []string `toml:"info"`
+	Ping    []string `toml:"ping"`
+	Retry   []string `toml:"retry"`
+}
+
+type FormKeybindings struct {
+	EditField  []string `toml:"edit_field"`
+	Secret     []string `toml:"secret"`
+	AddItem    []string `toml:"add_item"`
+	RemoveItem []string `toml:"remove_item"`
+}
+
+type EntityKeybindings struct {
+	Add    []string `toml:"add"`
+	Edit   []string `toml:"edit"`
+	Delete []string `toml:"delete"`
+}
+
+type SettingsKeybindings struct {
+	AddKey    []string `toml:"add_key"`
+	ChangeKey []string `toml:"change_key"`
+	RemoveKey []string `toml:"remove_key"`
+	Reset     []string `toml:"reset"`
+}
+
+type PromptKeybindings struct {
+	Yes []string `toml:"yes"`
+	No  []string `toml:"no"`
+}
+
+func ParseSequence(raw string) ([]Key, error) {
+	strokes := strings.Fields(raw)
+	if len(strokes) > 2 {
+		return nil, fmt.Errorf("%q: %w", raw, errLongSequence)
+	}
+	if len(strokes) == 0 {
+		strokes = []string{raw}
+	}
+
+	sequence := make([]Key, 0, len(strokes))
+	for _, stroke := range strokes {
+		key, err := ParseKey(stroke)
+		if err != nil {
+			return nil, err
+		}
+		sequence = append(sequence, key)
+	}
+	return sequence, nil
 }
 
 func DefaultKeybindings() KeybindingSettings {
 	return KeybindingSettings{
-		Navigation: NavigationKeybindingSettings{
+		Navigation: NavigationKeybindings{
 			Up:          []string{"up", "k"},
 			Down:        []string{"down", "j"},
 			Left:        []string{"left", "h"},
@@ -105,72 +153,162 @@ func DefaultKeybindings() KeybindingSettings {
 			NextSection: []string{"tab"},
 			PrevSection: []string{"shift+tab"},
 		},
-		Action: ActionKeybindingSettings{
+		General: GeneralKeybindings{
 			Confirm:   []string{"enter"},
-			Ping:      []string{"p"},
-			Retry:     []string{"r", "R"},
-			Add:       []string{"a"},
-			Edit:      []string{"e"},
-			Delete:    []string{"d"},
-			Secret:    []string{"s"},
-			Settings:  []string{"s"},
-			Transport: []string{"t"},
-			Search:    []string{"/"},
-			Info:      []string{"i"},
-			Yank:      []string{"y"},
-			Toggle:    []string{"space"},
-			AddDB:     []string{"ctrl+a"},
-			Backspace: []string{"backspace"},
-			Paste:     []string{"ctrl+v"},
-			Yes:       []string{"y"},
-			No:        []string{"n", "esc"},
-		},
-		Screen: ScreenKeybindingSettings{
-			Quit:      []string{"ctrl+c", "q", "esc"},
-			Interrupt: []string{"ctrl+c"},
 			Cancel:    []string{"esc"},
+			Back:      []string{"q"},
+			Paste:     []string{"ctrl+v"},
+			Copy:      []string{"y"},
+			Search:    []string{"/"},
 			Help:      []string{"?"},
+			Interrupt: []string{"ctrl+c"},
+			Backspace: []string{"backspace"},
+		},
+		Screen: ScreenKeybindings{
+			Transport:         []string{"t"},
+			Secrets:           []string{"s"},
+			Settings:          []string{"s s"},
+			AddConnection:     []string{"a"},
+			AddConnectionType: []string{"a a"},
+		},
+		Connection: ConnectionKeybindings{
+			Connect: []string{"enter"},
+			Edit:    []string{"e"},
+			Delete:  []string{"d"},
+			Info:    []string{"i"},
+			Ping:    []string{"p"},
+			Retry:   []string{"r", "R"},
+		},
+		Form: FormKeybindings{
+			EditField:  []string{"i"},
+			Secret:     []string{"s"},
+			AddItem:    []string{"a"},
+			RemoveItem: []string{"d"},
+		},
+		Secret:    defaultEntityKeybindings(),
+		Transport: defaultEntityKeybindings(),
+		Settings: SettingsKeybindings{
+			AddKey:    []string{"a"},
+			ChangeKey: []string{"e"},
+			RemoveKey: []string{"d"},
+			Reset:     []string{"r"},
+		},
+		Prompt: PromptKeybindings{
+			Yes: []string{"y"},
+			No:  []string{"n", "esc"},
 		},
 	}
 }
 
+func defaultEntityKeybindings() EntityKeybindings {
+	return EntityKeybindings{
+		Add:    []string{"a"},
+		Edit:   []string{"e"},
+		Delete: []string{"d"},
+	}
+}
+
+type keybindingEditMod uint8
+
+const (
+	unrestrictedKeys keybindingEditMod = iota
+	appendOnlyKeys
+	lockedKeys
+)
+
 type keybindingField struct {
-	path string
-	keys *[]string
+	group   string
+	name    string
+	keys    *[]string
+	editMod keybindingEditMod
+}
+
+func (f keybindingField) path() string {
+	return f.group + "." + f.name
 }
 
 func (k *KeybindingSettings) fields() []keybindingField {
 	return []keybindingField{
-		{navigationUpPath, &k.Navigation.Up},
-		{navigationDownPath, &k.Navigation.Down},
-		{navigationLeftPath, &k.Navigation.Left},
-		{navigationRightPath, &k.Navigation.Right},
-		{navigationNextSectionPath, &k.Navigation.NextSection},
-		{navigationPrevSectionPath, &k.Navigation.PrevSection},
+		{navigationGroup, "up", &k.Navigation.Up, appendOnlyKeys},
+		{navigationGroup, "down", &k.Navigation.Down, appendOnlyKeys},
+		{navigationGroup, "left", &k.Navigation.Left, appendOnlyKeys},
+		{navigationGroup, "right", &k.Navigation.Right, appendOnlyKeys},
+		{navigationGroup, "next_section", &k.Navigation.NextSection, appendOnlyKeys},
+		{navigationGroup, "prev_section", &k.Navigation.PrevSection, appendOnlyKeys},
 
-		{actionConfirmPath, &k.Action.Confirm},
-		{actionPingPath, &k.Action.Ping},
-		{actionRetryPath, &k.Action.Retry},
-		{actionAddPath, &k.Action.Add},
-		{actionEditPath, &k.Action.Edit},
-		{actionDeletePath, &k.Action.Delete},
-		{actionSecretPath, &k.Action.Secret},
-		{actionSettingsPath, &k.Action.Settings},
-		{actionTransportPath, &k.Action.Transport},
-		{actionSearchPath, &k.Action.Search},
-		{actionInfoPath, &k.Action.Info},
-		{actionYankPath, &k.Action.Yank},
-		{actionTogglePath, &k.Action.Toggle},
-		{actionAddDBPath, &k.Action.AddDB},
-		{actionBackspacePath, &k.Action.Backspace},
-		{actionPastePath, &k.Action.Paste},
-		{actionYesPath, &k.Action.Yes},
-		{actionNoPath, &k.Action.No},
+		{generalGroup, "confirm", &k.General.Confirm, appendOnlyKeys},
+		{generalGroup, "cancel", &k.General.Cancel, appendOnlyKeys},
+		{generalGroup, "back", &k.General.Back, unrestrictedKeys},
+		{generalGroup, "paste", &k.General.Paste, unrestrictedKeys},
+		{generalGroup, "copy", &k.General.Copy, unrestrictedKeys},
+		{generalGroup, "search", &k.General.Search, unrestrictedKeys},
+		{generalGroup, "help", &k.General.Help, unrestrictedKeys},
+		{generalGroup, "interrupt", &k.General.Interrupt, lockedKeys},
+		{generalGroup, "backspace", &k.General.Backspace, lockedKeys},
 
-		{screenQuitPath, &k.Screen.Quit},
-		{screenInterruptPath, &k.Screen.Interrupt},
-		{screenCancelPath, &k.Screen.Cancel},
-		{screenHelpPath, &k.Screen.Help},
+		{screenGroup, "transport", &k.Screen.Transport, unrestrictedKeys},
+		{screenGroup, "secrets", &k.Screen.Secrets, unrestrictedKeys},
+		{screenGroup, "settings", &k.Screen.Settings, unrestrictedKeys},
+		{screenGroup, "add_connection", &k.Screen.AddConnection, unrestrictedKeys},
+		{screenGroup, "add_connection_type", &k.Screen.AddConnectionType, unrestrictedKeys},
+
+		{connectionGroup, "connect", &k.Connection.Connect, unrestrictedKeys},
+		{connectionGroup, editAction, &k.Connection.Edit, unrestrictedKeys},
+		{connectionGroup, deleteAction, &k.Connection.Delete, unrestrictedKeys},
+		{connectionGroup, "info", &k.Connection.Info, unrestrictedKeys},
+		{connectionGroup, pingAction, &k.Connection.Ping, unrestrictedKeys},
+		{connectionGroup, retryAction, &k.Connection.Retry, unrestrictedKeys},
+
+		{formGroup, "edit_field", &k.Form.EditField, unrestrictedKeys},
+		{formGroup, "secret", &k.Form.Secret, unrestrictedKeys},
+		{formGroup, "add_item", &k.Form.AddItem, unrestrictedKeys},
+		{formGroup, "remove_item", &k.Form.RemoveItem, unrestrictedKeys},
+
+		{secretGroup, addAction, &k.Secret.Add, unrestrictedKeys},
+		{secretGroup, editAction, &k.Secret.Edit, unrestrictedKeys},
+		{secretGroup, deleteAction, &k.Secret.Delete, unrestrictedKeys},
+
+		{transportGroup, addAction, &k.Transport.Add, unrestrictedKeys},
+		{transportGroup, editAction, &k.Transport.Edit, unrestrictedKeys},
+		{transportGroup, deleteAction, &k.Transport.Delete, unrestrictedKeys},
+
+		{settingsGroup, "add_key", &k.Settings.AddKey, unrestrictedKeys},
+		{settingsGroup, "change_key", &k.Settings.ChangeKey, unrestrictedKeys},
+		{settingsGroup, "remove_key", &k.Settings.RemoveKey, unrestrictedKeys},
+		{settingsGroup, "reset", &k.Settings.Reset, unrestrictedKeys},
+
+		{promptGroup, "yes", &k.Prompt.Yes, unrestrictedKeys},
+		{promptGroup, "no", &k.Prompt.No, unrestrictedKeys},
+	}
+}
+
+type Keybinding struct {
+	Path       string
+	Keys       []string
+	Locked     bool
+	OnlyAppend bool
+}
+
+func (k KeybindingSettings) Bindings() []Keybinding {
+	fields := k.fields()
+	bindings := make([]Keybinding, 0, len(fields))
+	for _, field := range fields {
+		bindings = append(bindings, Keybinding{
+			Path:       field.path(),
+			Keys:       slices.Clone(*field.keys),
+			Locked:     field.editMod == lockedKeys,
+			OnlyAppend: field.editMod == appendOnlyKeys,
+		})
+	}
+	return bindings
+}
+
+func (k *KeybindingSettings) Set(path string, keys []string) {
+	for _, field := range k.fields() {
+		if field.path() == path {
+			*field.keys = slices.Clone(keys)
+			return
+		}
 	}
 }
 
@@ -186,37 +324,91 @@ func (k *KeybindingSettings) fillDefaults() {
 }
 
 func (k *KeybindingSettings) validate() error {
-	return errors.Join(k.validateKeys(), k.validateSharedKeys())
+	return errors.Join(
+		k.validateKeys(),
+		k.validateEdits(),
+		k.validateSharedKeys(),
+	)
 }
 
 func (k *KeybindingSettings) validateKeys() error {
 	var errs []error
 	for _, field := range k.fields() {
 		for _, key := range *field.keys {
-			if _, err := ParseKey(key); err != nil {
-				errs = append(errs, fmt.Errorf("%s%s: %w", keybindingPathPrefix, field.path, err))
+			if _, err := ParseSequence(key); err != nil {
+				errs = append(errs, fmt.Errorf("%s%s: %w", keybindingPathPrefix, field.path(), err))
 			}
 		}
 	}
 	return errors.Join(errs...)
 }
 
-func (k *KeybindingSettings) validateSharedKeys() error {
-	var errs []error
-	fields := k.fields()
+func (k *KeybindingSettings) validateEdits() error {
+	defaults := DefaultKeybindings()
+	defaultFields := defaults.fields()
 
-	mayShareKey := func(a, b string) bool {
-		return slices.Contains(mayShareKeys, [2]string{a, b}) || slices.Contains(mayShareKeys, [2]string{b, a})
+	var errs []error
+	for i, field := range k.fields() {
+		defaultKeys := *defaultFields[i].keys
+		switch field.editMod {
+		case unrestrictedKeys:
+		case lockedKeys:
+			if !sameKeys(*field.keys, defaultKeys) {
+				errs = append(errs, fmt.Errorf("%s%s: %w", keybindingPathPrefix, field.path(), errLocked))
+			}
+		case appendOnlyKeys:
+			for _, key := range defaultKeys {
+				if _, ok := findKey(*field.keys, key); !ok {
+					errs = append(errs, fmt.Errorf("%s%s: %w %q", keybindingPathPrefix, field.path(), errDefaultRemoved, key))
+				}
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func sameKeys(keys, others []string) bool {
+	if len(keys) != len(others) {
+		return false
+	}
+	for _, key := range others {
+		if _, ok := findKey(keys, key); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (k *KeybindingSettings) validateSharedKeys() error {
+	all := k.fields()
+	in := func(selectors ...string) []keybindingField {
+		var fields []keybindingField
+		for _, selector := range selectors {
+			for _, field := range all {
+				if field.group == selector || field.path() == selector {
+					fields = append(fields, field)
+				}
+			}
+		}
+		return fields
 	}
 
-	for i, first := range fields {
-		for _, second := range fields[i+1:] {
-			if mayShareKey(first.path, second.path) {
-				continue
-			}
+	everywhere := slices.DeleteFunc(in(keybindingEverywhere...), func(f keybindingField) bool { return f.path() == confirmPath })
+	errs := make([]error, 0, 2+len(keybindingScreens))
+	errs = append(errs, sharedKeys(everywhere, nil), sharedKeys(in(promptGroup), nil))
+	for _, screen := range keybindingScreens {
+		errs = append(errs, sharedKeys(in(screen...), everywhere))
+	}
+	return errors.Join(errs...)
+}
+
+func sharedKeys(fields, against []keybindingField) error {
+	var errs []error
+	for i, second := range fields {
+		for _, first := range append(slices.Clone(against), fields[:i]...) {
 			for _, key := range *first.keys {
 				if shared, ok := findKey(*second.keys, key); ok {
-					errs = append(errs, fmt.Errorf("%s%s: %w %q with %s", keybindingPathPrefix, second.path, errSharedKey, shared, first.path))
+					errs = append(errs, fmt.Errorf("%s%s: %w %q with %s", keybindingPathPrefix, second.path(), errSharedKey, shared, first.path()))
 				}
 			}
 		}
@@ -225,13 +417,13 @@ func (k *KeybindingSettings) validateSharedKeys() error {
 }
 
 func findKey(keys []string, raw string) (string, bool) {
-	wanted, err := ParseKey(raw)
+	wanted, err := ParseSequence(raw)
 	if err != nil {
 		return "", false
 	}
 
 	for _, candidate := range keys {
-		if key, err := ParseKey(candidate); err == nil && key == wanted {
+		if sequence, err := ParseSequence(candidate); err == nil && slices.Equal(sequence, wanted) {
 			return candidate, true
 		}
 	}

@@ -13,16 +13,25 @@ import (
 
 const settingsSectionWindow = 3
 
-var settingsTabTitles = []string{"client"}
+const (
+	settingsClientTab = iota
+	settingsKeybindTab
+)
+
+var settingsTabTitles = []string{"client", "keybind"}
 
 type settingsModel struct {
 	conm     config.Conm
 	clients  map[config.ConnType][]cli.Info
 	versions map[string]string
+	save     func(config.Conm) error
 
+	tab     int
 	cursor  int
 	window  view.Scroll
 	changed bool
+
+	binds bindsTab
 
 	status     string
 	statusKind statusKind
@@ -35,8 +44,9 @@ type clientVersionMsg struct {
 }
 
 type settingsSavedMsg struct {
-	conm config.Conm
-	err  error
+	conm   config.Conm
+	status string
+	err    error
 }
 
 func newSettingsModel(conm config.Conm) settingsModel {
@@ -44,9 +54,11 @@ func newSettingsModel(conm config.Conm) settingsModel {
 		conm:     conm,
 		clients:  make(map[config.ConnType][]cli.Info, len(conm.Connections)),
 		versions: make(map[string]string),
+		save:     config.CreateConm,
 		status:   statusReady,
 	}
 	m.window.Resize(settingsSectionWindow)
+	m.binds.window.Resize(bindsWindow)
 
 	for _, db := range conm.Connections {
 		m.clients[db.Type] = cli.Detect(db.Type)
@@ -62,6 +74,9 @@ func (m settingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.handleSettingsKey(msg.String())
 
+	case bindCaptureExpiredMsg:
+		return m.captureExpired(msg)
+
 	case clientVersionMsg:
 		m.versions[msg.name] = msg.version
 
@@ -71,21 +86,31 @@ func (m settingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 		m.conm, m.changed = msg.conm, true
-		if db, ok := m.database(); ok {
-			m.setSettingsStatus(db.Type.String()+" opens with "+db.CLI, kindOK)
-		}
+		keyMap = newKeymap(m.conm.Keybindings)
+		m.setSettingsStatus(msg.status, kindOK)
 	}
 
 	return m, nil
 }
 
 func (m settingsModel) handleSettingsKey(key string) (tea.Model, tea.Cmd) {
+	if m.tab == settingsKeybindTab {
+		if model, cmd, handled := m.handleBindsKey(key); handled {
+			return model, cmd
+		}
+	}
+
 	switch {
 	case keyMap.Help.matches(key):
 		m.help = !m.help
 		m.setSettingsStatus(keyhintStatus(m.help), kindIdle)
 	case keyMap.Quit.matches(key):
 		return m, tea.Quit
+	case keyMap.NextSection.matches(key):
+		m = m.switchTab(1)
+	case keyMap.PrevSection.matches(key):
+		m = m.switchTab(-1)
+	case m.tab != settingsClientTab:
 	case keyMap.Down.matches(key):
 		m = m.move(1)
 	case keyMap.Up.matches(key):
@@ -97,6 +122,13 @@ func (m settingsModel) handleSettingsKey(key string) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m settingsModel) switchTab(step int) settingsModel {
+	n := len(settingsTabTitles)
+	m.tab = (m.tab + step + n) % n
+	m.setSettingsStatus(statusReady, kindIdle)
+	return m
 }
 
 func (m settingsModel) move(step int) settingsModel {

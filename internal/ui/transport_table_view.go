@@ -72,7 +72,7 @@ func (m transportModel) emptyTransportText() string {
 	if m.transports.Filtered() {
 		return "   no transport matches the filter"
 	}
-	return "   no transports yet · press " + keyMap.Add.hint + " to add one"
+	return "   no transports yet · press " + keyMap.Transport.Add.hint + " to add one"
 }
 
 func (m transportModel) kindTabsLine(n int) string {

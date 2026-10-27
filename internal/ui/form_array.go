@@ -34,9 +34,9 @@ func (m *formModel) navArray(key string, cur spec.FormField) bool {
 	at := m.chipAtCursor(cur)
 
 	switch {
-	case keyMap.Add.matches(key):
+	case keyMap.Form.AddItem.matches(key):
 		m.startChip(cur, len(items))
-	case keyMap.Delete.matches(key):
+	case keyMap.Form.RemoveItem.matches(key):
 		m.removeChip(cur, at)
 	case keyMap.Left.matches(key):
 		m.chip = max(at-1, 0)
@@ -103,7 +103,7 @@ func (m *formModel) discardChip() {
 func (m *formModel) removeChip(f spec.FormField, at int) {
 	items := m.items(f)
 	if at >= len(items) {
-		m.setStatus(m.label(f)+" is empty · "+keyMap.Add.hint+" adds one", kindWarn)
+		m.setStatus(m.label(f)+" is empty · "+keyMap.Form.AddItem.hint+" adds one", kindWarn)
 		return
 	}
 

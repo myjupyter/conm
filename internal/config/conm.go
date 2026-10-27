@@ -36,6 +36,30 @@ type ConnectionSettings struct {
 	CLI  string   `toml:"cli"`
 }
 
+func CreateConm(conf Conm) error {
+	if err := conf.Keybindings.validate(); err != nil {
+		return err
+	}
+
+	raw, err := toml.Marshal(struct {
+		Conm Conm `toml:"conm"`
+	}{Conm: conf})
+	if err != nil {
+		return err
+	}
+
+	return writeFileAtomic(ConmPath(), raw)
+}
+
+func ReadConm(filename string) (Conm, error) {
+	c, err := OpenConfig[*ConmConfigWrapper](filename)
+	if err != nil {
+		return Conm{}, err
+	}
+
+	return c.Get(0), nil
+}
+
 func (c Conm) Connection(t ConnType) (ConnectionSettings, bool) {
 	for _, conn := range c.Connections {
 		if conn.Type == t {
@@ -59,26 +83,6 @@ func (c *Conm) SetConnection(s ConnectionSettings) {
 	}
 
 	c.Connections = append(c.Connections, s)
-}
-
-func (c *Conm) complete() {
-	c.Connections = withKnownTypes(c.Connections)
-	c.Keybindings.fillDefaults()
-}
-
-func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {
-	conns := make([]ConnectionSettings, 0, len(ConnTypes))
-	for _, t := range ConnTypes {
-		conn := ConnectionSettings{Type: t}
-		for _, s := range stored {
-			if s.Type == t {
-				conn = s
-				break
-			}
-		}
-		conns = append(conns, conn)
-	}
-	return conns
 }
 
 func (t ConnType) Kind() ConnKind {
@@ -182,22 +186,22 @@ func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
 	return toml.Marshal(w)
 }
 
-func CreateConm(conf Conm) error {
-	raw, err := toml.Marshal(struct {
-		Conm Conm `toml:"conm"`
-	}{Conm: conf})
-	if err != nil {
-		return err
-	}
-
-	return writeFileAtomic(ConmPath(), raw)
+func (c *Conm) complete() {
+	c.Connections = withKnownTypes(c.Connections)
+	c.Keybindings.fillDefaults()
 }
 
-func ReadConm(filename string) (Conm, error) {
-	c, err := OpenConfig[*ConmConfigWrapper](filename)
-	if err != nil {
-		return Conm{}, err
+func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {
+	conns := make([]ConnectionSettings, 0, len(ConnTypes))
+	for _, t := range ConnTypes {
+		conn := ConnectionSettings{Type: t}
+		for _, s := range stored {
+			if s.Type == t {
+				conn = s
+				break
+			}
+		}
+		conns = append(conns, conn)
 	}
-
-	return c.Get(0), nil
+	return conns
 }

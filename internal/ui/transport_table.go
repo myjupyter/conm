@@ -92,13 +92,13 @@ func (m transportModel) handleTransportKey(key string) (tea.Model, tea.Cmd) {
 		m.setTransportStatus(m.transports.Active()+" is the only transport kind", kindWarn)
 	case keyMap.Confirm.matches(key):
 		return m.describe(), nil
-	case keyMap.Add.matches(key):
+	case keyMap.Transport.Add.matches(key):
 		return m, m.addTransportCmd()
-	case keyMap.Edit.matches(key):
+	case keyMap.Transport.Edit.matches(key):
 		if m.transports.Len() > 0 {
 			return m, m.editTransportCmd()
 		}
-	case keyMap.Delete.matches(key):
+	case keyMap.Transport.Delete.matches(key):
 		m.transports.AskConfirm()
 	case keyMap.Help.matches(key):
 		m.transports.ToggleHelp()
@@ -110,10 +110,10 @@ func (m transportModel) handleTransportConfirmKey(key string) (tea.Model, tea.Cm
 	switch {
 	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
-	case keyMap.Yes.matches(key):
+	case keyMap.Prompt.Yes.matches(key):
 		m.transports.ClearConfirm()
 		return m, m.removeTransportCmd()
-	case keyMap.No.matches(key):
+	case keyMap.Prompt.No.matches(key):
 		m.transports.ClearConfirm()
 	}
 	return m, nil

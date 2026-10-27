@@ -355,7 +355,7 @@ func (m *formModel) onSecretModeChange(was string) {
 				m.vals[spec.SecretValueKey] = list[0]
 			}
 		}
-		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Secret.hint+" on provider to manage", kindIdle)
+		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Form.Secret.hint+" on provider to manage", kindIdle)
 	}
 }
 
@@ -405,15 +405,15 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.navCycle(fields[m.idx], 1)
 	case keyMap.Left.matches(key):
 		m.navCycle(fields[m.idx], -1)
-	case keyMap.Edit.matches(key):
+	case keyMap.Form.EditField.matches(key):
 		m.navEdit(fields[m.idx], cur)
-	case keyMap.Secret.matches(key):
+	case keyMap.Form.Secret.matches(key):
 		if cmd, handled := m.navSecret(fields[m.idx], cur); handled {
 			return m, cmd
 		}
-	case keyMap.Ping.matches(key):
+	case keyMap.Connection.Ping.matches(key):
 		return m.pingForm()
-	case keyMap.Retry.matches(key):
+	case keyMap.Connection.Retry.matches(key):
 		if m.ping != nil {
 			return m.pingForm()
 		}
@@ -445,9 +445,9 @@ func (m *formModel) navLink(key string, cur spec.FormField) (model tea.Model, cm
 	i, onLink := spec.LinkIndexOf(cur.Key)
 
 	switch {
-	case keyMap.Add.matches(key) && m.section == m.linkSect:
+	case keyMap.Form.AddItem.matches(key) && m.section == m.linkSect:
 		m.addLink()
-	case keyMap.Delete.matches(key) && onLink:
+	case keyMap.Form.RemoveItem.matches(key) && onLink:
 		m.removeLink(i)
 	case keyMap.Confirm.matches(key) && onLink:
 		model, cmd = m.openLink(cur.Key)
@@ -572,7 +572,7 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 	case cur.Kind == spec.HiddenFieldKind && m.isLiteral():
 		m.reveal = !m.reveal
 		if m.reveal {
-			m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)
+			m.setStatus("password visible · "+keyMap.Form.Secret.hint+" to hide", kindIdle)
 		} else {
 			m.setStatus("password hidden", kindIdle)
 		}
@@ -808,7 +808,7 @@ func (m formModel) refError() string {
 	store := m.storeLabel()
 
 	if ref == "" {
-		return "pick a " + store + " entry — " + keyMap.Cycle.hint + ", or " + keyMap.Secret.hint + " on provider"
+		return "pick a " + store + " entry — " + keyMap.Cycle.hint + ", or " + keyMap.Form.Secret.hint + " on provider"
 	}
 	if slices.Contains(m.refEntries(), ref) {
 		return ""

@@ -23,9 +23,35 @@ type binding struct {
 func newBinding(keys ...string) binding {
 	strokes := make([]string, 0, len(keys))
 	for _, key := range keys {
-		strokes = append(strokes, keystroke(key))
+		strokes = append(strokes, sequence(key))
 	}
 	return binding{keys: strokes, hint: hintOf(strokes)}
+}
+
+func sequence(raw string) string {
+	parts := strings.Fields(raw)
+	if len(parts) < 2 {
+		return keystroke(raw)
+	}
+	for i, part := range parts {
+		parts[i] = keystroke(part)
+	}
+	return strings.Join(parts, " ")
+}
+
+func sequenceHint(key string) string {
+	parts := strings.Fields(key)
+	short := true
+	for i, part := range parts {
+		if glyph, ok := keyGlyphs[part]; ok {
+			parts[i] = glyph
+		}
+		short = short && utf8.RuneCountInString(parts[i]) == 1
+	}
+	if short {
+		return strings.Join(parts, "")
+	}
+	return strings.Join(parts, " ")
 }
 
 func keystroke(raw string) string {
@@ -60,7 +86,7 @@ func hintOf(keys []string) string {
 			arrows.WriteString(glyph)
 			continue
 		}
-		spelled = append(spelled, key)
+		spelled = append(spelled, sequenceHint(key))
 	}
 
 	if arrows.Len() > 0 {
@@ -87,6 +113,10 @@ func (b binding) matches(key string) bool {
 	return slices.Contains(b.keys, key)
 }
 
+func (b binding) startsWith(key string) bool {
+	return slices.ContainsFunc(b.keys, func(k string) bool { return strings.HasPrefix(k, key+" ") })
+}
+
 func merge(binds ...binding) binding {
 	var keys []string
 	for _, b := range binds {
@@ -95,8 +125,49 @@ func merge(binds ...binding) binding {
 	return newBinding(keys...)
 }
 
+type screenKeys struct {
+	Transport         binding
+	Secrets           binding
+	Settings          binding
+	AddConnection     binding
+	AddConnectionType binding
+}
+
+type connectionKeys struct {
+	Connect binding
+	Edit    binding
+	Delete  binding
+	Info    binding
+	Ping    binding
+	Retry   binding
+}
+
+type formKeys struct {
+	EditField  binding
+	Secret     binding
+	AddItem    binding
+	RemoveItem binding
+}
+
+type entityKeys struct {
+	Add    binding
+	Edit   binding
+	Delete binding
+}
+
+type settingsKeys struct {
+	AddKey    binding
+	ChangeKey binding
+	RemoveKey binding
+	Reset     binding
+}
+
+type promptKeys struct {
+	Yes binding
+	No  binding
+}
+
 type keymap struct {
-	// Navigation.
 	Up          binding
 	Down        binding
 	Left        binding
@@ -104,50 +175,34 @@ type keymap struct {
 	NextSection binding
 	PrevSection binding
 
-	// Actions.
 	Confirm   binding
-	Ping      binding
-	Retry     binding
-	Add       binding
-	Edit      binding
-	Delete    binding
-	Secret    binding
-	Settings  binding
-	Transport binding
-	Search    binding
-	Info      binding
-	Yank      binding
-	Toggle    binding
-	AddDB     binding
-
-	// Text editing.
-	Backspace binding
-	Paste     binding
-
-	// The y/n confirmation prompt.
-	Yes binding
-	No  binding
-
-	// Leaving a screen.
-	Quit      binding
-	Interrupt binding
 	Cancel    binding
+	Paste     binding
+	Copy      binding
+	Search    binding
+	Help      binding
+	Interrupt binding
+	Backspace binding
 
-	// The keyhint table itself.
-	Help binding
+	Screen     screenKeys
+	Connection connectionKeys
+	Form       formKeys
+	Secret     entityKeys
+	Transport  entityKeys
+	Settings   settingsKeys
+	Prompt     promptKeys
 
-	// Groups of the bindings above, for the screens and hints that treat a
-	// whole group as one.
+	Quit         binding
+	Back         binding
 	MoveVertical binding
 	Cycle        binding
 	SwitchKind   binding
-	Back         binding
 }
 
 var keyMap = newKeymap(config.DefaultKeybindings())
 
 func newKeymap(s config.KeybindingSettings) keymap {
-	nav, act, scr := s.Navigation, s.Action, s.Screen
+	nav, gen := s.Navigation, s.General
 
 	k := keymap{
 		Up:          newBinding(nav.Up...),
@@ -157,38 +212,63 @@ func newKeymap(s config.KeybindingSettings) keymap {
 		NextSection: newBinding(nav.NextSection...),
 		PrevSection: newBinding(nav.PrevSection...),
 
-		Confirm:   newBinding(act.Confirm...),
-		Ping:      newBinding(act.Ping...),
-		Retry:     newBinding(act.Retry...),
-		Add:       newBinding(act.Add...),
-		Edit:      newBinding(act.Edit...),
-		Delete:    newBinding(act.Delete...),
-		Secret:    newBinding(act.Secret...),
-		Settings:  newBinding(act.Settings...),
-		Transport: newBinding(act.Transport...),
-		Search:    newBinding(act.Search...),
-		Info:      newBinding(act.Info...),
-		Yank:      pressedTwice(newBinding(act.Yank...)),
-		Toggle:    newBinding(act.Toggle...),
-		AddDB:     newBinding(act.AddDB...),
+		Confirm:   newBinding(gen.Confirm...),
+		Cancel:    newBinding(gen.Cancel...),
+		Paste:     newBinding(gen.Paste...),
+		Copy:      pressedTwice(newBinding(gen.Copy...)),
+		Search:    newBinding(gen.Search...),
+		Help:      newBinding(gen.Help...),
+		Interrupt: newBinding(gen.Interrupt...),
+		Backspace: newBinding(gen.Backspace...),
 
-		Backspace: newBinding(act.Backspace...),
-		Paste:     newBinding(act.Paste...),
-
-		Yes: newBinding(act.Yes...),
-		No:  newBinding(act.No...),
-
-		Quit:      newBinding(scr.Quit...),
-		Interrupt: newBinding(scr.Interrupt...),
-		Cancel:    newBinding(scr.Cancel...),
-
-		Help: newBinding(scr.Help...),
+		Screen: screenKeys{
+			Transport:         newBinding(s.Screen.Transport...),
+			Secrets:           newBinding(s.Screen.Secrets...),
+			Settings:          newBinding(s.Screen.Settings...),
+			AddConnection:     newBinding(s.Screen.AddConnection...),
+			AddConnectionType: newBinding(s.Screen.AddConnectionType...),
+		},
+		Connection: connectionKeys{
+			Connect: newBinding(s.Connection.Connect...),
+			Edit:    newBinding(s.Connection.Edit...),
+			Delete:  newBinding(s.Connection.Delete...),
+			Info:    newBinding(s.Connection.Info...),
+			Ping:    newBinding(s.Connection.Ping...),
+			Retry:   newBinding(s.Connection.Retry...),
+		},
+		Form: formKeys{
+			EditField:  newBinding(s.Form.EditField...),
+			Secret:     newBinding(s.Form.Secret...),
+			AddItem:    newBinding(s.Form.AddItem...),
+			RemoveItem: newBinding(s.Form.RemoveItem...),
+		},
+		Secret:    newEntityKeys(s.Secret),
+		Transport: newEntityKeys(s.Transport),
+		Settings: settingsKeys{
+			AddKey:    newBinding(s.Settings.AddKey...),
+			ChangeKey: newBinding(s.Settings.ChangeKey...),
+			RemoveKey: newBinding(s.Settings.RemoveKey...),
+			Reset:     newBinding(s.Settings.Reset...),
+		},
+		Prompt: promptKeys{
+			Yes: newBinding(s.Prompt.Yes...),
+			No:  newBinding(s.Prompt.No...),
+		},
 	}
 
+	k.Quit = merge(newBinding(gen.Back...), k.Cancel, k.Interrupt)
+	k.Back = merge(k.Connection.Info, k.Quit)
 	k.MoveVertical = merge(k.Up, k.Down)
 	k.Cycle = merge(k.Left, k.Right)
 	k.SwitchKind = merge(k.NextSection, k.PrevSection, k.Left, k.Right)
-	k.Back = merge(k.Info, k.Quit)
 
 	return k
+}
+
+func newEntityKeys(s config.EntityKeybindings) entityKeys {
+	return entityKeys{
+		Add:    newBinding(s.Add...),
+		Edit:   newBinding(s.Edit...),
+		Delete: newBinding(s.Delete...),
+	}
 }

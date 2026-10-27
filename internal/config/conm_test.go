@@ -57,19 +57,19 @@ func TestReadConm(t *testing.T) {
 		},
 		{
 			name:            "set key is kept, the rest take defaults",
-			args:            args{toml: "[conm.keybinding.navigation]\nup = [\"w\"]\n"},
+			args:            args{toml: "[conm.keybinding.connection]\nping = [\"w\"]\n"},
 			wantConnection:  ConnectionSettings{Type: PostgresConnType},
-			wantKeybindings: withKeybindings(func(k *KeybindingSettings) { k.Navigation.Up = []string{"w"} }),
+			wantKeybindings: withKeybindings(func(k *KeybindingSettings) { k.Connection.Ping = []string{"w"} }),
 		},
 		{
 			name:            "empty list takes the default",
-			args:            args{toml: "[conm.keybinding.screen]\nquit = []\n"},
+			args:            args{toml: "[conm.keybinding.general]\nback = []\n"},
 			wantConnection:  ConnectionSettings{Type: PostgresConnType},
 			wantKeybindings: DefaultKeybindings(),
 		},
 		{
 			name:    "key shared with a default is refused",
-			args:    args{toml: "[conm.keybinding.action]\nping = [\"d\"]\n"},
+			args:    args{toml: "[conm.keybinding.connection]\nping = [\"d\"]\n"},
 			wantErr: errSharedKey,
 		},
 		{

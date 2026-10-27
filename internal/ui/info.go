@@ -54,7 +54,7 @@ type infoModel struct {
 	tab    infoTab
 	cursor int
 	links  view.Scroll
-	yank   bool
+	copy   bool
 
 	edit bool
 
@@ -86,10 +86,10 @@ func (m infoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clipboardWrittenMsg:
 		if msg.err != nil {
-			m.setInfoStatus("couldn't yank "+msg.label+" · "+msg.err.Error(), kindErr)
+			m.setInfoStatus("couldn't copy "+msg.label+" · "+msg.err.Error(), kindErr)
 			break
 		}
-		m.setInfoStatus("yanked "+msg.label, kindOK)
+		m.setInfoStatus("copied "+msg.label, kindOK)
 
 	case linkOpenedMsg:
 		if msg.err != nil {
@@ -125,11 +125,14 @@ func (m infoModel) handleInfoKey(key string) (tea.Model, tea.Cmd) {
 		m = m.switchTab(1)
 	case keyMap.PrevSection.matches(key), keyMap.Left.matches(key):
 		m = m.switchTab(-1)
-	case keyMap.Yank.matches(key):
-		return m.yankRow()
-	case keyMap.Confirm.matches(key):
-		return m.openRow()
-	case keyMap.Edit.matches(key):
+	case keyMap.Copy.matches(key):
+		return m.copyRow()
+	case keyMap.Confirm.matches(key) && m.onLink():
+		return m.openLink()
+	case keyMap.Connection.Connect.matches(key):
+		m.setInfoStatus("connecting to "+m.title()+" …", kindPending)
+		return m, m.connectCmd()
+	case keyMap.Connection.Edit.matches(key):
 		m.edit = true
 		return m, tea.Quit
 	}
@@ -152,7 +155,7 @@ func (m infoModel) move(step int) infoModel {
 		m.cursor = n - 1
 	}
 
-	m.yank = false
+	m.copy = false
 	m.setInfoStatus(statusReady, kindIdle)
 	if m.tab == infoLinks {
 		m.links.Follow(m.cursor, n)
@@ -190,34 +193,35 @@ func (m infoModel) switchTab(step int) infoModel {
 }
 
 func (m infoModel) clearCursor() infoModel {
-	m.cursor, m.yank = -1, false
+	m.cursor, m.copy = -1, false
 	m.setInfoStatus(statusReady, kindIdle)
 
 	return m
 }
 
-func (m infoModel) yankRow() (tea.Model, tea.Cmd) {
+func (m infoModel) copyRow() (tea.Model, tea.Cmd) {
 	row, ok := m.cursorRow()
 	switch {
 	case !ok:
 		m.setInfoStatus("move the cursor onto a field first · "+keyMap.MoveVertical.hint, kindWarn)
-	case m.yank:
-		m.yank = false
+	case m.copy:
+		m.copy = false
 		return m, writeClipboardCmd(row.label, row.value)
 	default:
-		m.yank = true
-		m.setInfoStatus("press again to yank "+row.label, kindIdle)
+		m.copy = true
+		m.setInfoStatus("press again to copy "+row.label, kindIdle)
 	}
 
 	return m, nil
 }
 
-func (m infoModel) openRow() (tea.Model, tea.Cmd) {
+func (m infoModel) onLink() bool {
 	row, ok := m.cursorRow()
-	if !ok || !row.link {
-		m.setInfoStatus("connecting to "+m.title()+" …", kindPending)
-		return m, m.connectCmd()
-	}
+	return ok && row.link
+}
+
+func (m infoModel) openLink() (tea.Model, tea.Cmd) {
+	row, _ := m.cursorRow()
 
 	if err := config.ValidateWebLinkURL(row.value); err != nil {
 		m.setInfoStatus(row.label+" · "+err.Error(), kindErr)

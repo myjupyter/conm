@@ -41,7 +41,7 @@ func char(r rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: r, Text: string
 func TestFormModel_UpdateArray(t *testing.T) {
 	var (
 		add    = char('a')
-		edit   = char('e')
+		edit   = char('i')
 		remove = char('d')
 		right  = char('l')
 		left   = tea.KeyPressMsg{Code: tea.KeyLeft}
@@ -99,7 +99,7 @@ func TestFormModel_UpdateArray(t *testing.T) {
 			want: []string{"prod", "eu"},
 		},
 		{
-			name:     "e replaces the focused value",
+			name:     "i replaces the focused value",
 			args:     args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{right, edit, back, back, char('u'), char('s'), enter}},
 			want:     []string{"prod", "us"},
 			wantChip: 1,

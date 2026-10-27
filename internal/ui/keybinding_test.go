@@ -21,27 +21,27 @@ func Test_newKeymap(t *testing.T) {
 		wantUpHint       string
 		wantMoveVertical string
 		wantMatchesW     bool
-		wantYankHint     string
+		wantCopyHint     string
 	}{
 		{
 			name:             "defaults",
 			args:             args{settings: config.DefaultKeybindings()},
 			wantUpHint:       "↑/k",
 			wantMoveVertical: "↑↓/k/j",
-			wantYankHint:     "yy",
+			wantCopyHint:     "yy",
 		},
 		{
 			name: "an override",
 			args: args{settings: func() config.KeybindingSettings {
 				k := config.DefaultKeybindings()
 				k.Navigation.Up = []string{"up", "w"}
-				k.Action.Yank = []string{"y", "ctrl+y"}
+				k.General.Copy = []string{"y", "ctrl+y"}
 				return k
 			}()},
 			wantUpHint:       "↑/w",
 			wantMoveVertical: "↑↓/w/j",
 			wantMatchesW:     true,
-			wantYankHint:     "yy/ctrl+y ctrl+y",
+			wantCopyHint:     "yy/ctrl+y ctrl+y",
 		},
 	}
 	for _, tt := range tests {
@@ -54,7 +54,7 @@ func Test_newKeymap(t *testing.T) {
 			is.Equal(tt.wantUpHint, got.Up.hint)
 			is.Equal(tt.wantMoveVertical, got.MoveVertical.hint)
 			is.Equal(tt.wantMatchesW, got.MoveVertical.matches("w"))
-			is.Equal(tt.wantYankHint, got.Yank.hint)
+			is.Equal(tt.wantCopyHint, got.Copy.hint)
 		})
 	}
 }

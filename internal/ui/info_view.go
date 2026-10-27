@@ -116,7 +116,7 @@ func infoRowLine(r infoRow, chunk string, first, on bool) string {
 }
 
 func infoHintSpans(r infoRow, valueWidth int, bg color.Color) []span {
-	hint := keyMap.Yank.hint + " yanks"
+	hint := keyMap.Copy.hint + " copies"
 	if r.link {
 		hint = keyMap.Confirm.hint + " opens · " + hint
 	}
