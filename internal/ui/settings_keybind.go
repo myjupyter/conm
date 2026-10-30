@@ -41,13 +41,17 @@ func bindLabel(b config.Keybinding) string {
 	return strings.ReplaceAll(name, "_", " ")
 }
 
-func defaultKeys(path string) []string {
-	for _, b := range config.DefaultKeybindings().Bindings() {
-		if b.Path == path {
-			return b.Keys
-		}
+var defaultBindingKeys = func() map[string][]string {
+	bindings := config.DefaultKeybindings().Bindings()
+	byPath := make(map[string][]string, len(bindings))
+	for _, b := range bindings {
+		byPath[b.Path] = b.Keys
 	}
-	return nil
+	return byPath
+}()
+
+func defaultKeys(path string) []string {
+	return defaultBindingKeys[path]
 }
 
 func (m settingsModel) bindings() []config.Keybinding {
@@ -137,6 +141,8 @@ func (m settingsModel) captureKey(key string) (tea.Model, tea.Cmd) {
 		m = m.stopCapture()
 		m.setSettingsStatus(statusReady, kindIdle)
 		return m, nil
+	case m.binds.first != "" && keyMap.Confirm.matches(key):
+		return m.commitCapture(m.binds.first)
 	}
 
 	if _, err := keys.Parse(key); err != nil {
@@ -152,7 +158,7 @@ func (m settingsModel) captureKey(key string) (tea.Model, tea.Cmd) {
 	m.binds.first = keystroke(key)
 	m.binds.captureID++
 	id := m.binds.captureID
-	m.setSettingsStatus(hintOf([]string{m.binds.first})+" · press a second key for a sequence", kindPending)
+	m.setSettingsStatus(hintOf([]string{m.binds.first})+" · press a second key for a sequence, "+keyMap.Confirm.hint+" keeps it alone", kindPending)
 	return m, tea.Tick(chordTimeout, func(time.Time) tea.Msg { return bindCaptureExpiredMsg{id: id} })
 }
 

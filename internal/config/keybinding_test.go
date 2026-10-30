@@ -147,6 +147,14 @@ func TestKeybindingSettings_Validate(t *testing.T) {
 			wantPath: "conm.keybinding.screen.settings",
 		},
 		{
+			name: "a sequence starts with a navigation key",
+			settings: withKeybindings(func(k *KeybindingSettings) {
+				k.Screen.Transport = []string{"j t"}
+			}),
+			wantErr:  ErrSequenceStart,
+			wantPath: "conm.keybinding.screen.transport",
+		},
+		{
 			name: "a sequence longer than two keys",
 			settings: withKeybindings(func(k *KeybindingSettings) {
 				k.Screen.Transport = []string{"s t u"}

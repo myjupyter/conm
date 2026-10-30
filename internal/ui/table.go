@@ -270,6 +270,9 @@ func (m Model) finishChord(second tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	first := m.chord
 	m.chord = ""
 
+	if keyMap.Interrupt.matches(second.String()) {
+		return m, tea.Quit
+	}
 	if full := m.chordKey(first, second.String()); full != first {
 		return m.dispatchKey(full)
 	}

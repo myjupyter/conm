@@ -13,6 +13,7 @@ var (
 	errLocked         = errors.New("is locked")
 	errDefaultRemoved = errors.New("must keep its default key")
 	errLongSequence   = errors.New("a sequence is at most two keys")
+	ErrSequenceStart  = errors.New("starts with the key of")
 )
 
 const keybindingPathPrefix = "conm.keybinding."
@@ -396,9 +397,27 @@ func (k *KeybindingSettings) validateSharedKeys() error {
 
 	everywhere := slices.DeleteFunc(in(keybindingEverywhere...), func(f keybindingField) bool { return f.path() == confirmPath })
 	errs := make([]error, 0, 2+len(keybindingScreens))
-	errs = append(errs, sharedKeys(everywhere, nil), sharedKeys(in(promptGroup), nil))
+	errs = append(errs, sharedKeys(everywhere, nil), sharedKeys(in(promptGroup), nil), sequenceStarts(all, in(keybindingEverywhere...)))
 	for _, screen := range keybindingScreens {
 		errs = append(errs, sharedKeys(in(screen...), everywhere))
+	}
+	return errors.Join(errs...)
+}
+
+func sequenceStarts(fields, everywhere []keybindingField) error {
+	var errs []error
+	for _, field := range fields {
+		for _, key := range *field.keys {
+			strokes := keys.SplitSequence(key)
+			if len(strokes) < 2 {
+				continue
+			}
+			for _, other := range everywhere {
+				if _, ok := findKey(*other.keys, strokes[0]); ok {
+					errs = append(errs, fmt.Errorf("%s%s: %q %w %s", keybindingPathPrefix, field.path(), key, ErrSequenceStart, other.path()))
+				}
+			}
+		}
 	}
 	return errors.Join(errs...)
 }

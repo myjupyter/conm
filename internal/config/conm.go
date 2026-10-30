@@ -38,9 +38,6 @@ type ConnectionSettings struct {
 
 func CreateConm(conf Conm) error {
 	conf.complete()
-	if err := conf.Keybindings.Validate(); err != nil {
-		return err
-	}
 
 	raw, err := toml.Marshal(struct {
 		Conm Conm `toml:"conm"`

@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 func (m settingsModel) bindsLines() []string {
@@ -51,24 +50,16 @@ func (m settingsModel) bindChips(b config.Keybinding, on bool) []chip {
 
 	chips := make([]chip, len(bound))
 	for j, key := range bound {
-		text := chipText(key)
+		text := hintOf([]string{key})
 		switch {
 		case capturing && j == focus && m.binds.first != "":
-			text = chipText(m.binds.first) + " " + gEllipsis
+			text = hintOf([]string{m.binds.first}) + " " + gEllipsis
 		case capturing && j == focus:
 			text = "press a key" + gEllipsis
 		}
 		chips[j] = chip{text: text, focused: j == focus}
 	}
 	return chips
-}
-
-func chipText(key string) string {
-	strokes := keys.SplitSequence(key)
-	for i, stroke := range strokes {
-		strokes[i] = hintOf([]string{stroke})
-	}
-	return keys.JoinSequence(strokes...)
 }
 
 func (m settingsModel) bindNote(b config.Keybinding, on bool) string {

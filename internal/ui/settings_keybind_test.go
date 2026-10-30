@@ -79,6 +79,7 @@ func TestSettingsModel_handleBindsKey(t *testing.T) {
 		name        string
 		args        args
 		want        []string
+		wantErr     error
 		wantCapture bool
 		wantConfirm bool
 	}{
@@ -138,6 +139,16 @@ func TestSettingsModel_handleBindsKey(t *testing.T) {
 			want: []string{"r", "R", "g r"},
 		},
 		{
+			name: "enter after the first key keeps it alone",
+			args: args{path: retryPath, keys: []string{"a", "g", "enter"}},
+			want: []string{"r", "R", "g"},
+		},
+		{
+			name:    "a sequence starting with a navigation key is refused",
+			args:    args{path: retryPath, keys: []string{"a", "j", "x"}},
+			wantErr: config.ErrSequenceStart,
+		},
+		{
 			name: "esc after the first key cancels the sequence",
 			args: args{path: retryPath, keys: []string{"a", "g", "esc"}},
 		},
@@ -173,9 +184,13 @@ func TestSettingsModel_handleBindsKey(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m, saved := pressKeys(t, newBindsFixture(t, tt.args.path, tt.args.prepare), tt.args.keys...)
 
-			if tt.want == nil {
+			switch {
+			case tt.wantErr != nil:
+				require.NotNil(t, saved)
+				require.ErrorIs(t, saved.err, tt.wantErr)
+			case tt.want == nil:
 				assert.Nil(t, saved)
-			} else {
+			default:
 				require.NotNil(t, saved)
 				assert.Equal(t, tt.want, keysOf(saved.conm, tt.args.path))
 			}

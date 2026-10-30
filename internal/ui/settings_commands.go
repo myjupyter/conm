@@ -49,6 +49,9 @@ func (m settingsModel) saveKeysCmd(path string, keys []string, status string) te
 	next.Keybindings.Set(path, keys)
 
 	return func() tea.Msg {
+		if err := next.Keybindings.Validate(); err != nil {
+			return settingsSavedMsg{err: err}
+		}
 		return settingsSavedMsg{conm: next, status: status, err: save(next)}
 	}
 }
