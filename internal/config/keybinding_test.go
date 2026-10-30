@@ -64,10 +64,10 @@ func TestKeybindingSettings_Validate(t *testing.T) {
 		{
 			name: "an action shares a key with a general key",
 			settings: withKeybindings(func(k *KeybindingSettings) {
-				k.Form.Secret = []string{"/"}
+				k.Form.EditField = []string{"/"}
 			}),
 			wantErr:  errSharedKey,
-			wantPath: "conm.keybinding.form.secret",
+			wantPath: "conm.keybinding.form.edit_field",
 		},
 		{
 			name: "a form action shares a key with the connection ping it uses",
@@ -80,8 +80,16 @@ func TestKeybindingSettings_Validate(t *testing.T) {
 		{
 			name: "a form action may share a key with a connection action the form does not use",
 			settings: withKeybindings(func(k *KeybindingSettings) {
-				k.Form.Secret = []string{"e"}
+				k.Form.EditField = []string{"e"}
 			}),
+		},
+		{
+			name: "a form action shares a key with the secrets opener it uses",
+			settings: withKeybindings(func(k *KeybindingSettings) {
+				k.Form.EditField = []string{"s"}
+			}),
+			wantErr:  errSharedKey,
+			wantPath: "conm.keybinding.screen.secrets",
 		},
 		{
 			name: "connect shares a key with another connection action",

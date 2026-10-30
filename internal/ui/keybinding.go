@@ -136,7 +136,6 @@ type connectionKeys struct {
 
 type formKeys struct {
 	EditField  binding
-	Secret     binding
 	AddItem    binding
 	RemoveItem binding
 }
@@ -233,7 +232,6 @@ func newKeymap(s config.KeybindingSettings) keymap {
 		},
 		Form: formKeys{
 			EditField:  newBinding(s.Form.EditField...),
-			Secret:     newBinding(s.Form.Secret...),
 			AddItem:    newBinding(s.Form.AddItem...),
 			RemoveItem: newBinding(s.Form.RemoveItem...),
 		},

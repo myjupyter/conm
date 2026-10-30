@@ -38,12 +38,15 @@ const (
 	retryAction  = "retry"
 )
 
-const confirmPath = generalGroup + ".confirm"
+const (
+	confirmPath = generalGroup + ".confirm"
+	secretsPath = screenGroup + ".secrets"
+)
 
 var keybindingScreens = [][]string{
 	{screenGroup, connectionGroup},
-	{formGroup, confirmPath, connectionGroup + "." + pingAction, connectionGroup + "." + retryAction},
-	{secretGroup, confirmPath},
+	{formGroup, confirmPath, secretsPath, connectionGroup + "." + pingAction, connectionGroup + "." + retryAction},
+	{secretGroup, confirmPath, secretsPath},
 	{transportGroup, confirmPath},
 	{settingsGroup, confirmPath},
 }
@@ -102,7 +105,6 @@ type ConnectionKeybindings struct {
 
 type FormKeybindings struct {
 	EditField  []string `toml:"edit_field"`
-	Secret     []string `toml:"secret"`
 	AddItem    []string `toml:"add_item"`
 	RemoveItem []string `toml:"remove_item"`
 }
@@ -183,7 +185,6 @@ func DefaultKeybindings() KeybindingSettings {
 		},
 		Form: FormKeybindings{
 			EditField:  []string{"i"},
-			Secret:     []string{"s"},
 			AddItem:    []string{"a"},
 			RemoveItem: []string{"d"},
 		},
@@ -262,7 +263,6 @@ func (k *KeybindingSettings) fields() []keybindingField {
 		{connectionGroup, retryAction, &k.Connection.Retry, unrestrictedKeys},
 
 		{formGroup, "edit_field", &k.Form.EditField, unrestrictedKeys},
-		{formGroup, "secret", &k.Form.Secret, unrestrictedKeys},
 		{formGroup, "add_item", &k.Form.AddItem, unrestrictedKeys},
 		{formGroup, "remove_item", &k.Form.RemoveItem, unrestrictedKeys},
 

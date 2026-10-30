@@ -275,13 +275,13 @@ func (m formModel) keyhints() []keyhintGroup {
 	action := m.editKeyhints(cur)
 	switch {
 	case m.isProviderField(cur) && m.isRef():
-		action = append(action, keybind{keyMap.Form.Secret.hint, "open " + m.storeLabel()})
+		action = append(action, keybind{keyMap.Screen.Secrets.hint, "open " + m.storeLabel()})
 	case m.fields[cur].Kind == spec.HiddenFieldKind && m.isLiteral():
 		label := "show password"
 		if m.reveal {
 			label = "hide password"
 		}
-		action = append(action, keybind{keyMap.Form.Secret.hint, label})
+		action = append(action, keybind{keyMap.Screen.Secrets.hint, label})
 	}
 	if spec.IsLinkKey(m.fields[cur].Key) {
 		action = append(action,
@@ -345,7 +345,7 @@ func (m secretFormModel) keyhints() []keyhintGroup {
 		if m.reveal {
 			label = "hide password"
 		}
-		action = append(action, keybind{keyMap.Form.Secret.hint, label})
+		action = append(action, keybind{keyMap.Screen.Secrets.hint, label})
 	}
 	action = append(action, keybind{keyMap.Confirm.hint, "store entry"})
 

@@ -355,7 +355,7 @@ func (m *formModel) onSecretModeChange(was string) {
 				m.vals[spec.SecretValueKey] = list[0]
 			}
 		}
-		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Form.Secret.hint+" on provider to manage", kindIdle)
+		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Screen.Secrets.hint+" on provider to manage", kindIdle)
 	}
 }
 
@@ -407,7 +407,7 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.navCycle(fields[m.idx], -1)
 	case keyMap.Form.EditField.matches(key):
 		m.navEdit(fields[m.idx], cur)
-	case keyMap.Form.Secret.matches(key):
+	case keyMap.Screen.Secrets.matches(key):
 		if cmd, handled := m.navSecret(fields[m.idx], cur); handled {
 			return m, cmd
 		}
@@ -573,7 +573,7 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 	case cur.Kind == spec.HiddenFieldKind && m.isLiteral():
 		m.reveal = !m.reveal
 		if m.reveal {
-			m.setStatus("password visible · "+keyMap.Form.Secret.hint+" to hide", kindIdle)
+			m.setStatus("password visible · "+keyMap.Screen.Secrets.hint+" to hide", kindIdle)
 		} else {
 			m.setStatus("password hidden", kindIdle)
 		}
@@ -809,7 +809,7 @@ func (m formModel) refError() string {
 	store := m.storeLabel()
 
 	if ref == "" {
-		return "pick a " + store + " entry — " + keyMap.Cycle.hint + ", or " + keyMap.Form.Secret.hint + " on provider"
+		return "pick a " + store + " entry — " + keyMap.Cycle.hint + ", or " + keyMap.Screen.Secrets.hint + " on provider"
 	}
 	if slices.Contains(m.refEntries(), ref) {
 		return ""

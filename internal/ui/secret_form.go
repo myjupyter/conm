@@ -127,11 +127,11 @@ func (m secretFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.insert = true
 			m.setStatus("editing "+strings.ToLower(cur.Label)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
 		}
-	case keyMap.Form.Secret.matches(key):
+	case keyMap.Screen.Secrets.matches(key):
 		if cur.Kind == spec.HiddenFieldKind {
 			m.reveal = !m.reveal
 			if m.reveal {
-				m.setStatus("password visible · "+keyMap.Form.Secret.hint+" to hide", kindIdle)
+				m.setStatus("password visible · "+keyMap.Screen.Secrets.hint+" to hide", kindIdle)
 			} else {
 				m.setStatus("password hidden", kindIdle)
 			}
