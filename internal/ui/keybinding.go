@@ -60,22 +60,13 @@ func keystroke(raw string) string {
 		return raw
 	}
 
-	if key.Shift && !key.Ctrl && !key.Alt && utf8.RuneCountInString(key.Name) == 1 {
+	if key.Mod == config.ModShift && utf8.RuneCountInString(key.Name) == 1 {
 		return strings.ToUpper(key.Name)
 	}
-
-	var stroke strings.Builder
-	if key.Ctrl {
-		stroke.WriteString("ctrl+")
+	if key.Mod == 0 {
+		return key.Name
 	}
-	if key.Alt {
-		stroke.WriteString("alt+")
-	}
-	if key.Shift {
-		stroke.WriteString("shift+")
-	}
-	stroke.WriteString(key.Name)
-	return stroke.String()
+	return key.Mod.String() + "+" + key.Name
 }
 
 func hintOf(keys []string) string {

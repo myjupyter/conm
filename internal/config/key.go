@@ -32,17 +32,50 @@ func NamedKeys() []string {
 	return slices.Clone(namedKeys)
 }
 
+type Mod uint8
+
+const (
+	ModCtrl Mod = 1 << iota
+	ModAlt
+	ModShift
+	ModMeta
+	ModHyper
+	ModSuper
+)
+
+type modifier struct {
+	mod  Mod
+	name string
+}
+
+var modifiers = []modifier{
+	{ModCtrl, "ctrl"},
+	{ModAlt, "alt"},
+	{ModShift, "shift"},
+	{ModMeta, "meta"},
+	{ModHyper, "hyper"},
+	{ModSuper, "super"},
+}
+
+func (m Mod) String() string {
+	names := make([]string, 0, len(modifiers))
+	for _, held := range modifiers {
+		if m&held.mod != 0 {
+			names = append(names, held.name)
+		}
+	}
+	return strings.Join(names, "+")
+}
+
 type Key struct {
-	Ctrl  bool
-	Alt   bool
-	Shift bool
-	Name  string
+	Mod  Mod
+	Name string
 }
 
 func ParseKey(raw string) (Key, error) {
-	modifiers, name := splitKey(raw)
+	held, name := splitKey(raw)
 
-	key, err := withModifiers(modifiers)
+	key, err := withModifiers(held)
 	if err != nil {
 		return Key{}, fmt.Errorf("%q: %w", raw, err)
 	}
@@ -58,10 +91,10 @@ func ParseKey(raw string) (Key, error) {
 	}
 
 	if unicode.IsUpper(char) {
-		key.Shift = true
+		key.Mod |= ModShift
 		char = unicode.ToLower(char)
 	}
-	if key.Shift && !key.Ctrl && !key.Alt && !unicode.IsLetter(char) {
+	if key.Mod == ModShift && !unicode.IsLetter(char) {
 		return Key{}, fmt.Errorf("%q: %w", raw, errShiftedSymbol)
 	}
 
@@ -69,7 +102,7 @@ func ParseKey(raw string) (Key, error) {
 	return key, nil
 }
 
-func splitKey(raw string) (modifiers []string, name string) {
+func splitKey(raw string) (held []string, name string) {
 	if raw == "" {
 		return nil, ""
 	}
@@ -81,25 +114,19 @@ func splitKey(raw string) (modifiers []string, name string) {
 	return strings.Split(raw[:cut], "+"), raw[cut+1:]
 }
 
-func withModifiers(modifiers []string) (Key, error) {
+func withModifiers(names []string) (Key, error) {
 	var key Key
-	for _, modifier := range modifiers {
-		var held *bool
-		switch modifier {
-		case "ctrl":
-			held = &key.Ctrl
-		case "alt":
-			held = &key.Alt
-		case "shift":
-			held = &key.Shift
-		default:
-			return Key{}, fmt.Errorf("%w %q", errUnknownModifier, modifier)
+	for _, name := range names {
+		i := slices.IndexFunc(modifiers, func(m modifier) bool { return m.name == name })
+		if i < 0 {
+			return Key{}, fmt.Errorf("%w %q", errUnknownModifier, name)
 		}
 
-		if *held {
-			return Key{}, fmt.Errorf("%w %q", errRepeatedModifier, modifier)
+		held := modifiers[i].mod
+		if key.Mod&held != 0 {
+			return Key{}, fmt.Errorf("%w %q", errRepeatedModifier, name)
 		}
-		*held = true
+		key.Mod |= held
 	}
 	return key, nil
 }
