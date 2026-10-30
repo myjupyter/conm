@@ -8,8 +8,6 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 type hostOnly struct{}
@@ -43,7 +41,6 @@ func TestReadConm(t *testing.T) {
 		args            args
 		wantConnection  ConnectionSettings
 		wantKeybindings KeybindingSettings
-		wantErr         error
 	}{
 		{
 			name:            "connection row is kept",
@@ -70,14 +67,10 @@ func TestReadConm(t *testing.T) {
 			wantKeybindings: DefaultKeybindings(),
 		},
 		{
-			name:    "key shared with a default is refused",
-			args:    args{toml: "[conm.keybinding.connection]\nping = [\"d\"]\n"},
-			wantErr: errSharedKey,
-		},
-		{
-			name:    "unknown key is refused",
-			args:    args{toml: "[conm.keybinding.navigation]\nup = [\"up\", \"skdfjs;adjf\"]\n"},
-			wantErr: keys.ErrUnknownKey,
+			name:            "invalid keys are read, the TUI validates them",
+			args:            args{toml: "[conm.keybinding.connection]\nping = [\"d\"]\n"},
+			wantConnection:  ConnectionSettings{Type: PostgresConnType},
+			wantKeybindings: withKeybindings(func(k *KeybindingSettings) { k.Connection.Ping = []string{"d"} }),
 		},
 	}
 	for _, tt := range tests {
@@ -85,10 +78,6 @@ func TestReadConm(t *testing.T) {
 			t.Parallel()
 
 			got, err := ReadConm(writeConm(t, tt.args.toml))
-			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
-				return
-			}
 			require.NoError(t, err)
 
 			is := assert.New(t)

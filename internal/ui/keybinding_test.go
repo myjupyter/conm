@@ -35,14 +35,26 @@ func Test_newKeymap(t *testing.T) {
 			name: "an override",
 			args: args{settings: func() config.KeybindingSettings {
 				k := config.DefaultKeybindings()
-				k.Navigation.Up = []string{"up", "w"}
+				k.Navigation.Up = []string{"up", "k", "w"}
 				k.General.Copy = []string{"y", "ctrl+y"}
 				return k
 			}()},
-			wantUpHint:       "↑/w",
-			wantMoveVertical: "↑↓/w/j",
+			wantUpHint:       "↑/k/w",
+			wantMoveVertical: "↑↓/k/w/j",
 			wantMatchesW:     true,
 			wantCopyHint:     "yy/ctrl+y ctrl+y",
+		},
+		{
+			name: "invalid settings fall back to the defaults",
+			args: args{settings: func() config.KeybindingSettings {
+				k := config.DefaultKeybindings()
+				k.Navigation.Up = []string{"up", "w"}
+				k.Connection.Ping = []string{"d"}
+				return k
+			}()},
+			wantUpHint:       "↑/k",
+			wantMoveVertical: "↑↓/k/j",
+			wantCopyHint:     "yy",
 		},
 	}
 	for _, tt := range tests {

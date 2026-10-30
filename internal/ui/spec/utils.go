@@ -8,7 +8,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-const stringArraySeparator = ","
+const StringArraySeparator = ","
 
 func metadataSection(nameKey, descriptionKey, tagsKey FormFieldKey) FormSection {
 	return FormSection{
@@ -41,12 +41,12 @@ func buildMeta(values map[FormFieldKey]FormFieldValue, nameKey, descriptionKey, 
 }
 
 func JoinStringArray(items []string) FormFieldValue {
-	return strings.Join(items, stringArraySeparator+" ")
+	return strings.Join(items, StringArraySeparator+" ")
 }
 
 func SplitStringArray(raw FormFieldValue) []string {
 	var items []string
-	for item := range strings.SplitSeq(raw, stringArraySeparator) {
+	for item := range strings.SplitSeq(raw, StringArraySeparator) {
 		if item = strings.TrimSpace(item); item != "" {
 			items = append(items, item)
 		}

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/myjupyter/conm/internal/utils/keys"
 )
@@ -14,6 +13,7 @@ var (
 	errLocked         = errors.New("is locked")
 	errDefaultRemoved = errors.New("must keep its default key")
 	errLongSequence   = errors.New("a sequence is at most two keys")
+	errNoSequence     = errors.New("takes single keys only, sequences work on the connections table")
 )
 
 const keybindingPathPrefix = "conm.keybinding."
@@ -126,7 +126,7 @@ type PromptKeybindings struct {
 }
 
 func ParseSequence(raw string) ([]keys.Key, error) {
-	strokes := strings.Fields(raw)
+	strokes := keys.SplitSequence(raw)
 	if len(strokes) > 2 {
 		return nil, fmt.Errorf("%q: %w", raw, errLongSequence)
 	}
@@ -229,6 +229,10 @@ func (f keybindingField) path() string {
 	return f.group + "." + f.name
 }
 
+func (f keybindingField) takesSequence() bool {
+	return f.group == screenGroup || f.group == connectionGroup
+}
+
 func (k *KeybindingSettings) fields() []keybindingField {
 	return []keybindingField{
 		{navigationGroup, "up", &k.Navigation.Up, appendOnlyKeys},
@@ -289,6 +293,7 @@ type Keybinding struct {
 	Keys       []string
 	Locked     bool
 	OnlyAppend bool
+	Sequence   bool
 }
 
 func (k KeybindingSettings) Bindings() []Keybinding {
@@ -300,6 +305,7 @@ func (k KeybindingSettings) Bindings() []Keybinding {
 			Keys:       slices.Clone(*field.keys),
 			Locked:     field.editMod == lockedKeys,
 			OnlyAppend: field.editMod == appendOnlyKeys,
+			Sequence:   field.takesSequence(),
 		})
 	}
 	return bindings
@@ -325,7 +331,7 @@ func (k *KeybindingSettings) fillDefaults() {
 	}
 }
 
-func (k *KeybindingSettings) validate() error {
+func (k *KeybindingSettings) Validate() error {
 	return errors.Join(
 		k.validateKeys(),
 		k.validateEdits(),
@@ -337,8 +343,12 @@ func (k *KeybindingSettings) validateKeys() error {
 	var errs []error
 	for _, field := range k.fields() {
 		for _, key := range *field.keys {
-			if _, err := ParseSequence(key); err != nil {
+			sequence, err := ParseSequence(key)
+			switch {
+			case err != nil:
 				errs = append(errs, fmt.Errorf("%s%s: %w", keybindingPathPrefix, field.path(), err))
+			case len(sequence) > 1 && !field.takesSequence():
+				errs = append(errs, fmt.Errorf("%s%s: %q %w", keybindingPathPrefix, field.path(), key, errNoSequence))
 			}
 		}
 	}

@@ -37,7 +37,8 @@ type ConnectionSettings struct {
 }
 
 func CreateConm(conf Conm) error {
-	if err := conf.Keybindings.validate(); err != nil {
+	conf.complete()
+	if err := conf.Keybindings.Validate(); err != nil {
 		return err
 	}
 
@@ -179,7 +180,7 @@ func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
 	}
 
 	w.Conm.complete()
-	return w.Conm.Keybindings.validate()
+	return nil
 }
 
 func (w *ConmConfigWrapper) Marshal() ([]byte, error) {

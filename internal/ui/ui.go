@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -54,7 +55,12 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 	}
 	conns.SetActive(active)
 
-	m, err := tea.NewProgram(New(conns, secrets, transports)).Run()
+	table := New(conns, secrets, transports)
+	if err := cfg.Keybindings.Validate(); err != nil {
+		table.status, table.statusKind = "keybindings in conm.toml ignored, defaults in use · "+firstLine(err), kindWarn
+	}
+
+	m, err := tea.NewProgram(table).Run()
 	if err != nil {
 		return Model{}, err
 	}
@@ -185,4 +191,9 @@ func namedConnection(repo repository.Connections, name string) (int, config.Conn
 
 func noConnectionNamed(repo repository.Connections, name string) error {
 	return fmt.Errorf("no %s connection named %q", repo.Kind(), name)
+}
+
+func firstLine(err error) string {
+	line, _, _ := strings.Cut(err.Error(), "\n")
+	return line
 }

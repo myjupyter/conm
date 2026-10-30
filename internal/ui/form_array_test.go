@@ -48,6 +48,7 @@ func TestFormModel_UpdateArray(t *testing.T) {
 		enter  = tea.KeyPressMsg{Code: tea.KeyEnter}
 		esc    = tea.KeyPressMsg{Code: tea.KeyEscape}
 		back   = tea.KeyPressMsg{Code: tea.KeyBackspace}
+		tab    = tea.KeyPressMsg{Code: tea.KeyTab}
 	)
 
 	type args struct {
@@ -91,6 +92,18 @@ func TestFormModel_UpdateArray(t *testing.T) {
 			name:       "a duplicate is refused and stays open",
 			args:       args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{add, char('e'), char('u'), enter}},
 			want:       []string{"prod", "eu"},
+			wantInsert: true,
+		},
+		{
+			name:       "tab on a duplicate stays on the field",
+			args:       args{tags: []string{"prod", "eu"}, keys: []tea.KeyPressMsg{add, char('e'), char('u'), tab}},
+			want:       []string{"prod", "eu"},
+			wantInsert: true,
+		},
+		{
+			name:       "a value with the separator is refused",
+			args:       args{tags: []string{"prod"}, keys: []tea.KeyPressMsg{add, char('a'), char(','), char('b'), enter}},
+			want:       []string{"prod"},
 			wantInsert: true,
 		},
 		{

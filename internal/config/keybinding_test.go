@@ -10,7 +10,7 @@ import (
 	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
-func TestKeybindingSettings_validate(t *testing.T) {
+func TestKeybindingSettings_Validate(t *testing.T) {
 	t.Parallel()
 
 	withKeybindings := func(override func(*KeybindingSettings)) KeybindingSettings {
@@ -163,6 +163,14 @@ func TestKeybindingSettings_validate(t *testing.T) {
 			wantPath: "conm.keybinding.screen.transport",
 		},
 		{
+			name: "a sequence outside the connections table",
+			settings: withKeybindings(func(k *KeybindingSettings) {
+				k.Secret.Add = []string{"g a"}
+			}),
+			wantErr:  errNoSequence,
+			wantPath: "conm.keybinding.secret.add",
+		},
+		{
 			name: "prompt answers may reuse a key used elsewhere",
 			settings: withKeybindings(func(k *KeybindingSettings) {
 				k.Prompt.Yes = []string{"e"}
@@ -209,7 +217,7 @@ func TestKeybindingSettings_validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := tt.settings.validate()
+			err := tt.settings.Validate()
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)
 				assert.ErrorContains(t, err, tt.wantPath)
@@ -268,7 +276,7 @@ func TestKeybindingSettings_Bindings(t *testing.T) {
 			name:     "an unrestricted binding",
 			settings: DefaultKeybindings(),
 			wantPath: "connection.ping",
-			want:     Keybinding{Path: "connection.ping", Keys: []string{"p"}},
+			want:     Keybinding{Path: "connection.ping", Keys: []string{"p"}, Sequence: true},
 		},
 		{
 			name:     "an append-only binding",

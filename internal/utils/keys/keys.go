@@ -64,12 +64,32 @@ func (m Mod) String() string {
 			names = append(names, held.name)
 		}
 	}
-	return strings.Join(names, "+")
+	return strings.Join(names, modifierSeparator)
 }
+
+const (
+	modifierSeparator = "+"
+	strokeSeparator   = " "
+)
 
 type Key struct {
 	Mod  Mod
 	Name string
+}
+
+func (k Key) String() string {
+	if k.Mod == 0 {
+		return k.Name
+	}
+	return k.Mod.String() + modifierSeparator + k.Name
+}
+
+func JoinSequence(strokes ...string) string {
+	return strings.Join(strokes, strokeSeparator)
+}
+
+func SplitSequence(raw string) []string {
+	return strings.Fields(raw)
 }
 
 func Parse(raw string) (Key, error) {
@@ -107,11 +127,11 @@ func splitKey(raw string) (held []string, name string) {
 		return nil, ""
 	}
 
-	cut := strings.LastIndex(raw[:len(raw)-1], "+")
+	cut := strings.LastIndex(raw[:len(raw)-1], modifierSeparator)
 	if cut < 0 {
 		return nil, raw
 	}
-	return strings.Split(raw[:cut], "+"), raw[cut+1:]
+	return strings.Split(raw[:cut], modifierSeparator), raw[cut+1:]
 }
 
 func withModifiers(names []string) (Key, error) {

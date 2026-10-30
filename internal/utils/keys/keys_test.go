@@ -94,3 +94,73 @@ func TestMod_String(t *testing.T) {
 		})
 	}
 }
+
+func TestKey_String(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		k    Key
+		want string
+	}{
+		{name: "no modifier", k: Key{Name: "a"}, want: "a"},
+		{name: "named key with modifiers", k: Key{Mod: ModShift | ModCtrl, Name: "tab"}, want: "ctrl+shift+tab"},
+		{name: "plus as the key", k: Key{Mod: ModCtrl, Name: "+"}, want: "ctrl++"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, tt.k.String())
+		})
+	}
+}
+
+func TestJoinSequence(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		strokes []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{name: "nothing", args: args{}, want: ""},
+		{name: "one stroke", args: args{strokes: []string{"ctrl+a"}}, want: "ctrl+a"},
+		{name: "two strokes", args: args{strokes: []string{"s", "s"}}, want: "s s"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, JoinSequence(tt.args.strokes...))
+		})
+	}
+}
+
+func TestSplitSequence(t *testing.T) {
+	t.Parallel()
+
+	type args struct {
+		raw string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{name: "empty", args: args{raw: ""}, want: []string{}},
+		{name: "one stroke", args: args{raw: "ctrl+a"}, want: []string{"ctrl+a"}},
+		{name: "two strokes", args: args{raw: "s s"}, want: []string{"s", "s"}},
+		{name: "extra spaces", args: args{raw: "  g   x "}, want: []string{"g", "x"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tt.want, SplitSequence(tt.args.raw))
+		})
+	}
+}

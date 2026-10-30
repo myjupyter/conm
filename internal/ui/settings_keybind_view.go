@@ -3,9 +3,9 @@ package ui
 import (
 	"image/color"
 	"slices"
-	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 func (m settingsModel) bindsLines() []string {
@@ -35,10 +35,10 @@ func (m settingsModel) bindLine(b config.Keybinding, on bool) string {
 }
 
 func (m settingsModel) bindChips(b config.Keybinding, on bool) []chip {
-	keys := slices.Clone(b.Keys)
+	bound := slices.Clone(b.Keys)
 	capturing := on && m.binds.capture
-	if capturing && m.binds.captureAt >= len(keys) {
-		keys = append(keys, "")
+	if capturing && m.binds.captureAt >= len(bound) {
+		bound = append(bound, "")
 	}
 
 	focus := -1
@@ -49,8 +49,8 @@ func (m settingsModel) bindChips(b config.Keybinding, on bool) []chip {
 		focus = m.bindChip()
 	}
 
-	chips := make([]chip, len(keys))
-	for j, key := range keys {
+	chips := make([]chip, len(bound))
+	for j, key := range bound {
 		text := chipText(key)
 		switch {
 		case capturing && j == focus && m.binds.first != "":
@@ -64,11 +64,11 @@ func (m settingsModel) bindChips(b config.Keybinding, on bool) []chip {
 }
 
 func chipText(key string) string {
-	strokes := strings.Fields(key)
+	strokes := keys.SplitSequence(key)
 	for i, stroke := range strokes {
 		strokes[i] = hintOf([]string{stroke})
 	}
-	return strings.Join(strokes, " ")
+	return keys.JoinSequence(strokes...)
 }
 
 func (m settingsModel) bindNote(b config.Keybinding, on bool) string {

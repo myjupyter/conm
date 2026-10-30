@@ -479,9 +479,10 @@ func (m formModel) applyPaste(raw string, err error) formModel {
 
 	if isArray(m.fields[i]) {
 		m.chipDraft += text
-	} else {
-		m.vals[m.fields[i].Key] += text
+		m.setStatus("pasted · "+keyMap.Confirm.hint+" keeps it, "+keyMap.Cancel.hint+" discards", kindIdle)
+		return m
 	}
+	m.vals[m.fields[i].Key] += text
 	m.setStatus("pasted · "+keyMap.Cancel.hint+" when done", kindIdle)
 	return m
 }

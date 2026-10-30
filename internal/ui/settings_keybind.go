@@ -146,7 +146,10 @@ func (m settingsModel) captureKey(key string) (tea.Model, tea.Cmd) {
 	}
 
 	if m.binds.first != "" {
-		return m.commitCapture(m.binds.first + " " + keystroke(key))
+		return m.commitCapture(keys.JoinSequence(m.binds.first, keystroke(key)))
+	}
+	if !m.binding().Sequence {
+		return m.commitCapture(keystroke(key))
 	}
 
 	m.binds.first = keystroke(key)

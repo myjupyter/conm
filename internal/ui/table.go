@@ -13,6 +13,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/ui/view"
+	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 type Model struct {
@@ -152,6 +153,10 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.startsChord(key) {
 		return m.startChord(key)
 	}
+	return m.dispatchKey(key)
+}
+
+func (m Model) dispatchKey(key string) (tea.Model, tea.Cmd) {
 	if m.currentErr() != nil {
 		switch {
 		case keyMap.Cancel.matches(key):
@@ -263,11 +268,11 @@ func (m Model) finishChord(second string) (tea.Model, tea.Cmd) {
 	first := m.chord
 	m.chord = ""
 
-	return m.handleKey(m.chordKey(first, second))
+	return m.dispatchKey(m.chordKey(first, second))
 }
 
 func (m Model) chordKey(first, second string) string {
-	full := first + " " + second
+	full := keys.JoinSequence(first, second)
 	if second != "" && slices.ContainsFunc(m.tableKeys(), func(b binding) bool { return b.matches(full) }) {
 		return full
 	}

@@ -80,6 +80,10 @@ func (m *formModel) commitChip(f spec.FormField) {
 	case draft == "":
 		m.setStatus("nothing added to "+m.label(f), kindIdle)
 		return
+	case strings.Contains(draft, spec.StringArraySeparator):
+		m.insert, m.chipDraft = true, draft
+		m.setStatus(m.label(f)+" items can't contain "+spec.StringArraySeparator, kindWarn)
+		return
 	case m.isDuplicate(items, draft):
 		m.insert, m.chipDraft = true, draft
 		m.setStatus(draft+" is already in "+m.label(f), kindWarn)
@@ -126,7 +130,9 @@ func (m formModel) insertChipKey(msg tea.KeyPressMsg, cur spec.FormField) (tea.M
 		m.commitChip(cur)
 	case keyMap.NextSection.matches(key):
 		m.commitChip(cur)
-		m.switchSection(1)
+		if !m.insert {
+			m.switchSection(1)
+		}
 	case keyMap.Backspace.matches(key):
 		if r := []rune(m.chipDraft); len(r) > 0 {
 			m.chipDraft = string(r[:len(r)-1])

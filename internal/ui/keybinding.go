@@ -30,18 +30,18 @@ func newBinding(raws ...string) binding {
 }
 
 func sequence(raw string) string {
-	parts := strings.Fields(raw)
-	if len(parts) < 2 {
-		return keystroke(raw)
+	parts := keys.SplitSequence(raw)
+	if len(parts) == 0 {
+		return raw
 	}
 	for i, part := range parts {
 		parts[i] = keystroke(part)
 	}
-	return strings.Join(parts, " ")
+	return keys.JoinSequence(parts...)
 }
 
 func sequenceHint(key string) string {
-	parts := strings.Fields(key)
+	parts := keys.SplitSequence(key)
 	short := true
 	for i, part := range parts {
 		if glyph, ok := keyGlyphs[part]; ok {
@@ -64,10 +64,7 @@ func keystroke(raw string) string {
 	if key.Mod == keys.ModShift && utf8.RuneCountInString(key.Name) == 1 {
 		return strings.ToUpper(key.Name)
 	}
-	if key.Mod == 0 {
-		return key.Name
-	}
-	return key.Mod.String() + "+" + key.Name
+	return key.String()
 }
 
 func hintOf(strokes []string) string {
@@ -106,7 +103,10 @@ func (b binding) matches(key string) bool {
 }
 
 func (b binding) startsWith(key string) bool {
-	return slices.ContainsFunc(b.keys, func(k string) bool { return strings.HasPrefix(k, key+" ") })
+	return slices.ContainsFunc(b.keys, func(k string) bool {
+		strokes := keys.SplitSequence(k)
+		return len(strokes) > 1 && strokes[0] == key
+	})
 }
 
 func merge(binds ...binding) binding {
@@ -194,6 +194,9 @@ type keymap struct {
 var keyMap = newKeymap(config.DefaultKeybindings())
 
 func newKeymap(s config.KeybindingSettings) keymap {
+	if s.Validate() != nil {
+		s = config.DefaultKeybindings()
+	}
 	nav, gen := s.Navigation, s.General
 
 	k := keymap{
