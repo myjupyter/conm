@@ -12,11 +12,24 @@ import (
 	"github.com/myjupyter/conm/internal/ui"
 )
 
+var workspaceName string
+
 var rootCmd = &cobra.Command{
 	Use:           "conm",
 	Short:         "Terminal connection manager",
 	Version:       version(),
 	SilenceErrors: true,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		name := workspaceName
+		if name == "" {
+			var err error
+			if name, err = config.StartupWorkspace(); err != nil {
+				return err
+			}
+		}
+
+		return ui.UseWorkspace(name)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conm, err := config.ReadConm(config.ConmPath())
 		if err != nil {
@@ -25,6 +38,10 @@ var rootCmd = &cobra.Command{
 
 		return ui.Run(conm)
 	},
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&workspaceName, "workspace", "w", "", "workspace to open instead of the one set by 'conm workspace use'")
 }
 
 func version() string {

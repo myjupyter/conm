@@ -1,0 +1,121 @@
+package repository
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/transport"
+)
+
+type openRepository func(config.Conm, transport.Provider, UsageLookup) (*ConnectionRepository, error)
+
+var connectionRepositories = map[config.ConnType]openRepository{
+	config.PostgresConnType:   NewPostgresRepository,
+	config.MySQLConnType:      NewMySQLRepository,
+	config.MSSQLConnType:      NewMSSQLRepository,
+	config.ClickHouseConnType: NewClickHouseRepository,
+	config.RedisConnType:      NewRedisRepository,
+	config.MongoDBConnType:    NewMongoDBRepository,
+	config.SSHConnType:        NewSSHRepository,
+}
+
+var _ ConnectionFinder = (*Session)(nil)
+
+type Session struct {
+	Keyring    *SecretRepository
+	Transports *TransportRepository
+
+	conns  []*ConnectionRepository
+	byKind map[config.ConnType]Connections
+}
+
+func NewSession(cfg config.Conm) (*Session, error) {
+	w := &Session{byKind: make(map[config.ConnType]Connections, len(connectionRepositories))}
+
+	trs, err := NewTransportRepository(UsageLookupFunc(w.transportUsages), w)
+	if err != nil {
+		return nil, err
+	}
+	w.Transports = trs
+	connectionUsage := NewConnectionIndex(trs)
+
+	users := make([]SecretUser, 0, len(connectionRepositories))
+	for _, db := range cfg.Connections {
+		open, known := connectionRepositories[db.Type]
+		if !known {
+			return nil, errors.Join(
+				fmt.Errorf("no repository for connection type %q", db.Type),
+				w.closeConnections(),
+			)
+		}
+
+		repo, err := open(cfg, trs, connectionUsage)
+		if err != nil {
+			return nil, errors.Join(err, w.closeConnections())
+		}
+		if repo.Kind() != db.Type {
+			return nil, errors.Join(
+				fmt.Errorf("repository for %q claims connection type %q", db.Type, repo.Kind()),
+				repo.Close(), w.closeConnections(),
+			)
+		}
+
+		w.conns = append(w.conns, repo)
+		w.byKind[repo.Kind()] = repo
+		users = append(users, repo)
+	}
+
+	kr, err := NewKeyringRepository(NewIndex(users...))
+	if err != nil {
+		return nil, errors.Join(err, w.closeConnections())
+	}
+	w.Keyring = kr
+
+	return w, nil
+}
+
+func (w *Session) Connections() []Connections {
+	repos := make([]Connections, 0, len(w.conns))
+	for _, repo := range w.conns {
+		repos = append(repos, repo)
+	}
+
+	return repos
+}
+
+func (w *Session) ConnectionsOf(t config.ConnType) (Connections, bool) {
+	repo, ok := w.byKind[t]
+	return repo, ok
+}
+
+func (w *Session) Close() error {
+	return w.closeConnections()
+}
+
+func (w *Session) Connection(t config.ConnType, name string) (config.Connection, bool) {
+	repo, ok := w.byKind[t].(*ConnectionRepository)
+	if !ok {
+		return nil, false
+	}
+
+	return repo.byName(name)
+}
+
+func (w *Session) transportUsages(ref string) []Usage {
+	users := make([]TransportUser, 0, len(w.conns))
+	for _, repo := range w.conns {
+		users = append(users, repo)
+	}
+
+	return NewTransportIndex(users...).Usages(ref)
+}
+
+func (w *Session) closeConnections() error {
+	errs := make([]error, 0, len(w.conns))
+	for _, repo := range w.conns {
+		errs = append(errs, repo.Close())
+	}
+
+	return errors.Join(errs...)
+}

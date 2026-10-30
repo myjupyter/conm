@@ -121,6 +121,7 @@ type screenKeys struct {
 	Transport         binding
 	Secrets           binding
 	Settings          binding
+	Workspaces        binding
 	AddConnection     binding
 	AddConnectionType binding
 }
@@ -180,6 +181,7 @@ type keymap struct {
 	Form       formKeys
 	Secret     entityKeys
 	Transport  entityKeys
+	Workspace  entityKeys
 	Settings   settingsKeys
 	Prompt     promptKeys
 
@@ -219,6 +221,7 @@ func newKeymap(s config.KeybindingSettings) keymap {
 			Transport:         newBinding(s.Screen.Transport...),
 			Secrets:           newBinding(s.Screen.Secrets...),
 			Settings:          newBinding(s.Screen.Settings...),
+			Workspaces:        newBinding(s.Screen.Workspaces...),
 			AddConnection:     newBinding(s.Screen.AddConnection...),
 			AddConnectionType: newBinding(s.Screen.AddConnectionType...),
 		},
@@ -237,6 +240,7 @@ func newKeymap(s config.KeybindingSettings) keymap {
 		},
 		Secret:    newEntityKeys(s.Secret),
 		Transport: newEntityKeys(s.Transport),
+		Workspace: newEntityKeys(s.Workspace),
 		Settings: settingsKeys{
 			AddKey:    newBinding(s.Settings.AddKey...),
 			ChangeKey: newBinding(s.Settings.ChangeKey...),

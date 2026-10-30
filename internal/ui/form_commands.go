@@ -112,7 +112,7 @@ func RunEditForm(conm config.Conm, t config.ConnType, name string) (bool, error)
 func openConnectionForm(
 	conm config.Conm,
 	t config.ConnType,
-) (*repository.Workspace, repository.Connections, formContext, error) {
+) (*repository.Session, repository.Connections, formContext, error) {
 	ws, repo, err := openConnections(conm, t)
 	if err != nil {
 		return nil, nil, formContext{}, err
