@@ -129,7 +129,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case chordExpiredMsg:
 		if m.chord != "" && msg.id == m.chordID {
-			return m.finishChord("")
+			first := m.chord
+			m.chord = ""
+			return m.dispatchKey(first)
 		}
 
 	case spinner.TickMsg:
@@ -142,7 +144,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 	if m.chord != "" {
-		return m.finishChord(key)
+		return m.finishChord(msg)
 	}
 	if m.conns.Searching() {
 		return m.handleSearchKey(msg)
@@ -264,11 +266,21 @@ func (m Model) startsChord(key string) bool {
 	return slices.ContainsFunc(m.tableKeys(), func(b binding) bool { return b.startsWith(key) })
 }
 
-func (m Model) finishChord(second string) (tea.Model, tea.Cmd) {
+func (m Model) finishChord(second tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	first := m.chord
 	m.chord = ""
 
-	return m.dispatchKey(m.chordKey(first, second))
+	if full := m.chordKey(first, second.String()); full != first {
+		return m.dispatchKey(full)
+	}
+
+	next, firstCmd := m.dispatchKey(first)
+	table, ok := next.(Model)
+	if !ok {
+		return next, firstCmd
+	}
+	next, secondCmd := table.handleKeyMsg(second)
+	return next, tea.Batch(firstCmd, secondCmd)
 }
 
 func (m Model) chordKey(first, second string) string {

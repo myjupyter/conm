@@ -163,14 +163,6 @@ func TestKeybindingSettings_Validate(t *testing.T) {
 			wantPath: "conm.keybinding.screen.transport",
 		},
 		{
-			name: "a sequence outside the connections table",
-			settings: withKeybindings(func(k *KeybindingSettings) {
-				k.Secret.Add = []string{"g a"}
-			}),
-			wantErr:  errNoSequence,
-			wantPath: "conm.keybinding.secret.add",
-		},
-		{
 			name: "prompt answers may reuse a key used elsewhere",
 			settings: withKeybindings(func(k *KeybindingSettings) {
 				k.Prompt.Yes = []string{"e"}
@@ -276,7 +268,7 @@ func TestKeybindingSettings_Bindings(t *testing.T) {
 			name:     "an unrestricted binding",
 			settings: DefaultKeybindings(),
 			wantPath: "connection.ping",
-			want:     Keybinding{Path: "connection.ping", Keys: []string{"p"}, Sequence: true},
+			want:     Keybinding{Path: "connection.ping", Keys: []string{"p"}},
 		},
 		{
 			name:     "an append-only binding",

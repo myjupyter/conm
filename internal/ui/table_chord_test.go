@@ -3,7 +3,11 @@ package ui
 import (
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 func TestModel_startsChord(t *testing.T) {
@@ -44,6 +48,35 @@ func TestModel_chordKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, Model{}.chordKey(tt.args.first, tt.args.second))
+		})
+	}
+}
+
+func TestModel_finishChord(t *testing.T) {
+	type args struct {
+		first  string
+		second tea.KeyPressMsg
+	}
+	tests := []struct {
+		name          string
+		args          args
+		wantSearching bool
+		wantChord     string
+	}{
+		{name: "a second key that makes no sequence is handled too", args: args{first: "e", second: tea.KeyPressMsg{Code: '/', Text: "/"}}, wantSearching: true},
+		{name: "a second key may start the next sequence", args: args{first: "e", second: tea.KeyPressMsg{Code: 's', Text: "s"}}, wantChord: "s"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := New(view.NewConnections(), nil, nil)
+			m.chord = tt.args.first
+
+			next, _ := m.finishChord(tt.args.second)
+			got, ok := next.(Model)
+			require.True(t, ok)
+
+			assert.Equal(t, tt.wantSearching, got.conns.Searching())
+			assert.Equal(t, tt.wantChord, got.chord)
 		})
 	}
 }
