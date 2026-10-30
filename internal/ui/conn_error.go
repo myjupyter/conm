@@ -61,13 +61,13 @@ func hintFor(code network.ErrorCode) string {
 	case network.LocalNetErrorCode:
 		return "macOS may be blocking local network access · allow your terminal in System Settings › Privacy & Security › Local Network"
 	case network.SecretErrorCode:
-		return "the password could not be read · press " + keyMap.Secret.hint + " to check the secret store"
+		return "the password could not be read · press " + keyMap.Screen.Secrets.hint + " to check the secret store"
 	case network.AuthErrorCode:
-		return "credentials were rejected · press " + keyMap.Edit.hint + " to update the username or password"
+		return "credentials were rejected · press " + keyMap.Connection.Edit.hint + " to update the username or password"
 	case network.TLSErrorCode:
 		return "TLS handshake failed · check the connection's SSL settings and the CA certificate"
 	case network.InvalidErrorCode:
-		return "this connection has validation errors · press " + keyMap.Edit.hint + " to fix the config"
+		return "this connection has validation errors · press " + keyMap.Connection.Edit.hint + " to fix the config"
 	case network.TransportErrorCode:
 		return "the transport did not come up · check the connection it goes through and that it can reach this host"
 	case network.PortBusyErrorCode:

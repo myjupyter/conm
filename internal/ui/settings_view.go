@@ -11,6 +11,8 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
+const settingsSectionLines = 7
+
 const (
 	settingsPathLabel     = "path"
 	settingsVersionLabel  = "version"
@@ -26,17 +28,21 @@ func (m settingsModel) View() tea.View {
 }
 
 func (m settingsModel) render() string {
-	n := len(m.conm.Connections)
-	start, end := m.window.Range(n)
+	window, cursor, n := m.window, m.cursor, len(m.conm.Connections)
+	if m.tab == settingsKeybindTab {
+		window, cursor, n = m.binds.window, m.binds.cursor, len(m.bindings())
+	}
 
 	lines := []string{
 		frameTop(infoInner, "settings", ""),
-		frameTabs(infoInner, settingsTabTitles, 0, scrollNote(m.window.Above(), m.window.Below(n))),
+		frameTabs(infoInner, settingsTabTitles, m.tab, scrollNote(window.Above(), window.Below(n))),
 		frameRule(infoInner, gTeeL, gTeeR),
 	}
 
-	for i, db := range m.conm.Connections[start:end] {
-		lines = append(lines, m.sectionLines(db, start+i == m.cursor)...)
+	if m.tab == settingsKeybindTab {
+		lines = append(lines, m.bindsLines()...)
+	} else {
+		lines = append(lines, m.clientLines()...)
 	}
 	lines = append(lines, frameLine(infoInner, nil, nil), frameRule(infoInner, gTeeL, gTeeR))
 
@@ -51,10 +57,20 @@ func (m settingsModel) render() string {
 	lines = append(lines, keyhintLines(infoInner, keyhintFooter{
 		groups: m.keyhints(),
 		open:   m.help,
-		pos:    cursorPos(m.cursor, n),
+		pos:    cursorPos(cursor, n),
 	})...)
 
 	return strings.Join(append(lines, frameBottom(infoInner)), "\n")
+}
+
+func (m settingsModel) clientLines() []string {
+	start, end := m.window.Range(len(m.conm.Connections))
+
+	lines := make([]string, 0, (end-start)*settingsSectionLines)
+	for i, db := range m.conm.Connections[start:end] {
+		lines = append(lines, m.sectionLines(db, start+i == m.cursor)...)
+	}
+	return lines
 }
 
 func (m settingsModel) sectionLines(db config.ConnectionSettings, on bool) []string {
@@ -147,6 +163,10 @@ func (m settingsModel) selectorSpans(db config.ConnectionSettings, on bool) []sp
 }
 
 func settingsLine(label string, value []span, on bool) string {
+	return settingsLabelLine(label, wInfoLbl, value, on)
+}
+
+func settingsLabelLine(label string, labelW int, value []span, on bool) string {
 	labelFg, bg := cDim, color.Color(nil)
 	caret := "  "
 	if on {
@@ -156,7 +176,7 @@ func settingsLine(label string, value []span, on bool) string {
 	spans := make([]span, 0, 3+len(value))
 	spans = append(spans,
 		span{text: caret, fg: labelFg, bg: bg, bold: true},
-		span{text: truncPad(label, wInfoLbl, false), fg: labelFg, bg: bg, bold: on},
+		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, bold: on},
 		span{text: "  ", bg: bg},
 	)
 

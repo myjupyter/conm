@@ -1,10 +1,7 @@
 package config
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"slices"
 
 	"github.com/pelletier/go-toml/v2"
@@ -31,11 +28,34 @@ const (
 
 type Conm struct {
 	Connections []ConnectionSettings `toml:"connection"`
+	Keybindings KeybindingSettings   `toml:"keybinding"`
 }
 
 type ConnectionSettings struct {
 	Type ConnType `toml:"type"`
 	CLI  string   `toml:"cli"`
+}
+
+func CreateConm(conf Conm) error {
+	conf.complete()
+
+	raw, err := toml.Marshal(struct {
+		Conm Conm `toml:"conm"`
+	}{Conm: conf})
+	if err != nil {
+		return err
+	}
+
+	return writeFileAtomic(ConmPath(), raw)
+}
+
+func ReadConm(filename string) (Conm, error) {
+	c, err := OpenConfig[*ConmConfigWrapper](filename)
+	if err != nil {
+		return Conm{}, err
+	}
+
+	return c.Get(0), nil
 }
 
 func (c Conm) Connection(t ConnType) (ConnectionSettings, bool) {
@@ -61,21 +81,6 @@ func (c *Conm) SetConnection(s ConnectionSettings) {
 	}
 
 	c.Connections = append(c.Connections, s)
-}
-
-func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {
-	conns := make([]ConnectionSettings, 0, len(ConnTypes))
-	for _, t := range ConnTypes {
-		conn := ConnectionSettings{Type: t}
-		for _, s := range stored {
-			if s.Type == t {
-				conn = s
-				break
-			}
-		}
-		conns = append(conns, conn)
-	}
-	return conns
 }
 
 func (t ConnType) Kind() ConnKind {
@@ -159,7 +164,7 @@ func (w *ConmConfigWrapper) ConnectionConfigs() []Connection {
 func (w *ConmConfigWrapper) Remove(_ int) {}
 
 func (w *ConmConfigWrapper) Validate() {
-	w.Conm.Connections = withKnownTypes(w.Conm.Connections)
+	w.Conm.complete()
 }
 
 func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
@@ -167,40 +172,34 @@ func (w *ConmConfigWrapper) Unmarshal(data []byte) error {
 		return nil
 	}
 
-	return toml.Unmarshal(data, w)
+	if err := toml.Unmarshal(data, w); err != nil {
+		return err
+	}
+
+	w.Conm.complete()
+	return nil
 }
 
 func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
 	return toml.Marshal(w)
 }
 
-func CreateConm(conf Conm) error {
-	raw, err := toml.Marshal(struct {
-		Conm Conm `toml:"conm"`
-	}{Conm: conf})
-	if err != nil {
-		return err
-	}
-
-	return writeFileAtomic(ConmPath(), raw)
+func (c *Conm) complete() {
+	c.Connections = withKnownTypes(c.Connections)
+	c.Keybindings.fillDefaults()
 }
 
-func ReadConm(filename string) (Conm, error) {
-	t := struct {
-		Conm Conm `toml:"conm"`
-	}{}
-
-	raw, err := os.ReadFile(filename)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return Conm{}, err
+func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {
+	conns := make([]ConnectionSettings, 0, len(ConnTypes))
+	for _, t := range ConnTypes {
+		conn := ConnectionSettings{Type: t}
+		for _, s := range stored {
+			if s.Type == t {
+				conn = s
+				break
+			}
+		}
+		conns = append(conns, conn)
 	}
-
-	err = toml.Unmarshal(raw, &t)
-	if err != nil {
-		return Conm{}, err
-	}
-
-	t.Conm.Connections = withKnownTypes(t.Conm.Connections)
-
-	return t.Conm, nil
+	return conns
 }

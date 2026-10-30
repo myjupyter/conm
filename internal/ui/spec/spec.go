@@ -4,8 +4,6 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-const tagsMaxLength = 255
-
 // The section a connection form is split into, shared by every entity spec so
 // the copy reads the same whatever database the form is for.
 const (
@@ -20,6 +18,7 @@ const (
 	IntFieldKind
 	SelectFieldKind
 	SourceFieldKind
+	StringArrayFieldKind
 )
 
 const (

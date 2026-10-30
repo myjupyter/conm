@@ -124,7 +124,7 @@ func (m formModel) linkHeadLines() []string {
 	// empty and there is nothing else to say what to do.
 	note := ""
 	if m.linkCount() == 0 {
-		note = "nothing linked yet — " + keyMap.Add.hint + " adds one"
+		note = "nothing linked yet — " + keyMap.Form.AddItem.hint + " adds one"
 	}
 
 	return frameHead(formInner, linksHeadTitle, note)
@@ -214,6 +214,9 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 	if isSelect(f) && m.applies(f) {
 		return m.selectBox(f, active, borderFg, bg)
 	}
+	if isArray(f) {
+		return m.chipsBox(f, active, bg)
+	}
 
 	disp, ghost := m.display(i, active)
 	if active && m.insert {
@@ -231,6 +234,36 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 		{text: truncPad(disp, formBoxW-2, false), fg: valFg, bg: bg},
 		{text: gLineV, fg: borderFg, bg: bg},
 	}
+}
+
+func (m formModel) chips(f spec.FormField, active bool) []chip {
+	items := m.items(f)
+	if active && m.insert {
+		draft := m.chipDraft + gInputCursor
+		if m.chipAt < len(items) {
+			items[m.chipAt] = draft
+		} else {
+			items = append(items, draft)
+		}
+	}
+
+	focus := -1
+	switch {
+	case active && m.insert:
+		focus = m.chipAt
+	case active:
+		focus = m.chipAtCursor(f)
+	}
+
+	out := make([]chip, len(items))
+	for j, item := range items {
+		out[j] = chip{text: fitChip(item, active && m.insert && j == m.chipAt), focused: j == focus}
+	}
+	return out
+}
+
+func (m formModel) chipsBox(f spec.FormField, active bool, bg color.Color) []span {
+	return frameChips(m.chips(f, active), active, bg)
 }
 
 func (m formModel) selectBox(f spec.FormField, active bool, borderFg, bg color.Color) []span {

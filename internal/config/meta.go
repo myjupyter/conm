@@ -22,7 +22,10 @@ type ConnMeta struct {
 	Links       []WebLink `toml:"links,omitempty"`
 }
 
-const linkNameMaxLength = 64
+const (
+	linkNameMaxLength = 64
+	tagMaxLength      = 32
+)
 
 func ValidateWebLinkName(name string) error {
 	if strings.TrimSpace(name) == "" {
@@ -48,6 +51,20 @@ func ValidateWebLinkURL(raw string) error {
 	}
 	if u.Host == "" {
 		return errors.New("link url must have a host")
+	}
+	return nil
+}
+
+func ValidateTags(tags []string) error {
+	seen := make(map[string]bool, len(tags))
+	for _, tag := range tags {
+		if len(tag) > tagMaxLength {
+			return fmt.Errorf("tag '%s' is longer that %d symbols", tag, tagMaxLength)
+		}
+		if seen[tag] {
+			return fmt.Errorf("tag '%s' is set more than once", tag)
+		}
+		seen[tag] = true
 	}
 	return nil
 }

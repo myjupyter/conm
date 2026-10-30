@@ -147,9 +147,9 @@ func (m transportFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.cycle(cur, 1)
 	case keyMap.Left.matches(key):
 		m.cycle(cur, -1)
-	case keyMap.Edit.matches(key):
+	case keyMap.Form.EditField.matches(key):
 		m.edit(cur)
-	case keyMap.Ping.matches(key):
+	case keyMap.Connection.Ping.matches(key):
 		return m.pingViaCmd()
 	case keyMap.Confirm.matches(key):
 		return m.submit()

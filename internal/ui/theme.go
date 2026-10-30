@@ -87,8 +87,9 @@ const (
 
 	// Stand-ins: an empty value, and the elision truncPad ends a clipped string
 	// with.
-	gEmpty    = "—"
-	gEllipsis = "…"
+	gEmpty     = "—"
+	gEmptyList = "none"
+	gEllipsis  = "…"
 
 	// The arrow the error panel points its hint with.
 	gHintArrow = "→"

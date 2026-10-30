@@ -2,7 +2,6 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -106,12 +105,10 @@ var MySQLFormFields = []FormField{
 		Key:      strings.ToLower(mysqlFormFieldTags),
 		Label:    mysqlFormFieldTags,
 		Example:  mysqlExampleTags,
+		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
-			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
-			}
-			return nil
+			return config.ValidateTags(SplitStringArray(value))
 		},
 	},
 	transportTypeField,
@@ -160,7 +157,7 @@ var MySQLFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(mysqlFormFieldTLSMode):     my.TLSMode,
 			strings.ToLower(mysqlFormFieldName):        my.Metadata.Name,
 			strings.ToLower(mysqlFormFieldDescription): my.Metadata.Description,
-			strings.ToLower(mysqlFormFieldTags):        strings.Join(my.Metadata.Tags, ", "),
+			strings.ToLower(mysqlFormFieldTags):        JoinStringArray(my.Metadata.Tags),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {

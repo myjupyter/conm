@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/ui/view"
+	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 type Model struct {
@@ -127,7 +129,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case chordExpiredMsg:
 		if m.chord != "" && msg.id == m.chordID {
-			return m.finishChord("")
+			first := m.chord
+			m.chord = ""
+			return m.dispatchKey(first)
 		}
 
 	case spinner.TickMsg:
@@ -140,7 +144,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 	if m.chord != "" {
-		return m.finishChord(key)
+		return m.finishChord(msg)
 	}
 	if m.conns.Searching() {
 		return m.handleSearchKey(msg)
@@ -148,13 +152,20 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.conns.Confirming() {
 		return m.handleConfirmKey(key)
 	}
+	if m.startsChord(key) {
+		return m.startChord(key)
+	}
+	return m.dispatchKey(key)
+}
+
+func (m Model) dispatchKey(key string) (tea.Model, tea.Cmd) {
 	if m.currentErr() != nil {
 		switch {
 		case keyMap.Cancel.matches(key):
 			m.currentState().connErr = nil
 			m.status, m.statusKind = statusReady, kindIdle
 			return m, nil
-		case keyMap.Retry.matches(key):
+		case keyMap.Connection.Retry.matches(key):
 			return m.retry()
 		}
 	}
@@ -195,17 +206,23 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 		m.conns.MoveDown()
 	case keyMap.SwitchKind.matches(key):
 		return m.switchKind(key), nil
-	case keyMap.Confirm.matches(key):
+	case keyMap.Connection.Connect.matches(key):
 		return m, m.runCmd()
-	case keyMap.Add.matches(key), keyMap.Secret.matches(key):
-		return m.startChord(key)
-	case keyMap.Edit.matches(key):
+	case keyMap.Screen.AddConnection.matches(key):
+		return m, m.addCmd()
+	case keyMap.Screen.AddConnectionType.matches(key):
+		return m, m.addOfTypeCmd()
+	case keyMap.Screen.Secrets.matches(key):
+		return m, m.secretsCmd()
+	case keyMap.Screen.Settings.matches(key):
+		return m, m.settingsCmd()
+	case keyMap.Connection.Edit.matches(key):
 		if m.conns.Len() > 0 {
 			return m, m.editCmd()
 		}
-	case keyMap.Delete.matches(key):
+	case keyMap.Connection.Delete.matches(key):
 		m.conns.AskConfirm()
-	case keyMap.Ping.matches(key):
+	case keyMap.Connection.Ping.matches(key):
 		if m.conns.Len() > 0 {
 			return m.pingOne()
 		}
@@ -219,9 +236,9 @@ func (m Model) handleKey(key string) (tea.Model, tea.Cmd) {
 
 func (m Model) screenCmd(key string) tea.Cmd {
 	switch {
-	case keyMap.Info.matches(key) && m.conns.Len() > 0:
+	case keyMap.Connection.Info.matches(key) && m.conns.Len() > 0:
 		return m.infoCmd()
-	case keyMap.Transport.matches(key):
+	case keyMap.Screen.Transport.matches(key):
 		return m.transportsCmd()
 	default:
 		return nil
@@ -236,20 +253,45 @@ func (m Model) startChord(key string) (tea.Model, tea.Cmd) {
 	return m, tea.Tick(chordTimeout, func(time.Time) tea.Msg { return chordExpiredMsg{id: id} })
 }
 
-func (m Model) finishChord(second string) (tea.Model, tea.Cmd) {
+func (m Model) tableKeys() []binding {
+	return []binding{
+		keyMap.Screen.Transport, keyMap.Screen.Secrets, keyMap.Screen.Settings,
+		keyMap.Screen.AddConnection, keyMap.Screen.AddConnectionType,
+		keyMap.Connection.Connect, keyMap.Connection.Edit, keyMap.Connection.Delete, keyMap.Connection.Info,
+		keyMap.Connection.Ping, keyMap.Connection.Retry,
+	}
+}
+
+func (m Model) startsChord(key string) bool {
+	return slices.ContainsFunc(m.tableKeys(), func(b binding) bool { return b.startsWith(key) })
+}
+
+func (m Model) finishChord(second tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	first := m.chord
 	m.chord = ""
 
-	switch {
-	case keyMap.Secret.matches(first) && keyMap.Settings.matches(second):
-		return m, m.settingsCmd()
-	case keyMap.Secret.matches(first):
-		return m, m.secretsCmd()
-	case keyMap.Add.matches(first) && keyMap.AddDB.matches(second):
-		return m, m.addOfTypeCmd()
-	default:
-		return m, m.addCmd()
+	if keyMap.Interrupt.matches(second.String()) {
+		return m, tea.Quit
 	}
+	if full := m.chordKey(first, second.String()); full != first {
+		return m.dispatchKey(full)
+	}
+
+	next, firstCmd := m.dispatchKey(first)
+	table, ok := next.(Model)
+	if !ok {
+		return next, firstCmd
+	}
+	next, secondCmd := table.handleKeyMsg(second)
+	return next, tea.Batch(firstCmd, secondCmd)
+}
+
+func (m Model) chordKey(first, second string) string {
+	full := keys.JoinSequence(first, second)
+	if second != "" && slices.ContainsFunc(m.tableKeys(), func(b binding) bool { return b.matches(full) }) {
+		return full
+	}
+	return first
 }
 
 func (m Model) switchKind(key string) Model {
@@ -259,7 +301,7 @@ func (m Model) switchKind(key string) Model {
 	}
 
 	if !step() {
-		m.status = m.conns.Active().String() + " is the only connection type shown · " + keyMap.AddDB.hint + " to add another"
+		m.status = m.conns.Active().String() + " is the only connection type shown · " + keyMap.Screen.AddConnectionType.hint + " to add another"
 		m.statusKind = kindWarn
 		return m
 	}
@@ -280,10 +322,10 @@ func (m Model) handleConfirmKey(key string) (tea.Model, tea.Cmd) {
 	switch {
 	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
-	case keyMap.Yes.matches(key):
+	case keyMap.Prompt.Yes.matches(key):
 		m.conns.ClearConfirm()
 		return m, m.removeCmd()
-	case keyMap.No.matches(key):
+	case keyMap.Prompt.No.matches(key):
 		m.conns.ClearConfirm()
 	}
 	return m, nil

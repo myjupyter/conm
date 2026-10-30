@@ -47,7 +47,11 @@ type formModel struct {
 	idx     int
 	insert  bool
 	reveal  bool
-	help    bool // the key hints table, expanded over the key bar
+
+	chip      int
+	chipAt    int
+	chipDraft string
+	help      bool // the key hints table, expanded over the key bar
 
 	attempted bool
 	submitted bool
@@ -351,7 +355,7 @@ func (m *formModel) onSecretModeChange(was string) {
 				m.vals[spec.SecretValueKey] = list[0]
 			}
 		}
-		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Secret.hint+" on provider to manage", kindIdle)
+		m.setStatus(m.storeLabel()+" · pick an entry with "+keyMap.Cycle.hint+", or "+keyMap.Screen.Secrets.hint+" on provider to manage", kindIdle)
 	}
 }
 
@@ -375,7 +379,7 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	key := msg.String()
 
-	if model, cmd, handled := m.navLink(key, cur); handled {
+	if model, cmd, handled := m.navList(key, cur); handled {
 		return model, cmd
 	}
 
@@ -390,9 +394,9 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Quit
 	case keyMap.Down.matches(key):
-		m.idx = (m.idx + 1) % n
+		m.idx, m.chip = (m.idx+1)%n, 0
 	case keyMap.Up.matches(key):
-		m.idx = (m.idx - 1 + n) % n
+		m.idx, m.chip = (m.idx-1+n)%n, 0
 	case keyMap.NextSection.matches(key):
 		m.switchSection(1)
 	case keyMap.PrevSection.matches(key):
@@ -401,15 +405,15 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.navCycle(fields[m.idx], 1)
 	case keyMap.Left.matches(key):
 		m.navCycle(fields[m.idx], -1)
-	case keyMap.Edit.matches(key):
+	case keyMap.Form.EditField.matches(key):
 		m.navEdit(fields[m.idx], cur)
-	case keyMap.Secret.matches(key):
+	case keyMap.Screen.Secrets.matches(key):
 		if cmd, handled := m.navSecret(fields[m.idx], cur); handled {
 			return m, cmd
 		}
-	case keyMap.Ping.matches(key):
+	case keyMap.Connection.Ping.matches(key):
 		return m.pingForm()
-	case keyMap.Retry.matches(key):
+	case keyMap.Connection.Retry.matches(key):
 		if m.ping != nil {
 			return m.pingForm()
 		}
@@ -420,6 +424,13 @@ func (m formModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.setStatus(keyhintStatus(m.help), kindIdle)
 	}
 	return m, nil
+}
+
+func (m *formModel) navList(key string, cur spec.FormField) (tea.Model, tea.Cmd, bool) {
+	if m.navArray(key, cur) {
+		return *m, nil, true
+	}
+	return m.navLink(key, cur)
 }
 
 // navLink handles the keys the link list owns: a grows one anywhere in the
@@ -434,9 +445,9 @@ func (m *formModel) navLink(key string, cur spec.FormField) (model tea.Model, cm
 	i, onLink := spec.LinkIndexOf(cur.Key)
 
 	switch {
-	case keyMap.Add.matches(key) && m.section == m.linkSect:
+	case keyMap.Form.AddItem.matches(key) && m.section == m.linkSect:
 		m.addLink()
-	case keyMap.Delete.matches(key) && onLink:
+	case keyMap.Form.RemoveItem.matches(key) && onLink:
 		m.removeLink(i)
 	case keyMap.Confirm.matches(key) && onLink:
 		model, cmd = m.openLink(cur.Key)
@@ -466,6 +477,11 @@ func (m formModel) applyPaste(raw string, err error) formModel {
 		}
 	}
 
+	if isArray(m.fields[i]) {
+		m.chipDraft += text
+		m.setStatus("pasted · "+keyMap.Confirm.hint+" keeps it, "+keyMap.Cancel.hint+" discards", kindIdle)
+		return m
+	}
 	m.vals[m.fields[i].Key] += text
 	m.setStatus("pasted · "+keyMap.Cancel.hint+" when done", kindIdle)
 	return m
@@ -538,6 +554,8 @@ func (m *formModel) navEdit(i int, cur spec.FormField) {
 		m.setStatus(m.label(cur)+" · "+m.example(cur), kindIdle)
 	case isSelect(cur):
 		m.setStatus(m.label(cur)+" has no options to pick from", kindWarn)
+	case isArray(cur):
+		m.editChip(cur)
 	default:
 		m.insert = true
 		m.setStatus("editing "+m.label(cur)+" · "+keyMap.Cancel.hint+" when done", kindIdle)
@@ -555,7 +573,7 @@ func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled b
 	case cur.Kind == spec.HiddenFieldKind && m.isLiteral():
 		m.reveal = !m.reveal
 		if m.reveal {
-			m.setStatus("password visible · "+keyMap.Secret.hint+" to hide", kindIdle)
+			m.setStatus("password visible · "+keyMap.Screen.Secrets.hint+" to hide", kindIdle)
 		} else {
 			m.setStatus("password hidden", kindIdle)
 		}
@@ -568,6 +586,10 @@ func (m formModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	cur := m.fields[fields[m.idx]]
 
 	key := msg.String()
+
+	if isArray(cur) {
+		return m.insertChipKey(msg, cur)
+	}
 
 	switch {
 	case keyMap.Interrupt.matches(key):
@@ -610,7 +632,7 @@ func (m *formModel) setStatus(s string, k statusKind) {
 
 func (m *formModel) switchSection(dir int) {
 	m.section = (m.section + dir + len(m.sections)) % len(m.sections)
-	m.idx = 0
+	m.idx, m.chip = 0, 0
 	m.setStatus(m.sections[m.section].Title, kindIdle)
 }
 
@@ -787,7 +809,7 @@ func (m formModel) refError() string {
 	store := m.storeLabel()
 
 	if ref == "" {
-		return "pick a " + store + " entry — " + keyMap.Cycle.hint + ", or " + keyMap.Secret.hint + " on provider"
+		return "pick a " + store + " entry — " + keyMap.Cycle.hint + ", or " + keyMap.Screen.Secrets.hint + " on provider"
 	}
 	if slices.Contains(m.refEntries(), ref) {
 		return ""

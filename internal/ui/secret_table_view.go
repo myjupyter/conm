@@ -72,7 +72,7 @@ func (m secretModel) emptySecretText() string {
 	if m.secrets.Filtered() {
 		return "   no entry matches the filter"
 	}
-	return "   " + m.secrets.Active() + " is empty · press " + keyMap.Add.hint + " to add an entry"
+	return "   " + m.secrets.Active() + " is empty · press " + keyMap.Secret.Add.hint + " to add an entry"
 }
 
 func (m secretModel) crumb() string {

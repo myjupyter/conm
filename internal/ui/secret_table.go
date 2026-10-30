@@ -34,7 +34,7 @@ func newSecretModel(secrets *view.Secrets) secretModel {
 func newSecretPicker(secrets *view.Secrets) secretModel {
 	m := newSecretModel(secrets)
 	if m.secrets.Len() == 0 {
-		m.setSecretStatus(m.secrets.Active()+" is empty · press "+keyMap.Add.hint+" to add an entry", kindWarn)
+		m.setSecretStatus(m.secrets.Active()+" is empty · press "+keyMap.Secret.Add.hint+" to add an entry", kindWarn)
 	} else {
 		m.setSecretStatus("pick an entry · "+keyMap.Confirm.hint+" to attach it", kindOK)
 	}
@@ -108,13 +108,13 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.describe(), nil
-	case keyMap.Add.matches(key):
+	case keyMap.Secret.Add.matches(key):
 		return m, m.addSecretCmd()
-	case keyMap.Edit.matches(key):
+	case keyMap.Secret.Edit.matches(key):
 		if m.secrets.Len() > 0 {
 			return m, m.editSecretCmd()
 		}
-	case keyMap.Delete.matches(key):
+	case keyMap.Secret.Delete.matches(key):
 		m.secrets.AskConfirm()
 	case keyMap.Help.matches(key):
 		m.secrets.ToggleHelp()
@@ -126,10 +126,10 @@ func (m secretModel) handleSecretConfirmKey(key string) (tea.Model, tea.Cmd) {
 	switch {
 	case keyMap.Interrupt.matches(key):
 		return m, tea.Quit
-	case keyMap.Yes.matches(key):
+	case keyMap.Prompt.Yes.matches(key):
 		m.secrets.ClearConfirm()
 		return m, m.removeSecretCmd()
-	case keyMap.No.matches(key):
+	case keyMap.Prompt.No.matches(key):
 		m.secrets.ClearConfirm()
 	}
 	return m, nil

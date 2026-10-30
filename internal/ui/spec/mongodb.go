@@ -2,7 +2,6 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -113,12 +112,10 @@ var MongoDBFormFields = []FormField{
 		Key:      strings.ToLower(mongodbFormFieldTags),
 		Label:    mongodbFormFieldTags,
 		Example:  mongodbExampleTags,
+		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
-			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
-			}
-			return nil
+			return config.ValidateTags(SplitStringArray(value))
 		},
 	},
 	transportTypeField,
@@ -169,7 +166,7 @@ var MongoDBFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(mongodbFormFieldTLS):         strconv.FormatBool(mg.TLS),
 			strings.ToLower(mongodbFormFieldName):        mg.Metadata.Name,
 			strings.ToLower(mongodbFormFieldDescription): mg.Metadata.Description,
-			strings.ToLower(mongodbFormFieldTags):        strings.Join(mg.Metadata.Tags, ", "),
+			strings.ToLower(mongodbFormFieldTags):        JoinStringArray(mg.Metadata.Tags),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {

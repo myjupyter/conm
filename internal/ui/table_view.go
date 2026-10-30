@@ -84,7 +84,7 @@ func (m Model) emptyText() string {
 	if m.conns.Filtered() {
 		return "  no connection matches the filter"
 	}
-	return "  no connections · press " + keyMap.Add.hint + " to add one"
+	return "  no connections · press " + keyMap.Screen.AddConnection.hint + " to add one"
 }
 
 func (m Model) tabsLine() string {

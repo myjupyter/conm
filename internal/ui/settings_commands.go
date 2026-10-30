@@ -30,7 +30,8 @@ func (m settingsModel) probeVersionsCmd() tea.Cmd {
 }
 
 func (m settingsModel) saveClientCmd(db config.ConnectionSettings) tea.Cmd {
-	next := config.Conm{Connections: slices.Clone(m.conm.Connections)}
+	next, save := m.conm, m.save
+	next.Connections = slices.Clone(m.conm.Connections)
 
 	return func() tea.Msg {
 		if err := cli.Validate(db.Type, db.CLI); err != nil {
@@ -39,7 +40,19 @@ func (m settingsModel) saveClientCmd(db config.ConnectionSettings) tea.Cmd {
 
 		next.SetConnection(db)
 
-		return settingsSavedMsg{conm: next, err: config.CreateConm(next)}
+		return settingsSavedMsg{conm: next, status: db.Type.String() + " opens with " + db.CLI, err: save(next)}
+	}
+}
+
+func (m settingsModel) saveKeysCmd(path string, keys []string, status string) tea.Cmd {
+	next, save := m.conm, m.save
+	next.Keybindings.Set(path, keys)
+
+	return func() tea.Msg {
+		if err := next.Keybindings.Validate(); err != nil {
+			return settingsSavedMsg{err: err}
+		}
+		return settingsSavedMsg{conm: next, status: status, err: save(next)}
 	}
 }
 

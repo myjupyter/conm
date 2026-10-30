@@ -2,7 +2,6 @@ package spec
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -121,12 +120,10 @@ var PostgresFormFields = []FormField{
 		Key:      strings.ToLower(postgresFormFieldTags),
 		Label:    postgresFormFieldTags,
 		Example:  postgresExampleTags,
+		Kind:     StringArrayFieldKind,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(value string) error {
-			if len(value) > tagsMaxLength {
-				return fmt.Errorf("tags must be at most %d characters long", tagsMaxLength)
-			}
-			return nil
+			return config.ValidateTags(SplitStringArray(value))
 		},
 	},
 	transportTypeField,
@@ -177,7 +174,7 @@ var PostgresFormSpec = FormSpec[config.Connection]{
 			strings.ToLower(postgresFormFieldSSLMode):     pg.SSLMode,
 			strings.ToLower(postgresFormFieldName):        pg.Metadata.Name,
 			strings.ToLower(postgresFormFieldDescription): pg.Metadata.Description,
-			strings.ToLower(postgresFormFieldTags):        strings.Join(pg.Metadata.Tags, ", "),
+			strings.ToLower(postgresFormFieldTags):        JoinStringArray(pg.Metadata.Tags),
 		}
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (config.Connection, error) {
