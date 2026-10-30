@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 func Test_newKeymap(t *testing.T) {
@@ -92,7 +93,7 @@ func Test_keystroke(t *testing.T) {
 	}
 }
 
-func TestNamedKeys_spelledByBubbleTea(t *testing.T) {
+func TestNamed_spelledByBubbleTea(t *testing.T) {
 	t.Parallel()
 
 	codes := []rune{tea.KeyBackspace, tea.KeyTab, tea.KeyEnter, tea.KeyEscape, tea.KeySpace}
@@ -104,7 +105,7 @@ func TestNamedKeys_spelledByBubbleTea(t *testing.T) {
 		spelled[tea.Key{Code: code}.String()] = true
 	}
 
-	for _, name := range config.NamedKeys() {
+	for _, name := range keys.Named() {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 

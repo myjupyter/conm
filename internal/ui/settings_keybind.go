@@ -9,6 +9,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/view"
+	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 const (
@@ -138,7 +139,7 @@ func (m settingsModel) captureKey(key string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if _, err := config.ParseKey(key); err != nil {
+	if _, err := keys.Parse(key); err != nil {
 		m = m.stopCapture()
 		m.setSettingsStatus(err.Error(), kindWarn)
 		return m, nil
@@ -176,17 +177,17 @@ func (m settingsModel) commitCapture(stroke string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	keys := slices.Clone(b.Keys)
+	bound := slices.Clone(b.Keys)
 	status := bindLabel(b) + " + " + hintOf([]string{stroke})
-	if at := m.binds.captureAt; at < len(keys) {
-		status = bindLabel(b) + " · " + hintOf([]string{keys[at]}) + " → " + hintOf([]string{stroke})
-		keys[at] = stroke
+	if at := m.binds.captureAt; at < len(bound) {
+		status = bindLabel(b) + " · " + hintOf([]string{bound[at]}) + " → " + hintOf([]string{stroke})
+		bound[at] = stroke
 	} else {
-		keys = append(keys, stroke)
+		bound = append(bound, stroke)
 	}
-	m.binds.chip = min(m.binds.captureAt, len(keys)-1)
+	m.binds.chip = min(m.binds.captureAt, len(bound)-1)
 
-	return m, m.saveKeysCmd(b.Path, keys, status)
+	return m, m.saveKeysCmd(b.Path, bound, status)
 }
 
 func (m settingsModel) removeKey() (tea.Model, tea.Cmd, bool) {
@@ -197,10 +198,10 @@ func (m settingsModel) removeKey() (tea.Model, tea.Cmd, bool) {
 	}
 
 	at := m.bindChip()
-	keys := slices.Delete(slices.Clone(b.Keys), at, at+1)
-	m.binds.chip = min(at, len(keys)-1)
+	bound := slices.Delete(slices.Clone(b.Keys), at, at+1)
+	m.binds.chip = min(at, len(bound)-1)
 
-	return m, m.saveKeysCmd(b.Path, keys, "removed "+hintOf([]string{b.Keys[at]})+" from "+bindLabel(b)), true
+	return m, m.saveKeysCmd(b.Path, bound, "removed "+hintOf([]string{b.Keys[at]})+" from "+bindLabel(b)), true
 }
 
 func (m settingsModel) askReset() settingsModel {

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 var (
@@ -123,7 +125,7 @@ type PromptKeybindings struct {
 	No  []string `toml:"no"`
 }
 
-func ParseSequence(raw string) ([]Key, error) {
+func ParseSequence(raw string) ([]keys.Key, error) {
 	strokes := strings.Fields(raw)
 	if len(strokes) > 2 {
 		return nil, fmt.Errorf("%q: %w", raw, errLongSequence)
@@ -132,9 +134,9 @@ func ParseSequence(raw string) ([]Key, error) {
 		strokes = []string{raw}
 	}
 
-	sequence := make([]Key, 0, len(strokes))
+	sequence := make([]keys.Key, 0, len(strokes))
 	for _, stroke := range strokes {
-		key, err := ParseKey(stroke)
+		key, err := keys.Parse(stroke)
 		if err != nil {
 			return nil, err
 		}
@@ -303,10 +305,10 @@ func (k KeybindingSettings) Bindings() []Keybinding {
 	return bindings
 }
 
-func (k *KeybindingSettings) Set(path string, keys []string) {
+func (k *KeybindingSettings) Set(path string, bound []string) {
 	for _, field := range k.fields() {
 		if field.path() == path {
-			*field.keys = slices.Clone(keys)
+			*field.keys = slices.Clone(bound)
 			return
 		}
 	}
@@ -367,12 +369,12 @@ func (k *KeybindingSettings) validateEdits() error {
 	return errors.Join(errs...)
 }
 
-func sameKeys(keys, others []string) bool {
-	if len(keys) != len(others) {
+func sameKeys(bound, others []string) bool {
+	if len(bound) != len(others) {
 		return false
 	}
 	for _, key := range others {
-		if _, ok := findKey(keys, key); !ok {
+		if _, ok := findKey(bound, key); !ok {
 			return false
 		}
 	}
@@ -416,13 +418,13 @@ func sharedKeys(fields, against []keybindingField) error {
 	return errors.Join(errs...)
 }
 
-func findKey(keys []string, raw string) (string, bool) {
+func findKey(bound []string, raw string) (string, bool) {
 	wanted, err := ParseSequence(raw)
 	if err != nil {
 		return "", false
 	}
 
-	for _, candidate := range keys {
+	for _, candidate := range bound {
 		if sequence, err := ParseSequence(candidate); err == nil && slices.Equal(sequence, wanted) {
 			return candidate, true
 		}

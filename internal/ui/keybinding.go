@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 var keyGlyphs = map[string]string{
@@ -20,9 +21,9 @@ type binding struct {
 	hint string
 }
 
-func newBinding(keys ...string) binding {
-	strokes := make([]string, 0, len(keys))
-	for _, key := range keys {
+func newBinding(raws ...string) binding {
+	strokes := make([]string, 0, len(raws))
+	for _, key := range raws {
 		strokes = append(strokes, sequence(key))
 	}
 	return binding{keys: strokes, hint: hintOf(strokes)}
@@ -55,12 +56,12 @@ func sequenceHint(key string) string {
 }
 
 func keystroke(raw string) string {
-	key, err := config.ParseKey(raw)
+	key, err := keys.Parse(raw)
 	if err != nil {
 		return raw
 	}
 
-	if key.Mod == config.ModShift && utf8.RuneCountInString(key.Name) == 1 {
+	if key.Mod == keys.ModShift && utf8.RuneCountInString(key.Name) == 1 {
 		return strings.ToUpper(key.Name)
 	}
 	if key.Mod == 0 {
@@ -69,10 +70,10 @@ func keystroke(raw string) string {
 	return key.Mod.String() + "+" + key.Name
 }
 
-func hintOf(keys []string) string {
+func hintOf(strokes []string) string {
 	var arrows strings.Builder
-	spelled := make([]string, 0, len(keys))
-	for _, key := range keys {
+	spelled := make([]string, 0, len(strokes))
+	for _, key := range strokes {
 		if glyph, ok := keyGlyphs[key]; ok {
 			arrows.WriteString(glyph)
 			continue
@@ -109,11 +110,11 @@ func (b binding) startsWith(key string) bool {
 }
 
 func merge(binds ...binding) binding {
-	var keys []string
+	var strokes []string
 	for _, b := range binds {
-		keys = append(keys, b.keys...)
+		strokes = append(strokes, b.keys...)
 	}
-	return newBinding(keys...)
+	return newBinding(strokes...)
 }
 
 type screenKeys struct {

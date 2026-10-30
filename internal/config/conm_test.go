@@ -8,6 +8,8 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/myjupyter/conm/internal/utils/keys"
 )
 
 type hostOnly struct{}
@@ -75,7 +77,7 @@ func TestReadConm(t *testing.T) {
 		{
 			name:    "unknown key is refused",
 			args:    args{toml: "[conm.keybinding.navigation]\nup = [\"up\", \"skdfjs;adjf\"]\n"},
-			wantErr: errUnknownKey,
+			wantErr: keys.ErrUnknownKey,
 		},
 	}
 	for _, tt := range tests {

@@ -1,4 +1,4 @@
-package config
+package keys
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 var (
 	errUnknownModifier  = errors.New("unknown modifier")
 	errRepeatedModifier = errors.New("repeated modifier")
-	errUnknownKey       = errors.New("unknown key")
+	ErrUnknownKey       = errors.New("unknown key")
 	errShiftedSymbol    = errors.New("shift with a symbol depends on the keyboard layout, write the symbol itself")
 )
 
@@ -28,7 +28,7 @@ var namedKeys = func() []string {
 	return names
 }()
 
-func NamedKeys() []string {
+func Named() []string {
 	return slices.Clone(namedKeys)
 }
 
@@ -72,7 +72,7 @@ type Key struct {
 	Name string
 }
 
-func ParseKey(raw string) (Key, error) {
+func Parse(raw string) (Key, error) {
 	held, name := splitKey(raw)
 
 	key, err := withModifiers(held)
@@ -87,7 +87,7 @@ func ParseKey(raw string) (Key, error) {
 
 	char, size := utf8.DecodeRuneInString(name)
 	if size == 0 || size != len(name) || char == ' ' || !unicode.IsPrint(char) {
-		return Key{}, fmt.Errorf("%q: %w %q", raw, errUnknownKey, name)
+		return Key{}, fmt.Errorf("%q: %w %q", raw, ErrUnknownKey, name)
 	}
 
 	if unicode.IsUpper(char) {
