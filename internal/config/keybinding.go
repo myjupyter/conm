@@ -26,6 +26,7 @@ const (
 	formGroup       = "form"
 	secretGroup     = "secret"
 	transportGroup  = "transport"
+	workspaceGroup  = "workspace"
 	settingsGroup   = "settings"
 	promptGroup     = "prompt"
 )
@@ -48,6 +49,7 @@ var keybindingScreens = [][]string{
 	{formGroup, confirmPath, secretsPath, connectionGroup + "." + pingAction, connectionGroup + "." + retryAction},
 	{secretGroup, confirmPath, secretsPath},
 	{transportGroup, confirmPath},
+	{workspaceGroup, confirmPath},
 	{settingsGroup, confirmPath},
 }
 
@@ -61,6 +63,7 @@ type KeybindingSettings struct {
 	Form       FormKeybindings       `toml:"form"`
 	Secret     EntityKeybindings     `toml:"secret"`
 	Transport  EntityKeybindings     `toml:"transport"`
+	Workspace  EntityKeybindings     `toml:"workspace"`
 	Settings   SettingsKeybindings   `toml:"settings"`
 	Prompt     PromptKeybindings     `toml:"prompt"`
 }
@@ -90,6 +93,7 @@ type ScreenKeybindings struct {
 	Transport         []string `toml:"transport"`
 	Secrets           []string `toml:"secrets"`
 	Settings          []string `toml:"settings"`
+	Workspaces        []string `toml:"workspaces"`
 	AddConnection     []string `toml:"add_connection"`
 	AddConnectionType []string `toml:"add_connection_type"`
 }
@@ -172,6 +176,7 @@ func DefaultKeybindings() KeybindingSettings {
 			Transport:         []string{"t"},
 			Secrets:           []string{"s"},
 			Settings:          []string{"s s"},
+			Workspaces:        []string{"w"},
 			AddConnection:     []string{"a"},
 			AddConnectionType: []string{"a a"},
 		},
@@ -190,6 +195,7 @@ func DefaultKeybindings() KeybindingSettings {
 		},
 		Secret:    defaultEntityKeybindings(),
 		Transport: defaultEntityKeybindings(),
+		Workspace: defaultEntityKeybindings(),
 		Settings: SettingsKeybindings{
 			AddKey:    []string{"a"},
 			ChangeKey: []string{"e"},
@@ -252,6 +258,7 @@ func (k *KeybindingSettings) fields() []keybindingField {
 		{screenGroup, "transport", &k.Screen.Transport, unrestrictedKeys},
 		{screenGroup, "secrets", &k.Screen.Secrets, unrestrictedKeys},
 		{screenGroup, "settings", &k.Screen.Settings, unrestrictedKeys},
+		{screenGroup, "workspaces", &k.Screen.Workspaces, unrestrictedKeys},
 		{screenGroup, "add_connection", &k.Screen.AddConnection, unrestrictedKeys},
 		{screenGroup, "add_connection_type", &k.Screen.AddConnectionType, unrestrictedKeys},
 
@@ -273,6 +280,10 @@ func (k *KeybindingSettings) fields() []keybindingField {
 		{transportGroup, addAction, &k.Transport.Add, unrestrictedKeys},
 		{transportGroup, editAction, &k.Transport.Edit, unrestrictedKeys},
 		{transportGroup, deleteAction, &k.Transport.Delete, unrestrictedKeys},
+
+		{workspaceGroup, addAction, &k.Workspace.Add, unrestrictedKeys},
+		{workspaceGroup, editAction, &k.Workspace.Edit, unrestrictedKeys},
+		{workspaceGroup, deleteAction, &k.Workspace.Delete, unrestrictedKeys},
 
 		{settingsGroup, "add_key", &k.Settings.AddKey, unrestrictedKeys},
 		{settingsGroup, "change_key", &k.Settings.ChangeKey, unrestrictedKeys},

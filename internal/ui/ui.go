@@ -21,12 +21,20 @@ func Run(cfg config.Conm) error {
 }
 
 func RunOn(cfg config.Conm, active config.ConnType) error {
+	pickFirst := true
 	for {
 		keyMap = newKeymap(cfg.Keybindings)
 
-		m, err := runConnections(cfg, active)
+		m, err := runConnections(cfg, active, pickFirst)
 		if err != nil || !m.reload {
 			return err
+		}
+
+		pickFirst = m.workspace != ""
+		if pickFirst {
+			if err := UseWorkspace(m.workspace); err != nil {
+				return err
+			}
 		}
 
 		cfg, err = config.ReadConm(config.ConmPath())
@@ -37,8 +45,8 @@ func RunOn(cfg config.Conm, active config.ConnType) error {
 	}
 }
 
-func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
-	ws, err := repository.NewWorkspace(cfg)
+func runConnections(cfg config.Conm, active config.ConnType, pickFirst bool) (Model, error) {
+	ws, err := repository.NewSession(cfg)
 	if err != nil {
 		return Model{}, err
 	}
@@ -46,7 +54,7 @@ func runConnections(cfg config.Conm, active config.ConnType) (Model, error) {
 
 	conns := view.NewConnections(ws.Connections()...)
 	secrets, transports := view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports)
-	if conns.Total() == 0 {
+	if pickFirst && conns.Total() == 0 {
 		first, saved, err := runFirstConnection(connectionFormContext(conns, secrets, transports), conns.Add)
 		if err != nil || !saved {
 			return Model{}, err
@@ -116,7 +124,7 @@ func openNamedConnection(
 	conm config.Conm,
 	t config.ConnType,
 	name string,
-) (*repository.Workspace, network.Connection, error) {
+) (*repository.Session, network.Connection, error) {
 	ws, repo, err := openConnections(conm, t)
 	if err != nil {
 		return nil, nil, err
@@ -164,8 +172,8 @@ func RemoveConnection(conm config.Conm, t config.ConnType, name string) error {
 	return repo.Remove(i)
 }
 
-func openConnections(conm config.Conm, t config.ConnType) (*repository.Workspace, repository.Connections, error) {
-	ws, err := repository.NewWorkspace(conm)
+func openConnections(conm config.Conm, t config.ConnType) (*repository.Session, repository.Connections, error) {
+	ws, err := repository.NewSession(conm)
 	if err != nil {
 		return nil, nil, err
 	}

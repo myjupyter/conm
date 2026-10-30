@@ -9,18 +9,24 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
-const keyringService = "conm"
+var keyringService = "conm"
+
+func UseKeyringService(service string) {
+	keyringService = service
+}
 
 var errEmptyKeyringAccount = errors.New("keyring spec must be [service/]account")
 
 var _ Provider = (*KeyringProvider)(nil)
 
-type KeyringProvider struct{}
+type KeyringProvider struct {
+	Service string
+}
 
 func (*KeyringProvider) Scheme() Scheme { return Keyring }
 
-func (*KeyringProvider) Resolve(_ context.Context, ref Reference) (string, error) {
-	service, account := parseKeyringSpec(keyringSpec(ref))
+func (p *KeyringProvider) Resolve(_ context.Context, ref Reference) (string, error) {
+	service, account := p.parse(ref)
 	if account == "" {
 		return "", errEmptyKeyringAccount
 	}
@@ -37,9 +43,7 @@ func (*KeyringProvider) Resolve(_ context.Context, ref Reference) (string, error
 }
 
 func (p *KeyringProvider) Store(_ context.Context, ref Reference, password string) error {
-	raw := keyringSpec(ref)
-
-	service, account := parseKeyringSpec(raw)
+	service, account := p.parse(ref)
 	if account == "" {
 		return errEmptyKeyringAccount
 	}
@@ -52,9 +56,7 @@ func (p *KeyringProvider) Store(_ context.Context, ref Reference, password strin
 }
 
 func (p *KeyringProvider) Remove(_ context.Context, ref Reference) error {
-	raw := keyringSpec(ref)
-
-	service, account := parseKeyringSpec(raw)
+	service, account := p.parse(ref)
 	if account == "" {
 		return errEmptyKeyringAccount
 	}
@@ -64,6 +66,18 @@ func (p *KeyringProvider) Remove(_ context.Context, ref Reference) error {
 		return nil
 	}
 	return err
+}
+
+func NamesKeyringService(ref Reference) bool {
+	return strings.Contains(keyringSpec(ref), "/")
+}
+
+func (p *KeyringProvider) parse(ref Reference) (service, account string) {
+	service, account = parseKeyringSpec(keyringSpec(ref))
+	if p.Service != "" && !NamesKeyringService(ref) {
+		service = p.Service
+	}
+	return service, account
 }
 
 func keyringSpec(ref Reference) string {

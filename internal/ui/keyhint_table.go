@@ -23,6 +23,11 @@ const (
 	keyhintBackToList = "back to connections"
 	keyhintPaste      = "paste"
 	keyhintCancel     = "cancel"
+	keyhintEditing    = "editing"
+	keyhintMove       = "move"
+	keyhintAddNew     = "add new"
+	keyhintStopEdit   = "stop editing"
+	keyhintEditField  = "edit field"
 
 	keyhintRows   = 2
 	keyhintIndent = 2
@@ -203,7 +208,7 @@ func (m Model) keyhints() []keyhintGroup {
 			binds: []keybind{
 				{keyMap.Connection.Connect.hint, "connect"},
 				{keyMap.Connection.Ping.hint, "ping"},
-				{keyMap.Screen.AddConnection.hint, "add new"},
+				{keyMap.Screen.AddConnection.hint, keyhintAddNew},
 				{keyMap.Screen.AddConnectionType.hint, "add a connection of any type"},
 				{keyMap.Connection.Edit.hint, "edit"},
 				{keyMap.Connection.Delete.hint, "delete"},
@@ -220,6 +225,7 @@ func (m Model) keyhints() []keyhintGroup {
 				{keyMap.Screen.Secrets.hint, "secrets"},
 				{keyMap.Screen.Settings.hint, "settings"},
 				{keyMap.Screen.Transport.hint, "transports"},
+				{keyMap.Screen.Workspaces.hint, "workspaces"},
 				{keyMap.Quit.hint, "quit"},
 			},
 		},
@@ -247,7 +253,7 @@ func (m formModel) keyhints() []keyhintGroup {
 
 	if m.insert {
 		binds := []keybind{
-			{keyMap.Cancel.hint, "stop editing"},
+			{keyMap.Cancel.hint, keyhintStopEdit},
 			{keyMap.Confirm.hint, "confirm and next"},
 			{keyMap.Paste.hint, keyhintPaste},
 			{keyMap.NextSection.hint, "switch section"},
@@ -259,7 +265,7 @@ func (m formModel) keyhints() []keyhintGroup {
 				{keyMap.Paste.hint, keyhintPaste},
 			}
 		}
-		return []keyhintGroup{{title: "editing", binds: binds}}
+		return []keyhintGroup{{title: keyhintEditing, binds: binds}}
 	}
 
 	nav := []keybind{{keyMap.MoveVertical.hint, keyhintMoveFields}, {keyMap.NextSection.hint, "switch section"}}
@@ -314,12 +320,12 @@ func (m secretModel) keyhints() []keyhintGroup {
 	}
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: []keybind{
-			{keyMap.MoveVertical.hint, "move"},
+			{keyMap.MoveVertical.hint, keyhintMove},
 			{keyMap.SwitchKind.hint, "switch store"},
 		}},
 		{title: keyhintAction, binds: []keybind{
 			{keyMap.Confirm.hint, use},
-			{keyMap.Secret.Add.hint, "add new"},
+			{keyMap.Secret.Add.hint, keyhintAddNew},
 			{keyMap.Secret.Edit.hint, "edit entry"},
 			{keyMap.Secret.Delete.hint, "delete entry"},
 		}},
@@ -331,15 +337,15 @@ func (m secretModel) keyhints() []keyhintGroup {
 func (m secretFormModel) keyhints() []keyhintGroup {
 	if m.insert {
 		return []keyhintGroup{
-			{title: "editing", binds: []keybind{
-				{keyMap.Cancel.hint, "stop editing"},
+			{title: keyhintEditing, binds: []keybind{
+				{keyMap.Cancel.hint, keyhintStopEdit},
 				{keyMap.Confirm.hint, "confirm and next"},
 				{keyMap.Paste.hint, keyhintPaste},
 			}},
 		}
 	}
 
-	action := []keybind{{keyMap.Form.EditField.hint, "edit field"}}
+	action := []keybind{{keyMap.Form.EditField.hint, keyhintEditField}}
 	if m.spec.Fields[m.idx].Kind == spec.HiddenFieldKind {
 		label := "show password"
 		if m.reveal {
@@ -363,7 +369,7 @@ func (m initModel) keyhints() []keyhintGroup {
 	}
 
 	return []keyhintGroup{
-		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, "move"}}},
+		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, keyhintMove}}},
 		{title: keyhintAction, binds: []keybind{{keyMap.Confirm.hint, "add a connection of this type"}}},
 		{title: keyhintScreen, binds: []keybind{leave}},
 	}
@@ -410,11 +416,11 @@ func (m settingsModel) keyhints() []keyhintGroup {
 func (m transportModel) keyhints() []keyhintGroup {
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: []keybind{
-			{keyMap.MoveVertical.hint, "move"},
+			{keyMap.MoveVertical.hint, keyhintMove},
 		}},
 		{title: keyhintAction, binds: []keybind{
 			{keyMap.Confirm.hint, "show usage"},
-			{keyMap.Transport.Add.hint, "add new"},
+			{keyMap.Transport.Add.hint, keyhintAddNew},
 			{keyMap.Transport.Edit.hint, "edit transport"},
 			{keyMap.Transport.Delete.hint, "delete transport"},
 		}},
@@ -423,13 +429,50 @@ func (m transportModel) keyhints() []keyhintGroup {
 	}
 }
 
+func (m workspaceModel) keyhints() []keyhintGroup {
+	return []keyhintGroup{
+		{title: keyhintNavigation, binds: []keybind{
+			{keyMap.MoveVertical.hint, keyhintMove},
+		}},
+		{title: keyhintAction, binds: []keybind{
+			{keyMap.Confirm.hint, "switch to"},
+			{keyMap.Workspace.Add.hint, keyhintAddNew},
+			{keyMap.Workspace.Edit.hint, "rename"},
+			{keyMap.Workspace.Delete.hint, "delete"},
+		}},
+		{title: keyhintSearch, binds: searchKeyhints("filter workspaces", m.workspaces.Filtered())},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, keyhintBackToList}}},
+	}
+}
+
+func (m workspaceFormModel) keyhints() []keyhintGroup {
+	if m.insert {
+		return []keyhintGroup{
+			{title: keyhintEditing, binds: []keybind{
+				{keyMap.Cancel.hint, keyhintStopEdit},
+				{keyMap.Confirm.hint, "save"},
+				{keyMap.Paste.hint, keyhintPaste},
+			}},
+		}
+	}
+
+	return []keyhintGroup{
+		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, keyhintMoveFields}}},
+		{title: keyhintAction, binds: []keybind{
+			{keyMap.Form.EditField.hint, keyhintEditField},
+			{keyMap.Confirm.hint, "save"},
+		}},
+		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, keyhintCancel}}},
+	}
+}
+
 func (m transportFormModel) keyhints() []keyhintGroup {
 	if m.insert {
 		return []keyhintGroup{
 			{
-				title: "editing",
+				title: keyhintEditing,
 				binds: []keybind{
-					{keyMap.Cancel.hint, "stop editing"},
+					{keyMap.Cancel.hint, keyhintStopEdit},
 					{keyMap.Confirm.hint, "confirm and next"},
 					{keyMap.Paste.hint, keyhintPaste},
 				},
@@ -445,7 +488,7 @@ func (m transportFormModel) keyhints() []keyhintGroup {
 	return []keyhintGroup{
 		{title: keyhintNavigation, binds: nav},
 		{title: keyhintAction, binds: []keybind{
-			{keyMap.Form.EditField.hint, "edit field"},
+			{keyMap.Form.EditField.hint, keyhintEditField},
 			{keyMap.Connection.Ping.hint, "ping the connection it goes through"},
 			{keyMap.Confirm.hint, "validate and save"},
 		}},
@@ -461,5 +504,5 @@ func (m formModel) editKeyhints(cur int) []keybind {
 			{keyMap.Form.RemoveItem.hint, "remove the value"},
 		}
 	}
-	return []keybind{{keyMap.Form.EditField.hint, "edit field"}}
+	return []keybind{{keyMap.Form.EditField.hint, keyhintEditField}}
 }

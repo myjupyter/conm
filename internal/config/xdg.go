@@ -20,36 +20,39 @@ const (
 	secretConfigFileName     = "secret.toml"
 )
 
-// Connection configs.
 var (
-	postgresPath   = filepath.Join(xdg.ConfigHome, conmDirName, postgresConfigFileName)
-	PostgresPath   = pathGetter(postgresPath)
-	mysqlPath      = filepath.Join(xdg.ConfigHome, conmDirName, mysqlConfigFileName)
-	MySQLPath      = pathGetter(mysqlPath)
-	mssqlPath      = filepath.Join(xdg.ConfigHome, conmDirName, mssqlConfigFileName)
-	MSSQLPath      = pathGetter(mssqlPath)
-	clickhousePath = filepath.Join(xdg.ConfigHome, conmDirName, clickhouseConfigFileName)
-	ClickHousePath = pathGetter(clickhousePath)
-	redisPath      = filepath.Join(xdg.ConfigHome, conmDirName, redisConfigFileName)
-	RedisPath      = pathGetter(redisPath)
-	mongodbPath    = filepath.Join(xdg.ConfigHome, conmDirName, mongodbConfigFileName)
-	MongoDBPath    = pathGetter(mongodbPath)
-	sshPath        = filepath.Join(xdg.ConfigHome, conmDirName, sshConfigFileName)
-	SSHPath        = pathGetter(sshPath)
-	transportPath  = filepath.Join(xdg.ConfigHome, conmDirName, transportConfigFileName)
-	TransportPath  = pathGetter(transportPath)
-	conmConfigPath = filepath.Join(xdg.ConfigHome, conmDirName, conmConfigFileName)
-	ConmPath       = pathGetter(conmConfigPath)
+	PostgresPath     = configPath(postgresConfigFileName)
+	MySQLPath        = configPath(mysqlConfigFileName)
+	MSSQLPath        = configPath(mssqlConfigFileName)
+	ClickHousePath   = configPath(clickhouseConfigFileName)
+	RedisPath        = configPath(redisConfigFileName)
+	MongoDBPath      = configPath(mongodbConfigFileName)
+	SSHPath          = configPath(sshConfigFileName)
+	TransportPath    = configPath(transportConfigFileName)
+	ConmPath         = configPath(conmConfigFileName)
+	SecretConfigPath = dataPath(secretConfigFileName)
 )
 
-// Stored data.
-var (
-	secretConfigPath = filepath.Join(xdg.DataHome, conmDirName, secretConfigFileName)
-	SecretConfigPath = pathGetter(secretConfigPath)
-)
-
-func pathGetter(path string) func() string {
+func configPath(fileName string) func() string {
 	return func() string {
-		return path
+		return workspacePath(xdg.ConfigHome, fileName)
 	}
+}
+
+func dataPath(fileName string) func() string {
+	return func() string {
+		return workspacePath(xdg.DataHome, fileName)
+	}
+}
+
+func SecretConfigPathOf(ws string) string {
+	return filepath.Join(workspaceDir(xdg.DataHome, ws), secretConfigFileName)
+}
+
+func workspacePath(home, fileName string) string {
+	return filepath.Join(workspaceDir(home, workspace), fileName)
+}
+
+func workspaceDir(home, ws string) string {
+	return filepath.Join(home, conmDirName, ws)
 }

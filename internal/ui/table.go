@@ -25,8 +25,9 @@ type Model struct {
 	status     string
 	statusKind statusKind
 
-	reload bool
-	active config.ConnType
+	reload    bool
+	active    config.ConnType
+	workspace string
 
 	chord   string
 	chordID int
@@ -77,6 +78,8 @@ type chordExpiredMsg struct{ id int }
 
 type settingsChangedMsg struct{}
 
+type workspaceSwitchedMsg struct{ name string }
+
 func newConnState() *connState {
 	s := spinner.New()
 	s.Spinner = spinner.MiniDot
@@ -126,6 +129,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case settingsChangedMsg:
 		return m.reloadAfterSettings()
+
+	case workspaceSwitchedMsg:
+		m.workspace, m.reload = msg.name, true
+		return m, tea.Quit
 
 	case chordExpiredMsg:
 		if m.chord != "" && msg.id == m.chordID {
@@ -240,6 +247,8 @@ func (m Model) screenCmd(key string) tea.Cmd {
 		return m.infoCmd()
 	case keyMap.Screen.Transport.matches(key):
 		return m.transportsCmd()
+	case keyMap.Screen.Workspaces.matches(key):
+		return m.workspacesCmd()
 	default:
 		return nil
 	}
@@ -255,7 +264,7 @@ func (m Model) startChord(key string) (tea.Model, tea.Cmd) {
 
 func (m Model) tableKeys() []binding {
 	return []binding{
-		keyMap.Screen.Transport, keyMap.Screen.Secrets, keyMap.Screen.Settings,
+		keyMap.Screen.Transport, keyMap.Screen.Secrets, keyMap.Screen.Settings, keyMap.Screen.Workspaces,
 		keyMap.Screen.AddConnection, keyMap.Screen.AddConnectionType,
 		keyMap.Connection.Connect, keyMap.Connection.Edit, keyMap.Connection.Delete, keyMap.Connection.Info,
 		keyMap.Connection.Ping, keyMap.Connection.Retry,

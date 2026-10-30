@@ -13,13 +13,13 @@ import (
 	"github.com/myjupyter/conm/internal/network"
 )
 
-type linkedWorkspace struct {
-	*Workspace
+type linkedSession struct {
+	*Session
 	postgres *ConnectionRepository
 	ssh      *ConnectionRepository
 }
 
-func testWorkspace(t *testing.T) linkedWorkspace {
+func testSession(t *testing.T) linkedSession {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -31,7 +31,7 @@ func testWorkspace(t *testing.T) linkedWorkspace {
 	file, err := config.OpenConfig[*config.TransportConfigWrapper](filepath.Join(dir, "transport.toml"))
 	require.NoError(t, err)
 
-	w := &Workspace{byKind: map[config.ConnType]Connections{}}
+	w := &Session{byKind: map[config.ConnType]Connections{}}
 	w.Transports = newTransportRepository(file, UsageLookupFunc(w.transportUsages), w)
 	connectionUsage := NewConnectionIndex(w.Transports)
 
@@ -54,7 +54,7 @@ func testWorkspace(t *testing.T) linkedWorkspace {
 		)
 	})
 
-	return linkedWorkspace{Workspace: w, postgres: postgres, ssh: ssh}
+	return linkedSession{Session: w, postgres: postgres, ssh: ssh}
 }
 
 func bastion(name, host string) config.SSH {
@@ -73,20 +73,20 @@ func behind(transportRef string) config.Postgres {
 	return db
 }
 
-func withBastion(t *testing.T, w linkedWorkspace) {
+func withBastion(t *testing.T, w linkedSession) {
 	t.Helper()
 
 	require.NoError(t, w.ssh.Add(bastion("bastion", "bastion.local")))
 }
 
-func withTransport(t *testing.T, w linkedWorkspace) {
+func withTransport(t *testing.T, w linkedSession) {
 	t.Helper()
 
 	withBastion(t, w)
 	require.NoError(t, w.Transports.Add(prodTransport("bastion")))
 }
 
-func withDatabaseBehind(t *testing.T, w linkedWorkspace) {
+func withDatabaseBehind(t *testing.T, w linkedSession) {
 	t.Helper()
 
 	withTransport(t, w)
@@ -110,7 +110,7 @@ func TestTransportRepository_Add(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		prepare func(*testing.T, linkedWorkspace)
+		prepare func(*testing.T, linkedSession)
 		args    args
 		wantErr error
 	}{
@@ -133,7 +133,7 @@ func TestTransportRepository_Add(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := testWorkspace(t)
+			w := testSession(t)
 			if tt.prepare != nil {
 				tt.prepare(t, w)
 			}
@@ -161,7 +161,7 @@ func TestTransportRepository_Edit(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		prepare func(*testing.T, linkedWorkspace)
+		prepare func(*testing.T, linkedSession)
 		args    args
 		wantErr error
 	}{
@@ -184,7 +184,7 @@ func TestTransportRepository_Edit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := testWorkspace(t)
+			w := testSession(t)
 			tt.prepare(t, w)
 
 			err := w.Transports.Edit(tt.args.i, tt.args.t)
@@ -204,7 +204,7 @@ func TestTransportRepository_Remove(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
-		prepare  func(*testing.T, linkedWorkspace)
+		prepare  func(*testing.T, linkedSession)
 		args     args
 		wantLen  int
 		wantUsed []Usage
@@ -225,7 +225,7 @@ func TestTransportRepository_Remove(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := testWorkspace(t)
+			w := testSession(t)
 			tt.prepare(t, w)
 
 			err := w.Transports.Remove(tt.args.i)
@@ -248,7 +248,7 @@ func TestConnectionRepository_Add_transport(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
-		prepare  func(*testing.T, linkedWorkspace)
+		prepare  func(*testing.T, linkedSession)
 		args     args
 		wantConn network.Connection
 		wantErr  error
@@ -279,7 +279,7 @@ func TestConnectionRepository_Add_transport(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := testWorkspace(t)
+			w := testSession(t)
 			if tt.prepare != nil {
 				tt.prepare(t, w)
 			}
@@ -320,7 +320,7 @@ func TestConnectionRepository_Edit_bastion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := testWorkspace(t)
+			w := testSession(t)
 			withDatabaseBehind(t, w)
 
 			err := w.ssh.Edit(tt.args.i, tt.args.cfg)
@@ -340,7 +340,7 @@ func TestConnectionRepository_Remove_bastion(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
-		prepare  func(*testing.T, linkedWorkspace)
+		prepare  func(*testing.T, linkedSession)
 		args     args
 		wantLen  int
 		wantUsed []Usage
@@ -361,7 +361,7 @@ func TestConnectionRepository_Remove_bastion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := testWorkspace(t)
+			w := testSession(t)
 			tt.prepare(t, w)
 
 			err := w.ssh.Remove(tt.args.i)
@@ -384,8 +384,8 @@ func TestTransportRepository_Resolve(t *testing.T) {
 	}
 	tests := []struct {
 		name     string
-		prepare  func(*testing.T, linkedWorkspace)
-		between  func(*testing.T, linkedWorkspace)
+		prepare  func(*testing.T, linkedSession)
+		between  func(*testing.T, linkedSession)
 		args     args
 		wantSame bool
 		wantErr  error
@@ -399,7 +399,7 @@ func TestTransportRepository_Resolve(t *testing.T) {
 		{
 			name:    "a moved bastion gets a fresh transport",
 			prepare: withTransport,
-			between: func(t *testing.T, w linkedWorkspace) {
+			between: func(t *testing.T, w linkedSession) {
 				t.Helper()
 
 				require.NoError(t, w.ssh.Edit(0, bastion("bastion", "bastion2.local")))
@@ -409,7 +409,7 @@ func TestTransportRepository_Resolve(t *testing.T) {
 		{
 			name:    "retuned transport settings get a fresh transport",
 			prepare: withTransport,
-			between: func(t *testing.T, w linkedWorkspace) {
+			between: func(t *testing.T, w linkedSession) {
 				t.Helper()
 
 				tuned := prodTransport("bastion")
@@ -420,7 +420,7 @@ func TestTransportRepository_Resolve(t *testing.T) {
 		},
 		{
 			name: "a transport that vanished after the database was saved",
-			prepare: func(t *testing.T, w linkedWorkspace) {
+			prepare: func(t *testing.T, w linkedSession) {
 				t.Helper()
 
 				withDatabaseBehind(t, w)
@@ -432,7 +432,7 @@ func TestTransportRepository_Resolve(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := testWorkspace(t)
+			w := testSession(t)
 			tt.prepare(t, w)
 
 			got, err := w.Transports.Resolve(tt.args.target)
@@ -460,7 +460,7 @@ func TestTransportRepository_Resolve(t *testing.T) {
 func TestConnectionRepository_ConnectionAt_transport(t *testing.T) {
 	tests := []struct {
 		name     string
-		prepare  func(*testing.T, linkedWorkspace)
+		prepare  func(*testing.T, linkedSession)
 		wantConn network.Connection
 		wantErr  string
 	}{
@@ -471,7 +471,7 @@ func TestConnectionRepository_ConnectionAt_transport(t *testing.T) {
 		},
 		{
 			name: "a database whose transport vanished is never dialled direct",
-			prepare: func(t *testing.T, w linkedWorkspace) {
+			prepare: func(t *testing.T, w linkedSession) {
 				t.Helper()
 
 				withDatabaseBehind(t, w)
@@ -483,7 +483,7 @@ func TestConnectionRepository_ConnectionAt_transport(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			w := testWorkspace(t)
+			w := testSession(t)
 			tt.prepare(t, w)
 
 			got, ok := w.postgres.ConnectionAt(0)

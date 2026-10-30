@@ -1,120 +1,217 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/transport"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
-type openRepository func(config.Conm, transport.Provider, UsageLookup) (*ConnectionRepository, error)
+type Workspaces interface {
+	Len() int
+	Get(int) (string, bool)
+	Active() string
+	Use(int) error
 
-var connectionRepositories = map[config.ConnType]openRepository{
-	config.PostgresConnType:   NewPostgresRepository,
-	config.MySQLConnType:      NewMySQLRepository,
-	config.MSSQLConnType:      NewMSSQLRepository,
-	config.ClickHouseConnType: NewClickHouseRepository,
-	config.RedisConnType:      NewRedisRepository,
-	config.MongoDBConnType:    NewMongoDBRepository,
-	config.SSHConnType:        NewSSHRepository,
+	Add(name string) error
+	Rename(ctx context.Context, i int, name string) error
+	Remove(ctx context.Context, i int) error
 }
 
-var _ ConnectionFinder = (*Workspace)(nil)
+var _ Workspaces = (*WorkspaceRepository)(nil)
 
-type Workspace struct {
-	Keyring    *SecretRepository
-	Transports *TransportRepository
-
-	conns  []*ConnectionRepository
-	byKind map[config.ConnType]Connections
+type WorkspaceRepository struct {
+	mx     sync.RWMutex
+	names  []string
+	active string
 }
 
-func NewWorkspace(cfg config.Conm) (*Workspace, error) {
-	w := &Workspace{byKind: make(map[config.ConnType]Connections, len(connectionRepositories))}
+func NewWorkspaceRepository() (*WorkspaceRepository, error) {
+	r := &WorkspaceRepository{active: config.Workspace()}
+	if err := r.reload(); err != nil {
+		return nil, err
+	}
 
-	trs, err := NewTransportRepository(UsageLookupFunc(w.transportUsages), w)
+	return r, nil
+}
+
+func (r *WorkspaceRepository) Len() int {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	return len(r.names)
+}
+
+func (r *WorkspaceRepository) Get(i int) (string, bool) {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	return r.at(i)
+}
+
+func (r *WorkspaceRepository) Active() string {
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	return r.active
+}
+
+func (r *WorkspaceRepository) Use(i int) error {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	name, ok := r.at(i)
+	if !ok {
+		return fmt.Errorf("index %d is out of range", i)
+	}
+	r.active = name
+
+	return nil
+}
+
+func (r *WorkspaceRepository) Add(name string) error {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	if err := config.CreateWorkspace(name); err != nil {
+		return fmt.Errorf("add workspace: %w", err)
+	}
+
+	return r.reload()
+}
+
+func (r *WorkspaceRepository) Rename(ctx context.Context, i int, name string) error {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	old, ok := r.at(i)
+	if !ok {
+		return fmt.Errorf("rename workspace: index %d is out of range", i)
+	}
+	if old == name {
+		return nil
+	}
+	if err := config.ValidateWorkspaceName(name); err != nil {
+		return fmt.Errorf("rename workspace: %w", err)
+	}
+
+	refs, err := keyringRefs(old)
+	if err != nil {
+		return fmt.Errorf("rename workspace: %w", err)
+	}
+
+	from, to := workspaceKeyring(old), workspaceKeyring(name)
+	moved, err := copyMaterial(ctx, refs, from, to)
+	if err == nil {
+		err = config.RenameWorkspace(old, name)
+	}
+	if err != nil {
+		return fmt.Errorf("rename workspace: %w", errors.Join(err, removeMaterial(ctx, moved, to)))
+	}
+
+	if err := removeMaterial(ctx, moved, from); err != nil {
+		return fmt.Errorf("rename workspace: old keychain entries left behind: %w", err)
+	}
+
+	if r.active == old {
+		r.active = name
+	}
+
+	return r.reload()
+}
+
+func (r *WorkspaceRepository) Remove(ctx context.Context, i int) error {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	name, ok := r.at(i)
+	if !ok {
+		return fmt.Errorf("remove workspace: index %d is out of range", i)
+	}
+	if name == config.Workspace() {
+		return &ActiveWorkspaceError{Name: name}
+	}
+
+	refs, err := keyringRefs(name)
+	if err != nil {
+		return fmt.Errorf("remove workspace: %w", err)
+	}
+	if err := removeMaterial(ctx, refs, workspaceKeyring(name)); err != nil {
+		return fmt.Errorf("remove workspace: %w", err)
+	}
+	if err := config.RemoveWorkspace(name); err != nil {
+		return fmt.Errorf("remove workspace: %w", err)
+	}
+
+	if r.active == name {
+		r.active = config.Workspace()
+	}
+
+	return r.reload()
+}
+
+func (r *WorkspaceRepository) reload() error {
+	names, err := config.Workspaces()
+	if err != nil {
+		return err
+	}
+	r.names = names
+
+	return nil
+}
+
+func (r *WorkspaceRepository) at(i int) (string, bool) {
+	if i < 0 || i >= len(r.names) {
+		return "", false
+	}
+
+	return r.names[i], true
+}
+
+func workspaceKeyring(name string) *secret.KeyringProvider {
+	return &secret.KeyringProvider{Service: config.KeyringServiceOf(name)}
+}
+
+func keyringRefs(name string) ([]secretRef, error) {
+	file, err := config.OpenConfig[*config.KeyringConfigWrapper](config.SecretConfigPathOf(name))
 	if err != nil {
 		return nil, err
 	}
-	w.Transports = trs
-	connectionUsage := NewConnectionIndex(trs)
 
-	users := make([]SecretUser, 0, len(connectionRepositories))
-	for _, db := range cfg.Connections {
-		open, known := connectionRepositories[db.Type]
-		if !known {
-			return nil, errors.Join(
-				fmt.Errorf("no repository for connection type %q", db.Type),
-				w.closeConnections(),
-			)
+	var refs []secretRef
+	for i := range file.Len() {
+		ref := makeSecRef(file.Get(i))
+		if !secret.NamesKeyringService(ref) {
+			refs = append(refs, ref)
 		}
+	}
 
-		repo, err := open(cfg, trs, connectionUsage)
+	return refs, nil
+}
+
+func copyMaterial(ctx context.Context, refs []secretRef, from, to secret.Provider) ([]secretRef, error) {
+	copied := make([]secretRef, 0, len(refs))
+	for _, ref := range refs {
+		password, err := from.Resolve(ctx, ref)
 		if err != nil {
-			return nil, errors.Join(err, w.closeConnections())
+			continue
 		}
-		if repo.Kind() != db.Type {
-			return nil, errors.Join(
-				fmt.Errorf("repository for %q claims connection type %q", db.Type, repo.Kind()),
-				repo.Close(), w.closeConnections(),
-			)
+		if err := to.Store(ctx, ref, password); err != nil {
+			return copied, err
 		}
-
-		w.conns = append(w.conns, repo)
-		w.byKind[repo.Kind()] = repo
-		users = append(users, repo)
+		copied = append(copied, ref)
 	}
 
-	kr, err := NewKeyringRepository(NewIndex(users...))
-	if err != nil {
-		return nil, errors.Join(err, w.closeConnections())
-	}
-	w.Keyring = kr
-
-	return w, nil
+	return copied, nil
 }
 
-func (w *Workspace) Connections() []Connections {
-	repos := make([]Connections, 0, len(w.conns))
-	for _, repo := range w.conns {
-		repos = append(repos, repo)
-	}
-
-	return repos
-}
-
-func (w *Workspace) ConnectionsOf(t config.ConnType) (Connections, bool) {
-	repo, ok := w.byKind[t]
-	return repo, ok
-}
-
-func (w *Workspace) Close() error {
-	return w.closeConnections()
-}
-
-func (w *Workspace) Connection(t config.ConnType, name string) (config.Connection, bool) {
-	repo, ok := w.byKind[t].(*ConnectionRepository)
-	if !ok {
-		return nil, false
-	}
-
-	return repo.byName(name)
-}
-
-func (w *Workspace) transportUsages(ref string) []Usage {
-	users := make([]TransportUser, 0, len(w.conns))
-	for _, repo := range w.conns {
-		users = append(users, repo)
-	}
-
-	return NewTransportIndex(users...).Usages(ref)
-}
-
-func (w *Workspace) closeConnections() error {
-	errs := make([]error, 0, len(w.conns))
-	for _, repo := range w.conns {
-		errs = append(errs, repo.Close())
+func removeMaterial(ctx context.Context, refs []secretRef, from secret.Provider) error {
+	errs := make([]error, 0, len(refs))
+	for _, ref := range refs {
+		errs = append(errs, from.Remove(ctx, ref))
 	}
 
 	return errors.Join(errs...)
