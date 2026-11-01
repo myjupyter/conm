@@ -32,7 +32,7 @@ func RunOn(cfg config.Conm, active config.ConnType) error {
 
 		pickFirst = m.workspace != ""
 		if pickFirst {
-			if err := UseWorkspace(m.workspace); err != nil {
+			if err := config.UseWorkspace(m.workspace); err != nil {
 				return err
 			}
 		}

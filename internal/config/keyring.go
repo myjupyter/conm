@@ -25,7 +25,8 @@ type Keyring struct {
 }
 
 type KeyringConfigWrapper struct {
-	Secrets []Keyring `toml:"secret"`
+	WorkspaceID string    `toml:"workspace_id,omitempty"`
+	Keyring     []Keyring `toml:"keyring,omitempty"`
 }
 
 func ValidateSecretID(id string) error {
@@ -66,12 +67,12 @@ func (w *KeyringConfigWrapper) Add(spec Secret) {
 		return
 	}
 
-	w.Secrets = append(w.Secrets, k)
+	w.Keyring = append(w.Keyring, k)
 }
 
 func (w *KeyringConfigWrapper) Validate() {
-	for i := range w.Secrets {
-		w.Secrets[i].validationErrs = w.Secrets[i].Validate()
+	for i := range w.Keyring {
+		w.Keyring[i].validationErrs = w.Keyring[i].Validate()
 	}
 }
 
@@ -88,11 +89,11 @@ func (w *KeyringConfigWrapper) Marshal() ([]byte, error) {
 }
 
 func (w *KeyringConfigWrapper) Len() int {
-	return len(w.Secrets)
+	return len(w.Keyring)
 }
 
 func (w *KeyringConfigWrapper) Get(i int) Secret {
-	return w.Secrets[i]
+	return w.Keyring[i]
 }
 
 func (w *KeyringConfigWrapper) Put(i int, spec Secret) {
@@ -101,14 +102,14 @@ func (w *KeyringConfigWrapper) Put(i int, spec Secret) {
 		return
 	}
 
-	w.Secrets[i] = k
+	w.Keyring[i] = k
 }
 
 func (w *KeyringConfigWrapper) Remove(i int) {
-	if i < 0 || i >= len(w.Secrets) {
+	if i < 0 || i >= len(w.Keyring) {
 		return
 	}
-	w.Secrets = append(w.Secrets[:i], w.Secrets[i+1:]...)
+	w.Keyring = append(w.Keyring[:i], w.Keyring[i+1:]...)
 }
 
 func (k Keyring) ID() string {

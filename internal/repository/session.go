@@ -5,10 +5,11 @@ import (
 	"fmt"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 	"github.com/myjupyter/conm/internal/transport"
 )
 
-type openRepository func(config.Conm, transport.Provider, UsageLookup) (*ConnectionRepository, error)
+type openRepository func(config.Conm, transport.Provider, secret.Provider, UsageLookup) (*ConnectionRepository, error)
 
 var connectionRepositories = map[config.ConnType]openRepository{
 	config.PostgresConnType:   NewPostgresRepository,
@@ -31,9 +32,15 @@ type Session struct {
 }
 
 func NewSession(cfg config.Conm) (*Session, error) {
+	workspace, err := config.SecretWorkspace()
+	if err != nil {
+		return nil, err
+	}
+	secrets := secret.DefaultFor(workspace)
+
 	w := &Session{byKind: make(map[config.ConnType]Connections, len(connectionRepositories))}
 
-	trs, err := NewTransportRepository(UsageLookupFunc(w.transportUsages), w)
+	trs, err := NewTransportRepository(secrets, UsageLookupFunc(w.transportUsages), w)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +57,7 @@ func NewSession(cfg config.Conm) (*Session, error) {
 			)
 		}
 
-		repo, err := open(cfg, trs, connectionUsage)
+		repo, err := open(cfg, trs, secrets, connectionUsage)
 		if err != nil {
 			return nil, errors.Join(err, w.closeConnections())
 		}
@@ -66,7 +73,7 @@ func NewSession(cfg config.Conm) (*Session, error) {
 		users = append(users, repo)
 	}
 
-	kr, err := NewKeyringRepository(NewIndex(users...))
+	kr, err := NewKeyringRepository(workspace, NewIndex(users...))
 	if err != nil {
 		return nil, errors.Join(err, w.closeConnections())
 	}

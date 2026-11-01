@@ -87,7 +87,7 @@ func newTestSSH(launcher *fakeTransportLauncher, tr config.Transport) *SSH {
 		config.SSH{Hostname: "bastion.local", PortNumber: 22, User: "me", Auth: config.SSHAuthAgent},
 		tr,
 		config.Postgres{Hostname: "db.internal", PortNumber: 5432},
-		secret.Default(),
+		secret.DefaultFor("conm.test"),
 	)
 }
 

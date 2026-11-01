@@ -29,14 +29,28 @@ func testWorkspaces(t *testing.T) *WorkspaceRepository {
 	return repo
 }
 
-func withSecret(t *testing.T, ws, account, password string) {
+func secretWorkspace(t *testing.T, ws string) string {
 	t.Helper()
 
+	workspace, err := config.SecretWorkspaceOf(ws)
+	require.NoError(t, err)
+
+	return workspace
+}
+
+func withSecret(t *testing.T, r *WorkspaceRepository, ws string) string {
+	t.Helper()
+
+	require.NoError(t, r.Add(ws))
 	file, err := config.OpenConfig[*config.KeyringConfigWrapper](config.SecretConfigPathOf(ws))
 	require.NoError(t, err)
-	file.Add(config.Keyring{SecretID: account, ProviderID: secret.Keyring, LocationRef: account})
+	file.Add(config.Keyring{SecretID: "db", ProviderID: secret.Keyring, LocationRef: "db"})
 	require.NoError(t, file.Save())
-	require.NoError(t, keyring.Set(config.KeyringServiceOf(ws), account, password))
+
+	workspace := secretWorkspace(t, ws)
+	require.NoError(t, keyring.Set(workspace, "db", "s3cret"))
+
+	return workspace
 }
 
 func indexOfWorkspace(t *testing.T, repo *WorkspaceRepository, name string) int {
@@ -53,7 +67,8 @@ func indexOfWorkspace(t *testing.T, repo *WorkspaceRepository, name string) int 
 
 func TestWorkspaceRepository(t *testing.T) {
 	type args struct {
-		act func(*testing.T, *WorkspaceRepository) error
+		secretIn string
+		act      func(*testing.T, *WorkspaceRepository) error
 	}
 	tests := []struct {
 		name       string
@@ -61,7 +76,7 @@ func TestWorkspaceRepository(t *testing.T) {
 		wantErr    bool
 		wantNames  []string
 		wantActive string
-		check      func(*testing.T)
+		check      func(t *testing.T, workspace string)
 	}{
 		{
 			name: "add lists the new workspace next to the current one",
@@ -104,47 +119,41 @@ func TestWorkspaceRepository(t *testing.T) {
 			wantActive: "default",
 		},
 		{
-			name: "rename moves the keychain entries to the new name",
-			args: args{act: func(t *testing.T, r *WorkspaceRepository) error {
+			name: "rename keeps the keychain entries where they are",
+			args: args{secretIn: "corp", act: func(t *testing.T, r *WorkspaceRepository) error {
 				t.Helper()
-				require.NoError(t, r.Add("corp"))
-				withSecret(t, "corp", "db", "s3cret")
-				return r.Rename(context.Background(), indexOfWorkspace(t, r, "corp"), "work")
+				return r.Rename(indexOfWorkspace(t, r, "corp"), "work")
 			}},
 			wantNames:  []string{"default", "work"},
 			wantActive: "default",
-			check: func(t *testing.T) {
+			check: func(t *testing.T, workspace string) {
 				t.Helper()
-				got, err := keyring.Get(config.KeyringServiceOf("work"), "db")
+				assert.Equal(t, workspace, secretWorkspace(t, "work"))
+				got, err := keyring.Get(workspace, "db")
 				require.NoError(t, err)
 				assert.Equal(t, "s3cret", got)
-
-				_, err = keyring.Get(config.KeyringServiceOf("corp"), "db")
-				assert.ErrorIs(t, err, keyring.ErrNotFound)
 			},
 		},
 		{
 			name: "renaming the current workspace makes the new name current",
 			args: args{act: func(t *testing.T, r *WorkspaceRepository) error {
 				t.Helper()
-				return r.Rename(context.Background(), indexOfWorkspace(t, r, "default"), "home")
+				return r.Rename(indexOfWorkspace(t, r, "default"), "home")
 			}},
 			wantNames:  []string{"default", "home"},
 			wantActive: "home",
 		},
 		{
 			name: "remove deletes the workspace and its keychain entries",
-			args: args{act: func(t *testing.T, r *WorkspaceRepository) error {
+			args: args{secretIn: "corp", act: func(t *testing.T, r *WorkspaceRepository) error {
 				t.Helper()
-				require.NoError(t, r.Add("corp"))
-				withSecret(t, "corp", "db", "s3cret")
 				return r.Remove(context.Background(), indexOfWorkspace(t, r, "corp"))
 			}},
 			wantNames:  []string{"default"},
 			wantActive: "default",
-			check: func(t *testing.T) {
+			check: func(t *testing.T, workspace string) {
 				t.Helper()
-				_, err := keyring.Get(config.KeyringServiceOf("corp"), "db")
+				_, err := keyring.Get(workspace, "db")
 				assert.ErrorIs(t, err, keyring.ErrNotFound)
 			},
 		},
@@ -172,6 +181,10 @@ func TestWorkspaceRepository(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := testWorkspaces(t)
+			var workspace string
+			if tt.args.secretIn != "" {
+				workspace = withSecret(t, r, tt.args.secretIn)
+			}
 
 			err := tt.args.act(t, r)
 			if tt.wantErr {
@@ -188,7 +201,7 @@ func TestWorkspaceRepository(t *testing.T) {
 			assert.Equal(t, tt.wantNames, names)
 			assert.Equal(t, tt.wantActive, r.Active())
 			if tt.check != nil {
-				tt.check(t)
+				tt.check(t, workspace)
 			}
 		})
 	}

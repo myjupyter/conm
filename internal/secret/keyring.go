@@ -9,26 +9,23 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
-var keyringService = "conm"
-
-func UseKeyringService(service string) {
-	keyringService = service
-}
-
-var errEmptyKeyringAccount = errors.New("keyring spec must be [service/]account")
+var (
+	errEmptyKeyringAccount = errors.New("keyring spec must be [service/]account")
+	errNoKeyringWorkspace  = errors.New("keyring provider has no workspace to store secrets in")
+)
 
 var _ Provider = (*KeyringProvider)(nil)
 
 type KeyringProvider struct {
-	Service string
+	Workspace string
 }
 
 func (*KeyringProvider) Scheme() Scheme { return Keyring }
 
 func (p *KeyringProvider) Resolve(_ context.Context, ref Reference) (string, error) {
-	service, account := p.parse(ref)
-	if account == "" {
-		return "", errEmptyKeyringAccount
+	service, account, err := p.parse(ref)
+	if err != nil {
+		return "", err
 	}
 
 	password, err := keyring.Get(service, account)
@@ -43,9 +40,9 @@ func (p *KeyringProvider) Resolve(_ context.Context, ref Reference) (string, err
 }
 
 func (p *KeyringProvider) Store(_ context.Context, ref Reference, password string) error {
-	service, account := p.parse(ref)
-	if account == "" {
-		return errEmptyKeyringAccount
+	service, account, err := p.parse(ref)
+	if err != nil {
+		return err
 	}
 
 	if err := keyring.Set(service, account, password); err != nil {
@@ -56,28 +53,31 @@ func (p *KeyringProvider) Store(_ context.Context, ref Reference, password strin
 }
 
 func (p *KeyringProvider) Remove(_ context.Context, ref Reference) error {
-	service, account := p.parse(ref)
-	if account == "" {
-		return errEmptyKeyringAccount
+	service, account, err := p.parse(ref)
+	if err != nil {
+		return err
 	}
 
-	err := keyring.Delete(service, account)
+	err = keyring.Delete(service, account)
 	if errors.Is(err, keyring.ErrNotFound) {
 		return nil
 	}
 	return err
 }
 
-func NamesKeyringService(ref Reference) bool {
-	return strings.Contains(keyringSpec(ref), "/")
-}
-
-func (p *KeyringProvider) parse(ref Reference) (service, account string) {
+func (p *KeyringProvider) parse(ref Reference) (service, account string, err error) {
 	service, account = parseKeyringSpec(keyringSpec(ref))
-	if p.Service != "" && !NamesKeyringService(ref) {
-		service = p.Service
+	if service == "" {
+		service = p.Workspace
 	}
-	return service, account
+
+	switch {
+	case account == "":
+		return "", "", errEmptyKeyringAccount
+	case service == "":
+		return "", "", errNoKeyringWorkspace
+	}
+	return service, account, nil
 }
 
 func keyringSpec(ref Reference) string {
@@ -89,5 +89,5 @@ func parseKeyringSpec(spec string) (service, account string) {
 	if found {
 		return service, account
 	}
-	return keyringService, spec
+	return "", spec
 }

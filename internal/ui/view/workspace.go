@@ -75,13 +75,13 @@ func (v *Workspaces) Add(name string) error {
 	return err
 }
 
-func (v *Workspaces) Rename(ctx context.Context, name string) error {
+func (v *Workspaces) Rename(name string) error {
 	ref, ok := v.Ref()
 	if !ok {
 		return fmt.Errorf("rename: row %d is out of range", v.Cursor())
 	}
 
-	err := v.repo.Rename(ctx, ref.Index, name)
+	err := v.repo.Rename(ref.Index, name)
 	v.Reindex()
 
 	return err

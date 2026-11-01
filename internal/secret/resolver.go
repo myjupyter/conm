@@ -11,9 +11,9 @@ type Resolver struct {
 	providers map[Scheme]Provider
 }
 
-func Default() *Resolver {
+func DefaultFor(workspace string) *Resolver {
 	return newResolver(
-		&KeyringProvider{},
+		&KeyringProvider{Workspace: workspace},
 		&LiteralProvider{},
 		&NoneProvider{},
 		&FilepathProvider{},

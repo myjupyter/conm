@@ -11,6 +11,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
 type linkedSession struct {
@@ -31,8 +32,9 @@ func testSession(t *testing.T) linkedSession {
 	file, err := config.OpenConfig[*config.TransportConfigWrapper](filepath.Join(dir, "transport.toml"))
 	require.NoError(t, err)
 
+	secrets := secret.DefaultFor("conm.test")
 	w := &Session{byKind: map[config.ConnType]Connections{}}
-	w.Transports = newTransportRepository(file, UsageLookupFunc(w.transportUsages), w)
+	w.Transports = newTransportRepository(file, secrets, UsageLookupFunc(w.transportUsages), w)
 	connectionUsage := NewConnectionIndex(w.Transports)
 
 	open := func(open func() (*ConnectionRepository, error)) *ConnectionRepository {
@@ -45,12 +47,12 @@ func testSession(t *testing.T) linkedSession {
 	}
 	postgres := open(func() (*ConnectionRepository, error) {
 		return openConnections[*config.PostgresConfigWrapper](
-			conm, config.PostgresConnType, filepath.Join(dir, "postgres.toml"), w.Transports, connectionUsage,
+			conm, config.PostgresConnType, filepath.Join(dir, "postgres.toml"), w.Transports, secrets, connectionUsage,
 		)
 	})
 	ssh := open(func() (*ConnectionRepository, error) {
 		return openConnections[*config.SSHConfigWrapper](
-			conm, config.SSHConnType, filepath.Join(dir, "ssh.toml"), w.Transports, connectionUsage,
+			conm, config.SSHConnType, filepath.Join(dir, "ssh.toml"), w.Transports, secrets, connectionUsage,
 		)
 	})
 

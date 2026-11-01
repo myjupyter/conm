@@ -12,12 +12,13 @@ import (
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
-func UseWorkspace(name string) error {
-	if err := config.UseWorkspace(name); err != nil {
-		return err
+func workspaceSecrets() (*secret.Resolver, error) {
+	workspace, err := config.SecretWorkspace()
+	if err != nil {
+		return nil, err
 	}
-	secret.UseKeyringService(config.KeyringService())
-	return nil
+
+	return secret.DefaultFor(workspace), nil
 }
 
 func (m workspaceModel) addWorkspaceCmd() tea.Cmd {
@@ -33,9 +34,7 @@ func (m workspaceModel) renameWorkspaceCmd() tea.Cmd {
 		return nil
 	}
 	return workspaceChangeExec(func() error {
-		_, err := runRenameWorkspace(existing, func(name string) error {
-			return m.workspaces.Rename(context.Background(), name)
-		})
+		_, err := runRenameWorkspace(existing, m.workspaces.Rename)
 		return err
 	})
 }
@@ -60,7 +59,7 @@ func RunWorkspaces() error {
 		return err
 	}
 
-	if err := UseWorkspace(chosen); err != nil {
+	if err := config.UseWorkspace(chosen); err != nil {
 		return err
 	}
 	conm, err := config.ReadConm(config.ConmPath())

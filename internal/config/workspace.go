@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"uuid"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
@@ -14,9 +15,9 @@ import (
 )
 
 const (
-	DefaultWorkspace     = "default"
-	keyringServicePrefix = "conm"
-	startupFileName      = "workspace.toml"
+	DefaultWorkspace      = "default"
+	secretWorkspacePrefix = "conm"
+	startupFileName       = "workspace.toml"
 )
 
 type startupFile struct {
@@ -44,12 +45,29 @@ func Workspace() string {
 	return workspace
 }
 
-func KeyringService() string {
-	return KeyringServiceOf(workspace)
+func SecretWorkspace() (string, error) {
+	return SecretWorkspaceOf(workspace)
 }
 
-func KeyringServiceOf(ws string) string {
-	return keyringServicePrefix + "." + ws
+func SecretWorkspaceOf(ws string) (string, error) {
+	file, err := OpenConfig[*KeyringConfigWrapper](SecretConfigPathOf(ws))
+	if err != nil {
+		return "", err
+	}
+
+	if file.w.WorkspaceID == "" {
+		file.w.WorkspaceID = uuid.NewV4().String()
+		if err := file.Save(); err != nil {
+			return "", err
+		}
+	}
+
+	id, err := uuid.Parse(file.w.WorkspaceID)
+	if err != nil {
+		return "", fmt.Errorf("workspace id %q in %q is malformed · remove it to get a new one", file.w.WorkspaceID, file.path)
+	}
+
+	return secretWorkspacePrefix + "." + id.String(), nil
 }
 
 func Workspaces() ([]string, error) {

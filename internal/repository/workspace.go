@@ -17,7 +17,7 @@ type Workspaces interface {
 	Use(int) error
 
 	Add(name string) error
-	Rename(ctx context.Context, i int, name string) error
+	Rename(i int, name string) error
 	Remove(ctx context.Context, i int) error
 }
 
@@ -83,7 +83,7 @@ func (r *WorkspaceRepository) Add(name string) error {
 	return r.reload()
 }
 
-func (r *WorkspaceRepository) Rename(ctx context.Context, i int, name string) error {
+func (r *WorkspaceRepository) Rename(i int, name string) error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
@@ -94,26 +94,8 @@ func (r *WorkspaceRepository) Rename(ctx context.Context, i int, name string) er
 	if old == name {
 		return nil
 	}
-	if err := config.ValidateWorkspaceName(name); err != nil {
+	if err := config.RenameWorkspace(old, name); err != nil {
 		return fmt.Errorf("rename workspace: %w", err)
-	}
-
-	refs, err := keyringRefs(old)
-	if err != nil {
-		return fmt.Errorf("rename workspace: %w", err)
-	}
-
-	from, to := workspaceKeyring(old), workspaceKeyring(name)
-	moved, err := copyMaterial(ctx, refs, from, to)
-	if err == nil {
-		err = config.RenameWorkspace(old, name)
-	}
-	if err != nil {
-		return fmt.Errorf("rename workspace: %w", errors.Join(err, removeMaterial(ctx, moved, to)))
-	}
-
-	if err := removeMaterial(ctx, moved, from); err != nil {
-		return fmt.Errorf("rename workspace: old keychain entries left behind: %w", err)
 	}
 
 	if r.active == old {
@@ -135,11 +117,7 @@ func (r *WorkspaceRepository) Remove(ctx context.Context, i int) error {
 		return &ActiveWorkspaceError{Name: name}
 	}
 
-	refs, err := keyringRefs(name)
-	if err != nil {
-		return fmt.Errorf("remove workspace: %w", err)
-	}
-	if err := removeMaterial(ctx, refs, workspaceKeyring(name)); err != nil {
+	if err := removeMaterial(ctx, name); err != nil {
 		return fmt.Errorf("remove workspace: %w", err)
 	}
 	if err := config.RemoveWorkspace(name); err != nil {
@@ -171,47 +149,20 @@ func (r *WorkspaceRepository) at(i int) (string, bool) {
 	return r.names[i], true
 }
 
-func workspaceKeyring(name string) *secret.KeyringProvider {
-	return &secret.KeyringProvider{Service: config.KeyringServiceOf(name)}
-}
-
-func keyringRefs(name string) ([]secretRef, error) {
+func removeMaterial(ctx context.Context, name string) error {
+	workspace, err := config.SecretWorkspaceOf(name)
+	if err != nil {
+		return err
+	}
 	file, err := config.OpenConfig[*config.KeyringConfigWrapper](config.SecretConfigPathOf(name))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var refs []secretRef
+	resolver := secret.DefaultFor(workspace)
+	errs := make([]error, 0, file.Len())
 	for i := range file.Len() {
-		ref := makeSecRef(file.Get(i))
-		if !secret.NamesKeyringService(ref) {
-			refs = append(refs, ref)
-		}
-	}
-
-	return refs, nil
-}
-
-func copyMaterial(ctx context.Context, refs []secretRef, from, to secret.Provider) ([]secretRef, error) {
-	copied := make([]secretRef, 0, len(refs))
-	for _, ref := range refs {
-		password, err := from.Resolve(ctx, ref)
-		if err != nil {
-			continue
-		}
-		if err := to.Store(ctx, ref, password); err != nil {
-			return copied, err
-		}
-		copied = append(copied, ref)
-	}
-
-	return copied, nil
-}
-
-func removeMaterial(ctx context.Context, refs []secretRef, from secret.Provider) error {
-	errs := make([]error, 0, len(refs))
-	for _, ref := range refs {
-		errs = append(errs, from.Remove(ctx, ref))
+		errs = append(errs, resolver.Remove(ctx, makeSecRef(file.Get(i))))
 	}
 
 	return errors.Join(errs...)

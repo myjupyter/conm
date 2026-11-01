@@ -43,17 +43,18 @@ type TransportRepository struct {
 	cache *transport.Pool
 }
 
-func NewTransportRepository(usage UsageLookup, conns ConnectionFinder) (*TransportRepository, error) {
+func NewTransportRepository(secrets secret.Provider, usage UsageLookup, conns ConnectionFinder) (*TransportRepository, error) {
 	file, err := config.OpenConfig[*config.TransportConfigWrapper](config.TransportPath())
 	if err != nil {
 		return nil, err
 	}
 
-	return newTransportRepository(file, usage, conns), nil
+	return newTransportRepository(file, secrets, usage, conns), nil
 }
 
 func newTransportRepository(
 	file config.File[config.Transport],
+	secrets secret.Provider,
 	usage UsageLookup,
 	conns ConnectionFinder,
 ) *TransportRepository {
@@ -61,7 +62,7 @@ func newTransportRepository(
 		file:  file,
 		usage: usage,
 		conns: conns,
-		cache: transport.NewPool(cli.TransportLauncher{}, secret.Default()),
+		cache: transport.NewPool(cli.TransportLauncher{}, secrets),
 	}
 }
 

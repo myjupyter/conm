@@ -81,7 +81,7 @@ func TestNew(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := New(&fakeTransportLauncher{}, tt.args.rec, tt.args.via, target, secret.Default())
+			got, err := New(&fakeTransportLauncher{}, tt.args.rec, tt.args.via, target, secret.DefaultFor("conm.test"))
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return

@@ -98,7 +98,7 @@ func TestNewTransported(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := NewTransported(cli.Launcher{}, tt.args.cfg, fakeProvider{transport: &fakeTransport{}}, secret.Default())
+			got, err := NewTransported(cli.Launcher{}, tt.args.cfg, fakeProvider{transport: &fakeTransport{}}, secret.DefaultFor("conm.test"))
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return
@@ -163,7 +163,7 @@ func TestTransported_Ping(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			conn, err := NewTransported(cli.Launcher{}, behindTransport(), tt.fields.provider, secret.Default())
+			conn, err := NewTransported(cli.Launcher{}, behindTransport(), tt.fields.provider, secret.DefaultFor("conm.test"))
 			require.NoError(t, err)
 
 			_, err = conn.Ping(t.Context())
@@ -203,7 +203,7 @@ func TestTransported_Run(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			conn, err := NewTransported(cli.Launcher{}, behindTransport(), tt.fields.provider, secret.Default())
+			conn, err := NewTransported(cli.Launcher{}, behindTransport(), tt.fields.provider, secret.DefaultFor("conm.test"))
 			require.NoError(t, err)
 
 			err = conn.Run(t.Context())
