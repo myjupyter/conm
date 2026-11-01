@@ -12,6 +12,10 @@ import (
 	"github.com/myjupyter/conm/internal/ui"
 )
 
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&workspaceName, "workspace", "w", "", "workspace to open instead of the one set by 'conm workspace use'")
+}
+
 var workspaceName string
 
 var rootCmd = &cobra.Command{
@@ -28,7 +32,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
-		return ui.UseWorkspace(name)
+		return config.UseWorkspace(name)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conm, err := config.ReadConm(config.ConmPath())
@@ -38,10 +42,6 @@ var rootCmd = &cobra.Command{
 
 		return ui.Run(conm)
 	},
-}
-
-func init() {
-	rootCmd.PersistentFlags().StringVarP(&workspaceName, "workspace", "w", "", "workspace to open instead of the one set by 'conm workspace use'")
 }
 
 func version() string {

@@ -165,3 +165,63 @@ func TestSetStartupWorkspace(t *testing.T) {
 		})
 	}
 }
+
+func TestStartupWorkspace_afterRenameAndRemove(t *testing.T) {
+	type args struct {
+		existing []string
+		startup  string
+		change   func() error
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "renaming the startup workspace moves startup along",
+			args: args{existing: []string{"corp"}, startup: "corp", change: func() error { return RenameWorkspace("corp", "work") }},
+			want: "work",
+		},
+		{
+			name: "renaming the default while nothing is set moves startup along",
+			args: args{change: func() error { return RenameWorkspace(DefaultWorkspace, "home") }},
+			want: "home",
+		},
+		{
+			name: "renaming another workspace leaves startup alone",
+			args: args{existing: []string{"corp", "lab"}, startup: "corp", change: func() error { return RenameWorkspace("lab", "test") }},
+			want: "corp",
+		},
+		{
+			name: "removing the startup workspace falls back to the default",
+			args: args{existing: []string{"corp"}, startup: "corp", change: func() error { return RemoveWorkspace("corp") }},
+			want: DefaultWorkspace,
+		},
+		{
+			name: "removing another workspace leaves startup alone",
+			args: args{existing: []string{"corp", "lab"}, startup: "corp", change: func() error { return RemoveWorkspace("lab") }},
+			want: "corp",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			t.Setenv("XDG_DATA_HOME", t.TempDir())
+			xdg.Reload()
+			t.Cleanup(xdg.Reload)
+
+			for _, ws := range tt.args.existing {
+				require.NoError(t, CreateWorkspace(ws))
+			}
+			if tt.args.startup != "" {
+				require.NoError(t, SetStartupWorkspace(tt.args.startup))
+			}
+
+			require.NoError(t, tt.args.change())
+
+			got, err := StartupWorkspace()
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

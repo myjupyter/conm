@@ -106,6 +106,17 @@ func RenameWorkspace(from, to string) error {
 		return err
 	}
 
+	if err := moveWorkspaceDirs(from, to); err != nil {
+		return err
+	}
+	if err := repointStartup(from, to); err != nil {
+		return errors.Join(err, moveWorkspaceDirs(to, from))
+	}
+
+	return nil
+}
+
+func moveWorkspaceDirs(from, to string) error {
 	if err := os.MkdirAll(workspaceDir(xdg.ConfigHome, from), 0o700); err != nil {
 		return err
 	}
@@ -125,11 +136,23 @@ func RemoveWorkspace(name string) error {
 	if err := ValidateWorkspaceName(name); err != nil {
 		return err
 	}
+	if err := repointStartup(name, DefaultWorkspace); err != nil {
+		return err
+	}
 
 	return errors.Join(
 		os.RemoveAll(workspaceDir(xdg.ConfigHome, name)),
 		os.RemoveAll(workspaceDir(xdg.DataHome, name)),
 	)
+}
+
+func repointStartup(from, to string) error {
+	current, err := StartupWorkspace()
+	if err != nil || current != from {
+		return err
+	}
+
+	return writeStartup(to)
 }
 
 func refuseExistingWorkspace(name string) error {
@@ -181,6 +204,10 @@ func SetStartupWorkspace(name string) error {
 		return fmt.Errorf("no workspace named %q", name)
 	}
 
+	return writeStartup(name)
+}
+
+func writeStartup(name string) error {
 	raw, err := toml.Marshal(startupFile{Workspace: name})
 	if err != nil {
 		return err
