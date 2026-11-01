@@ -6,17 +6,16 @@ import (
 	"io/fs"
 	"os"
 	"slices"
-	"strings"
-	"unicode"
 
 	"github.com/adrg/xdg"
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/myjupyter/conm/internal/utils/pathname"
 )
 
 const (
 	DefaultWorkspace     = "default"
 	keyringServicePrefix = "conm"
-	workspaceNameMaxLen  = 63
 	startupFileName      = "workspace.toml"
 )
 
@@ -27,17 +26,8 @@ type startupFile struct {
 var workspace = DefaultWorkspace
 
 func ValidateWorkspaceName(name string) error {
-	switch {
-	case name == "":
-		return errors.New("workspace name can't be empty")
-	case len(name) > workspaceNameMaxLen:
-		return fmt.Errorf("workspace name must be at most %d characters long", workspaceNameMaxLen)
-	case name == "." || name == "..":
-		return fmt.Errorf("workspace name %q is not a folder name", name)
-	case strings.ContainsAny(name, `/\`):
-		return errors.New("workspace name can't contain a slash")
-	case strings.IndexFunc(name, unicode.IsControl) >= 0:
-		return errors.New("workspace name can't contain control characters")
+	if err := pathname.Validate(name); err != nil {
+		return fmt.Errorf("workspace name %w", err)
 	}
 	return nil
 }

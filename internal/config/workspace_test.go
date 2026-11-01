@@ -2,7 +2,6 @@ package config
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/adrg/xdg"
@@ -48,7 +47,7 @@ func TestUseWorkspace(t *testing.T) {
 		{name: "parent dir", args: args{name: ".."}, wantErr: true},
 		{name: "backslash", args: args{name: `a\b`}, wantErr: true},
 		{name: "control character", args: args{name: "a\tb"}, wantErr: true},
-		{name: "too long", args: args{name: strings.Repeat("a", workspaceNameMaxLen+1)}, wantErr: true},
+		{name: "windows reserved name", args: args{name: "aux"}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
