@@ -24,19 +24,19 @@ func TestUseWorkspace(t *testing.T) {
 		{
 			name:           "default workspace is a folder like any other",
 			args:           args{name: DefaultWorkspace},
-			wantConmPath:   filepath.Join(xdg.ConfigHome, "conm", "default", "conm.toml"),
+			wantConmPath:   filepath.Join(xdg.ConfigHome, "conm", "conm.toml"),
 			wantSecretPath: filepath.Join(xdg.DataHome, "conm", "default", "secret.toml"),
 		},
 		{
-			name:           "named workspace gets its own folder and secret workspace",
+			name:           "named workspace gets its own folder but shares conm.toml",
 			args:           args{name: "corp"},
-			wantConmPath:   filepath.Join(xdg.ConfigHome, "conm", "corp", "conm.toml"),
+			wantConmPath:   filepath.Join(xdg.ConfigHome, "conm", "conm.toml"),
 			wantSecretPath: filepath.Join(xdg.DataHome, "conm", "corp", "secret.toml"),
 		},
 		{
 			name:           "any folder-legal name",
 			args:           args{name: "My Servers"},
-			wantConmPath:   filepath.Join(xdg.ConfigHome, "conm", "My Servers", "conm.toml"),
+			wantConmPath:   filepath.Join(xdg.ConfigHome, "conm", "conm.toml"),
 			wantSecretPath: filepath.Join(xdg.DataHome, "conm", "My Servers", "secret.toml"),
 		},
 		{name: "empty name", args: args{name: ""}, wantErr: true},

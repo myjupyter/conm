@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"runtime/debug"
@@ -24,15 +25,23 @@ var rootCmd = &cobra.Command{
 	Version:       version(),
 	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		name := workspaceName
-		if name == "" {
-			var err error
-			if name, err = config.StartupWorkspace(); err != nil {
+		if workspaceName == "" {
+			name, err := config.StartupWorkspace()
+			if err != nil {
 				return err
 			}
+			return config.UseWorkspace(name)
 		}
 
-		return config.UseWorkspace(name)
+		exists, err := config.WorkspaceExists(workspaceName)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("no workspace named %q · 'conm workspace add %s' creates it", workspaceName, workspaceName)
+		}
+
+		return config.UseWorkspace(workspaceName)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		conm, err := config.ReadConm(config.ConmPath())

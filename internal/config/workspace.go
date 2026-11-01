@@ -186,9 +186,7 @@ func writeStartup(name string) error {
 	return writeFileAtomic(startupPath(), raw)
 }
 
-func startupPath() string {
-	return workspaceDir(xdg.ConfigHome, startupFileName)
-}
+var startupPath = rootConfigPath(startupFileName)
 
 func repointStartup(from, to string) error {
 	current, err := StartupWorkspace()

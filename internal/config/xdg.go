@@ -29,9 +29,15 @@ var (
 	MongoDBPath      = configPath(mongodbConfigFileName)
 	SSHPath          = configPath(sshConfigFileName)
 	TransportPath    = configPath(transportConfigFileName)
-	ConmPath         = configPath(conmConfigFileName)
+	ConmPath         = rootConfigPath(conmConfigFileName)
 	SecretConfigPath = dataPath(secretConfigFileName)
 )
+
+func rootConfigPath(fileName string) func() string {
+	return func() string {
+		return filepath.Join(xdg.ConfigHome, conmDirName, fileName)
+	}
+}
 
 func configPath(fileName string) func() string {
 	return func() string {
