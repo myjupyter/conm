@@ -56,10 +56,12 @@ func runConnections(cfg config.Conm, active config.ConnType, pickFirst bool) (Mo
 	secrets, transports := view.NewSecrets(ws.Keyring), view.NewTransports(ws.Transports)
 	if pickFirst && conns.Total() == 0 {
 		first, saved, err := runFirstConnection(connectionFormContext(conns, secrets, transports), conns.Add)
-		if err != nil || !saved {
+		if err != nil {
 			return Model{}, err
 		}
-		active = first
+		if saved {
+			active = first
+		}
 	}
 	conns.SetActive(active)
 

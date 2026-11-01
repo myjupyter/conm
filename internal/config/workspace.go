@@ -116,22 +116,6 @@ func RenameWorkspace(from, to string) error {
 	return nil
 }
 
-func moveWorkspaceDirs(from, to string) error {
-	if err := os.MkdirAll(workspaceDir(xdg.ConfigHome, from), 0o700); err != nil {
-		return err
-	}
-	if err := os.Rename(workspaceDir(xdg.ConfigHome, from), workspaceDir(xdg.ConfigHome, to)); err != nil {
-		return err
-	}
-
-	err := os.Rename(workspaceDir(xdg.DataHome, from), workspaceDir(xdg.DataHome, to))
-	if err == nil || errors.Is(err, fs.ErrNotExist) {
-		return nil
-	}
-
-	return errors.Join(err, os.Rename(workspaceDir(xdg.ConfigHome, to), workspaceDir(xdg.ConfigHome, from)))
-}
-
 func RemoveWorkspace(name string) error {
 	if err := ValidateWorkspaceName(name); err != nil {
 		return err
@@ -146,29 +130,12 @@ func RemoveWorkspace(name string) error {
 	)
 }
 
-func repointStartup(from, to string) error {
-	current, err := StartupWorkspace()
-	if err != nil || current != from {
-		return err
-	}
-
-	return writeStartup(to)
-}
-
-func refuseExistingWorkspace(name string) error {
+func WorkspaceExists(name string) (bool, error) {
 	if name == DefaultWorkspace {
-		return fmt.Errorf("workspace %q already exists", name)
+		return true, nil
 	}
-	for _, home := range []string{xdg.ConfigHome, xdg.DataHome} {
-		_, err := os.Stat(workspaceDir(home, name))
-		if err == nil {
-			return fmt.Errorf("workspace %q already exists", name)
-		}
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-	}
-	return nil
+
+	return workspaceDirExists(name)
 }
 
 func StartupWorkspace() (string, error) {
@@ -196,11 +163,11 @@ func SetStartupWorkspace(name string) error {
 		return err
 	}
 
-	names, err := Workspaces()
+	exists, err := WorkspaceExists(name)
 	if err != nil {
 		return err
 	}
-	if name != DefaultWorkspace && !slices.Contains(names, name) {
+	if !exists {
 		return fmt.Errorf("no workspace named %q", name)
 	}
 
@@ -221,4 +188,53 @@ func writeStartup(name string) error {
 
 func startupPath() string {
 	return workspaceDir(xdg.ConfigHome, startupFileName)
+}
+
+func repointStartup(from, to string) error {
+	current, err := StartupWorkspace()
+	if err != nil || current != from {
+		return err
+	}
+
+	return writeStartup(to)
+}
+
+func refuseExistingWorkspace(name string) error {
+	exists, err := workspaceDirExists(name)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("workspace %q already exists", name)
+	}
+	return nil
+}
+
+func workspaceDirExists(name string) (bool, error) {
+	for _, home := range []string{xdg.ConfigHome, xdg.DataHome} {
+		_, err := os.Stat(workspaceDir(home, name))
+		if err == nil {
+			return true, nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			return false, err
+		}
+	}
+	return false, nil
+}
+
+func moveWorkspaceDirs(from, to string) error {
+	if err := os.MkdirAll(workspaceDir(xdg.ConfigHome, from), 0o700); err != nil {
+		return err
+	}
+	if err := os.Rename(workspaceDir(xdg.ConfigHome, from), workspaceDir(xdg.ConfigHome, to)); err != nil {
+		return err
+	}
+
+	err := os.Rename(workspaceDir(xdg.DataHome, from), workspaceDir(xdg.DataHome, to))
+	if err == nil || errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
+	return errors.Join(err, os.Rename(workspaceDir(xdg.ConfigHome, to), workspaceDir(xdg.ConfigHome, from)))
 }

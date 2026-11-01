@@ -55,7 +55,7 @@ func (m workspaceModel) removeWorkspaceCmd() tea.Cmd {
 
 func RunWorkspaces() error {
 	chosen, entered, err := runWorkspaceTable()
-	if err != nil || (!entered && chosen == config.Workspace()) {
+	if err != nil || !entered {
 		return err
 	}
 

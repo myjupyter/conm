@@ -6,12 +6,13 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-type secretFormModel struct {
-	spec   spec.FormSpec[config.Secret]
+type specFormModel[T any] struct {
+	spec   spec.FormSpec[T]
+	badge  string
+	noun   string
 	title  string
 	isEdit bool
 
@@ -29,9 +30,11 @@ type secretFormModel struct {
 	statusKind statusKind
 }
 
-func newSecretFormModel(spc spec.FormSpec[config.Secret], title string, initial formValues, isEdit bool) secretFormModel {
-	m := secretFormModel{
+func newSpecFormModel[T any](spc spec.FormSpec[T], badge, noun, title string, initial formValues, isEdit bool) specFormModel[T] {
+	m := specFormModel[T]{
 		spec:       spc,
+		badge:      badge,
+		noun:       noun,
 		title:      title,
 		isEdit:     isEdit,
 		vals:       make(map[string]string, len(spc.Fields)),
@@ -58,9 +61,9 @@ func newSecretFormModel(spc spec.FormSpec[config.Secret], title string, initial 
 	return m
 }
 
-func (m secretFormModel) Init() tea.Cmd { return nil }
+func (m specFormModel[T]) Init() tea.Cmd { return nil }
 
-func (m secretFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m specFormModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if keyMap.Paste.matches(msg.String()) {
@@ -80,7 +83,7 @@ func (m secretFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // applyPaste appends the clipboard to the field under the cursor. A select is
 // not typed into, so it is not pasted into either.
-func (m secretFormModel) applyPaste(raw string, err error) secretFormModel {
+func (m specFormModel[T]) applyPaste(raw string, err error) specFormModel[T] {
 	text, refusal := pasteReady(raw, err)
 	if text == "" {
 		m.setStatus(refusal.text, refusal.kind)
@@ -99,7 +102,7 @@ func (m secretFormModel) applyPaste(raw string, err error) secretFormModel {
 	return m
 }
 
-func (m secretFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (m specFormModel[T]) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	n := len(m.spec.Fields)
 	cur := m.spec.Fields[m.idx]
 
@@ -145,7 +148,7 @@ func (m secretFormModel) navKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m secretFormModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+func (m specFormModel[T]) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	cur := m.spec.Fields[m.idx]
 
 	key := msg.String()
@@ -176,11 +179,11 @@ func (m secretFormModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *secretFormModel) setStatus(s string, k statusKind) {
+func (m *specFormModel[T]) setStatus(s string, k statusKind) {
 	m.status, m.statusKind = s, k
 }
 
-func (m *secretFormModel) cycle(i, dir int) {
+func (m *specFormModel[T]) cycle(i, dir int) {
 	f := m.spec.Fields[i]
 	if len(f.Options) == 0 {
 		return
@@ -195,7 +198,7 @@ func (m *secretFormModel) cycle(i, dir int) {
 	m.vals[f.Key] = f.Options[(at+dir+len(f.Options))%len(f.Options)]
 }
 
-func (m secretFormModel) fieldError(i int) string {
+func (m specFormModel[T]) fieldError(i int) string {
 	f := m.spec.Fields[i]
 	v := m.vals[f.Key]
 	if f.Kind != spec.HiddenFieldKind {
@@ -213,7 +216,7 @@ func (m secretFormModel) fieldError(i int) string {
 	return ""
 }
 
-func (m secretFormModel) submit() (tea.Model, tea.Cmd) {
+func (m specFormModel[T]) submit() (tea.Model, tea.Cmd) {
 	m.attempted = true
 
 	bad, badIdx := 0, -1
@@ -236,21 +239,10 @@ func (m secretFormModel) submit() (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-// result returns the record and, separately, the password typed for it. The two
-// never travel together: config.Secret holds the reference, the material is
-// handed to the repository alongside it.
-func (m secretFormModel) result() (config.Secret, string, error) {
-	sec, err := m.spec.BuildFunc(m.values())
-	if err != nil {
-		return nil, "", err
-	}
-	return sec, m.vals[spec.KeyringPasswordKey], nil
-}
-
 // values collects the current field values keyed by FormField.Key. Every value
 // is trimmed except hidden fields (passwords), where surrounding whitespace may
 // be meaningful.
-func (m secretFormModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
+func (m specFormModel[T]) values() map[spec.FormFieldKey]spec.FormFieldValue {
 	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.spec.Fields))
 	for i := range m.spec.Fields {
 		f := &m.spec.Fields[i]

@@ -113,7 +113,7 @@ func (r *WorkspaceRepository) Remove(ctx context.Context, i int) error {
 	if !ok {
 		return fmt.Errorf("remove workspace: index %d is out of range", i)
 	}
-	if name == config.Workspace() {
+	if name == r.active {
 		return &ActiveWorkspaceError{Name: name}
 	}
 
@@ -122,10 +122,6 @@ func (r *WorkspaceRepository) Remove(ctx context.Context, i int) error {
 	}
 	if err := config.RemoveWorkspace(name); err != nil {
 		return fmt.Errorf("remove workspace: %w", err)
-	}
-
-	if r.active == name {
-		r.active = config.Workspace()
 	}
 
 	return r.reload()

@@ -99,9 +99,19 @@ func TestWorkspaceRepository(t *testing.T) {
 			wantActive: "default",
 		},
 		{
-			name: "add refuses the default workspace even before its folder exists",
+			name: "add takes the default name back once its folder is gone",
 			args: args{act: func(t *testing.T, r *WorkspaceRepository) error {
 				t.Helper()
+				return r.Add(config.DefaultWorkspace)
+			}},
+			wantNames:  []string{"default"},
+			wantActive: "default",
+		},
+		{
+			name: "add refuses the default name while its folder exists",
+			args: args{act: func(t *testing.T, r *WorkspaceRepository) error {
+				t.Helper()
+				require.NoError(t, r.Add(config.DefaultWorkspace))
 				return r.Add(config.DefaultWorkspace)
 			}},
 			wantErr:    true,
@@ -166,6 +176,17 @@ func TestWorkspaceRepository(t *testing.T) {
 			wantErr:    true,
 			wantNames:  []string{"default"},
 			wantActive: "default",
+		},
+		{
+			name: "remove refuses the current workspace under its new name",
+			args: args{act: func(t *testing.T, r *WorkspaceRepository) error {
+				t.Helper()
+				require.NoError(t, r.Rename(indexOfWorkspace(t, r, "default"), "home"))
+				return r.Remove(context.Background(), indexOfWorkspace(t, r, "home"))
+			}},
+			wantErr:    true,
+			wantNames:  []string{"default", "home"},
+			wantActive: "home",
 		},
 		{
 			name: "use picks the workspace to switch to",

@@ -26,7 +26,7 @@ func workspaceForm(isEdit bool, save func(string) error) formLoop[string] {
 
 	return formLoop[string]{
 		open: func(initial formValues, status formStatus) (formResult[string], error) {
-			model := newWorkspaceFormModel(spec.WorkspaceFormSpec, title, initial, isEdit)
+			model := newSpecFormModel(spec.WorkspaceFormSpec, "workspace", "workspace", title, initial, isEdit)
 			if status.text != "" {
 				model.setStatus(status.text, status.kind)
 			}
@@ -45,7 +45,7 @@ func runRenameWorkspace(existing string, save func(string) error) (bool, error) 
 	return workspaceForm(true, save).run(spec.WorkspaceFormSpec.SeedFunc(existing), formStatus{})
 }
 
-func runWorkspaceForm(model workspaceFormModel) (formResult[string], error) {
+func runWorkspaceForm(model specFormModel[string]) (formResult[string], error) {
 	var none formResult[string]
 
 	m, err := tea.NewProgram(model).Run()
@@ -53,7 +53,7 @@ func runWorkspaceForm(model workspaceFormModel) (formResult[string], error) {
 		return none, err
 	}
 
-	fm, ok := m.(workspaceFormModel)
+	fm, ok := m.(specFormModel[string])
 	if !ok {
 		return none, fmt.Errorf("workspace form returned an unexpected model %T", m)
 	}

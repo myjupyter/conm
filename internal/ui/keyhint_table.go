@@ -334,7 +334,7 @@ func (m secretModel) keyhints() []keyhintGroup {
 	}
 }
 
-func (m secretFormModel) keyhints() []keyhintGroup {
+func (m specFormModel[T]) keyhints() []keyhintGroup {
 	if m.insert {
 		return []keyhintGroup{
 			{title: keyhintEditing, binds: []keybind{
@@ -442,27 +442,6 @@ func (m workspaceModel) keyhints() []keyhintGroup {
 		}},
 		{title: keyhintSearch, binds: searchKeyhints("filter workspaces", m.workspaces.Filtered())},
 		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, keyhintBackToList}}},
-	}
-}
-
-func (m workspaceFormModel) keyhints() []keyhintGroup {
-	if m.insert {
-		return []keyhintGroup{
-			{title: keyhintEditing, binds: []keybind{
-				{keyMap.Cancel.hint, keyhintStopEdit},
-				{keyMap.Confirm.hint, "save"},
-				{keyMap.Paste.hint, keyhintPaste},
-			}},
-		}
-	}
-
-	return []keyhintGroup{
-		{title: keyhintNavigation, binds: []keybind{{keyMap.MoveVertical.hint, keyhintMoveFields}}},
-		{title: keyhintAction, binds: []keybind{
-			{keyMap.Form.EditField.hint, keyhintEditField},
-			{keyMap.Confirm.hint, "save"},
-		}},
-		{title: keyhintScreen, binds: []keybind{{keyMap.Cancel.hint, keyhintCancel}}},
 	}
 }
 

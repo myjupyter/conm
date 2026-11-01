@@ -9,27 +9,27 @@ import (
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-func (m secretFormModel) View() tea.View {
+func (m specFormModel[T]) View() tea.View {
 	v := tea.NewView(m.render())
 	v.AltScreen = true
 	return v
 }
 
-func (m secretFormModel) render() string {
+func (m specFormModel[T]) render() string {
 	lines := []string{
-		m.secretFormTopLine(),
-		m.secretBadgeLine(),
+		m.topLine(),
+		m.badgeLine(),
 		frameLine(formInner, nil, nil),
 	}
 
 	for i := range m.spec.Fields {
-		lines = append(lines, m.secretFieldRow(i), m.secretMessageRow(i))
+		lines = append(lines, m.fieldRow(i), m.messageRow(i))
 	}
 
 	lines = append(lines,
 		frameLine(formInner, nil, nil),
 		frameRule(formInner, gTeeL, gTeeR),
-		m.secretFormStatusLine(),
+		m.statusLine(),
 	)
 	if m.insert {
 		lines = append(lines, keyhintBar(formInner, m.keyhints())...)
@@ -40,25 +40,25 @@ func (m secretFormModel) render() string {
 	return strings.Join(lines, "\n")
 }
 
-func (m secretFormModel) secretFormTopLine() string {
-	crumb := "new keyring entry"
+func (m specFormModel[T]) topLine() string {
+	crumb := "new " + m.noun
 	if m.isEdit {
-		crumb = "edit keyring entry"
+		crumb = "edit " + m.noun
 	}
 	return frameTop(formInner, crumb, "")
 }
 
-func (m secretFormModel) secretBadgeLine() string {
+func (m specFormModel[T]) badgeLine() string {
 	title := m.title
 	if m.isEdit {
-		if id := strings.TrimSpace(m.vals[spec.KeyringIDKey]); id != "" {
-			title = "editing " + id
+		if name := strings.TrimSpace(m.vals[m.spec.Fields[0].Key]); name != "" {
+			title = "editing " + name
 		}
 	}
-	return frameBadge(formInner, "keyring", cAccent, title)
+	return frameBadge(formInner, m.badge, cAccent, title)
 }
 
-func (m secretFormModel) secretFieldRow(i int) string {
+func (m specFormModel[T]) fieldRow(i int) string {
 	f := m.spec.Fields[i]
 	active := i == m.idx
 
@@ -71,7 +71,7 @@ func (m secretFormModel) secretFieldRow(i int) string {
 	if active {
 		caret = " " + gCaret + " "
 	}
-	gutter, gc := m.secretGutter(i, active)
+	gutter, gc := m.gutter(i, active)
 
 	label := strings.ToLower(f.Label)
 	if f.Property == spec.RequiredFieldProperty {
@@ -82,7 +82,7 @@ func (m secretFormModel) secretFieldRow(i int) string {
 		labelFg = cInvFg
 	}
 
-	box := m.secretInputBox(i, active, bg)
+	box := m.inputBox(i, active, bg)
 	spans := make([]span, 0, 3+len(box))
 	spans = append(spans,
 		span{text: caret, fg: caretColor(active), bg: bg, bold: true},
@@ -93,7 +93,7 @@ func (m secretFormModel) secretFieldRow(i int) string {
 	return frameLine(formInner, spans, bg)
 }
 
-func (m secretFormModel) secretInputBox(i int, active bool, bg color.Color) []span {
+func (m specFormModel[T]) inputBox(i int, active bool, bg color.Color) []span {
 	borderFg := cBorder
 	if active {
 		borderFg = cInvFg
@@ -102,7 +102,7 @@ func (m secretFormModel) secretInputBox(i int, active bool, bg color.Color) []sp
 		borderFg = cRed
 	}
 
-	disp, ghost := m.secretDisplay(i, active)
+	disp, ghost := m.display(i, active)
 	if active && m.insert {
 		disp += gInputCursor
 	}
@@ -120,7 +120,7 @@ func (m secretFormModel) secretInputBox(i int, active bool, bg color.Color) []sp
 	}
 }
 
-func (m secretFormModel) secretDisplay(i int, active bool) (string, bool) {
+func (m specFormModel[T]) display(i int, active bool) (string, bool) {
 	f := m.spec.Fields[i]
 	raw := m.vals[f.Key]
 	if raw != "" {
@@ -145,7 +145,7 @@ func (m secretFormModel) secretDisplay(i int, active bool) (string, bool) {
 	}
 }
 
-func (m secretFormModel) secretGutter(i int, active bool) (string, color.Color) {
+func (m specFormModel[T]) gutter(i int, active bool) (string, color.Color) {
 	f := m.spec.Fields[i]
 
 	var g string
@@ -164,7 +164,7 @@ func (m secretFormModel) secretGutter(i int, active bool) (string, color.Color) 
 	return g, c
 }
 
-func (m secretFormModel) secretMessageRow(i int) string {
+func (m specFormModel[T]) messageRow(i int) string {
 	text := ""
 	if m.attempted {
 		if e := m.fieldError(i); e != "" {
@@ -178,7 +178,7 @@ func (m secretFormModel) secretMessageRow(i int) string {
 	}, nil)
 }
 
-func (m secretFormModel) secretFormStatusLine() string {
+func (m specFormModel[T]) statusLine() string {
 	icon, col := statusGlyph(m.statusKind)
 	return frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.spec.Fields)))
 }
