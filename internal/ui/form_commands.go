@@ -87,7 +87,13 @@ func RunAddForm(conm config.Conm, t config.ConnType, initial formValues, warning
 		return false, err
 	}
 
-	return loop.run(initial, warnStatus(warnings))
+	var saved bool
+	err = WithScreens(func() error {
+		saved, err = loop.run(initial, warnStatus(warnings))
+		return err
+	})
+
+	return saved, err
 }
 
 func RunEditForm(conm config.Conm, t config.ConnType, name string) (bool, error) {
@@ -104,9 +110,15 @@ func RunEditForm(conm config.Conm, t config.ConnType, name string) (bool, error)
 		return false, err
 	}
 
-	return runEditConnection(t, cfg, ctx, func(edited config.Connection) error {
-		return repo.Edit(i, edited)
+	var saved bool
+	err = WithScreens(func() error {
+		saved, err = runEditConnection(t, cfg, ctx, func(edited config.Connection) error {
+			return repo.Edit(i, edited)
+		})
+		return err
 	})
+
+	return saved, err
 }
 
 func openConnectionForm(
@@ -234,8 +246,6 @@ func (m formModel) applyLinkOpened(msg linkOpenedMsg) formModel {
 	return m
 }
 
-// pickSecretCmd hands the terminal to the keyring screen and folds the chosen
-// location back into the field.
 func (m formModel) pickSecretCmd() tea.Cmd {
 	if m.secrets == nil {
 		return nil
@@ -245,12 +255,12 @@ func (m formModel) pickSecretCmd() tea.Cmd {
 	var ok bool
 	current := m.vals[spec.SecretValueKey]
 
-	return tea.Exec(
-		runExec{run: func() error {
+	return screenCmd(
+		func() error {
 			var err error
 			picked, ok, err = runSecretPicker(m.secrets, current)
 			return err
-		}},
+		},
 		func(err error) tea.Msg { return secretPickedMsg{ref: picked, ok: ok, err: err} },
 	)
 }
@@ -258,7 +268,7 @@ func (m formModel) pickSecretCmd() tea.Cmd {
 func runForm(model formModel) (formResult[config.Connection], error) {
 	var none formResult[config.Connection]
 
-	m, err := tea.NewProgram(model).Run()
+	m, err := runScreen(model)
 	if err != nil {
 		return none, err
 	}

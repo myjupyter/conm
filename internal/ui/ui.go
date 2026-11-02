@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/repository"
@@ -21,6 +19,10 @@ func Run(cfg config.Conm) error {
 }
 
 func RunOn(cfg config.Conm, active config.ConnType) error {
+	return WithScreens(func() error { return runConnectionsLoop(cfg, active) })
+}
+
+func runConnectionsLoop(cfg config.Conm, active config.ConnType) error {
 	pickFirst := true
 	for {
 		keyMap = newKeymap(cfg.Keybindings)
@@ -70,7 +72,7 @@ func runConnections(cfg config.Conm, active config.ConnType, pickFirst bool) (Mo
 		table.status, table.statusKind = "keybindings in conm.toml ignored, defaults in use · "+firstLine(err), kindWarn
 	}
 
-	m, err := tea.NewProgram(table).Run()
+	m, err := runScreen(table)
 	if err != nil {
 		return Model{}, err
 	}

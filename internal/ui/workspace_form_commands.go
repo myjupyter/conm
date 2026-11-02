@@ -3,8 +3,6 @@ package ui
 import (
 	"fmt"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/myjupyter/conm/internal/repository"
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
@@ -15,7 +13,13 @@ func RunAddWorkspaceForm() (bool, error) {
 		return false, err
 	}
 
-	return runAddWorkspace(repo.Add)
+	var saved bool
+	err = WithScreens(func() error {
+		saved, err = runAddWorkspace(repo.Add)
+		return err
+	})
+
+	return saved, err
 }
 
 func workspaceForm(isEdit bool, save func(string) error) formLoop[string] {
@@ -48,7 +52,7 @@ func runRenameWorkspace(existing string, save func(string) error) (bool, error) 
 func runWorkspaceForm(model specFormModel[string]) (formResult[string], error) {
 	var none formResult[string]
 
-	m, err := tea.NewProgram(model).Run()
+	m, err := runScreen(model)
 	if err != nil {
 		return none, err
 	}

@@ -40,8 +40,8 @@ func (m workspaceModel) renameWorkspaceCmd() tea.Cmd {
 }
 
 func workspaceChangeExec(fn func() error) tea.Cmd {
-	return tea.Exec(
-		runExec{run: fn},
+	return screenCmd(
+		fn,
 		func(err error) tea.Msg { return workspaceChangedMsg{err: err} },
 	)
 }
@@ -54,6 +54,10 @@ func (m workspaceModel) removeWorkspaceCmd() tea.Cmd {
 }
 
 func RunWorkspaces() error {
+	return WithScreens(runWorkspaces)
+}
+
+func runWorkspaces() error {
 	chosen, entered, err := runWorkspaceTable()
 	if err != nil || !entered {
 		return err
@@ -76,7 +80,7 @@ func runWorkspaceTable() (string, bool, error) {
 		return "", false, err
 	}
 
-	m, err := tea.NewProgram(newWorkspaceModel(view.NewWorkspaces(repo))).Run()
+	m, err := runScreen(newWorkspaceModel(view.NewWorkspaces(repo)))
 	if err != nil {
 		return "", false, err
 	}

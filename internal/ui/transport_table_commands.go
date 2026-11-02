@@ -63,13 +63,13 @@ func (m transportModel) removeTransportCmd() tea.Cmd {
 }
 
 func transportChangeExec(fn func() error) tea.Cmd {
-	return tea.Exec(
-		runExec{run: fn},
+	return screenCmd(
+		fn,
 		func(err error) tea.Msg { return transportChangedMsg{err: err} },
 	)
 }
 
 func runTransportTable(transports *view.Transports, conns *view.Connections) error {
-	_, err := tea.NewProgram(newTransportModel(transports, conns)).Run()
+	_, err := runScreen(newTransportModel(transports, conns))
 	return err
 }

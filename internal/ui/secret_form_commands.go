@@ -3,8 +3,6 @@ package ui
 import (
 	"fmt"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -97,7 +95,7 @@ func seedSecret(scheme secret.Scheme, existing config.Secret) (formValues, error
 func runSecretForm(model specFormModel[config.Secret]) (formResult[secretResult], error) {
 	var none formResult[secretResult]
 
-	m, err := tea.NewProgram(model).Run()
+	m, err := runScreen(model)
 	if err != nil {
 		return none, err
 	}
