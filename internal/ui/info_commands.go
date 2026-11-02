@@ -23,14 +23,14 @@ func (m infoModel) connectCmd() tea.Cmd {
 		return nil
 	}
 
-	return tea.Exec(
-		runExec{run: func() error { return conn.Run(context.Background()) }},
+	return execCmd(
+		func() error { return conn.Run(context.Background()) },
 		func(err error) tea.Msg { return infoRanMsg{err: err} },
 	)
 }
 
 func runInfo(conns *view.Connections) (bool, error) {
-	m, err := tea.NewProgram(newInfoModel(conns)).Run()
+	m, err := runScreen(newInfoModel(conns))
 	if err != nil {
 		return false, err
 	}

@@ -27,12 +27,14 @@ connection leaves for the %[1]s connections:
 				return err
 			}
 
-			saved, err := ui.RunEditForm(conm, t, args[0])
-			if err != nil || !saved {
-				return err
-			}
+			return ui.WithScreens(func() error {
+				saved, err := ui.RunEditForm(conm, t, args[0])
+				if err != nil || !saved {
+					return err
+				}
 
-			return ui.RunOn(conm, t)
+				return ui.RunOn(conm, t)
+			})
 		},
 	}
 }

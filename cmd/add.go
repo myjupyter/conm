@@ -30,12 +30,14 @@ func addConnectionCmd(t config.ConnType) *cobra.Command {
 				return err
 			}
 
-			saved, err := ui.RunAddForm(conm, t, initial, warnings)
-			if err != nil || !saved {
-				return err
-			}
+			return ui.WithScreens(func() error {
+				saved, err := ui.RunAddForm(conm, t, initial, warnings)
+				if err != nil || !saved {
+					return err
+				}
 
-			return ui.RunOn(conm, t)
+				return ui.RunOn(conm, t)
+			})
 		},
 	}
 }

@@ -62,7 +62,7 @@ func runSettings() (bool, error) {
 		return false, err
 	}
 
-	m, err := tea.NewProgram(newSettingsModel(conm)).Run()
+	m, err := runScreen(newSettingsModel(conm))
 	if err != nil {
 		return false, err
 	}

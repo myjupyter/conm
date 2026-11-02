@@ -33,11 +33,13 @@ func addWorkspaceCmd() *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				saved, err := ui.RunAddWorkspaceForm()
-				if err != nil || !saved {
-					return err
-				}
-				return ui.RunWorkspaces()
+				return ui.WithScreens(func() error {
+					saved, err := ui.RunAddWorkspaceForm()
+					if err != nil || !saved {
+						return err
+					}
+					return ui.RunWorkspaces()
+				})
 			}
 
 			if err := config.CreateWorkspace(args[0]); err != nil {

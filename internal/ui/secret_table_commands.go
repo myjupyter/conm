@@ -9,10 +9,6 @@ import (
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
-// The forms take over the terminal, so they run the same way the connection
-// forms do: a nested program behind tea.Exec, with the result folded back in as
-// a message.
-
 func (m secretModel) addSecretCmd() tea.Cmd {
 	return secretChangeExec(func() error {
 		_, err := runAddSecret(m.secrets.Active(), func(r secretResult) error {
@@ -44,15 +40,15 @@ func (m secretModel) removeSecretCmd() tea.Cmd {
 }
 
 func secretChangeExec(fn func() error) tea.Cmd {
-	return tea.Exec(
-		runExec{run: fn},
+	return screenCmd(
+		fn,
 		func(err error) tea.Msg { return secretChangedMsg{err: err} },
 	)
 }
 
 // runSecretTable opens the secrets screen and blocks until the user leaves it.
 func runSecretTable(secrets *view.Secrets) error {
-	_, err := tea.NewProgram(newSecretModel(secrets)).Run()
+	_, err := runScreen(newSecretModel(secrets))
 	return err
 }
 
@@ -61,7 +57,7 @@ func runSecretTable(secrets *view.Secrets) error {
 func runSecretPicker(secrets *view.Secrets, current string) (string, bool, error) {
 	secrets.StartPicking(current)
 
-	m, err := tea.NewProgram(newSecretPicker(secrets)).Run()
+	m, err := runScreen(newSecretPicker(secrets))
 	picked, ok := secrets.StopPicking()
 	if err != nil {
 		return "", false, err

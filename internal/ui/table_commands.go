@@ -2,7 +2,6 @@ package ui
 
 import (
 	"context"
-	"io"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -30,8 +29,8 @@ func (m Model) runCmd() tea.Cmd {
 	if !ok {
 		return nil
 	}
-	return tea.Exec(
-		runExec{run: func() error { return conn.Run(context.Background()) }},
+	return execCmd(
+		func() error { return conn.Run(context.Background()) },
 		func(err error) tea.Msg { return runResultMsg{ref: ref, err: err} },
 	)
 }
@@ -58,19 +57,16 @@ func (m Model) editCmd() tea.Cmd {
 
 func (m Model) infoCmd() tea.Cmd {
 	var edit bool
-	return tea.Exec(
-		runExec{run: func() error {
+	return screenCmd(
+		func() error {
 			var err error
 			edit, err = runInfo(m.conns)
 			return err
-		}},
+		},
 		func(err error) tea.Msg { return infoClosedMsg{edit: edit, err: err} },
 	)
 }
 
-// secretsCmd hands the terminal to the secrets screen and comes back with the
-// connection list resynced: a secret that moved changes nothing on this side,
-// but an entry added while over there may now be referenced from a form.
 func (m Model) secretsCmd() tea.Cmd {
 	if m.secrets == nil {
 		return nil
@@ -87,12 +83,12 @@ func (m Model) transportsCmd() tea.Cmd {
 
 func (m Model) workspacesCmd() tea.Cmd {
 	var chosen string
-	return tea.Exec(
-		runExec{run: func() error {
+	return screenCmd(
+		func() error {
 			var err error
 			chosen, _, err = runWorkspaceTable()
 			return err
-		}},
+		},
 		func(err error) tea.Msg {
 			if err != nil || chosen == config.Workspace() {
 				return connChangedMsg{err: err}
@@ -104,12 +100,12 @@ func (m Model) workspacesCmd() tea.Cmd {
 
 func (m Model) settingsCmd() tea.Cmd {
 	var changed bool
-	return tea.Exec(
-		runExec{run: func() error {
+	return screenCmd(
+		func() error {
 			var err error
 			changed, err = runSettings()
 			return err
-		}},
+		},
 		func(err error) tea.Msg {
 			if err != nil || !changed {
 				return connChangedMsg{err: err}
@@ -140,17 +136,8 @@ func (m Model) removeCmd() tea.Cmd {
 }
 
 func changeExec(fn func() error) tea.Cmd {
-	return tea.Exec(
-		runExec{run: fn},
+	return screenCmd(
+		fn,
 		func(err error) tea.Msg { return connChangedMsg{err: err} },
 	)
 }
-
-type runExec struct {
-	run func() error
-}
-
-func (r runExec) Run() error        { return r.run() }
-func (runExec) SetStdin(io.Reader)  {}
-func (runExec) SetStdout(io.Writer) {}
-func (runExec) SetStderr(io.Writer) {}

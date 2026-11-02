@@ -69,7 +69,7 @@ func (m transportFormModel) pingViaCmd() (tea.Model, tea.Cmd) {
 func runTransportForm(model transportFormModel) (formResult[config.Transport], error) {
 	var none formResult[config.Transport]
 
-	m, err := tea.NewProgram(model).Run()
+	m, err := runScreen(model)
 	if err != nil {
 		return none, err
 	}
