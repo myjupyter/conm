@@ -867,7 +867,11 @@ func (m formModel) pingForm() (tea.Model, tea.Cmd) {
 
 func pingFormCmd(cfg config.Connection, transports transport.Provider) tea.Cmd {
 	return func() tea.Msg {
-		conn, err := network.NewRouted(cli.Launcher{}, cfg, transports, secret.Default())
+		secrets, err := workspaceSecrets()
+		if err != nil {
+			return formPingMsg{cfg: cfg, err: err}
+		}
+		conn, err := network.NewRouted(cli.Launcher{}, cfg, transports, secrets)
 		if err != nil {
 			return formPingMsg{cfg: cfg, err: err}
 		}

@@ -9,7 +9,6 @@ import (
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
-	"github.com/myjupyter/conm/internal/secret"
 	"github.com/myjupyter/conm/internal/ui/spec"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
@@ -24,7 +23,11 @@ func (m transportModel) formContext() transportFormContext {
 				return network.PingResult{}, fmt.Errorf("no ssh connection named %q", name)
 			}
 
-			conn, err := network.NewConnection(cli.Launcher{}, cfg, secret.Default())
+			secrets, err := workspaceSecrets()
+			if err != nil {
+				return network.PingResult{}, err
+			}
+			conn, err := network.NewConnection(cli.Launcher{}, cfg, secrets)
 			if err != nil {
 				return network.PingResult{}, err
 			}

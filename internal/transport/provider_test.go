@@ -60,7 +60,7 @@ func TestCache_Get(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			p := NewPool(&fakeTransportLauncher{}, secret.Default())
+			p := NewPool(&fakeTransportLauncher{}, secret.DefaultFor("conm.test"))
 			before, err := p.Get(first.rec, first.via, first.target)
 			require.NoError(t, err)
 

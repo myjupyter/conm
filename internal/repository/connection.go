@@ -246,6 +246,7 @@ func openConnections[W config.ConfigWrapper[config.Connection]](
 	kind config.ConnType,
 	path string,
 	transports transport.Provider,
+	secrets secret.Provider,
 	usage UsageLookup,
 ) (*ConnectionRepository, error) {
 	file, err := config.OpenConfig[W](path)
@@ -258,7 +259,7 @@ func openConnections[W config.ConfigWrapper[config.Connection]](
 		kind:     kind,
 		file:     file,
 		mx:       &sync.RWMutex{},
-		sec:      secret.Default(),
+		sec:      secrets,
 
 		transports: transports,
 		usage:      usage,

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/myjupyter/conm/internal/config"
 )
 
 // Every screen is a single box of a fixed inner width, drawn line by line: a
@@ -96,6 +98,7 @@ func frameTop(w int, crumb, right string) string {
 	left := []span{
 		{text: gLineH + " ", fg: cBorder},
 		{text: "conm", fg: cFg, bold: true},
+		{text: ":" + config.Workspace(), fg: cAccent},
 		{text: " · " + crumb + " ", fg: cDim},
 	}
 

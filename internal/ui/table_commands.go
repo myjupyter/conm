@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
@@ -82,6 +83,23 @@ func (m Model) transportsCmd() tea.Cmd {
 		return nil
 	}
 	return changeExec(func() error { return runTransportTable(m.transports, m.conns) })
+}
+
+func (m Model) workspacesCmd() tea.Cmd {
+	var chosen string
+	return tea.Exec(
+		runExec{run: func() error {
+			var err error
+			chosen, _, err = runWorkspaceTable()
+			return err
+		}},
+		func(err error) tea.Msg {
+			if err != nil || chosen == config.Workspace() {
+				return connChangedMsg{err: err}
+			}
+			return workspaceSwitchedMsg{name: chosen}
+		},
+	)
 }
 
 func (m Model) settingsCmd() tea.Cmd {

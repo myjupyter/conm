@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
 func testRepo(t *testing.T) *ConnectionRepository {
@@ -24,6 +25,7 @@ func testRepo(t *testing.T) *ConnectionRepository {
 		config.PostgresConnType,
 		filepath.Join(t.TempDir(), "postgres.toml"),
 		nil,
+		secret.DefaultFor("conm.test"),
 		NewConnectionIndex(),
 	)
 	require.NoError(t, err)

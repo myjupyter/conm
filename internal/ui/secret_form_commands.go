@@ -39,7 +39,7 @@ func secretForm(
 
 	return formLoop[secretResult]{
 		open: func(initial formValues, status formStatus) (formResult[secretResult], error) {
-			model := newSecretFormModel(formSpec, title, initial, isEdit)
+			model := newSpecFormModel(formSpec, "keyring", "keyring entry", title, initial, isEdit)
 			if status.text != "" {
 				model.setStatus(status.text, status.kind)
 			}
@@ -94,7 +94,7 @@ func seedSecret(scheme secret.Scheme, existing config.Secret) (formValues, error
 	return initial, nil
 }
 
-func runSecretForm(model secretFormModel) (formResult[secretResult], error) {
+func runSecretForm(model specFormModel[config.Secret]) (formResult[secretResult], error) {
 	var none formResult[secretResult]
 
 	m, err := tea.NewProgram(model).Run()
@@ -102,7 +102,7 @@ func runSecretForm(model secretFormModel) (formResult[secretResult], error) {
 		return none, err
 	}
 
-	fm, ok := m.(secretFormModel)
+	fm, ok := m.(specFormModel[config.Secret])
 	if !ok {
 		return none, fmt.Errorf("secret form returned an unexpected model %T", m)
 	}
@@ -110,14 +110,15 @@ func runSecretForm(model secretFormModel) (formResult[secretResult], error) {
 		return none, nil
 	}
 
-	sec, password, err := fm.result()
+	values := fm.values()
+	sec, err := fm.spec.BuildFunc(values)
 	if err != nil {
 		return none, err
 	}
 
 	return formResult[secretResult]{
-		value:  secretResult{record: sec, password: password},
-		values: fm.values(),
+		value:  secretResult{record: sec, password: fm.vals[spec.KeyringPasswordKey]},
+		values: values,
 		ok:     true,
 	}, nil
 }

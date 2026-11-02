@@ -88,3 +88,11 @@ func usageList(by []Usage) string {
 	}
 	return strings.Join(owners, ", ")
 }
+
+type ActiveWorkspaceError struct {
+	Name string
+}
+
+func (e *ActiveWorkspaceError) Error() string {
+	return fmt.Sprintf("workspace %q is the one you are in · switch to another to remove it", e.Name)
+}
