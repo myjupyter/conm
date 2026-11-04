@@ -12,6 +12,9 @@ import (
 )
 
 type transportModel struct {
+	size screenSize
+	rows view.Scroll
+
 	transports *view.Transports
 	conns      *view.Connections
 
@@ -35,6 +38,16 @@ func newTransportModel(transports *view.Transports, conns *view.Connections) tra
 func (m transportModel) Init() tea.Cmd { return nil }
 
 func (m transportModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[transportModel](m.update(msg))
+}
+
+func (m transportModel) followCursor() transportModel {
+	m.size.follow(&m.rows, len(m.headLines(""))+len(m.tailLines()), focusRow(m.transports.Cursor()), m.transports.Len())
+	return m
+}
+
+func (m transportModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.handleTransportKeyMsg(msg)

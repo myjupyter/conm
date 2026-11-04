@@ -16,36 +16,48 @@ func (m specFormModel[T]) View() tea.View {
 }
 
 func (m specFormModel[T]) render() string {
-	lines := []string{
-		m.topLine(),
-		m.badgeLine(),
-		frameLine(formInner, nil, nil),
-	}
+	body := m.bodyLines()
+	start, end := m.body.Range(len(body))
+	lines := append(m.headLines(scrollNote(start, len(body)-end)), body[start:end]...)
+	return m.size.join(append(lines, m.tailLines()...))
+}
 
+func (m specFormModel[T]) headLines(scroll string) []string {
+	return []string{
+		m.topLine(scroll),
+		m.badgeLine(),
+		frameLine(m.size.formInner(), nil, nil),
+	}
+}
+
+func (m specFormModel[T]) bodyLines() []string {
+	lines := make([]string, 0, 2*len(m.spec.Fields))
 	for i := range m.spec.Fields {
 		lines = append(lines, m.fieldRow(i), m.messageRow(i))
 	}
-
-	lines = append(lines,
-		frameLine(formInner, nil, nil),
-		frameRule(formInner, gTeeL, gTeeR),
-		m.statusLine(),
-	)
-	if m.insert {
-		lines = append(lines, keyhintBar(formInner, m.keyhints())...)
-	} else {
-		lines = append(lines, keyhintLines(formInner, keyhintFooter{groups: m.keyhints(), open: m.help})...)
-	}
-	lines = append(lines, frameBottom(formInner))
-	return strings.Join(lines, "\n")
+	return lines
 }
 
-func (m specFormModel[T]) topLine() string {
+func (m specFormModel[T]) tailLines() []string {
+	lines := []string{
+		frameLine(m.size.formInner(), nil, nil),
+		frameRule(m.size.formInner(), gTeeL, gTeeR),
+		m.statusLine(),
+	}
+	if m.insert {
+		lines = append(lines, keyhintBar(m.size.formInner(), m.keyhints())...)
+	} else {
+		lines = append(lines, keyhintLines(m.size.formInner(), keyhintFooter{groups: m.keyhints(), open: m.help})...)
+	}
+	return append(lines, frameBottom(m.size.formInner()))
+}
+
+func (m specFormModel[T]) topLine(scroll string) string {
 	crumb := "new " + m.noun
 	if m.isEdit {
 		crumb = "edit " + m.noun
 	}
-	return frameTop(formInner, crumb, "")
+	return frameTop(m.size.formInner(), crumb, topNote(scroll))
 }
 
 func (m specFormModel[T]) badgeLine() string {
@@ -55,7 +67,7 @@ func (m specFormModel[T]) badgeLine() string {
 			title = "editing " + name
 		}
 	}
-	return frameBadge(formInner, m.badge, cAccent, title)
+	return frameBadge(m.size.formInner(), m.badge, cAccent, title)
 }
 
 func (m specFormModel[T]) fieldRow(i int) string {
@@ -90,7 +102,7 @@ func (m specFormModel[T]) fieldRow(i int) string {
 		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
 	)
 	spans = append(spans, box...)
-	return frameLine(formInner, spans, bg)
+	return frameLine(m.size.formInner(), spans, bg)
 }
 
 func (m specFormModel[T]) inputBox(i int, active bool, bg color.Color) []span {
@@ -115,7 +127,7 @@ func (m specFormModel[T]) inputBox(i int, active bool, bg color.Color) []span {
 	}
 	return []span{
 		{text: gLineV, fg: borderFg, bg: bg},
-		{text: truncPad(disp, formBoxW-2, false), fg: valFg, bg: bg},
+		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
 		{text: gLineV, fg: borderFg, bg: bg},
 	}
 }
@@ -130,8 +142,6 @@ func (m specFormModel[T]) display(i int, active bool) (string, bool) {
 		return raw, false
 	}
 	switch {
-	// An edit leaves the password blank on purpose: the material is write-only,
-	// and an untouched field must not look like an empty password.
 	case f.Kind == spec.HiddenFieldKind && m.isEdit:
 		return "unchanged", true
 	case f.Kind == spec.HiddenFieldKind:
@@ -172,13 +182,13 @@ func (m specFormModel[T]) messageRow(i int) string {
 		}
 	}
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return frameLine(formInner, []span{
+	return frameLine(m.size.formInner(), []span{
 		{text: prefix, fg: cDim},
-		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: cRed},
+		{text: truncPad(text, m.size.formInner()-len([]rune(prefix))-2, false), fg: cRed},
 	}, nil)
 }
 
 func (m specFormModel[T]) statusLine() string {
 	icon, col := statusGlyph(m.statusKind)
-	return frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.spec.Fields)))
+	return frameStatus(m.size.formInner(), icon, col, m.status, cursorPos(m.idx, len(m.spec.Fields)))
 }

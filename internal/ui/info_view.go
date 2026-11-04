@@ -21,40 +21,52 @@ func (m infoModel) View() tea.View {
 	return v
 }
 
-func (m infoModel) render() string {
-	lines := []string{
-		frameTop(infoInner, "connection info", ""),
-		m.titleLine(),
-		frameRule(infoInner, gTeeL, gTeeR),
-		m.infoTabsLine(),
-		frameLine(infoInner, nil, nil),
-	}
+func (m infoModel) inner() int {
+	return m.size.modalWidth(infoInner)
+}
 
-	lines = append(lines, m.infoRowLines()...)
-	lines = append(lines, frameLine(infoInner, nil, nil), frameRule(infoInner, gTeeL, gTeeR))
+func (m infoModel) render() string {
+	body, _ := m.infoRowLines()
+	start, end := m.body.Range(len(body))
+	lines := append(m.headLines(scrollNote(start, len(body)-end)), body[start:end]...)
+	return m.size.join(append(lines, m.tailLines()...))
+}
+
+func (m infoModel) headLines(scroll string) []string {
+	return []string{
+		frameTop(m.inner(), "connection info", topNote(scroll)),
+		m.titleLine(),
+		frameRule(m.inner(), gTeeL, gTeeR),
+		m.infoTabsLine(),
+		frameLine(m.inner(), nil, nil),
+	}
+}
+
+func (m infoModel) tailLines() []string {
+	lines := []string{frameLine(m.inner(), nil, nil), frameRule(m.inner(), gTeeL, gTeeR)}
 
 	if m.statusKind != kindIdle {
 		icon, col := statusGlyph(m.statusKind)
 		lines = append(lines,
-			frameStatus(infoInner, icon, col, m.status, ""),
-			frameRule(infoInner, gTeeL, gTeeR),
+			frameStatus(m.inner(), icon, col, m.status, ""),
+			frameRule(m.inner(), gTeeL, gTeeR),
 		)
 	}
 
-	lines = append(lines, keyhintLines(infoInner, keyhintFooter{groups: m.keyhints(), open: m.help})...)
+	lines = append(lines, keyhintLines(m.inner(), keyhintFooter{groups: m.keyhints(), open: m.help})...)
 
-	return strings.Join(append(lines, frameBottom(infoInner)), "\n")
+	return append(lines, frameBottom(m.inner()))
 }
 
 func (m infoModel) titleLine() string {
 	cfg, ok := m.conns.Config()
 	if !ok {
-		return frameLine(infoInner, nil, nil)
+		return frameLine(m.inner(), nil, nil)
 	}
 
 	kind := cfg.ConnType()
 
-	return frameLine(infoInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: "  ", fg: cDim},
 		{text: gDotOn + " ", fg: typeColor(kind)},
 		{text: connLabel(cfg), fg: cFg, bold: true},
@@ -63,15 +75,15 @@ func (m infoModel) titleLine() string {
 }
 
 func (m infoModel) infoTabsLine() string {
-	return frameTabs(infoInner, m.tabTitles(), slices.Index(m.tabs(), m.tab), "")
+	return frameTabs(m.inner(), m.tabTitles(), slices.Index(m.tabs(), m.tab), "")
 }
 
-func (m infoModel) infoRowLines() []string {
-	var lines []string
-	pick := 0
+func (m infoModel) infoRowLines() (lines []string, focus focusSpan) {
+	pick, head, headed := 0, 0, false
 	for _, r := range m.rows() {
 		if r.head {
-			lines = append(lines, frameHead(infoInner, r.label, r.note)...)
+			head, headed = len(lines), true
+			lines = append(lines, frameHead(m.inner(), r.label, r.note)...)
 			continue
 		}
 
@@ -81,15 +93,23 @@ func (m infoModel) infoRowLines() []string {
 			continue
 		}
 
-		for i, chunk := range wrapValue(r.value, infoInner-4-wInfoLbl) {
-			lines = append(lines, infoRowLine(r, chunk, i == 0, on))
+		at := len(lines)
+		for i, chunk := range wrapValue(r.value, m.inner()-4-wInfoLbl) {
+			lines = append(lines, infoRowLine(m.inner(), r, chunk, i == 0, on))
 		}
+		if on {
+			focus = focusSpan{from: at, row: at, to: len(lines) - 1}
+			if headed {
+				focus.from = head
+			}
+		}
+		headed = false
 	}
 
-	return lines
+	return lines, focus
 }
 
-func infoRowLine(r infoRow, chunk string, first, on bool) string {
+func infoRowLine(w int, r infoRow, chunk string, first, on bool) string {
 	fg, labelFg, bg := r.tone, cDim, color.Color(nil)
 	if on {
 		fg, labelFg, bg = cInvFg, cInvFg, cAccent
@@ -109,19 +129,19 @@ func infoRowLine(r infoRow, chunk string, first, on bool) string {
 		{text: "  " + chunk, fg: fg, bg: bg},
 	}
 	if on && first {
-		spans = append(spans, infoHintSpans(r, len([]rune(chunk)), bg)...)
+		spans = append(spans, infoHintSpans(w, r, len([]rune(chunk)), bg)...)
 	}
 
-	return frameLine(infoInner, spans, bg)
+	return frameLine(w, spans, bg)
 }
 
-func infoHintSpans(r infoRow, valueWidth int, bg color.Color) []span {
+func infoHintSpans(w int, r infoRow, valueWidth int, bg color.Color) []span {
 	hint := keyMap.Copy.hint + " copies"
 	if r.link {
 		hint = keyMap.Confirm.hint + " opens · " + hint
 	}
 
-	pad := infoInner - 4 - wInfoLbl - valueWidth - len([]rune(hint)) - 1
+	pad := w - 4 - wInfoLbl - valueWidth - len([]rune(hint)) - 1
 	if pad <= 0 {
 		return nil
 	}

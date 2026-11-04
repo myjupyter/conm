@@ -7,26 +7,15 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/myjupyter/conm/internal/config"
 )
 
-// Every screen is a single box of a fixed inner width, drawn line by line: a
-// top border carrying the breadcrumb, rules between sections, content lines, a
-// status line, the key bar, then the bottom border. This file owns that
-// vocabulary and nothing else — the colours it draws with live in theme.go.
-//
-// Every function takes the inner width w explicitly, so the same primitives
-// serve the wide connections table and the narrower forms and keyring screens.
-
-// keybind is one hint in the key bar at the bottom of a screen.
 type keybind struct{ key, label string }
 
-// statusReady is the resting status message every screen falls back to.
 const statusReady = "ready"
 
-// statusKind picks the glyph and colour of the status line; the message itself
-// is free text the screen sets.
 type statusKind int
 
 const (
@@ -38,16 +27,12 @@ const (
 	kindPing
 )
 
-// span is a run of text with a single style. Content lines are built from
-// spans so a line can mix colours and still be padded to an exact width.
 type span struct {
 	text string
 	fg   color.Color
 	bg   color.Color
 	bold bool
 
-	// raw is pre-rendered output used for widgets that style themselves (a
-	// spinner, say). text is then only there to account for the width.
 	raw string
 }
 
@@ -65,35 +50,65 @@ func (s span) render() string {
 	return st.Render(s.text)
 }
 
-func (s span) width() int { return len([]rune(s.text)) }
+func (s span) width() int { return ansi.StringWidth(s.text) }
 
-// border paints box-drawing runes in the frame's own colour.
 func border(s string) string {
 	return lipgloss.NewStyle().Foreground(cBorder).Render(s)
 }
 
-// truncPad fits s into exactly w cells, eliding with an ellipsis when it is too
-// long and padding on the left instead of the right when right is set.
 func truncPad(s string, w int, right bool) string {
 	if w <= 0 {
 		return ""
 	}
-	r := []rune(s)
-	switch {
-	case len(r) > w:
+	if ansi.StringWidth(s) > w {
+		tail := gEllipsis
 		if w == 1 {
-			return string(r[:1])
+			tail = ""
 		}
-		return string(r[:w-1]) + gEllipsis
-	case right:
-		return strings.Repeat(" ", w-len(r)) + s
-	default:
-		return s + strings.Repeat(" ", w-len(r))
+		s = ansi.Truncate(s, w, tail)
 	}
+	padding := strings.Repeat(" ", w-ansi.StringWidth(s))
+	if right {
+		return padding + s
+	}
+	return s + padding
 }
 
-// frameTop draws the top border with the app name, the screen's breadcrumb on
-// the left and an optional summary pushed against the right corner.
+func clipSpans(spans []span, w int) []span {
+	clipped := make([]span, 0, len(spans))
+	for _, s := range spans {
+		if w <= 0 {
+			break
+		}
+		if s.width() > w {
+			s.text, s.raw = ansi.Truncate(s.text, w, gEllipsis), ""
+		}
+		clipped = append(clipped, s)
+		w -= s.width()
+	}
+	return clipped
+}
+
+func spansWidth(spans []span) int {
+	used := 0
+	for _, s := range spans {
+		used += s.width()
+	}
+	return used
+}
+
+func fitNote(note string, w int) string {
+	const separator = " · "
+	for ansi.StringWidth(note) > w {
+		_, rest, ok := strings.Cut(note, separator)
+		if !ok {
+			return ansi.TruncateLeft(note, ansi.StringWidth(note)-max(w, 0), "")
+		}
+		note = " " + rest
+	}
+	return note
+}
+
 func frameTop(w int, crumb, right string) string {
 	left := []span{
 		{text: gLineH + " ", fg: cBorder},
@@ -102,30 +117,23 @@ func frameTop(w int, crumb, right string) string {
 		{text: " · " + crumb + " ", fg: cDim},
 	}
 
-	used := len([]rune(right))
-	for _, s := range left {
-		used += s.width()
-	}
+	left = clipSpans(left, w)
+	right = fitNote(right, w-spansWidth(left))
 
 	var b strings.Builder
 	b.WriteString(border(gCornerTL))
 	for _, s := range left {
 		b.WriteString(s.render())
 	}
-	b.WriteString(border(strings.Repeat(gLineH, max(w-used, 0))))
+	b.WriteString(border(strings.Repeat(gLineH, max(w-spansWidth(left)-ansi.StringWidth(right), 0))))
 	b.WriteString((span{text: right, fg: cDim}).render())
 	b.WriteString(border(gCornerTR))
 	return b.String()
 }
 
-// frameLine draws one content line, padding it out to w so the right border
-// always lands in the same column.
 func frameLine(w int, spans []span, bg color.Color) string {
-	used := 0
-	for _, s := range spans {
-		used += s.width()
-	}
-	if used < w {
+	spans = clipSpans(spans, w)
+	if used := spansWidth(spans); used < w {
 		spans = append(spans, span{text: strings.Repeat(" ", w-used), bg: bg})
 	}
 
@@ -138,9 +146,6 @@ func frameLine(w int, spans []span, bg color.Color) string {
 	return b.String()
 }
 
-// frameHead titles a block of fields inside a section: a banded row of the
-// title in caps and what the block is for, held apart from the fields above and
-// below it by a blank line each side.
 func frameHead(w int, title, note string) []string {
 	spans := []span{
 		{text: "  ", bg: cHeadBg},
@@ -180,14 +185,12 @@ func frameTabs(w int, titles []string, active int, note string) string {
 	return frameLine(w, spans, nil)
 }
 
-// frameRule draws a horizontal divider; left and right are its end runes.
 func frameRule(w int, left, right string) string {
 	return border(left) + border(strings.Repeat(gLineH, w)) + border(right)
 }
 
 func frameBottom(w int) string { return frameRule(w, gCornerBL, gCornerBR) }
 
-// frameBadge draws a screen's type tag and title under the top border.
 func frameBadge(w int, label string, labelBg color.Color, title string) string {
 	return frameLine(w, []span{
 		{text: "  ", fg: cDim},
@@ -196,8 +199,6 @@ func frameBadge(w int, label string, labelBg color.Color, title string) string {
 	}, nil)
 }
 
-// frameStatus draws the status line: a glyph, a message truncated to fit, and
-// a position counter pinned to the right border.
 func frameStatus(w int, icon string, fg color.Color, text, pos string) string {
 	textW := max(w-4-len([]rune(pos)), 0)
 	return frameLine(w, []span{
@@ -223,7 +224,6 @@ func statusGlyph(k statusKind) (string, color.Color) {
 	}
 }
 
-// cursorPos formats the "3/12" counter frameStatus ends with.
 func cursorPos(cur, n int) string {
 	if n == 0 {
 		return "0/0"
@@ -231,10 +231,7 @@ func cursorPos(cur, n int) string {
 	return fmt.Sprintf("%d/%d", cur+1, n)
 }
 
-// frameKeybar lays out key/label hints, wrapping onto extra lines rather than
-// spilling past the right border.
 func frameKeybar(w int, binds []keybind) []string {
-	// One indent span plus a key/label pair per bind, if nothing wraps.
 	newLine := func() []span {
 		return append(make([]span, 0, 1+2*len(binds)), span{text: " ", fg: cDim})
 	}
@@ -299,8 +296,6 @@ func frameTagged(w int, tag string, bg color.Color, text string) string {
 	}, nil)
 }
 
-// frameErrPanel draws the failure panel: a titled rule, the key/value lines
-// describing what went wrong, an optional hint and the way out.
 func frameErrPanel(w int, e *connError) []string {
 	tag := " " + strings.ToUpper(string(e.op)) + " FAILED "
 
@@ -400,8 +395,6 @@ func frameErrKV(w int, label, value string, valColor color.Color) string {
 	}, nil)
 }
 
-// selectBox is a select field's value as the frame draws it: the value itself,
-// its position among the options, and the two states that repaint the box.
 type selectBox struct {
 	value  string
 	at, n  int
@@ -409,8 +402,6 @@ type selectBox struct {
 	bad    bool
 }
 
-// frameSelectBox draws a select field's < value > box w cells wide: the value
-// centred between the cycle arrows, its position pinned to the right.
 func frameSelectBox(w int, s selectBox, bg color.Color) []span {
 	borderFg := cBorder
 	switch {
@@ -485,13 +476,13 @@ func chipsWindow(chips []chip, w int) (from, to int) {
 	return from, max(to, min(focus+1, len(chips)))
 }
 
-func frameChips(chips []chip, active bool, bg color.Color) []span {
+func frameChips(w int, chips []chip, active bool, bg color.Color) []span {
 	if len(chips) == 0 {
 		fg := cFaint
 		if active {
 			fg = cInvFg
 		}
-		return []span{{text: truncPad(" "+gEmptyList, formBoxW, false), fg: fg, bg: bg}}
+		return []span{{text: truncPad(" "+gEmptyList, w, false), fg: fg, bg: bg}}
 	}
 
 	fg := cFg
@@ -499,7 +490,7 @@ func frameChips(chips []chip, active bool, bg color.Color) []span {
 		fg = cInvFg
 	}
 
-	from, to := chipsWindow(chips, formBoxW-5)
+	from, to := chipsWindow(chips, w-5)
 	spans := make([]span, 0, 2*(to-from)+4)
 	used := 0
 	add := func(s span) {
@@ -519,5 +510,5 @@ func frameChips(chips []chip, active bool, bg color.Color) []span {
 	if to < len(chips) {
 		add(span{text: " " + gEllipsis, fg: fg, bg: bg})
 	}
-	return append(spans, span{text: strings.Repeat(" ", max(formBoxW-used, 0)), bg: bg})
+	return append(spans, span{text: strings.Repeat(" ", max(w-used, 0)), bg: bg})
 }

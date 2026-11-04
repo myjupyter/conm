@@ -15,6 +15,7 @@ import (
 const (
 	bindsWindow = 15
 	bindLabelW  = 20
+	bindBoxW    = formBoxW - 2
 )
 
 type bindsTab struct {

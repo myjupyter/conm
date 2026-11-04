@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"strconv"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -27,38 +26,52 @@ func (m transportModel) View() tea.View {
 
 func (m transportModel) render() string {
 	n := m.transports.Len()
-	total := m.transports.CountOf(m.transports.Active())
-
-	lines := []string{
-		frameTop(transportInner, "transports", fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "transport", "transports"))),
-		m.kindTabsLine(total),
-		frameRule(transportInner, gTeeL, gTeeR),
-		m.transportHeaderLine(),
-		frameRule(transportInner, gTeeL, gTeeR),
-	}
+	start, end := m.rows.Range(n)
+	lines := m.headLines(scrollNote(start, n-end))
 
 	if n == 0 {
-		lines = append(lines, frameLine(transportInner, []span{
-			{text: truncPad(m.emptyTransportText(), transportInner, false), fg: cFaint},
+		lines = append(lines, frameLine(m.inner(), []span{
+			{text: truncPad(m.emptyTransportText(), m.inner(), false), fg: cFaint},
 		}, nil))
-	} else {
-		for i := range n {
-			lines = append(lines, m.transportRowLine(i))
-		}
+	}
+	for i := start; i < end; i++ {
+		lines = append(lines, m.transportRowLine(i))
 	}
 
-	lines = append(lines, frameRule(transportInner, gTeeL, gTeeR))
-	lines = append(lines, m.transportFooterLines(n)...)
-	lines = append(lines, frameBottom(transportInner))
-	return strings.Join(lines, "\n")
+	return m.size.join(append(lines, m.tailLines()...))
+}
+
+func (m transportModel) inner() int {
+	return m.size.frameWidth(transportInner)
+}
+
+func (m transportModel) viaWidth() int {
+	return wTrVia + m.size.extra(transportInner)
+}
+
+func (m transportModel) headLines(scroll string) []string {
+	total := m.transports.CountOf(m.transports.Active())
+	return []string{
+		frameTop(m.inner(), "transports", topNote(fmt.Sprintf("%d %s", total, plural(total, "transport", "transports")), scroll)),
+		m.kindTabsLine(total),
+		frameRule(m.inner(), gTeeL, gTeeR),
+		m.transportHeaderLine(),
+		frameRule(m.inner(), gTeeL, gTeeR),
+	}
+}
+
+func (m transportModel) tailLines() []string {
+	lines := []string{frameRule(m.inner(), gTeeL, gTeeR)}
+	lines = append(lines, m.transportFooterLines(m.transports.Len())...)
+	return append(lines, frameBottom(m.inner()))
 }
 
 func (m transportModel) transportFooterLines(n int) []string {
 	var lines []string
 	if m.transports.Confirming() || m.statusKind != kindIdle {
-		lines = append(lines, m.transportStatusLine(), frameRule(transportInner, gTeeL, gTeeR))
+		lines = append(lines, m.transportStatusLine(), frameRule(m.inner(), gTeeL, gTeeR))
 	}
-	return append(lines, keyhintLines(transportInner, keyhintFooter{
+	return append(lines, keyhintLines(m.inner(), keyhintFooter{
 		groups: m.keyhints(),
 		open:   m.transports.Help(),
 		search: m.transports.Searching() || m.transports.Filtered(),
@@ -77,18 +90,18 @@ func (m transportModel) emptyTransportText() string {
 
 func (m transportModel) kindTabsLine(n int) string {
 	label := fmt.Sprintf(" %s %d ", m.transports.Active(), n)
-	return frameLine(transportInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: " ", fg: cDim},
 		{text: label, fg: cInvFg, bg: cAccent, bold: true},
 	}, nil)
 }
 
 func (m transportModel) transportHeaderLine() string {
-	return frameLine(transportInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: truncPad("", wMark, false), fg: cDim},
 		{text: " " + truncPad("NAME", wTrName, false), fg: cDim},
 		{text: " " + truncPad("KIND", wTrKind, false), fg: cDim},
-		{text: " " + truncPad("VIA", wTrVia, false), fg: cDim},
+		{text: " " + truncPad("VIA", m.viaWidth(), false), fg: cDim},
 		{text: " " + truncPad("LOCAL PORT", wTrPort, false), fg: cDim},
 		{text: " " + truncPad("USED BY", wTrUsed, false), fg: cDim},
 	}, nil)
@@ -97,7 +110,7 @@ func (m transportModel) transportHeaderLine() string {
 func (m transportModel) transportRowLine(i int) string {
 	t, ok := m.transports.At(i)
 	if !ok {
-		return frameLine(transportInner, nil, nil)
+		return frameLine(m.inner(), nil, nil)
 	}
 	sel := i == m.transports.Cursor()
 	used := len(m.transports.UsagesAt(i))
@@ -141,11 +154,11 @@ func (m transportModel) transportRowLine(i int) string {
 		}
 	}
 
-	return frameLine(transportInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: caret + mark, fg: markC, bg: bg},
 		{text: " " + truncPad(t.Name, wTrName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(t.Kind, wTrKind, false), fg: soft, bg: bg},
-		{text: " " + truncPad(m.viaText(t), wTrVia, false), fg: soft, bg: bg},
+		{text: " " + truncPad(m.viaText(t), m.viaWidth(), false), fg: soft, bg: bg},
 		{text: " " + truncPad(port, wTrPort, false), fg: soft, bg: bg},
 		{text: " " + truncPad(usedText, wTrUsed, false), fg: usedFg, bg: bg},
 	}, bg)
@@ -157,5 +170,5 @@ func (m transportModel) transportStatusLine() string {
 	if m.transports.Confirming() {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete transport %q? y/n", m.cursorTransportLabel())
 	}
-	return frameStatus(transportInner, icon, col, text, "")
+	return frameStatus(m.inner(), icon, col, text, "")
 }

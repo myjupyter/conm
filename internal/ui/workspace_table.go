@@ -9,6 +9,9 @@ import (
 )
 
 type workspaceModel struct {
+	size screenSize
+	rows view.Scroll
+
 	workspaces *view.Workspaces
 	entered    bool
 
@@ -31,6 +34,16 @@ func newWorkspaceModel(workspaces *view.Workspaces) workspaceModel {
 func (m workspaceModel) Init() tea.Cmd { return nil }
 
 func (m workspaceModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[workspaceModel](m.update(msg))
+}
+
+func (m workspaceModel) followCursor() workspaceModel {
+	m.size.follow(&m.rows, len(m.headLines(""))+len(m.tailLines()), focusRow(m.workspaces.Cursor()), m.workspaces.Len())
+	return m
+}
+
+func (m workspaceModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.handleWorkspaceKeyMsg(msg)

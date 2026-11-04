@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -23,36 +22,50 @@ func (m workspaceModel) View() tea.View {
 
 func (m workspaceModel) render() string {
 	n := m.workspaces.Len()
-	total := m.workspaces.Total()
-
-	lines := []string{
-		frameTop(workspaceInner, "workspaces", fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "workspace", "workspaces"))),
-		m.workspaceHeaderLine(),
-		frameRule(workspaceInner, gTeeL, gTeeR),
-	}
+	start, end := m.rows.Range(n)
+	lines := m.headLines(scrollNote(start, n-end))
 
 	if n == 0 {
-		lines = append(lines, frameLine(workspaceInner, []span{
-			{text: truncPad("   no workspace matches the filter", workspaceInner, false), fg: cFaint},
+		lines = append(lines, frameLine(m.inner(), []span{
+			{text: truncPad("   no workspace matches the filter", m.inner(), false), fg: cFaint},
 		}, nil))
-	} else {
-		for i := range n {
-			lines = append(lines, m.workspaceRowLine(i))
-		}
+	}
+	for i := start; i < end; i++ {
+		lines = append(lines, m.workspaceRowLine(i))
 	}
 
-	lines = append(lines, frameRule(workspaceInner, gTeeL, gTeeR))
-	lines = append(lines, m.workspaceFooterLines(n)...)
-	lines = append(lines, frameBottom(workspaceInner))
-	return strings.Join(lines, "\n")
+	return m.size.join(append(lines, m.tailLines()...))
+}
+
+func (m workspaceModel) inner() int {
+	return m.size.frameWidth(workspaceInner)
+}
+
+func (m workspaceModel) nameWidth() int {
+	return wWsName + m.size.extra(workspaceInner)
+}
+
+func (m workspaceModel) headLines(scroll string) []string {
+	total := m.workspaces.Total()
+	return []string{
+		frameTop(m.inner(), "workspaces", topNote(fmt.Sprintf("%d %s", total, plural(total, "workspace", "workspaces")), scroll)),
+		m.workspaceHeaderLine(),
+		frameRule(m.inner(), gTeeL, gTeeR),
+	}
+}
+
+func (m workspaceModel) tailLines() []string {
+	lines := []string{frameRule(m.inner(), gTeeL, gTeeR)}
+	lines = append(lines, m.workspaceFooterLines(m.workspaces.Len())...)
+	return append(lines, frameBottom(m.inner()))
 }
 
 func (m workspaceModel) workspaceFooterLines(n int) []string {
 	var lines []string
 	if m.workspaces.Confirming() || m.statusKind != kindIdle {
-		lines = append(lines, m.workspaceStatusLine(), frameRule(workspaceInner, gTeeL, gTeeR))
+		lines = append(lines, m.workspaceStatusLine(), frameRule(m.inner(), gTeeL, gTeeR))
 	}
-	return append(lines, keyhintLines(workspaceInner, keyhintFooter{
+	return append(lines, keyhintLines(m.inner(), keyhintFooter{
 		groups: m.keyhints(),
 		open:   m.workspaces.Help(),
 		search: m.workspaces.Searching() || m.workspaces.Filtered(),
@@ -63,9 +76,9 @@ func (m workspaceModel) workspaceFooterLines(n int) []string {
 }
 
 func (m workspaceModel) workspaceHeaderLine() string {
-	return frameLine(workspaceInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: truncPad("", wMark, false), fg: cDim},
-		{text: " " + truncPad("NAME", wWsName, false), fg: cDim},
+		{text: " " + truncPad("NAME", m.nameWidth(), false), fg: cDim},
 		{text: " " + truncPad("STATUS", wWsStatus, false), fg: cDim},
 	}, nil)
 }
@@ -73,7 +86,7 @@ func (m workspaceModel) workspaceHeaderLine() string {
 func (m workspaceModel) workspaceRowLine(i int) string {
 	name, ok := m.workspaces.At(i)
 	if !ok {
-		return frameLine(workspaceInner, nil, nil)
+		return frameLine(m.inner(), nil, nil)
 	}
 	sel := i == m.workspaces.Cursor()
 	current := name == m.workspaces.Current()
@@ -96,9 +109,9 @@ func (m workspaceModel) workspaceRowLine(i int) string {
 		mark, note = gDotOn, "current"
 	}
 
-	return frameLine(workspaceInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: caret + mark, fg: markC, bg: bg},
-		{text: " " + truncPad(name, wWsName, false), fg: fg, bg: bg},
+		{text: " " + truncPad(name, m.nameWidth(), false), fg: fg, bg: bg},
 		{text: " " + truncPad(note, wWsStatus, false), fg: soft, bg: bg},
 	}, bg)
 }
@@ -109,5 +122,5 @@ func (m workspaceModel) workspaceStatusLine() string {
 	if m.workspaces.Confirming() {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete workspace %q with its connections and secrets? y/n", m.cursorWorkspaceLabel())
 	}
-	return frameStatus(workspaceInner, icon, col, text, "")
+	return frameStatus(m.inner(), icon, col, text, "")
 }

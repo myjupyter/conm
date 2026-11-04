@@ -31,6 +31,9 @@ type Model struct {
 
 	chord   string
 	chordID int
+
+	size screenSize
+	rows view.Scroll
 }
 
 type connState struct {
@@ -111,6 +114,20 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if tick, ok := msg.(spinner.TickMsg); ok {
+		return m.tickSpinners(tick)
+	}
+	m.size.observe(msg)
+	return followed[Model](m.update(msg))
+}
+
+func (m Model) followCursor() Model {
+	cursor := m.conns.Cursor()
+	m.size.follow(&m.rows, len(m.headLines(""))+len(m.footerTail()), focusRow(cursor), m.conns.Len())
+	return m
+}
+
+func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.handleKeyMsg(msg)
@@ -140,9 +157,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chord = ""
 			return m.dispatchKey(first)
 		}
-
-	case spinner.TickMsg:
-		return m.tickSpinners(msg)
 	}
 
 	return m, nil

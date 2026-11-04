@@ -3,12 +3,12 @@ package ui
 import (
 	"image/color"
 	"slices"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 const settingsSectionLines = 7
@@ -27,40 +27,58 @@ func (m settingsModel) View() tea.View {
 	return v
 }
 
+func (m settingsModel) inner() int {
+	return m.size.modalWidth(infoInner)
+}
+
 func (m settingsModel) render() string {
-	window, cursor, n := m.window, m.cursor, len(m.conm.Connections)
+	body := m.clientLines()
 	if m.tab == settingsKeybindTab {
-		window, cursor, n = m.binds.window, m.binds.cursor, len(m.bindings())
+		body = m.bindsLines()
 	}
+	lines := append(m.headLines(), m.size.keepEnd(body, m.chrome())...)
+	return m.size.join(append(lines, m.tailLines()...))
+}
 
-	lines := []string{
-		frameTop(infoInner, "settings", ""),
-		frameTabs(infoInner, settingsTabTitles, m.tab, scrollNote(window.Above(), window.Below(n))),
-		frameRule(infoInner, gTeeL, gTeeR),
-	}
+func (m settingsModel) chrome() int {
+	return len(m.headLines()) + len(m.tailLines())
+}
 
+func (m settingsModel) tabWindow() (view.Scroll, int, int) {
 	if m.tab == settingsKeybindTab {
-		lines = append(lines, m.bindsLines()...)
-	} else {
-		lines = append(lines, m.clientLines()...)
+		return m.binds.window, m.binds.cursor, len(m.bindings())
 	}
-	lines = append(lines, frameLine(infoInner, nil, nil), frameRule(infoInner, gTeeL, gTeeR))
+	return m.window, m.cursor, len(m.conm.Connections)
+}
+
+func (m settingsModel) headLines() []string {
+	window, _, n := m.tabWindow()
+	return []string{
+		frameTop(m.inner(), "settings", ""),
+		frameTabs(m.inner(), settingsTabTitles, m.tab, scrollNote(window.Above(), window.Below(n))),
+		frameRule(m.inner(), gTeeL, gTeeR),
+	}
+}
+
+func (m settingsModel) tailLines() []string {
+	_, cursor, n := m.tabWindow()
+	lines := []string{frameLine(m.inner(), nil, nil), frameRule(m.inner(), gTeeL, gTeeR)}
 
 	if m.statusKind != kindIdle {
 		icon, col := statusGlyph(m.statusKind)
 		lines = append(lines,
-			frameStatus(infoInner, icon, col, m.status, ""),
-			frameRule(infoInner, gTeeL, gTeeR),
+			frameStatus(m.inner(), icon, col, m.status, ""),
+			frameRule(m.inner(), gTeeL, gTeeR),
 		)
 	}
 
-	lines = append(lines, keyhintLines(infoInner, keyhintFooter{
+	lines = append(lines, keyhintLines(m.inner(), keyhintFooter{
 		groups: m.keyhints(),
 		open:   m.help,
 		pos:    cursorPos(cursor, n),
 	})...)
 
-	return strings.Join(append(lines, frameBottom(infoInner)), "\n")
+	return append(lines, frameBottom(m.inner()))
 }
 
 func (m settingsModel) clientLines() []string {
@@ -78,17 +96,17 @@ func (m settingsModel) sectionLines(db config.ConnectionSettings, on bool) []str
 	if !m.installed(db.Type) {
 		note = "no client installed"
 	}
-	lines := frameHead(infoInner, db.Type.String(), note)
+	lines := frameHead(m.inner(), db.Type.String(), note)
 
 	for _, r := range m.clientRows(db) {
-		for i, chunk := range wrapValue(r.value, infoInner-4-wInfoLbl) {
-			lines = append(lines, infoRowLine(r, chunk, i == 0, false))
+		for i, chunk := range wrapValue(r.value, m.inner()-4-wInfoLbl) {
+			lines = append(lines, infoRowLine(m.inner(), r, chunk, i == 0, false))
 		}
 	}
 
 	return append(lines,
-		settingsLine(settingsSupportsLabel, m.supportsSpans(db), false),
-		settingsLine(settingsClientLabel, m.selectorSpans(db, on), on),
+		m.settingsLine(settingsSupportsLabel, m.supportsSpans(db), false),
+		m.settingsLine(settingsClientLabel, m.selectorSpans(db, on), on),
 	)
 }
 
@@ -162,11 +180,11 @@ func (m settingsModel) selectorSpans(db config.ConnectionSettings, on bool) []sp
 	}, bg)
 }
 
-func settingsLine(label string, value []span, on bool) string {
-	return settingsLabelLine(label, wInfoLbl, value, on)
+func (m settingsModel) settingsLine(label string, value []span, on bool) string {
+	return m.settingsLabelLine(label, wInfoLbl, value, on)
 }
 
-func settingsLabelLine(label string, labelW int, value []span, on bool) string {
+func (m settingsModel) settingsLabelLine(label string, labelW int, value []span, on bool) string {
 	labelFg, bg := cDim, color.Color(nil)
 	caret := "  "
 	if on {
@@ -180,5 +198,5 @@ func settingsLabelLine(label string, labelW int, value []span, on bool) string {
 		span{text: "  ", bg: bg},
 	)
 
-	return frameLine(infoInner, append(spans, value...), bg)
+	return frameLine(m.inner(), append(spans, value...), bg)
 }
