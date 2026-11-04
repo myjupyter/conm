@@ -14,7 +14,7 @@ func (m settingsModel) bindsLines() []string {
 	var lines []string
 	for i := start; i < end; i++ {
 		if i == start || bindGroup(bindings[i]) != bindGroup(bindings[i-1]) {
-			lines = append(lines, frameHead(infoInner, bindGroup(bindings[i]), "")...)
+			lines = append(lines, frameHead(m.inner(), bindGroup(bindings[i]), "")...)
 		}
 		lines = append(lines, m.bindLine(bindings[i], i == m.binds.cursor))
 	}
@@ -28,9 +28,9 @@ func (m settingsModel) bindLine(b config.Keybinding, on bool) string {
 		bg, noteFg = cAccent, cInvFg
 	}
 
-	value := frameChips(m.bindChips(b, on), on, bg)
+	value := frameChips(bindBoxW, m.bindChips(b, on), on, bg)
 	value = append(value, span{text: "  " + m.bindNote(b, on), fg: noteFg, bg: bg})
-	return settingsLabelLine(bindLabel(b), bindLabelW, value, on)
+	return m.settingsLabelLine(bindLabel(b), bindLabelW, value, on)
 }
 
 func (m settingsModel) bindChips(b config.Keybinding, on bool) []chip {
@@ -63,11 +63,8 @@ func (m settingsModel) bindChips(b config.Keybinding, on bool) []chip {
 }
 
 func (m settingsModel) bindNote(b config.Keybinding, on bool) string {
-	switch {
-	case on && m.binds.capture:
+	if on && m.binds.capture {
 		return keyMap.Cancel.hint + " cancels"
-	case on && m.binds.confirm:
-		return "reset to default?  " + keyMap.Prompt.Yes.hint + " / " + keyMap.Prompt.No.hint
 	}
 	if defaults := defaultKeys(b.Path); !slices.Equal(b.Keys, defaults) {
 		return "default " + hintOf(defaults)

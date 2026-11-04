@@ -21,6 +21,8 @@ const (
 var settingsTabTitles = []string{"client", "keybind"}
 
 type settingsModel struct {
+	size screenSize
+
 	conm     config.Conm
 	clients  map[config.ConnType][]cli.Info
 	versions map[string]string
@@ -70,6 +72,21 @@ func newSettingsModel(conm config.Conm) settingsModel {
 func (m settingsModel) Init() tea.Cmd { return m.probeVersionsCmd() }
 
 func (m settingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[settingsModel](m.update(msg))
+}
+
+func (m settingsModel) followCursor() settingsModel {
+	chrome := m.chrome()
+	if m.tab == settingsKeybindTab {
+		m.size.fit(&m.binds.window, chrome, m.binds.cursor, len(m.bindings()), func() int { return len(m.bindsLines()) })
+	} else {
+		m.size.fit(&m.window, chrome, m.cursor, len(m.conm.Connections), func() int { return len(m.clientLines()) })
+	}
+	return m
+}
+
+func (m settingsModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.handleSettingsKey(msg.String())

@@ -8,9 +8,13 @@ import (
 
 	"github.com/myjupyter/conm/internal/cli"
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 type initModel struct {
+	size screenSize
+	rows view.Scroll
+
 	types   []config.ConnType
 	clients map[config.ConnType][]cli.Info
 
@@ -54,6 +58,16 @@ func newAddConnectionModel() initModel {
 func (m initModel) Init() tea.Cmd { return nil }
 
 func (m initModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[initModel](m.update(msg))
+}
+
+func (m initModel) followCursor() initModel {
+	m.size.follow(&m.rows, len(m.headLines(""))+len(m.tailLines()), focusRow(m.cursor), len(m.types))
+	return m
+}
+
+func (m initModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		return m.handleInitKey(msg.String())
 	}

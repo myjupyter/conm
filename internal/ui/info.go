@@ -46,6 +46,9 @@ type infoRow struct {
 }
 
 type infoModel struct {
+	size screenSize
+	body view.Scroll
+
 	conns *view.Connections
 
 	client cli.Info
@@ -77,6 +80,17 @@ func newInfoModel(conns *view.Connections) infoModel {
 func (m infoModel) Init() tea.Cmd { return m.clientInfoCmd() }
 
 func (m infoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[infoModel](m.update(msg))
+}
+
+func (m infoModel) followCursor() infoModel {
+	body, focus := m.infoRowLines()
+	m.size.follow(&m.body, len(m.headLines(""))+len(m.tailLines()), focus, len(body))
+	return m
+}
+
+func (m infoModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.handleInfoKey(msg.String())

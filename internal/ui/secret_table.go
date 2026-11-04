@@ -8,9 +8,10 @@ import (
 	"github.com/myjupyter/conm/internal/ui/view"
 )
 
-// secretModel lists the records of one secret store. It owns no material: the
-// password only ever passes through on its way from the form into the view.
 type secretModel struct {
+	size screenSize
+	rows view.Scroll
+
 	secrets *view.Secrets
 
 	status     string
@@ -29,8 +30,6 @@ func newSecretModel(secrets *view.Secrets) secretModel {
 	}
 }
 
-// newSecretPicker opens the same screen as a chooser, positioned on the entry
-// the caller already holds.
 func newSecretPicker(secrets *view.Secrets) secretModel {
 	m := newSecretModel(secrets)
 	if m.secrets.Len() == 0 {
@@ -44,6 +43,16 @@ func newSecretPicker(secrets *view.Secrets) secretModel {
 func (m secretModel) Init() tea.Cmd { return nil }
 
 func (m secretModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[secretModel](m.update(msg))
+}
+
+func (m secretModel) followCursor() secretModel {
+	m.size.follow(&m.rows, len(m.headLines(""))+len(m.tailLines()), focusRow(m.secrets.Cursor()), m.secrets.Len())
+	return m
+}
+
+func (m secretModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return m.handleSecretKeyMsg(msg)
@@ -98,7 +107,6 @@ func (m secretModel) handleSecretKey(key string) (tea.Model, tea.Cmd) {
 	case keyMap.Down.matches(key):
 		m.secrets.MoveDown()
 	case keyMap.SwitchKind.matches(key):
-		// One store is configured, so switching is a no-op worth saying out loud.
 		m.setSecretStatus(m.secrets.Active()+" is the only store configured", kindWarn)
 	case keyMap.Confirm.matches(key):
 		if m.secrets.Picking() {
@@ -135,8 +143,6 @@ func (m secretModel) handleSecretConfirmKey(key string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// describe reports where the selected entry points and who depends on it — the
-// two things the table has no room to spell out in full.
 func (m secretModel) describe() secretModel {
 	s, ok := m.secrets.Secret()
 	if !ok {

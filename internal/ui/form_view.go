@@ -16,12 +16,8 @@ const (
 	formLabelW = 18
 	formBoxW   = 46
 
-	// The rail bracketing a link's two rows takes its width out of the label,
-	// so every input box still starts in the same column.
 	railW = 2
 
-	// The metadata section is drawn as two titled blocks rather than one
-	// undifferentiated pile: the fields every entity shares, then the links.
 	commonHeadTitle = "common"
 	linksHeadTitle  = "links"
 )
@@ -33,53 +29,76 @@ func (m formModel) View() tea.View {
 }
 
 func (m formModel) render() string {
-	lines := []string{
-		m.formTopLine(),
+	body, _ := m.bodyLines()
+	start, end := m.body.Range(len(body))
+	lines := append(m.headLines(scrollNote(start, len(body)-end)), body[start:end]...)
+	return m.size.join(append(lines, m.tailLines()...))
+}
+
+func (m formModel) headLines(scroll string) []string {
+	return []string{
+		m.formTopLine(scroll),
 		m.badgeLine(),
-		frameLine(formInner, nil, nil),
+		frameLine(m.size.formInner(), nil, nil),
 		m.tabLine(),
 		m.dividerLine(),
 	}
+}
 
+func (m formModel) bodyLines() (lines []string, focus focusSpan) {
 	titled := m.hasLinks() && m.section == m.linkSect
 	if titled {
-		lines = append(lines, frameHead(formInner, commonHeadTitle, "")...)
+		lines = append(lines, frameHead(m.size.formInner(), commonHeadTitle, "")...)
 	}
 
-	for _, i := range m.sectionFields(m.section) {
+	fields := m.sectionFields(m.section)
+	for n, i := range fields {
+		at := len(lines)
 		if m.fields[i].Key == spec.LinkNameKey(0) {
 			lines = append(lines, m.linkHeadLines()...)
+		}
+		if n == 0 {
+			at = 0
+		}
+		if n == m.idx {
+			focus = focusSpan{from: at, row: len(lines), to: len(lines) + 1}
 		}
 		lines = append(lines, m.fieldRow(i), m.messageRow(i))
 	}
 	if titled && m.linkCount() == 0 {
 		lines = append(lines, m.linkHeadLines()...)
+		if m.idx == len(fields)-1 {
+			focus.to = len(lines) - 1
+		}
 	}
-	lines = append(lines, frameLine(formInner, nil, nil))
-
-	if m.pong != "" {
-		lines = append(lines, frameRule(formInner, gTeeL, gTeeR), m.pongLine())
-	}
-	if m.ping != nil {
-		lines = append(lines, frameErrPanel(formInner, m.ping)...)
-	}
-
-	lines = append(lines, frameRule(formInner, gTeeL, gTeeR), m.formStatusLine())
-	if m.insert {
-		lines = append(lines, keyhintBar(formInner, m.keyhints())...)
-	} else {
-		lines = append(lines, keyhintLines(formInner, keyhintFooter{groups: m.keyhints(), open: m.help})...)
-	}
-	lines = append(lines, frameBottom(formInner))
-	return strings.Join(lines, "\n")
+	return lines, focus
 }
 
-func (m formModel) formTopLine() string {
+func (m formModel) tailLines() []string {
+	lines := []string{frameLine(m.size.formInner(), nil, nil)}
+
+	if m.pong != "" {
+		lines = append(lines, frameRule(m.size.formInner(), gTeeL, gTeeR), m.pongLine())
+	}
+	if m.ping != nil {
+		lines = append(lines, frameErrPanel(m.size.formInner(), m.ping)...)
+	}
+
+	lines = append(lines, frameRule(m.size.formInner(), gTeeL, gTeeR), m.formStatusLine())
+	if m.insert {
+		lines = append(lines, keyhintBar(m.size.formInner(), m.keyhints())...)
+	} else {
+		lines = append(lines, keyhintLines(m.size.formInner(), keyhintFooter{groups: m.keyhints(), open: m.help})...)
+	}
+	return append(lines, frameBottom(m.size.formInner()))
+}
+
+func (m formModel) formTopLine(scroll string) string {
 	crumb := "new connection"
 	if m.isEdit {
 		crumb = "edit connection"
 	}
-	return frameTop(formInner, crumb, "")
+	return frameTop(m.size.formInner(), crumb, topNote(scroll))
 }
 
 func (m formModel) badgeLine() string {
@@ -91,7 +110,7 @@ func (m formModel) badgeLine() string {
 		}
 		title = "editing " + name
 	}
-	return frameBadge(formInner, m.kind.String(), typeColor(m.kind), title)
+	return frameBadge(m.size.formInner(), m.kind.String(), typeColor(m.kind), title)
 }
 
 func (m formModel) tabLine() string {
@@ -109,25 +128,23 @@ func (m formModel) tabLine() string {
 		}
 		spans = append(spans, span{text: "  ", fg: cDim})
 	}
-	return frameLine(formInner, spans, nil)
+	return frameLine(m.size.formInner(), spans, nil)
 }
 
 func (m formModel) dividerLine() string {
-	return frameLine(formInner, []span{
+	return frameLine(m.size.formInner(), []span{
 		{text: "  ", fg: cDim},
-		{text: strings.Repeat(gLineH, formInner-4), fg: cBorder},
+		{text: strings.Repeat(gLineH, m.size.formInner()-4), fg: cBorder},
 	}, nil)
 }
 
 func (m formModel) linkHeadLines() []string {
-	// The keys are in the footer, so the header only speaks up when the list is
-	// empty and there is nothing else to say what to do.
 	note := ""
 	if m.linkCount() == 0 {
 		note = "nothing linked yet — " + keyMap.Form.AddItem.hint + " adds one"
 	}
 
-	return frameHead(formInner, linksHeadTitle, note)
+	return frameHead(m.size.formInner(), linksHeadTitle, note)
 }
 
 func (m formModel) fieldRow(i int) string {
@@ -166,11 +183,9 @@ func (m formModel) fieldRow(i int) string {
 		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, bold: active},
 	)
 	spans = append(spans, box...)
-	return frameLine(formInner, spans, bg)
+	return frameLine(m.size.formInner(), spans, bg)
 }
 
-// rowBg tints a link's two rows together: the row under the cursor takes the
-// full accent, its sibling a dim wash, so the pair reads as one object.
 func (m formModel) rowBg(active, pair, pairActive bool) color.Color {
 	switch {
 	case active:
@@ -231,7 +246,7 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 	}
 	return []span{
 		{text: gLineV, fg: borderFg, bg: bg},
-		{text: truncPad(disp, formBoxW-2, false), fg: valFg, bg: bg},
+		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
 		{text: gLineV, fg: borderFg, bg: bg},
 	}
 }
@@ -263,14 +278,14 @@ func (m formModel) chips(f spec.FormField, active bool) []chip {
 }
 
 func (m formModel) chipsBox(f spec.FormField, active bool, bg color.Color) []span {
-	return frameChips(m.chips(f, active), active, bg)
+	return frameChips(m.size.formBox(), m.chips(f, active), active, bg)
 }
 
 func (m formModel) selectBox(f spec.FormField, active bool, borderFg, bg color.Color) []span {
-	return selectSpans(m.vals[f.Key], m.options(f), m.isMissing(f), active, borderFg, bg)
+	return selectSpans(m.size.formBox(), m.vals[f.Key], m.options(f), m.isMissing(f), active, borderFg, bg)
 }
 
-func selectSpans(value string, options []string, missing, active bool, borderFg, bg color.Color) []span {
+func selectSpans(w int, value string, options []string, missing, active bool, borderFg, bg color.Color) []span {
 	pos := fmt.Sprintf("-/%d", len(options))
 	if !missing {
 		pos = fmt.Sprintf("%d/%d", max(slices.Index(options, value), 0)+1, len(options))
@@ -278,7 +293,7 @@ func selectSpans(value string, options []string, missing, active bool, borderFg,
 	if value == "" {
 		value = gEmpty
 	}
-	mid := max(formBoxW-8-len([]rune(pos)), 0)
+	mid := max(w-8-len([]rune(pos)), 0)
 	value = truncPad(value, mid, false)
 	left := max((mid-len([]rune(value)))/2, 0)
 	right := max(mid-left-len([]rune(value)), 0)
@@ -311,8 +326,6 @@ func (m formModel) display(i int, active bool) (string, bool) {
 		return "no password sent", true
 	}
 
-	// A reference is a name, not a password: it is shown as typed, never
-	// masked, because hiding which entry is attached helps nobody.
 	if m.isSecretField(i) && m.isRef() {
 		if raw == "" {
 			return "no entry — " + keyMap.Cycle.hint + " to pick", true
@@ -374,19 +387,19 @@ func (m formModel) messageRow(i int) string {
 	bg := m.rowBg(false, pair, pairActive)
 
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return frameLine(formInner, []span{
+	return frameLine(m.size.formInner(), []span{
 		{text: prefix, fg: cDim, bg: bg},
-		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: col, bg: bg},
+		{text: truncPad(text, m.size.formInner()-len([]rune(prefix))-2, false), fg: col, bg: bg},
 	}, bg)
 }
 
 func (m formModel) pongLine() string {
-	return framePong(formInner, m.pong)
+	return framePong(m.size.formInner(), m.pong)
 }
 
 func (m formModel) formStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
-	return frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.sectionFields(m.section))))
+	return frameStatus(m.size.formInner(), icon, col, m.status, cursorPos(m.idx, len(m.sectionFields(m.section))))
 }
 
 const caretBlank = "   "

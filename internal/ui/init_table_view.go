@@ -26,25 +26,42 @@ func (m initModel) View() tea.View {
 
 func (m initModel) render() string {
 	n := len(m.types)
+	start, end := m.rows.Range(n)
+	lines := m.headLines(scrollNote(start, n-end))
 
-	lines := []string{
-		frameTop(initInner, m.initCrumb(), fmt.Sprintf(" %d of %d available "+gLineH, m.availableCount(), n)),
-		frameLine(initInner, []span{
-			{text: "  ", fg: cDim},
-			{text: m.initIntro(), fg: cFg},
-		}, nil),
-		frameLine(initInner, nil, nil),
-		m.initHeaderLine(),
-		frameRule(initInner, gTeeL, gTeeR),
-	}
-
-	for i := range n {
+	for i := start; i < end; i++ {
 		lines = append(lines, m.initRowLine(i))
 	}
 
-	lines = append(lines, frameRule(initInner, gTeeL, gTeeR))
-	lines = append(lines, m.initFooterLines(n)...)
-	return strings.Join(append(lines, frameBottom(initInner)), "\n")
+	return m.size.join(append(lines, m.tailLines()...))
+}
+
+func (m initModel) inner() int {
+	return m.size.frameWidth(initInner)
+}
+
+func (m initModel) clientWidth() int {
+	return wInitClient + m.size.extra(initInner)
+}
+
+func (m initModel) headLines(scroll string) []string {
+	n := len(m.types)
+	return []string{
+		frameTop(m.inner(), m.initCrumb(), topNote(fmt.Sprintf("%d of %d available", m.availableCount(), n), scroll)),
+		frameLine(m.inner(), []span{
+			{text: "  ", fg: cDim},
+			{text: m.initIntro(), fg: cFg},
+		}, nil),
+		frameLine(m.inner(), nil, nil),
+		m.initHeaderLine(),
+		frameRule(m.inner(), gTeeL, gTeeR),
+	}
+}
+
+func (m initModel) tailLines() []string {
+	lines := []string{frameRule(m.inner(), gTeeL, gTeeR)}
+	lines = append(lines, m.initFooterLines(len(m.types))...)
+	return append(lines, frameBottom(m.inner()))
 }
 
 func (m initModel) initCrumb() string {
@@ -64,10 +81,10 @@ func (m initModel) initIntro() string {
 }
 
 func (m initModel) initHeaderLine() string {
-	return frameLine(initInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: truncPad("", wMark, false), fg: cDim},
 		{text: " " + truncPad("DATABASE", wInitType, false), fg: cDim},
-		{text: " " + truncPad("CLIENTS", wInitClient, false), fg: cDim},
+		{text: " " + truncPad("CLIENTS", m.clientWidth(), false), fg: cDim},
 		{text: " " + truncPad("STATE", wInitState, false), fg: cDim},
 	}, nil)
 }
@@ -111,7 +128,7 @@ func (m initModel) initRowLine(i int) string {
 		fg:   stateC, bg: bg, bold: available,
 	})
 
-	return frameLine(initInner, spans, bg)
+	return frameLine(m.inner(), spans, bg)
 }
 
 func (m initModel) clientSpans(t config.ConnType, sel bool, bg color.Color) []span {
@@ -137,15 +154,15 @@ func (m initModel) clientSpans(t config.ConnType, sel bool, bg color.Color) []sp
 		used += len([]rune(text))
 	}
 
-	return append(spans, span{text: strings.Repeat(" ", max(wInitClient+1-used, 1)), bg: bg})
+	return append(spans, span{text: strings.Repeat(" ", max(m.clientWidth()+1-used, 1)), bg: bg})
 }
 
 func (m initModel) initFooterLines(n int) []string {
 	var lines []string
 	if m.statusKind != kindIdle {
-		lines = append(lines, m.initStatusLine(), frameRule(initInner, gTeeL, gTeeR))
+		lines = append(lines, m.initStatusLine(), frameRule(m.inner(), gTeeL, gTeeR))
 	}
-	return append(lines, keyhintLines(initInner, keyhintFooter{
+	return append(lines, keyhintLines(m.inner(), keyhintFooter{
 		groups: m.keyhints(),
 		open:   m.help,
 		pos:    cursorPos(m.cursor, n),
@@ -154,5 +171,5 @@ func (m initModel) initFooterLines(n int) []string {
 
 func (m initModel) initStatusLine() string {
 	icon, col := statusGlyph(m.statusKind)
-	return frameStatus(initInner, icon, col, m.status, "")
+	return frameStatus(m.inner(), icon, col, m.status, "")
 }

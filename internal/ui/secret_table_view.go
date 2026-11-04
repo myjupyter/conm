@@ -3,13 +3,10 @@ package ui
 import (
 	"fmt"
 	"image/color"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-// The secrets table is narrower than the connections table: four short columns
-// instead of six, and no live state to show on the right.
 const secretInner = 88
 
 const (
@@ -27,38 +24,52 @@ func (m secretModel) View() tea.View {
 
 func (m secretModel) render() string {
 	n := m.secrets.Len()
-	total := m.secrets.CountOf(m.secrets.Active())
-
-	lines := []string{
-		frameTop(secretInner, m.crumb(), fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "entry", "entries"))),
-		m.storeTabsLine(total),
-		frameRule(secretInner, gTeeL, gTeeR),
-		m.secretHeaderLine(),
-		frameRule(secretInner, gTeeL, gTeeR),
-	}
+	start, end := m.rows.Range(n)
+	lines := m.headLines(scrollNote(start, n-end))
 
 	if n == 0 {
-		lines = append(lines, frameLine(secretInner, []span{
-			{text: truncPad(m.emptySecretText(), secretInner, false), fg: cFaint},
+		lines = append(lines, frameLine(m.inner(), []span{
+			{text: truncPad(m.emptySecretText(), m.inner(), false), fg: cFaint},
 		}, nil))
-	} else {
-		for i := range n {
-			lines = append(lines, m.secretRowLine(i))
-		}
+	}
+	for i := start; i < end; i++ {
+		lines = append(lines, m.secretRowLine(i))
 	}
 
-	lines = append(lines, frameRule(secretInner, gTeeL, gTeeR))
-	lines = append(lines, m.secretFooterLines(n)...)
-	lines = append(lines, frameBottom(secretInner))
-	return strings.Join(lines, "\n")
+	return m.size.join(append(lines, m.tailLines()...))
+}
+
+func (m secretModel) inner() int {
+	return m.size.frameWidth(secretInner)
+}
+
+func (m secretModel) descWidth() int {
+	return wSecDesc + m.size.extra(secretInner)
+}
+
+func (m secretModel) headLines(scroll string) []string {
+	total := m.secrets.CountOf(m.secrets.Active())
+	return []string{
+		frameTop(m.inner(), m.crumb(), topNote(fmt.Sprintf("%d %s", total, plural(total, "entry", "entries")), scroll)),
+		m.storeTabsLine(total),
+		frameRule(m.inner(), gTeeL, gTeeR),
+		m.secretHeaderLine(),
+		frameRule(m.inner(), gTeeL, gTeeR),
+	}
+}
+
+func (m secretModel) tailLines() []string {
+	lines := []string{frameRule(m.inner(), gTeeL, gTeeR)}
+	lines = append(lines, m.secretFooterLines(m.secrets.Len())...)
+	return append(lines, frameBottom(m.inner()))
 }
 
 func (m secretModel) secretFooterLines(n int) []string {
 	var lines []string
 	if m.secrets.Confirming() || m.statusKind != kindIdle {
-		lines = append(lines, m.secretStatusLine(), frameRule(secretInner, gTeeL, gTeeR))
+		lines = append(lines, m.secretStatusLine(), frameRule(m.inner(), gTeeL, gTeeR))
 	}
-	return append(lines, keyhintLines(secretInner, keyhintFooter{
+	return append(lines, keyhintLines(m.inner(), keyhintFooter{
 		groups: m.keyhints(),
 		open:   m.secrets.Help(),
 		search: m.secrets.Searching() || m.secrets.Filtered(),
@@ -84,7 +95,7 @@ func (m secretModel) crumb() string {
 
 func (m secretModel) storeTabsLine(n int) string {
 	label := fmt.Sprintf(" %s %d ", m.secrets.Active(), n)
-	return frameLine(secretInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: " ", fg: cDim},
 		{text: label, fg: cInvFg, bg: cAccent, bold: true},
 		{text: "  ", fg: cDim},
@@ -93,19 +104,19 @@ func (m secretModel) storeTabsLine(n int) string {
 }
 
 func (m secretModel) secretHeaderLine() string {
-	return frameLine(secretInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: truncPad("", wMark, false), fg: cDim},
 		{text: " " + truncPad("ID", wSecID, false), fg: cDim},
 		{text: " " + truncPad("LOCATION", wSecLoc, false), fg: cDim},
 		{text: " " + truncPad("USED BY", wSecUsed, false), fg: cDim},
-		{text: " " + truncPad("DESCRIPTION", wSecDesc, false), fg: cDim},
+		{text: " " + truncPad("DESCRIPTION", m.descWidth(), false), fg: cDim},
 	}, nil)
 }
 
 func (m secretModel) secretRowLine(i int) string {
 	s, ok := m.secrets.At(i)
 	if !ok {
-		return frameLine(secretInner, nil, nil)
+		return frameLine(m.inner(), nil, nil)
 	}
 	sel := i == m.secrets.Cursor()
 	used := len(m.secrets.UsagesAt(i))
@@ -144,12 +155,12 @@ func (m secretModel) secretRowLine(i int) string {
 		}
 	}
 
-	return frameLine(secretInner, []span{
+	return frameLine(m.inner(), []span{
 		{text: caret + mark, fg: markC, bg: bg},
 		{text: " " + truncPad(s.ID(), wSecID, false), fg: fg, bg: bg},
 		{text: " " + truncPad(s.Location(), wSecLoc, false), fg: soft, bg: bg},
 		{text: " " + truncPad(usedText, wSecUsed, false), fg: usedFg, bg: bg},
-		{text: " " + truncPad(s.Description(), wSecDesc, false), fg: soft, bg: bg},
+		{text: " " + truncPad(s.Description(), m.descWidth(), false), fg: soft, bg: bg},
 	}, bg)
 }
 
@@ -159,5 +170,5 @@ func (m secretModel) secretStatusLine() string {
 	if m.secrets.Confirming() {
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q from the keyring? y/n", m.cursorSecretLabel())
 	}
-	return frameStatus(secretInner, icon, col, text, "")
+	return frameStatus(m.inner(), icon, col, text, "")
 }

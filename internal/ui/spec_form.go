@@ -7,9 +7,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/ui/spec"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 type specFormModel[T any] struct {
+	size screenSize
+	body view.Scroll
+
 	spec   spec.FormSpec[T]
 	badge  string
 	noun   string
@@ -64,6 +68,16 @@ func newSpecFormModel[T any](spc spec.FormSpec[T], badge, noun, title string, in
 func (m specFormModel[T]) Init() tea.Cmd { return nil }
 
 func (m specFormModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[specFormModel[T]](m.update(msg))
+}
+
+func (m specFormModel[T]) followCursor() specFormModel[T] {
+	m.size.follow(&m.body, len(m.headLines(""))+len(m.tailLines()), focusSpan{from: 2 * m.idx, row: 2 * m.idx, to: 2*m.idx + 1}, len(m.bodyLines()))
+	return m
+}
+
+func (m specFormModel[T]) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if keyMap.Paste.matches(msg.String()) {
@@ -81,8 +95,6 @@ func (m specFormModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// applyPaste appends the clipboard to the field under the cursor. A select is
-// not typed into, so it is not pasted into either.
 func (m specFormModel[T]) applyPaste(raw string, err error) specFormModel[T] {
 	text, refusal := pasteReady(raw, err)
 	if text == "" {
@@ -239,9 +251,6 @@ func (m specFormModel[T]) submit() (tea.Model, tea.Cmd) {
 	return m, tea.Quit
 }
 
-// values collects the current field values keyed by FormField.Key. Every value
-// is trimmed except hidden fields (passwords), where surrounding whitespace may
-// be meaningful.
 func (m specFormModel[T]) values() map[spec.FormFieldKey]spec.FormFieldValue {
 	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.spec.Fields))
 	for i := range m.spec.Fields {

@@ -11,9 +11,13 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/network"
 	"github.com/myjupyter/conm/internal/ui/spec"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 type transportFormModel struct {
+	size screenSize
+	body view.Scroll
+
 	spec    spec.FormSpec[config.Transport]
 	title   string
 	isEdit  bool
@@ -82,6 +86,17 @@ func newTransportFormModel(
 func (m transportFormModel) Init() tea.Cmd { return nil }
 
 func (m transportFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[transportFormModel](m.update(msg))
+}
+
+func (m transportFormModel) followCursor() transportFormModel {
+	body, focus := m.bodyLines()
+	m.size.follow(&m.body, len(m.headLines(""))+len(m.tailLines()), focus, len(body))
+	return m
+}
+
+func (m transportFormModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if keyMap.Paste.matches(msg.String()) {

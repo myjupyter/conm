@@ -11,8 +11,6 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-// The connections table is the widest screen: six columns plus the live ping
-// state on the right.
 const tableInner = 108
 
 const (
@@ -32,45 +30,61 @@ func (m Model) View() tea.View {
 }
 
 func (m Model) render() string {
-	n := m.conns.Len()
-	total := m.conns.CountOf(m.conns.Active())
+	tail := append(m.panelLines(), m.footerTail()...)
 
-	lines := []string{
-		frameTop(tableInner, "connections", fmt.Sprintf(" %d %s "+gLineH, total, plural(total, "connection", "connections"))),
-		m.tabsLine(),
-		frameRule(tableInner, gTeeL, gTeeR),
-		m.headerLine(),
-		frameRule(tableInner, gTeeL, gTeeR),
-	}
+	n := m.conns.Len()
+	start, end := m.size.visibleRows(&m.rows, len(m.headLines(""))+len(tail), m.conns.Cursor(), n)
+	lines := m.headLines(scrollNote(start, n-end))
 
 	if n == 0 {
-		lines = append(lines, frameLine(tableInner, []span{
-			{text: truncPad(m.emptyText(), tableInner, false), fg: cDim},
+		lines = append(lines, frameLine(m.inner(), []span{
+			{text: truncPad(m.emptyText(), m.inner(), false), fg: cDim},
 		}, nil))
-	} else {
-		for i := range n {
-			lines = append(lines, m.rowLine(i))
-		}
+	}
+	for i := start; i < end; i++ {
+		lines = append(lines, m.rowLine(i))
 	}
 
+	return m.size.join(append(lines, tail...))
+}
+
+func (m Model) inner() int {
+	return m.size.frameWidth(tableInner)
+}
+
+func (m Model) headLines(scroll string) []string {
+	total := m.conns.CountOf(m.conns.Active())
+	return []string{
+		frameTop(m.inner(), "connections", topNote(fmt.Sprintf("%d %s", total, plural(total, "connection", "connections")), scroll)),
+		m.tabsLine(),
+		frameRule(m.inner(), gTeeL, gTeeR),
+		m.headerLine(),
+		frameRule(m.inner(), gTeeL, gTeeR),
+	}
+}
+
+func (m Model) panelLines() []string {
 	if e := m.currentErr(); e != nil {
-		lines = append(lines, frameErrPanel(tableInner, e)...)
-	} else if p := m.currentPong(); p != "" {
-		lines = append(lines, frameRule(tableInner, gTeeL, gTeeR), framePong(tableInner, p))
+		return frameErrPanel(m.inner(), e)
 	}
+	if p := m.currentPong(); p != "" {
+		return []string{frameRule(m.inner(), gTeeL, gTeeR), framePong(m.inner(), p)}
+	}
+	return nil
+}
 
-	lines = append(lines, frameRule(tableInner, gTeeL, gTeeR))
-	lines = append(lines, m.footerLines(n)...)
-	lines = append(lines, frameBottom(tableInner))
-	return strings.Join(lines, "\n")
+func (m Model) footerTail() []string {
+	lines := []string{frameRule(m.inner(), gTeeL, gTeeR)}
+	lines = append(lines, m.footerLines(m.conns.Len())...)
+	return append(lines, frameBottom(m.inner()))
 }
 
 func (m Model) footerLines(n int) []string {
 	var lines []string
 	if m.conns.Confirming() || m.statusKind != kindIdle {
-		lines = append(lines, m.statusLine(), frameRule(tableInner, gTeeL, gTeeR))
+		lines = append(lines, m.statusLine(), frameRule(m.inner(), gTeeL, gTeeR))
 	}
-	return append(lines, keyhintLines(tableInner, keyhintFooter{
+	return append(lines, keyhintLines(m.inner(), keyhintFooter{
 		groups: m.keyhints(),
 		open:   m.conns.Help(),
 		search: m.conns.Searching() || m.conns.Filtered(),
@@ -98,7 +112,7 @@ func (m Model) tabsLine() string {
 		}
 		spans = append(spans, span{text: " ", fg: cDim})
 	}
-	return frameLine(tableInner, spans, nil)
+	return frameLine(m.inner(), spans, nil)
 }
 
 func (m Model) hasDatabaseColumn() bool {
@@ -106,10 +120,11 @@ func (m Model) hasDatabaseColumn() bool {
 }
 
 func (m Model) hostWidth() int {
+	host := wHost + m.size.extra(tableInner)
 	if m.hasDatabaseColumn() {
-		return wHost
+		return host
 	}
-	return wHost + 1 + wDB
+	return host + 1 + wDB
 }
 
 func (m Model) headerLine() string {
@@ -125,14 +140,14 @@ func (m Model) headerLine() string {
 	}
 	spans = append(spans, span{text: " " + truncPad("PING", wPing, true), fg: cDim})
 
-	return frameLine(tableInner, spans, nil)
+	return frameLine(m.inner(), spans, nil)
 }
 
 func (m Model) rowLine(i int) string {
 	cfg, ok := m.conns.ConfigAt(i)
 	st := m.pingAt(i)
 	if !ok || st == nil {
-		return frameLine(tableInner, nil, nil)
+		return frameLine(m.inner(), nil, nil)
 	}
 	sel := i == m.conns.Cursor()
 	failed := st.connErr != nil || st.pingStatus == pingFailed || !cfg.IsValid()
@@ -178,7 +193,7 @@ func (m Model) rowLine(i int) string {
 	}
 	spans = append(spans, m.pingSpan(i, bg, sel))
 
-	return frameLine(tableInner, spans, bg)
+	return frameLine(m.inner(), spans, bg)
 }
 
 func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
@@ -218,7 +233,7 @@ func (m Model) statusLine() string {
 	case m.conns.Confirming():
 		icon, col, text = gStatusWarn, cAmber, fmt.Sprintf("delete %q? y/n", m.cursorLabel())
 	case m.statusKind == kindPing:
-		return framePing(tableInner, text)
+		return framePing(m.inner(), text)
 	}
-	return frameStatus(tableInner, icon, col, text, "")
+	return frameStatus(m.inner(), icon, col, text, "")
 }

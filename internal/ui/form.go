@@ -18,23 +18,19 @@ import (
 )
 
 type formModel struct {
+	size screenSize
+	body view.Scroll
+
 	spec   spec.FormSpec[config.Connection]
 	kind   config.ConnType
 	title  string
 	isEdit bool
 
-	// The links are a list the user grows, so the fields and the section that
-	// holds them are the model's own copy rather than the spec's: add and
-	// remove edit these, and every other mechanism — insert mode, validation,
-	// rendering — reads them without knowing a link from any other field.
 	fields   []spec.FormField
 	sections []spec.FormSection
 	linkSect int
 	linkBase int
 
-	// secrets backs the store modes of the secret field. It is nil on the
-	// setup path, where no repository exists yet — there the form is
-	// literal-only.
 	secrets    *view.Secrets
 	sources    spec.Sources
 	transports transport.Provider
@@ -51,7 +47,7 @@ type formModel struct {
 	chip      int
 	chipAt    int
 	chipDraft string
-	help      bool // the key hints table, expanded over the key bar
+	help      bool
 
 	attempted bool
 	submitted bool
@@ -59,8 +55,8 @@ type formModel struct {
 	status     string
 	statusKind statusKind
 
-	pong string     // successful in-form ping banner
-	ping *connError // failed in-form ping panel
+	pong string
+	ping *connError
 }
 
 type formPingMsg struct {
@@ -69,7 +65,6 @@ type formPingMsg struct {
 	err    error
 }
 
-// secretPickedMsg carries a location back from the keyring screen.
 type secretPickedMsg struct {
 	ref string
 	ok  bool
@@ -144,6 +139,17 @@ func newFormModel(
 func (m formModel) Init() tea.Cmd { return nil }
 
 func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.size.observe(msg)
+	return followed[formModel](m.update(msg))
+}
+
+func (m formModel) followCursor() formModel {
+	body, focus := m.bodyLines()
+	m.size.follow(&m.body, len(m.headLines(""))+len(m.tailLines()), focus, len(body))
+	return m
+}
+
+func (m formModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if keyMap.Paste.matches(msg.String()) {
@@ -167,14 +173,10 @@ func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// isRef reports whether the password field currently points at a secret store
-// rather than holding the password itself.
 func (m formModel) isRef() bool {
 	return secret.IsStore(m.vals[spec.SecretProviderKey])
 }
 
-// noSecret reports whether the connection is declared to send no password at
-// all, which leaves the value field with nothing to hold.
 func (m formModel) noSecret() bool {
 	return m.vals[spec.SecretProviderKey] == secret.None && m.hasSecretMode()
 }
@@ -183,19 +185,14 @@ func (m formModel) isLiteral() bool {
 	return secret.IsMaterial(m.vals[spec.SecretProviderKey])
 }
 
-// isSecretField reports whether field i is the one the secret mode governs.
 func (m formModel) isSecretField(i int) bool {
 	return m.fields[i].Key == spec.SecretValueKey && m.hasSecretMode()
 }
 
-// isProviderField reports whether field i is the secret mode selector.
 func (m formModel) isProviderField(i int) bool {
 	return m.fields[i].Key == spec.SecretProviderKey
 }
 
-// isSelector reports whether field i is a list the cursor can cycle: a select
-// with options to cycle through. A select declared without options has nothing
-// to change, so ←/→ stays inert there rather than pretending to be a control.
 func (m formModel) isSelector(i int) bool {
 	f := m.fields[i]
 	return isSelect(f) && len(m.options(f)) > 0
@@ -292,8 +289,6 @@ func (m formModel) storeLabel() string {
 	return secret.Literal
 }
 
-// refEntries lists the locations selectable in the current store: the mode
-// names the store, and only that store's entries can satisfy it.
 func (m formModel) refEntries() []string {
 	if m.secrets == nil {
 		return nil
@@ -301,8 +296,6 @@ func (m formModel) refEntries() []string {
 	return m.secrets.LocationsOf(m.vals[spec.SecretProviderKey])
 }
 
-// cycleRef steps through the store's entries in place of the character input
-// the field would otherwise take.
 func (m *formModel) cycleRef(dir int) {
 	list := m.refEntries()
 	if len(list) == 0 {
@@ -329,9 +322,6 @@ func (m *formModel) cycleRef(dir int) {
 	m.setStatus(next+" · "+m.storeLabel()+" entry", kindIdle)
 }
 
-// onSecretModeChange keeps the value field consistent with the mode it just
-// moved to: a literal password and a store location are not interchangeable,
-// so each is parked in its own stash while the other is on screen.
 func (m *formModel) onSecretModeChange(was string) {
 	if m.secretStashByProvider == nil {
 		m.secretStashByProvider = map[string]string{}
@@ -433,10 +423,6 @@ func (m *formModel) navList(key string, cur spec.FormField) (tea.Model, tea.Cmd,
 	return m.navLink(key, cur)
 }
 
-// navLink handles the keys the link list owns: a grows one anywhere in the
-// section that holds them, d removes the one under the cursor, and enter opens
-// it rather than submitting the form. handled reports whether the key was one
-// of them.
 func (m *formModel) navLink(key string, cur spec.FormField) (model tea.Model, cmd tea.Cmd, handled bool) {
 	if !m.hasLinks() {
 		return nil, nil, false
@@ -459,9 +445,6 @@ func (m *formModel) navLink(key string, cur spec.FormField) (model tea.Model, cm
 	return *m, nil, true
 }
 
-// applyPaste appends the clipboard to the field under the cursor. It goes
-// through navEdit, so a field that cannot be typed into refuses a paste for the
-// same reason and in the same words that it refuses the edit key.
 func (m formModel) applyPaste(raw string, err error) formModel {
 	text, refusal := pasteReady(raw, err)
 	if text == "" {
@@ -487,8 +470,6 @@ func (m formModel) applyPaste(raw string, err error) formModel {
 	return m
 }
 
-// navCycle steps the field under the cursor one option in dir: a store entry
-// for a secret reference, otherwise the selector's own options.
 func (m *formModel) navCycle(i, dir int) {
 	switch {
 	case m.isSecretField(i) && m.isRef():
@@ -540,8 +521,6 @@ func (m *formModel) clampSelects() {
 	}
 }
 
-// navEdit enters insert mode, or explains why the field under the cursor is
-// not typed into.
 func (m *formModel) navEdit(i int, cur spec.FormField) {
 	switch {
 	case m.isSecretField(i) && m.noSecret():
@@ -562,10 +541,6 @@ func (m *formModel) navEdit(i int, cur spec.FormField) {
 	}
 }
 
-// navSecret handles s on a secret field. On the provider field it opens the
-// store itself: an entry can be added there and picked, and the form resumes
-// where it left off. On a literal password field s is the reveal toggle.
-// handled reports whether the returned cmd should be dispatched.
 func (m *formModel) navSecret(i int, cur spec.FormField) (cmd tea.Cmd, handled bool) {
 	switch {
 	case m.isProviderField(i) && m.isRef():
@@ -603,8 +578,6 @@ func (m formModel) insertKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.idx < len(fields)-1 {
 			m.idx++
 		}
-		// A link is typed as one thing, so the url keeps the cursor that the
-		// name just handed on.
 		if i, ok := spec.LinkIndexOf(cur.Key); ok && cur.Key == spec.LinkNameKey(i) {
 			m.insert = true
 		}
@@ -652,8 +625,6 @@ func (m *formModel) cycle(i, dir int) {
 	m.vals[f.Key] = options[(at+dir+len(options))%len(options)]
 }
 
-// linkSection reports which section the links are grown in. A spec without a
-// metadata section has nowhere to put them, and -1 keeps the keys inert.
 func (m formModel) linkSection() int {
 	for si, s := range m.sections {
 		if s.Title == spec.MetadataSectionTitle {
@@ -667,8 +638,6 @@ func (m formModel) hasLinks() bool {
 	return m.linkSect >= 0
 }
 
-// linkCount counts the link fields rather than the values, so a pair the user
-// emptied still holds its row until it is removed.
 func (m formModel) linkCount() int {
 	return (len(m.sections[m.linkSect].Fields) - m.linkBase) / 2
 }
@@ -691,8 +660,6 @@ func (m *formModel) addLink() {
 	m.setStatus(fmt.Sprintf("link %d · type a name, %s for the url", n+1, keyMap.Confirm.hint), kindIdle)
 }
 
-// removeLink drops link at and renumbers the ones after it, so the keys stay a
-// gapless run. Only link fields and link values are touched.
 func (m *formModel) removeLink(at int) {
 	n := m.linkCount()
 	for i := at; i < n-1; i++ {
@@ -711,9 +678,6 @@ func (m *formModel) removeLink(at int) {
 	m.setStatus("link removed", kindWarn)
 }
 
-// linkPair reports how field i sits in the link it belongs to: a link is one
-// object, so both of its rows are drawn behind a single rail and light up
-// together when the cursor is on either of them.
 func (m formModel) linkPair(i int) (pair, first, active bool) {
 	at, ok := spec.LinkIndexOf(m.fields[i].Key)
 	if !ok {
@@ -724,8 +688,6 @@ func (m formModel) linkPair(i int) (pair, first, active bool) {
 	return true, m.fields[i].Key == spec.LinkNameKey(at), curOK && cur == at
 }
 
-// linkError checks the pair the field belongs to: a row left untouched is not a
-// link and passes, but one half filled in demands the other.
 func (m formModel) linkError(key spec.FormFieldKey) string {
 	i, ok := spec.LinkIndexOf(key)
 	if !ok {
@@ -743,8 +705,6 @@ func (m formModel) linkError(key spec.FormFieldKey) string {
 	return ""
 }
 
-// sectionFields returns the indices into m.fields for the fields in section si,
-// in the section's declared order.
 func (m formModel) sectionFields(si int) []int {
 	keys := m.sections[si].Fields
 	out := make([]int, 0, len(keys))
@@ -767,13 +727,10 @@ func (m formModel) currentField() int {
 func (m formModel) fieldError(i int) string {
 	f := m.fields[i]
 
-	// In a store mode the field holds a location, so it is checked against the
-	// entries that exist rather than against the password validator.
 	if m.isSecretField(i) && m.isRef() {
 		return m.refError()
 	}
 
-	// A link is only whole as a pair, so neither half is judged on its own.
 	if spec.IsLinkKey(f.Key) {
 		return m.linkError(f.Key)
 	}
@@ -801,9 +758,6 @@ func (m formModel) fieldError(i int) string {
 	return ""
 }
 
-// refError validates the picked location: an empty one is not a blank password
-// but an unfinished choice, and a stale one would resolve to nothing at connect
-// time.
 func (m formModel) refError() string {
 	ref := strings.TrimSpace(m.vals[spec.SecretValueKey])
 	store := m.storeLabel()
@@ -905,16 +859,11 @@ func (m formModel) result() (config.Connection, error) {
 	return m.spec.BuildFunc(m.values())
 }
 
-// values collects the current field values keyed by FormField.Key. Every value
-// is trimmed except hidden fields (passwords), where surrounding whitespace may
-// be meaningful.
 func (m formModel) values() map[spec.FormFieldKey]spec.FormFieldValue {
 	out := make(map[spec.FormFieldKey]spec.FormFieldValue, len(m.fields))
 	for i := range m.fields {
 		f := &m.fields[i]
 		v := m.vals[f.Key]
-		// A location is trimmed like any other field; only a literal password
-		// keeps its surrounding whitespace.
 		if f.Kind != spec.HiddenFieldKind || !m.isLiteral() {
 			v = strings.TrimSpace(v)
 		}

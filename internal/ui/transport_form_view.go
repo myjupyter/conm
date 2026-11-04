@@ -16,38 +16,56 @@ func (m transportFormModel) View() tea.View {
 }
 
 func (m transportFormModel) render() string {
+	body, _ := m.bodyLines()
+	start, end := m.body.Range(len(body))
+	lines := append(m.headLines(scrollNote(start, len(body)-end)), body[start:end]...)
+	return m.size.join(append(lines, m.tailLines()...))
+}
+
+func (m transportFormModel) headLines(scroll string) []string {
 	crumb := "new transport"
 	if m.isEdit {
 		crumb = "edit transport"
 	}
 
-	lines := []string{
-		frameTop(formInner, crumb, ""),
-		frameBadge(formInner, "transport", cAccent, m.badgeTitle()),
+	return []string{
+		frameTop(m.size.formInner(), crumb, topNote(scroll)),
+		frameBadge(m.size.formInner(), "transport", cAccent, m.badgeTitle()),
 	}
+}
 
+func (m transportFormModel) bodyLines() (lines []string, focus focusSpan) {
 	at := 0
 	for _, s := range m.spec.Sections {
-		lines = append(lines, frameHead(formInner, s.Title, s.Note)...)
-		for range s.Fields {
+		head := len(lines)
+		lines = append(lines, frameHead(m.size.formInner(), s.Title, s.Note)...)
+		for j := range s.Fields {
+			if at == m.idx {
+				focus = focusSpan{from: len(lines), row: len(lines), to: len(lines) + 1}
+				if j == 0 {
+					focus.from = head
+				}
+			}
 			lines = append(lines, m.transportFieldRow(at), m.transportMessageRow(m.order[at]))
 			at++
 		}
 	}
+	return lines, focus
+}
 
+func (m transportFormModel) tailLines() []string {
 	icon, col := statusGlyph(m.statusKind)
-	lines = append(lines,
-		frameLine(formInner, nil, nil),
-		frameRule(formInner, gTeeL, gTeeR),
-		frameStatus(formInner, icon, col, m.status, cursorPos(m.idx, len(m.order))),
-	)
-	if m.insert {
-		lines = append(lines, keyhintBar(formInner, m.keyhints())...)
-	} else {
-		lines = append(lines, keyhintLines(formInner, keyhintFooter{groups: m.keyhints(), open: m.help})...)
+	lines := []string{
+		frameLine(m.size.formInner(), nil, nil),
+		frameRule(m.size.formInner(), gTeeL, gTeeR),
+		frameStatus(m.size.formInner(), icon, col, m.status, cursorPos(m.idx, len(m.order))),
 	}
-	lines = append(lines, frameBottom(formInner))
-	return strings.Join(lines, "\n")
+	if m.insert {
+		lines = append(lines, keyhintBar(m.size.formInner(), m.keyhints())...)
+	} else {
+		lines = append(lines, keyhintLines(m.size.formInner(), keyhintFooter{groups: m.keyhints(), open: m.help})...)
+	}
+	return append(lines, frameBottom(m.size.formInner()))
 }
 
 func (m transportFormModel) badgeTitle() string {
@@ -90,7 +108,7 @@ func (m transportFormModel) transportFieldRow(at int) string {
 		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
 	)
 	spans = append(spans, box...)
-	return frameLine(formInner, spans, bg)
+	return frameLine(m.size.formInner(), spans, bg)
 }
 
 func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color) []span {
@@ -105,7 +123,7 @@ func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color
 	}
 
 	if isSelect(f) {
-		return selectSpans(m.vals[f.Key], m.options(f), m.isMissing(f), active, borderFg, bg)
+		return selectSpans(m.size.formBox(), m.vals[f.Key], m.options(f), m.isMissing(f), active, borderFg, bg)
 	}
 
 	disp, ghost := m.vals[f.Key], false
@@ -124,7 +142,7 @@ func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color
 	}
 	return []span{
 		{text: gLineV, fg: borderFg, bg: bg},
-		{text: truncPad(disp, formBoxW-2, false), fg: valFg, bg: bg},
+		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
 		{text: gLineV, fg: borderFg, bg: bg},
 	}
 }
@@ -169,8 +187,8 @@ func (m transportFormModel) transportMessageRow(i int) string {
 		}
 	}
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return frameLine(formInner, []span{
+	return frameLine(m.size.formInner(), []span{
 		{text: prefix, fg: cDim},
-		{text: truncPad(text, formInner-len([]rune(prefix))-2, false), fg: cRed},
+		{text: truncPad(text, m.size.formInner()-len([]rune(prefix))-2, false), fg: cRed},
 	}, nil)
 }
