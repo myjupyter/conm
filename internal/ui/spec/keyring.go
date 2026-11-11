@@ -7,7 +7,7 @@ import (
 
 const (
 	keyringExampleID          = "prod-orders-rw"
-	keyringExampleLocation    = "conm/prod-orders-rw"
+	keyringExampleLocation    = "prod/orders-rw"
 	keyringExamplePassword    = "hunter2hunter2"
 	keyringExampleDescription = "Order write path credentials"
 )

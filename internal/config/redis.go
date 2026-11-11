@@ -100,7 +100,7 @@ func ValidateRedisName(name string) error {
 	if len(name) > nameMaxLength {
 		return fmt.Errorf("name must be at most %d characters long", nameMaxLength)
 	}
-	return ValidateReservedName(name)
+	return ValidateConnectionName(name)
 }
 
 func ValidateRedisDescription(desc string) error {

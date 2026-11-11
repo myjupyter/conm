@@ -89,22 +89,26 @@ func TestConnMetaLinksRoundTrip(t *testing.T) {
 	}
 }
 
-func TestValidateReservedName(t *testing.T) {
-	tests := map[string]struct {
+func TestValidateConnectionName(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
 		name    string
+		args    args
 		wantErr bool
 	}{
-		"plain name":          {name: "prod", wantErr: false},
-		"dash inside":         {name: "prod-primary", wantErr: false},
-		"subcommand":          {name: "list", wantErr: true},
-		"help":                {name: "help", wantErr: true},
-		"leading dash":        {name: "-prod", wantErr: true},
-		"leading double dash": {name: "--prod", wantErr: true},
+		{name: "plain name", args: args{name: "prod"}, wantErr: false},
+		{name: "dash inside", args: args{name: "prod-primary"}, wantErr: false},
+		{name: "empty", args: args{name: ""}, wantErr: true},
+		{name: "subcommand", args: args{name: "list"}, wantErr: true},
+		{name: "help", args: args{name: "help"}, wantErr: true},
+		{name: "leading dash", args: args{name: "-prod"}, wantErr: true},
+		{name: "leading double dash", args: args{name: "--prod"}, wantErr: true},
 	}
-
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			err := ValidateReservedName(tt.name)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateConnectionName(tt.args.name)
 
 			if tt.wantErr {
 				assert.Error(t, err)

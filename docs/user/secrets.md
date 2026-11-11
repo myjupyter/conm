@@ -1,0 +1,56 @@
+# Passwords and secrets
+
+Every connection says where its password comes from. That choice is the `provider` field of the
+form:
+
+| Provider | Where the password is | What the connection file holds |
+|---|---|---|
+| `literal` | in the connection file itself, as plain text | `password = 'demo-secret'` |
+| `keyring` | in the system keyring: Keychain on macOS, Credential Manager on Windows, Secret Service (GNOME Keyring, KWallet) on Linux | `password = 'keyring:orders'` |
+| `none` | nowhere: the connection sends no password | `password = 'none:'` |
+
+`literal` is the default and the quickest to set up, but anyone who can read the file can read
+the password. Use the keyring for anything you care about: the password never touches conm's
+files. More stores, such as Vault, gopass, 1Password and KeePassXC, are planned.
+
+An SSH connection with key auth can point at a private key file, or keep the key itself in the
+form (plain text) or in the keyring.
+
+## The secrets screen
+
+Keyring passwords are managed as *secrets* on the secrets screen, opened from the connections
+table. A secret has:
+- **id**: the name you pick it by;
+- **location**: its name in the keyring, any text, slashes included (`orders`, `prod/orders`);
+- **password**: written straight to the keyring, never to disk. When editing, leave it empty to
+  keep the current one;
+- **description**: free text.
+
+![Adding a secret to the keyring](../demo/secrets-add.gif)
+
+The screen shows which connections use each secret. A secret that is still in use cannot be
+deleted: conm lists the connections that need it. Deleting an unused secret also removes its
+password from the keyring.
+
+## Use a secret in a connection
+
+In the connection's form, set the provider to `keyring` and pick a secret: the secrets screen
+opens as a picker, and you can add a new secret from there too. After saving, the connection
+file only holds the reference.
+
+```sh
+conm postgres edit orders-local
+```
+
+![Switching a connection from a plain-text password to a keyring secret](../demo/secrets-use.gif)
+
+## Secrets and workspaces
+
+Every [workspace](workspaces.md) has its own list of secrets, stored in the keyring under that
+workspace's own ID. A secret can only be used from its workspace: two workspaces with the same
+location hold two separate passwords. Deleting the workspace removes its passwords from the
+keyring and leaves every other workspace's untouched.
+
+---
+
+[← Connect and run queries](connect-and-execute.md) · [Contents](README.md) · [Connect through an SSH tunnel →](ssh-transport.md)

@@ -80,6 +80,15 @@ func TestAddRejectsAReservedName(t *testing.T) {
 	assert.Equal(t, 0, repo.Len())
 }
 
+func TestAddRejectsAnEmptyName(t *testing.T) {
+	repo := testRepo(t)
+
+	err := repo.Add(pg("", "db.example.com", "metrics"))
+
+	require.Error(t, err)
+	assert.Equal(t, 0, repo.Len())
+}
+
 func TestEditRejectsAReservedName(t *testing.T) {
 	repo := testRepo(t)
 
@@ -97,9 +106,9 @@ func TestAddAcceptsADifferentEndpoint(t *testing.T) {
 	repo := testRepo(t)
 
 	for _, conn := range []config.Postgres{
-		pg("", "db.example.com", "metrics"),
-		pg("", "db.example.com", "billing"),
-		pg("", "replica.example.com", "metrics"),
+		pg("metrics", "db.example.com", "metrics"),
+		pg("billing", "db.example.com", "billing"),
+		pg("replica", "replica.example.com", "metrics"),
 	} {
 		require.NoErrorf(t, repo.Add(conn), "adding %s failed", conn.DBName)
 	}

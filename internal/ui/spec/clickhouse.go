@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/utils/names"
 )
 
 const (
@@ -90,7 +91,7 @@ var ClickHouseFormFields = []FormField{
 		Key:          strings.ToLower(clickhouseFormFieldName),
 		Label:        clickhouseFormFieldName,
 		Example:      clickhouseExampleName,
-		Property:     OptionalFieldProperty,
+		DefaultFunc:  names.Random,
 		ValidateFunc: config.ValidateClickHouseName,
 	},
 	{
