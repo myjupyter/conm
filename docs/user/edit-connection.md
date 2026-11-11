@@ -1,14 +1,7 @@
-# Edit a connection
+# Edit or remove a connection
 
-There are two ways to edit a connection:
-1. From the connections table
-2. From the shell, by its name
-
-Either way you get the same form as when [adding it](add-connection.md), filled in with the saved values. Change
-what you need, test it, and save it.
-
-Every database works the same way under its own name: `conm mysql edit`, `conm redis edit`,
-and so on.
+Edit a connection from the connections table, or from the shell by its name. Either way you get
+the same form as when [adding it](add-connection.md), filled in with the saved values.
 
 ## From the connections table
 
@@ -40,6 +33,28 @@ If no connection has that name, conm says so and exits:
 
 ```
 Error: no postgres connection named "nope"
+```
+
+## Remove a connection
+
+In the connections table, select the connection and delete it; conm asks you to confirm. From
+the shell, `remove` deletes it straight away, without asking:
+
+```sh
+conm postgres remove orders-local
+```
+
+```
+removed postgres connection "orders-local"
+```
+
+![Removing a connection from the table and from the shell](../demo/remove.gif)
+
+The [secret](secrets.md) the connection used stays on the secrets screen. An SSH connection that
+a [transport](ssh-transport.md) goes through cannot be removed until no transport uses it:
+
+```
+Error: remove: connection "ssh:bastion" is still in use by 1 transport(s): transport/prod
 ```
 
 ---

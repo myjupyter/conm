@@ -6,10 +6,6 @@ The settings screen is opened from the connections table and has two pages: whic
 database opens, and which keys do what. A change is saved as soon as you make it. Settings are
 shared by all [workspaces](workspaces.md), and live in `conm.toml`.
 
-```sh
-conm
-```
-
 ### Switching clients
 
 Every database lists the clients conm supports for it, with the installed ones highlighted, and
@@ -32,8 +28,7 @@ cli = 'pgcli'
 
 ### Overriding keybindings
 
-The keybinding page lists every action, grouped by where it applies: navigation, general,
-screens, connections, forms, secrets, transports, workspaces, settings and prompts. An action
+The keybinding page lists every action, grouped by where it applies. An action
 can have several keys. For each action you can add a key, change or remove one, or reset the
 action to its default keys (you are asked to confirm).
 
@@ -58,7 +53,7 @@ connect = ['enter', 'o']
 ## Info screen
 
 The info screen shows everything about the connection under the cursor without opening the edit
-form, so nothing can be changed by accident. Open it from the connections table.
+form. Open it from the connections table.
 
 It has up to three pages:
 - **general**: name, description and tags, and the client the connection opens, with its

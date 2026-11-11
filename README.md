@@ -8,13 +8,11 @@
 > conm has no stable release yet. Commands, keys and the config file format can change between
 > versions without a migration path.
 
-conm is a terminal connection manager for databases and SSH hosts. 
-It keeps your connections organized
+conm is a terminal connection manager for databases and SSH hosts.
 
 ![conm demo](docs/demo/demo.gif)
 
-- **Supported database types:** Postgres, MySQL, SQL Server, ClickHouse, Redis and MongoDB, saved
-  and ready to open.
+- **Databases:** Postgres, MySQL, SQL Server, ClickHouse, Redis and MongoDB.
 - **SSH hosts:** kept right alongside your databases.
 - **Passwords out of your configs:** they can stay in your system keyring or keychain.
 - **Private networks:** tunnel to a database through an SSH host.
@@ -27,7 +25,8 @@ It keeps your connections organized
 go install github.com/myjupyter/conm@latest
 ```
 
-Needs Go 1.26, plus the client for each database you connect to.
+Needs Go 1.26, plus the client for each database you connect to. Then run `conm`: with no
+connections yet it asks for the type of the first one.
 
 ## Supported
 

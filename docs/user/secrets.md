@@ -11,11 +11,7 @@ form:
 
 `literal` is the default and the quickest to set up, but anyone who can read the file can read
 the password. Use the keyring for anything you care about: the password never touches conm's
-files.
-
-> [!NOTE]
-> The system keyring and plain text are the only stores for now. More are planned, such as
-> Vault, gopass, 1Password and KeePassXC.
+files. More stores, such as Vault, gopass, 1Password and KeePassXC, are planned.
 
 An SSH connection with key auth can point at a private key file, or keep the key itself in the
 form (plain text) or in the keyring.
@@ -29,10 +25,6 @@ table. A secret has:
 - **password**: written straight to the keyring, never to disk. When editing, leave it empty to
   keep the current one;
 - **description**: free text.
-
-```sh
-conm
-```
 
 ![Adding a secret to the keyring](../demo/secrets-add.gif)
 

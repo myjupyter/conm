@@ -49,10 +49,6 @@ pick the SSH connection it goes through in `via`. The rest is optional:
 - `keepalive`: seconds between probes that keep an idle tunnel open;
 - `description`: free text.
 
-```sh
-conm
-```
-
 ![Creating a transport through the bastion](../demo/transport-create.gif)
 
 The transports screen shows which connections use each transport.
@@ -69,7 +65,7 @@ conm postgres edit orders
 
 ![Using the transport: ping, a psql session and a ping from the shell](../demo/transport-use.gif)
 
-That's it. Ping, [sessions and `exec`](connect-and-execute.md) now go through the tunnel, from the table and from the
+Ping, [sessions and `exec`](connect-and-execute.md) now go through the tunnel, from the table and from the
 shell alike:
 
 ```sh

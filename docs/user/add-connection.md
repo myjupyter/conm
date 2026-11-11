@@ -1,15 +1,7 @@
 # Add a connection
 
-There are two ways to add a connection:
-1. Fill in an empty form in the interactive mode
-2. Parse a command line or URL you already use into a prefilled form
-
-Either way you check the form, test it, and save it. Once it is saved you can
-[connect to it](connect-and-execute.md) or [change it later](edit-connection.md). For a database
-behind a bastion host, see [Connect through an SSH tunnel](ssh-transport.md). To keep the
-password out of the connection file, see [Passwords and secrets](secrets.md).
-
-Every database works the same way under its own name: `conm mysql add`, `conm redis add`, and so on.
+Fill in an empty form, or prefill it from a command line or URL you already use. Either way you
+check the form, test it, and save it.
 
 ## Interactive mode
 
@@ -42,10 +34,8 @@ same form filled in. Anything it cannot use is listed as a warning in the form. 
 is missing (here the password), then save. The name is prefilled with a random one such as
 `calm-otter`; change it to something you will recognise.
 
-You can also pass the command line after `--` instead of quoting it:
-`conm postgres add -- psql -h localhost -U me mydb` or `conm postgres add -- -h localhost -U me mydb`.
 `conm <database> add --help` prints the examples for each database.
 
 ---
 
-[Contents](README.md) · [Edit a connection →](edit-connection.md)
+[← First run](first-run.md) · [Contents](README.md) · [Edit or remove a connection →](edit-connection.md)

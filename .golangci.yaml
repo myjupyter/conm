@@ -266,6 +266,13 @@ linters:
         linters:
           - gosec
 
+      # A suggested connection name only has to look random, not be
+      # unpredictable.
+      - path: internal/utils/names/
+        text: "G404"
+        linters:
+          - gosec
+
       # ImportFromPGPass reads $PGPASSFILE / ~/.pgpass — a user-supplied path
       # into the user's own home directory is the whole point of the feature.
       - path: internal/config/postgres\.go
