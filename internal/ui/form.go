@@ -120,6 +120,8 @@ func newFormModel(
 		f := &m.fields[i]
 		seeded, ok := initial[f.Key]
 		switch {
+		case !isEdit && seeded == "" && f.DefaultFunc != nil:
+			m.vals[f.Key] = f.DefaultFunc()
 		case ok:
 			m.vals[f.Key] = seeded
 		case f.Kind == spec.SelectFieldKind || f.Kind == spec.SourceFieldKind:

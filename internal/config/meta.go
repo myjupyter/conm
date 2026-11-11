@@ -69,7 +69,10 @@ func ValidateTags(tags []string) error {
 	return nil
 }
 
-func ValidateReservedName(name string) error {
+func ValidateConnectionName(name string) error {
+	if name == "" {
+		return errors.New("name can't be empty")
+	}
 	if slices.Contains(ReservedNames, name) {
 		return fmt.Errorf("name '%s' is reserved and cannot be used", name)
 	}

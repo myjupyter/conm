@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/utils/names"
 )
 
 const (
@@ -98,7 +99,7 @@ var MongoDBFormFields = []FormField{
 		Key:          strings.ToLower(mongodbFormFieldName),
 		Label:        mongodbFormFieldName,
 		Example:      mongodbExampleName,
-		Property:     OptionalFieldProperty,
+		DefaultFunc:  names.Random,
 		ValidateFunc: config.ValidateMongoDBName,
 	},
 	{

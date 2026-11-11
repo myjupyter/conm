@@ -59,6 +59,7 @@ type FormField struct {
 	Property     FieldProperty
 	Example      string
 	DefaultValue string
+	DefaultFunc  func() string
 	Options      []string // only used for SelectFieldKind
 	OptionsFunc  func(map[FormFieldKey]FormFieldValue) []string
 	Source       *FieldSource

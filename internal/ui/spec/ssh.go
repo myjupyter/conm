@@ -7,6 +7,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/secret"
+	"github.com/myjupyter/conm/internal/utils/names"
 )
 
 const (
@@ -185,7 +186,7 @@ var SSHFormFields = []FormField{
 		Key:          strings.ToLower(sshFormFieldName),
 		Label:        sshFormFieldName,
 		Example:      sshExampleName,
-		Property:     OptionalFieldProperty,
+		DefaultFunc:  names.Random,
 		ValidateFunc: config.ValidateSSHName,
 	},
 	{

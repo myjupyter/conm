@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/utils/names"
 )
 
 const (
@@ -91,7 +92,7 @@ var MySQLFormFields = []FormField{
 		Key:          strings.ToLower(mysqlFormFieldName),
 		Label:        mysqlFormFieldName,
 		Example:      mysqlExampleName,
-		Property:     OptionalFieldProperty,
+		DefaultFunc:  names.Random,
 		ValidateFunc: config.ValidateMySQLName,
 	},
 	{

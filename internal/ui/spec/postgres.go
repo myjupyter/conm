@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/utils/names"
 )
 
 const (
@@ -106,7 +107,7 @@ var PostgresFormFields = []FormField{
 		Key:          strings.ToLower(postgresFormFieldName),
 		Label:        postgresFormFieldName,
 		Example:      postgresExampleName,
-		Property:     OptionalFieldProperty,
+		DefaultFunc:  names.Random,
 		ValidateFunc: config.ValidatePostgresName,
 	},
 	{

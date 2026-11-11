@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/utils/names"
 )
 
 const (
@@ -104,7 +105,7 @@ var RedisFormFields = []FormField{
 		Key:          strings.ToLower(redisFormFieldName),
 		Label:        redisFormFieldName,
 		Example:      redisExampleName,
-		Property:     OptionalFieldProperty,
+		DefaultFunc:  names.Random,
 		ValidateFunc: config.ValidateRedisName,
 	},
 	{
