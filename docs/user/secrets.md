@@ -25,7 +25,7 @@ form (plain text) or in the keyring.
 Keyring passwords are managed as *secrets* on the secrets screen, opened from the connections
 table. A secret has:
 - **id**: the name you pick it by;
-- **location**: where it lives in the keyring, `account` or `service/account`;
+- **location**: its name in the keyring, any text, slashes included (`orders`, `prod/orders`);
 - **password**: written straight to the keyring, never to disk. When editing, leave it empty to
   keep the current one;
 - **description**: free text.
@@ -54,13 +54,10 @@ conm postgres edit orders-local
 
 ## Secrets and workspaces
 
-Every [workspace](workspaces.md) has its own list of secrets, and a secret whose location is a
-plain `account` is stored under that workspace's own keyring ID. Such a secret can only be used
-from its workspace, and deleting the workspace removes its password from the keyring.
-
-A location with a service, `service/account`, points at that exact keyring entry instead. Two
-workspaces that both name `conm/orders` read and write the same password. Leave the service out
-unless you want that.
+Every [workspace](workspaces.md) has its own list of secrets, stored in the keyring under that
+workspace's own ID. A secret can only be used from its workspace: two workspaces with the same
+location hold two separate passwords. Deleting the workspace removes its passwords from the
+keyring and leaves every other workspace's untouched.
 
 ---
 

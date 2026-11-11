@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	errEmptyKeyringAccount = errors.New("keyring spec must be [service/]account")
+	errEmptyKeyringAccount = errors.New("keyring location can't be empty")
 	errNoKeyringWorkspace  = errors.New("keyring provider has no workspace to store secrets in")
 )
 
@@ -66,10 +66,7 @@ func (p *KeyringProvider) Remove(_ context.Context, ref Reference) error {
 }
 
 func (p *KeyringProvider) parse(ref Reference) (service, account string, err error) {
-	service, account = parseKeyringSpec(keyringSpec(ref))
-	if service == "" {
-		service = p.Workspace
-	}
+	service, account = p.Workspace, keyringSpec(ref)
 
 	switch {
 	case account == "":
@@ -82,12 +79,4 @@ func (p *KeyringProvider) parse(ref Reference) (service, account string, err err
 
 func keyringSpec(ref Reference) string {
 	return strings.TrimPrefix(ref.SecretRef(), Keyring+":")
-}
-
-func parseKeyringSpec(spec string) (service, account string) {
-	service, account, found := strings.Cut(spec, "/")
-	if found {
-		return service, account
-	}
-	return "", spec
 }

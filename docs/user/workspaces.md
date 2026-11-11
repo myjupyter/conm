@@ -16,10 +16,8 @@ conm starts with a single workspace named `default`.
 | [Secrets](secrets.md): the records and the passwords in the system keyring | |
 
 Each workspace has its own list of secrets, and only those can be picked for its connections.
-A secret whose location is a plain `account` is stored in the system keyring under an ID of the
-workspace's own, so it cannot be read from any other workspace, even one with a secret of the
-same name. A location with a service, `service/account`, points at that exact keyring entry and
-is shared by every workspace that names it. See [Secrets and workspaces](secrets.md#secrets-and-workspaces).
+They are stored in the keyring under the workspace's own ID, so no other workspace can read them,
+even one with a secret of the same location. See [Secrets and workspaces](secrets.md#secrets-and-workspaces).
 
 Connection names only have to be unique within their workspace: `orders` in `work` and `orders`
 in `personal` are two different connections.
