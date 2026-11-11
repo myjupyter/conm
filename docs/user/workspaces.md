@@ -11,14 +11,15 @@ conm starts with a single workspace named `default`.
 
 | Separate in every workspace | Shared by all workspaces |
 |---|---|
-| Connections of every database type | Which databases are enabled and which client each one opens |
-| Transports (SSH tunnels) | Keybindings |
-| Secrets: the records and the passwords in the system keyring | |
+| Connections of every database type | Which databases are enabled and [which client each one opens](additional-screens.md#switching-clients) |
+| [Transports](ssh-transport.md) (SSH tunnels) | [Keybindings](additional-screens.md#overriding-keybindings) |
+| [Secrets](secrets.md): the records and the passwords in the system keyring | |
 
-Secrets never cross workspaces. Each workspace keeps its passwords in the system keyring under
-an ID of its own, so a connection can only use secrets from its own workspace. A secret from
-one workspace cannot be picked, reused or read from another, even if both store a password
-under the same name. To use the same password in two workspaces, store it once in each.
+Each workspace has its own list of secrets, and only those can be picked for its connections.
+A secret whose location is a plain `account` is stored in the system keyring under an ID of the
+workspace's own, so it cannot be read from any other workspace, even one with a secret of the
+same name. A location with a service, `service/account`, points at that exact keyring entry and
+is shared by every workspace that names it. See [Secrets and workspaces](secrets.md#secrets-and-workspaces).
 
 Connection names only have to be unique within their workspace: `orders` in `work` and `orders`
 in `personal` are two different connections.
@@ -63,3 +64,7 @@ If the workspace does not exist, conm says so and exits:
 ```
 Error: no workspace named "nope" · 'conm workspace add nope' creates it
 ```
+
+---
+
+[← Connect through an SSH tunnel](ssh-transport.md) · [Contents](README.md) · [Additional screens →](additional-screens.md)

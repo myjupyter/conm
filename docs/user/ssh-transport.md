@@ -26,9 +26,9 @@ conm postgres ping orders
 
 ## 1. Add the SSH connection
 
-Add the bastion like any other connection: host, port, user, and how to log in. Auth can be
-`agent` (your SSH agent), `key` (a private key file, or a key kept in the form or the system
-keyring) or `password`. Test it before saving, and give it a name you will recognise, here
+Add the bastion like [any other connection](add-connection.md): host, port, user, and how to log in. Auth can be
+`agent` (your SSH agent), `key` (a private key file, or a key kept in the form or the [system
+keyring](secrets.md)) or `password`. Test it before saving, and give it a name you will recognise, here
 `bastion`.
 
 ```sh
@@ -59,7 +59,7 @@ The transports screen shows which connections use each transport.
 
 ## 3. Use the transport
 
-Edit the database connection (or set it while adding one) and, in its transport section, set
+[Edit the database connection](edit-connection.md) (or set it while adding one) and, in its transport section, set
 the type to `ssh` and pick the transport. Keep `host` and `port` as the bastion sees them, here
 `postgres:5432`, not `localhost`.
 
@@ -69,7 +69,7 @@ conm postgres edit orders
 
 ![Using the transport: ping, a psql session and a ping from the shell](../demo/transport-use.gif)
 
-That's it. Ping, sessions and `exec` now go through the tunnel, from the table and from the
+That's it. Ping, [sessions and `exec`](connect-and-execute.md) now go through the tunnel, from the table and from the
 shell alike:
 
 ```sh
@@ -77,3 +77,7 @@ conm postgres ping orders
 conm postgres orders
 conm postgres exec orders -- "select 1;"
 ```
+
+---
+
+[← Passwords and secrets](secrets.md) · [Contents](README.md) · [Workspaces →](workspaces.md)

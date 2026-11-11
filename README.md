@@ -1,9 +1,17 @@
 # conm
 
-conm is a terminal connection manager for databases and SSH hosts. It keeps your connections
-organized, however many you have.
+[![Go version](https://img.shields.io/github/go-mod/go-version/myjupyter/conm)](go.mod)
+[![Build](https://github.com/myjupyter/conm/actions/workflows/go.yml/badge.svg)](https://github.com/myjupyter/conm/actions/workflows/go.yml)
+[![License](https://img.shields.io/github/license/myjupyter/conm)](LICENSE)
 
-![conm demo: a keychain secret, Postgres, and Redis through an SSH tunnel](docs/demo/demo.gif)
+> [!CAUTION]
+> conm has no stable release yet. Commands, keys and the config file format can change between
+> versions without a migration path.
+
+conm is a terminal connection manager for databases and SSH hosts. 
+It keeps your connections organized
+
+![conm demo](docs/demo/demo.gif)
 
 - **Supported database types:** Postgres, MySQL, SQL Server, ClickHouse, Redis and MongoDB, saved
   and ready to open.
@@ -21,8 +29,6 @@ go install github.com/myjupyter/conm@latest
 
 Needs Go 1.26, plus the client for each database you connect to.
 
-
-
 ## Supported
 
 | Type | Clients |
@@ -34,6 +40,11 @@ Needs Go 1.26, plus the client for each database you connect to.
 | `redis` | redis-cli, valkey-cli, iredis |
 | `mongodb` | mongosh, mongo |
 | `ssh` | ssh |
+
+## Documentation
+
+The [user guide](docs/user/README.md) walks through conm in order, from adding the first
+connection to tunnels and workspaces.
 
 ## License
 

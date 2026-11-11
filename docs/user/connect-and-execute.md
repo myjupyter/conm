@@ -1,11 +1,14 @@
 # Connect and run queries
 
 conm does not talk to the database itself. It opens the client picked for that database in the
-settings (for Postgres: `psql`, `pgcli` or `usql`) with the host, user, database and password
+[settings](additional-screens.md#switching-clients) (for Postgres: `psql`, `pgcli` or `usql`) with the host, user, database and password
 of the connection already passed in. There are three ways to use it:
 1. Open a session from the connections table
 2. Open a session from the shell, by the connection's name
 3. Run a query or a script from the shell, without an interactive session
+
+A connection behind a bastion works the same way once it has a
+[transport](ssh-transport.md).
 
 Every database works the same way under its own name: `conm mysql orders-local`,
 `conm redis exec cache -- "ping"`, and so on.
@@ -60,3 +63,7 @@ If no connection has that name, conm says so and exits:
 ```
 Error: no postgres connection named "nope"
 ```
+
+---
+
+[← Edit a connection](edit-connection.md) · [Contents](README.md) · [Passwords and secrets →](secrets.md)

@@ -4,7 +4,7 @@ There are two ways to edit a connection:
 1. From the connections table
 2. From the shell, by its name
 
-Either way you get the same form as when adding it, filled in with the saved values. Change
+Either way you get the same form as when [adding it](add-connection.md), filled in with the saved values. Change
 what you need, test it, and save it.
 
 Every database works the same way under its own name: `conm mysql edit`, `conm redis edit`,
@@ -41,3 +41,7 @@ If no connection has that name, conm says so and exits:
 ```
 Error: no postgres connection named "nope"
 ```
+
+---
+
+[← Add a connection](add-connection.md) · [Contents](README.md) · [Connect and run queries →](connect-and-execute.md)
