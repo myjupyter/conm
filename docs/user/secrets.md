@@ -1,7 +1,7 @@
 # Passwords and secrets
 
 Every connection says where its password comes from. That choice is the `provider` field of the
-form, and today there are two places a password can live:
+form:
 
 | Provider | Where the password is | What the connection file holds |
 |---|---|---|

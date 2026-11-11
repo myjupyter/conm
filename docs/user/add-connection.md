@@ -39,7 +39,8 @@ conm postgres add "postgres://me@localhost:5432/mydb?sslmode=require"
 
 conm reads the host, port, user, database and the other options it recognises, and opens the
 same form filled in. Anything it cannot use is listed as a warning in the form. Fill in what
-is missing (here the password and a name), then save.
+is missing (here the password), then save. The name is prefilled with a random one such as
+`calm-otter`; change it to something you will recognise.
 
 You can also pass the command line after `--` instead of quoting it:
 `conm postgres add -- psql -h localhost -U me mydb` or `conm postgres add -- -h localhost -U me mydb`.

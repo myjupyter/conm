@@ -11,7 +11,7 @@ A connection behind a bastion works the same way once it has a
 [transport](ssh-transport.md).
 
 Every database works the same way under its own name: `conm mysql orders-local`,
-`conm redis exec cache -- "ping"`, and so on.
+`conm redis exec cache -- ping`, and so on.
 
 ## From the connections table
 
@@ -41,14 +41,16 @@ conm postgres orders-local
 ## Run a query or a script from the shell
 
 `exec` runs one query and exits. The result goes to stdout, errors go to stderr, and conm exits
-with the client's exit code, so it works in scripts and pipes. Quote the query, or the shell
-expands `*` and ends the command at `;`.
+with the client's exit code, so it works in scripts and pipes. Quote an SQL query, or the shell
+expands `*` and ends the command at `;`. Redis is the exception: it takes the command as
+separate words, `conm redis exec cache -- get foo`, not `"get foo"`.
 
 ```sh
 conm postgres exec orders-local -- "select current_user, current_database();"
 ```
 
-To run a whole script, feed it to the session on stdin:
+To run a whole script, feed it to `psql` on stdin (`pgcli` runs it but then stays open at its
+prompt):
 
 ```sh
 conm postgres orders-local < script.sql
@@ -56,7 +58,7 @@ conm postgres orders-local < script.sql
 
 ![Running a query and a script from the shell](../demo/exec-shell.gif)
 
-Everything after `--` is the query. Client flags cannot be passed there.
+Everything after `--` is the query, not client flags; only the Redis clients read flags there too.
 
 If no connection has that name, conm says so and exits:
 
