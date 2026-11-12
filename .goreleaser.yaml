@@ -13,7 +13,7 @@ before:
     - make tidy build tools lint test
 
 builds:
-  - main: ./main.go
+  - main: .
     goos:
       - linux
       - darwin
