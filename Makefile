@@ -3,10 +3,12 @@
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 BIN ?= bin/$(GOOS)-$(GOARCH)/conm
+GITHUB_TOKEN ?= $(shell gopass show -o services/github-token)
 
 TOOLS_BIN := $(CURDIR)/bin/tools
 GOLANGCI_LINT := $(TOOLS_BIN)/golangci-lint
 GOVULNCHECK := $(TOOLS_BIN)/govulncheck
+GORELEASER := $(TOOLS_BIN)/goreleaser
 
 INSTALL_TOOLS = GOBIN=$(TOOLS_BIN) go -C tools install tool
 
@@ -58,3 +60,10 @@ fmt: $(GOLANGCI_LINT)
 	$(say) "fmt"
 	@go fix ./...
 	@$(GOLANGCI_LINT) fmt ./...
+
+release: $(GORELEASER)
+	@GITHUB_TOKEN=$(GITHUB_TOKEN) $(GORELEASER) release --clean
+
+check-release: $(GORELEASER)
+	$(GORELEASER) check
+	$(GORELEASER) release --snapshot --clean
