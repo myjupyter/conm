@@ -5,8 +5,20 @@ Everything conm does from its screens can also be done from the shell. Run `conm
 
 ## Connections
 
-Each database type has its own command: `postgres`, `mysql`, `mssql`, `clickhouse`, `redis`,
-`mongodb` and `ssh`. The examples use Postgres.
+Each connection type has its own command, and most have short aliases (`conm pg list` is
+`conm postgres list`):
+
+| Command | Aliases |
+|---|---|
+| `postgres` | `pg` |
+| `mysql` | `my` |
+| `mssql` | `ms`, `sqlserver` |
+| `clickhouse` | `ch` |
+| `redis` | `rs` |
+| `mongodb` | `mongo`, `mg` |
+| `ssh` | - |
+
+The examples use Postgres.
 
 | Command | What it does |
 |---|---|

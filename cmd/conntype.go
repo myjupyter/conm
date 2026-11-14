@@ -9,9 +9,19 @@ import (
 	"github.com/myjupyter/conm/internal/ui"
 )
 
+var connTypeAliases = map[config.ConnType][]string{
+	config.PostgresConnType:   {"pg"},
+	config.MySQLConnType:      {"my"},
+	config.MSSQLConnType:      {"ms", "sqlserver"},
+	config.ClickHouseConnType: {"ch"},
+	config.RedisConnType:      {"rs"},
+	config.MongoDBConnType:    {"mongo", "mg"},
+}
+
 func connTypeCmd(t config.ConnType) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          t.String() + " [name]",
+		Aliases:      connTypeAliases[t],
 		Short:        fmt.Sprintf("Open the %s connections, or connect to one", t),
 		Args:         cobra.MaximumNArgs(1),
 		SilenceUsage: true,
