@@ -19,11 +19,23 @@ conm is a terminal connection manager for databases and SSH hosts.
 - **Workspaces:** keep each project or environment to itself.
 - **Links:** keep dashboards, docs and runbooks next to the connection they belong to.
 
+## Documentation
+
+The [user guide](docs/user/README.md) walks through conm in order, from adding the first
+connection to tunnels and workspaces.
+
 ## Install
 
+#### Homebrew
+```sh
+brew install myjupyter/conm/conm
+```
+
+#### Golang
 ```sh
 go install github.com/myjupyter/conm@latest
 ```
+
 
 Needs Go 1.26, plus the client for each database you connect to. Then run `conm`: with no
 connections yet it asks for the type of the first one.
@@ -40,10 +52,7 @@ connections yet it asks for the type of the first one.
 | `mongodb` | mongosh, mongo |
 | `ssh` | ssh |
 
-## Documentation
 
-The [user guide](docs/user/README.md) walks through conm in order, from adding the first
-connection to tunnels and workspaces.
 
 ## License
 
