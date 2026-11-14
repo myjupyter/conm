@@ -70,4 +70,4 @@ to change something.
 
 ---
 
-[← Workspaces](workspaces.md) · [Contents](README.md)
+[← Workspaces](workspaces.md) · [Contents](README.md) · [Commands →](commands.md)
