@@ -67,6 +67,9 @@ func Execute() {
 	if exitErr := (*exec.ExitError)(nil); errors.As(err, &exitErr) {
 		os.Exit(exitErr.ExitCode())
 	}
+	if errors.Is(err, ui.ErrDoctorFound) {
+		os.Exit(1)
+	}
 	if err != nil {
 		rootCmd.PrintErrln(rootCmd.ErrPrefix(), err)
 		os.Exit(1)
