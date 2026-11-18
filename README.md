@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="conm logo" width="200">
+</p>
+
 # conm
 
 [![Go version](https://img.shields.io/github/go-mod/go-version/myjupyter/conm)](go.mod)
