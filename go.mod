@@ -5,12 +5,12 @@ go 1.27.4
 require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.1
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0
 	github.com/adrg/xdg v0.5.3
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/go-sql-driver/mysql v1.10.1
-	github.com/jackc/pgx/v5 v5.12.0
+	github.com/jackc/pgx/v5 v5.13.0
 	github.com/microsoft/go-mssqldb v1.11.2
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/redis/go-redis/v9 v9.23.0
