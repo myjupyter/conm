@@ -50,6 +50,24 @@ func TestParseSSH(t *testing.T) {
 			},
 		},
 		{
+			name:   "a second forward or identity file has nowhere to go and says so, a quoted value loses its quotes",
+			input:  `ssh -L 5432:db:5432 -L 6379:cache:6379 -o 'IdentityFile="~/.ssh/my key"' -i ~/.ssh/other ci@runner-03.ci`,
+			syntax: FlagSyntax,
+			client: "ssh",
+			conn: config.SSH{
+				Hostname:     "runner-03.ci",
+				PortNumber:   22,
+				User:         "ci",
+				Auth:         config.SSHAuthKey,
+				Password:     "filepath:~/.ssh/my key",
+				LocalForward: "5432:db:5432",
+			},
+			warnings: []string{
+				"kept only the first local forward 5432:db:5432, dropped 6379:cache:6379",
+				"kept only the first identity file ~/.ssh/my key, dropped ~/.ssh/other",
+			},
+		},
+		{
 			name:   "a bare url needs no client",
 			input:  `ssh://deploy@bastion.eu:2200`,
 			syntax: URISyntax,

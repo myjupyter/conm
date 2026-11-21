@@ -48,17 +48,6 @@ func TestRead_mysql(t *testing.T) {
 			args: args{options: "[client]\nuser=app\npassword=inherited\n[client_staging]\nhost=staging.internal\nport=3307\npassword=\n[mysql_staging]\ndatabase=orders\nssl_mode=REQUIRED\n"},
 			want: []want{
 				{
-					name: "client",
-					conn: config.MySQL{
-						Metadata:   config.ConnMeta{Name: "client"},
-						PortNumber: 3306,
-						User:       "app",
-						Password:   "keyring:mysql/client",
-						TLSMode:    config.MySQLTLSModePreferred,
-					},
-					password: "inherited",
-				},
-				{
 					name: "staging",
 					conn: config.MySQL{
 						Metadata:   config.ConnMeta{Name: "staging"},
@@ -87,6 +76,44 @@ func TestRead_mysql(t *testing.T) {
 						TLSMode:    config.MySQLTLSModePreferred,
 					},
 				},
+			},
+		},
+		{
+			name: "a client group without a host is a connection only when it is the only one",
+			args: args{options: "[client]\nuser=app\npassword=s3cret\n"},
+			want: []want{{
+				name: "client",
+				conn: config.MySQL{
+					Metadata:   config.ConnMeta{Name: "client"},
+					PortNumber: 3306,
+					User:       "app",
+					Password:   "keyring:mysql/client",
+					TLSMode:    config.MySQLTLSModePreferred,
+				},
+				password: "s3cret",
+			}},
+		},
+		{
+			name: "an empty value takes the inherited one back and leaves the next option alone",
+			args: args{options: "[client]\nuser=app\ndatabase=shop\n[client_reports]\ndatabase=\nhost=reports.internal\n"},
+			want: []want{{
+				name: "reports",
+				conn: config.MySQL{
+					Metadata:   config.ConnMeta{Name: "reports"},
+					Hostname:   "reports.internal",
+					PortNumber: 3306,
+					User:       "app",
+					TLSMode:    config.MySQLTLSModePreferred,
+				},
+			}},
+		},
+		{
+			name: "a suffix whose short name is taken or empty keeps its own spelling",
+			args: args{options: "[client_a]\nhost=one\nuser=u\ndatabase=d\n[client-a]\nhost=two\nuser=u\ndatabase=d\n[client_]\nhost=three\nuser=u\ndatabase=d\n"},
+			want: []want{
+				{name: "a", conn: config.MySQL{Metadata: config.ConnMeta{Name: "a"}, Hostname: "one", PortNumber: 3306, User: "u", DBName: "d", TLSMode: config.MySQLTLSModePreferred}},
+				{name: "-a", conn: config.MySQL{Metadata: config.ConnMeta{Name: "-a"}, Hostname: "two", PortNumber: 3306, User: "u", DBName: "d", TLSMode: config.MySQLTLSModePreferred}},
+				{name: "_", conn: config.MySQL{Metadata: config.ConnMeta{Name: "_"}, Hostname: "three", PortNumber: 3306, User: "u", DBName: "d", TLSMode: config.MySQLTLSModePreferred}},
 			},
 		},
 		{

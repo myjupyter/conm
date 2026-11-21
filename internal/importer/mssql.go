@@ -13,7 +13,6 @@ import (
 const (
 	mssqlDefaultDatabase = "master"
 	mssqlNoEncryption    = "none"
-	mssqlNoPort          = "0"
 )
 
 var errNoEndpoint = errors.New("context points at no endpoint")
@@ -70,7 +69,7 @@ func mssqlArgs(context map[string]string) (args, warnings []string, err error) {
 	if server == "" {
 		return nil, nil, errNoEndpoint
 	}
-	if port := context[config.SQLConfigPort]; port != "" && port != mssqlNoPort {
+	if port := context[config.SQLConfigPort]; port != "" {
 		server += "," + port
 	}
 	args = append(args, "--server="+server)

@@ -25,6 +25,7 @@ db.internal:5432:orders:app:first
 db.internal:5432:orders:app:shadowed
 db.internal:*:*:admin:any-db
 *:*:*:colon\:user:with\:colon\\slash
+*:*:*:bare:pa:ss
 too:few:fields
 `
 	type args struct {
@@ -52,6 +53,11 @@ too:few:fields
 			name: "escaped colons and backslashes are part of the field",
 			args: args{host: "elsewhere", port: "5432", database: "x", user: "colon:user"},
 			want: `with:colon\slash`,
+		},
+		{
+			name: "everything after the fourth colon is the password",
+			args: args{host: "elsewhere", port: "5432", database: "x", user: "bare"},
+			want: "pa:ss",
 		},
 		{
 			name: "no row for the connection",
@@ -144,11 +150,16 @@ func TestReadSQLConfig(t *testing.T) {
 			want: []ForeignSection{{Name: "dev", Params: []ForeignParam{
 				{Key: SQLConfigAddress, Value: "localhost"},
 				{Key: SQLConfigPort, Value: "1433"},
-				{Key: SQLConfigAuthType, Value: "basic"},
 				{Key: SQLConfigUsername, Value: "sa"},
 				{Key: SQLConfigPassword, Value: "czNjcmV0"},
 				{Key: SQLConfigPasswordEncryption, Value: "none"},
 			}}},
+		},
+		{
+			name: "an endpoint without a port has no port",
+			args: args{content: "endpoints:\n  - name: local\n    endpoint:\n      address: localhost\n" +
+				"contexts:\n  - name: dev\n    context:\n      endpoint: local\n"},
+			want: []ForeignSection{{Name: "dev", Params: []ForeignParam{{Key: SQLConfigAddress, Value: "localhost"}}}},
 		},
 		{
 			name: "an endpoint or a user that is not there leaves the context without it",
@@ -203,6 +214,19 @@ func TestReadClickHouseConnections(t *testing.T) {
 			args: args{file: "config.yaml", content: "connections_credentials:\n  connection:\n" +
 				"    - name: local\n      hostname: localhost\n      secure: true\n    - name: other\n      port: 9440\n"},
 			want: want,
+		},
+		{
+			name: "the format is told by the content, not the file name",
+			args: args{file: "clickhouse-client", content: "<config><connections_credentials>" +
+				"<connection><name>other</name><port>9440</port></connection>" +
+				"</connections_credentials></config>"},
+			want: want[1:],
+		},
+		{
+			name: "a yaml null is no value at all",
+			args: args{file: "config.yaml", content: "connections_credentials:\n  connection:\n" +
+				"    name: other\n    port: 9440\n    password: ~\n    user: null\n"},
+			want: want[1:],
 		},
 		{
 			name: "yaml without the section",
@@ -265,6 +289,10 @@ func TestClickHouseClientPath(t *testing.T) {
 			xdg.Reload()
 			t.Cleanup(xdg.Reload)
 			t.Chdir(root)
+
+			systemDir := clickhouseSystemDir
+			clickhouseSystemDir = filepath.Join(root, "etc")
+			t.Cleanup(func() { clickhouseSystemDir = systemDir })
 
 			for _, file := range tt.args.files {
 				path := filepath.Join(root, file)

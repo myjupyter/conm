@@ -15,6 +15,7 @@ func TestRead_postgres(t *testing.T) {
 	type args struct {
 		services string
 		pgpass   string
+		passfile string
 	}
 	type want struct {
 		name     string
@@ -81,6 +82,42 @@ func TestRead_postgres(t *testing.T) {
 			}},
 		},
 		{
+			name: "a service that names its own password file is looked up there, an absent host as localhost",
+			args: args{
+				services: "[local]\nuser=app\ndbname=orders\npassfile=own-pgpass\n",
+				pgpass:   "localhost:5432:*:app:from-the-shared-file\n",
+				passfile: "localhost:5432:*:app:from-its-own-file\n",
+			},
+			want: []want{{
+				name: "local",
+				conn: config.Postgres{
+					Metadata:   config.ConnMeta{Name: "local"},
+					PortNumber: 5432,
+					User:       "app",
+					Password:   "keyring:postgres/local",
+					DBName:     "orders",
+					SSLMode:    config.PostgresSSLModePrefer,
+				},
+				password: "from-its-own-file",
+				warnings: 1,
+			}},
+		},
+		{
+			name: "the first of a repeated keyword is the one the client uses",
+			args: args{services: "[orders]\nhost=first\nuser=app\ndbname=orders\nhost=second\n"},
+			want: []want{{
+				name: "orders",
+				conn: config.Postgres{
+					Metadata:   config.ConnMeta{Name: "orders"},
+					Hostname:   "first",
+					PortNumber: 5432,
+					User:       "app",
+					DBName:     "orders",
+					SSLMode:    config.PostgresSSLModePrefer,
+				},
+			}},
+		},
+		{
 			name: "an unknown keyword is a warning, an unsupported one fails only its service",
 			args: args{services: "[warned]\nhost=a\nuser=u\ndbname=d\nconnect_timeout=5\n[refused]\nhost=b\nsslrootcert=/ca.pem\n"},
 			want: []want{
@@ -106,7 +143,9 @@ func TestRead_postgres(t *testing.T) {
 			services, pgpass := filepath.Join(dir, "pg_service.conf"), filepath.Join(dir, "pgpass")
 			require.NoError(t, os.WriteFile(services, []byte(tt.args.services), 0o600))
 			require.NoError(t, os.WriteFile(pgpass, []byte(tt.args.pgpass), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "own-pgpass"), []byte(tt.args.passfile), 0o600))
 			t.Setenv("PGPASSFILE", pgpass)
+			t.Chdir(dir)
 
 			entries, err := Read(config.PostgresConnType, services)
 			require.NoError(t, err)
@@ -124,4 +163,16 @@ func TestRead_postgres(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestRead_postgres_unreadablePasswordFile(t *testing.T) {
+	dir := t.TempDir()
+	services := filepath.Join(dir, "pg_service.conf")
+	require.NoError(t, os.WriteFile(services, []byte("[orders]\nhost=db.internal\nuser=app\ndbname=orders\npassword=own\n"), 0o600))
+	t.Setenv("PGPASSFILE", dir)
+
+	entries, err := Read(config.PostgresConnType, services)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "own", entries[0].Password)
 }

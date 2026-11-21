@@ -13,6 +13,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/importer"
+	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
 func TestImportConnections(t *testing.T) {
@@ -66,11 +67,13 @@ func TestImportConnections(t *testing.T) {
 			name: "one refused entry keeps every other out",
 			args: args{entries: []importer.Entry{
 				{Name: "orders", Conn: orders},
+				{Name: "orders-again", Conn: renamed},
 				{Name: "no-host", Conn: invalid},
 				{Name: "broken", Err: errors.New("unreadable")},
 			}},
 			want: []ImportResult{
 				{Name: "orders", DSN: dsn, Status: ImportNew},
+				{Name: "orders-again", DSN: dsn, Status: ImportNew, Note: `same connection as "orders"`},
 				{Name: "no-host", DSN: invalid.ConnectionString(""), Status: ImportFailed, Note: "validation error: hostname can't be empty"},
 				{Name: "broken", Status: ImportFailed, Note: "unreadable"},
 			},
@@ -100,23 +103,17 @@ func TestImportConnections(t *testing.T) {
 			wantNames: []string{},
 		},
 		{
-			name:      "importing keeps the warnings to itself",
-			args:      args{entries: []importer.Entry{{Name: "orders", Conn: orders, Warnings: []string{"ignored parameter x=1"}}}},
-			want:      []ImportResult{{Name: "orders", DSN: dsn, Status: ImportDone}},
+			name: "importing passes the warnings on too",
+			args: args{entries: []importer.Entry{{Name: "orders", Conn: orders, Warnings: []string{"ignored parameter x=1"}}}},
+			want: []ImportResult{
+				{Name: "orders", DSN: dsn, Status: ImportDone, Warnings: []string{"ignored parameter x=1"}},
+			},
 			wantNames: []string{"orders"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-			t.Setenv("XDG_DATA_HOME", t.TempDir())
-			xdg.Reload()
-			t.Cleanup(xdg.Reload)
-			keyring.MockInit()
-			require.NoError(t, config.UseWorkspace(config.DefaultWorkspace))
-
-			conm, err := config.ReadConm(config.ConmPath())
-			require.NoError(t, err)
+			conm := emptyWorkspace(t)
 
 			got, err := ImportConnections(context.Background(), conm, config.PostgresConnType, tt.args.entries, tt.args.mode)
 			require.NoError(t, err)
@@ -139,6 +136,89 @@ func TestImportConnections(t *testing.T) {
 			}
 		})
 	}
+}
+
+func emptyWorkspace(t *testing.T) config.Conm {
+	t.Helper()
+
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	xdg.Reload()
+	t.Cleanup(xdg.Reload)
+	keyring.MockInit()
+	require.NoError(t, config.UseWorkspace(config.DefaultWorkspace))
+
+	conm, err := config.ReadConm(config.ConmPath())
+	require.NoError(t, err)
+
+	return conm
+}
+
+func TestImportConnections_replacesTheSecretAConnectionLeftBehind(t *testing.T) {
+	orders := config.Postgres{
+		Metadata:   config.ConnMeta{Name: "orders"},
+		Hostname:   "db.internal",
+		PortNumber: 5432,
+		User:       "app",
+		Password:   "keyring:postgres/orders",
+		DBName:     "orders",
+	}
+	conm := emptyWorkspace(t)
+	ctx := context.Background()
+
+	for _, password := range []string{"before", "rotated"} {
+		entries := []importer.Entry{{Name: "orders", Conn: orders, Password: password}}
+
+		got, err := ImportConnections(ctx, conm, config.PostgresConnType, entries, ImportStrict)
+		require.NoError(t, err)
+		require.Equal(t, []ImportResult{{Name: "orders", DSN: orders.ConnectionString(""), Status: ImportDone}}, got)
+
+		workspace, err := config.SecretWorkspace()
+		require.NoError(t, err)
+		stored, err := keyring.Get(workspace, "postgres/orders")
+		require.NoError(t, err)
+		assert.Equal(t, password, stored)
+
+		require.NoError(t, RemoveConnection(conm, config.PostgresConnType, "orders"))
+	}
+}
+
+func TestImportSeed_opensAFormThatCanBeSaved(t *testing.T) {
+	entry := importer.Entry{
+		Name: "orders",
+		Conn: config.Postgres{
+			Metadata:   config.ConnMeta{Name: "orders"},
+			Hostname:   "db.internal",
+			PortNumber: 5432,
+			User:       "app",
+			Password:   "keyring:postgres/orders",
+			DBName:     "orders",
+			SSLMode:    config.PostgresSSLModePrefer,
+		},
+		Password: "s3cret",
+	}
+	conm := emptyWorkspace(t)
+
+	ws, _, formCtx, err := openConnectionForm(conm, config.PostgresConnType)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ws.Close() })
+
+	initial, err := importSeed(config.PostgresConnType, entry)
+	require.NoError(t, err)
+
+	formSpec := spec.FormSpecs[config.PostgresConnType]
+	model, _ := newFormModel(config.PostgresConnType, formSpec, formSpec.AddTitle, initial, false, formCtx).submit()
+	form, ok := model.(formModel)
+	require.True(t, ok)
+	require.True(t, form.submitted, form.status)
+
+	typed, err := form.result()
+	require.NoError(t, err)
+
+	bound, password, err := keyringBound(config.PostgresConnType, typed)
+	require.NoError(t, err)
+	assert.Equal(t, "s3cret", password)
+	assert.Equal(t, entry.Conn, bound)
 }
 
 func TestRenderImport(t *testing.T) {

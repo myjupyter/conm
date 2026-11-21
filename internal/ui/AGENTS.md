@@ -55,19 +55,30 @@ repository, not through `ui/view`, and opens a screen only in `ImportInteractive
   has a connection to. **A `*repository.DuplicateConnectionError` is not a refusal** — the
   same target under any name is `ImportPresent` in every mode, so importing a file twice is
   not an error. A taken name with another target is a refusal.
+- **An entry that repeats one of the same file is a twin, not `ImportPresent`**: it stays
+  `ImportNew` with a note naming the entry it repeats, and becomes `ImportPresent` only once
+  that entry was saved — "already there" is never said of a connection conm does not have.
 - `ImportStrict` writes nothing when one entry is refused and leaves the rest `ImportNew`;
   the others save what was admitted with one `AddAll`. `ImportShow` stops after the plan.
 - `ImportInteractive` then opens each refused entry that has a connection in the add form,
   seeded from it and with the refusal as its status, through the same `formLoop` as
-  `conm <type> add`. An entry the importer could not read has nothing to seed a form with
-  and stays `ImportFailed`.
-- **The password is stored after the connection is saved**, in the keyring at the location
-  the saved connection refers to, as a secret named after the connection. A connection the
-  form pointed at another provider keeps what the user chose and nothing is stored. A
-  keyring failure leaves the connection saved and is reported in `ImportResult.Note`; it is
-  not rolled back.
-- `ImportResult.Warnings` — what the importer left out of an entry — is filled in
-  `ImportShow` only, so an import of a large file prints one line per connection.
+  `conm <type> add`, all of them under one `WithScreens`. An entry the importer could not
+  read has nothing to seed a form with and stays `ImportFailed`.
+- **The password is stored before the connection is saved**, in the keyring at the location
+  the connection refers to, as a secret named after the connection
+  (`storeImportedPassword`). A secret already at that location is given the new password
+  when no connection uses it — what a removed connection left behind — and is a
+  `*repository.SecretInUseError` when one does. An entry whose password could not be stored
+  is `ImportFailed` and is not saved; in `ImportStrict` that stops the import before
+  `AddAll`, and the secrets stored up to then stay as unused records the next run rewrites.
+- **The form is seeded with the password itself, not with its keyring reference**
+  (`importSeed`), because the location the importer chose does not exist yet and the form
+  refuses a reference to nothing. On save `keyringBound` moves a literal password to
+  `keyring:<type>/<name>` under the name the form ended with, through the spec's own
+  `SeedFunc`/`BuildFunc`; a connection the form pointed at another provider keeps what the
+  user chose and nothing is stored.
+- `ImportResult.Warnings` — what the importer left out of an entry, a password it could not
+  read included — is passed on in every mode.
 - `RenderImport` prints `[glyph] name dsn` with the reason and the warnings underneath, the way `doctor`
   prints a check: `kindOK` imported, `kindErr` refused, `kindWarn` already there, and
   `gImportNew` in `cPostgres` for an entry that could be imported but was not. The DSN is

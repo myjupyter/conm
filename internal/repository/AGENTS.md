@@ -79,7 +79,9 @@ type Workspaces interface {
   caller knows what `ConfigAt` asserts to, and `Add`/`Edit` reject a foreign type.
 - `AddAll` saves several connections with one write or none of them: each is admitted
   against the stored ones and the ones before it in the same call, so two entries of one
-  batch cannot be duplicates of each other. `Add` is `AddAll` of one. `Check` is the same
+  batch cannot be duplicates of each other. A batch that fails — at admission, at building a
+  live connection or at the save — leaves nothing behind: what was built is closed and the
+  records are taken back out. `Add` is `AddAll` of one. `Check` is the same
   admission without the write, with `pending` standing for connections that would be added
   first; it is what lets an import refuse a whole file before touching it.
 - `Secrets`: the password travels beside the record, never inside it, and only from the form

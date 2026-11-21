@@ -252,7 +252,11 @@ And ssh's own:
   destination alias, and the first of two `-o User` is kept. `-p` is the exception ssh makes
   too: it overwrites, so it beats `-o Port` and a url port wherever it stands.
 - **`-o` takes `Key=Value`, `Key Value` and `Key = Value`**, the spellings `ssh_config`
-  accepts; the key is matched lowercased.
+  accepts; the key is matched lowercased. The split is `config.SplitSSHOption`, the one
+  `config.ReadSSHConfig` reads a line with, so a quoted value loses its quotes here too.
+- **A second forward or identity file is a warning.** ssh adds up `LocalForward` and
+  `IdentityFile` where it keeps the first of everything else, and `config.SSH` holds one of
+  each: `sshValues.keep` keeps the first and names the one it dropped.
 - **A `LocalForward` option is rewritten to the `-L` spelling.** `ssh_config` separates the
   listening port from the target with a space (`LocalForward 15432 localhost:5432`), `-L` and
   `config.SSH.LocalForward` with a colon, so the option's fields are joined with `:`.

@@ -98,6 +98,40 @@ func TestRead_ssh(t *testing.T) {
 			},
 		},
 		{
+			name: "an alias spelled like a client is still a host, and %h in a HostName is the alias",
+			args: args{content: "Host mysql\n\nHost web1 web2\n  HostName %h.internal\n"},
+			want: []want{
+				{
+					name: "mysql",
+					conn: config.SSH{Metadata: config.ConnMeta{Name: "mysql"}, Hostname: "mysql", PortNumber: 22, Auth: config.SSHAuthAgent},
+				},
+				{
+					name: "web1",
+					conn: config.SSH{Metadata: config.ConnMeta{Name: "web1"}, Hostname: "web1.internal", PortNumber: 22, Auth: config.SSHAuthAgent},
+				},
+				{
+					name: "web2",
+					conn: config.SSH{Metadata: config.ConnMeta{Name: "web2"}, Hostname: "web2.internal", PortNumber: 22, Auth: config.SSHAuthAgent},
+				},
+			},
+		},
+		{
+			name: "only the first forward and identity file are kept, the others are warnings",
+			args: args{content: "Host a\n  LocalForward 5432 db:5432\n  LocalForward 6379 cache:6379\n  IdentityFile ~/.ssh/one\n  IdentityFile ~/.ssh/two\n"},
+			want: []want{{
+				name: "a",
+				conn: config.SSH{
+					Metadata:     config.ConnMeta{Name: "a"},
+					Hostname:     "a",
+					PortNumber:   22,
+					Auth:         config.SSHAuthKey,
+					Password:     "filepath:~/.ssh/one",
+					LocalForward: "5432:db:5432",
+				},
+				warnings: 2,
+			}},
+		},
+		{
 			name: "a config with patterns only holds no connection",
 			args: args{content: "Host *\n  ForwardAgent yes\n"},
 			want: []want{},

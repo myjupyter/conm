@@ -132,24 +132,39 @@ func (r *ConnectionRepository) AddAll(cfgs ...config.Connection) error {
 	ncs := make([]network.Connection, 0, len(cfgs))
 	for i, cfg := range cfgs {
 		if err := r.admit(cfg, cfgs[:i]); err != nil {
+			closeAll(ncs)
 			return fmt.Errorf("add: %w", err)
 		}
 
 		conn, err := r.build(cfg)
 		if err != nil {
+			closeAll(ncs)
 			return fmt.Errorf("add: open new connection error: %w", err)
 		}
 		ncs = append(ncs, conn)
 	}
 
+	live, stored := len(r.ncs), r.file.Len()
 	r.ncs = append(r.ncs, ncs...)
 	r.file.Add(cfgs...)
 
 	if err := r.file.Save(); err != nil {
+		for r.file.Len() > stored {
+			r.file.Remove(r.file.Len() - 1)
+		}
+		r.ncs = r.ncs[:live]
+		closeAll(ncs)
+
 		return fmt.Errorf("add: %w", err)
 	}
 
 	return nil
+}
+
+func closeAll(ncs []network.Connection) {
+	for _, c := range ncs {
+		_ = c.Close()
+	}
 }
 
 func (r *ConnectionRepository) Check(cfg config.Connection, pending ...config.Connection) error {
@@ -266,9 +281,7 @@ func (r *ConnectionRepository) Close() error {
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	for _, c := range r.ncs {
-		_ = c.Close()
-	}
+	closeAll(r.ncs)
 
 	return nil
 }

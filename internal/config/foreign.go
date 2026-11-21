@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -27,8 +28,8 @@ const (
 	clickhouseConfigName      = "config"
 	clickhouseConfigDirName   = "clickhouse"
 	clickhouseHomeDirName     = ".clickhouse-client"
-	clickhouseSystemDir       = "/etc/clickhouse-client"
 	clickhouseNameKey         = "name"
+	yamlNullTag               = "!!null"
 
 	sshHostKeyword  = "host"
 	sshMatchKeyword = "match"
@@ -48,6 +49,8 @@ type ForeignParam struct {
 }
 
 var clickhouseConfigExtensions = []string{".xml", ".yaml", ".yml"}
+
+var clickhouseSystemDir = "/etc/clickhouse-client"
 
 func PGServicePath() string {
 	if path := os.Getenv("PGSERVICEFILE"); path != "" {
@@ -162,7 +165,7 @@ func splitPGPassRow(line string) []string {
 			escaped = false
 		case r == '\\':
 			escaped = true
-		case r == ':':
+		case r == ':' && len(fields) < pgPassFields-1:
 			fields = append(fields, field.String())
 			field.Reset()
 		default:
@@ -195,7 +198,7 @@ func ReadClickHouseConnections(path string) ([]ForeignSection, error) {
 	}
 
 	var sections []ForeignSection
-	if filepath.Ext(path) == clickhouseConfigExtensions[0] {
+	if bytes.HasPrefix(bytes.TrimSpace(raw), []byte("<")) {
 		sections, err = clickhouseXMLConnections(raw)
 	} else {
 		sections, err = clickhouseYAMLConnections(raw)
@@ -217,7 +220,7 @@ func clickhouseXMLConnections(raw []byte) ([]ForeignSection, error) {
 	for _, conn := range file.Connections {
 		var section ForeignSection
 		for _, field := range conn.Fields {
-			section.add(field.XMLName.Local, field.Value)
+			section.addClickHouseField(field.XMLName.Local, field.Value)
 		}
 		sections = append(sections, section)
 	}
@@ -244,7 +247,9 @@ func clickhouseYAMLConnections(raw []byte) ([]ForeignSection, error) {
 
 		var section ForeignSection
 		for i := 0; i+1 < len(node.Content); i += 2 {
-			section.add(node.Content[i].Value, node.Content[i+1].Value)
+			if key, value := node.Content[i], node.Content[i+1]; value.Tag != yamlNullTag {
+				section.addClickHouseField(key.Value, value.Value)
+			}
 		}
 		sections = append(sections, section)
 	}
@@ -252,7 +257,7 @@ func clickhouseYAMLConnections(raw []byte) ([]ForeignSection, error) {
 	return sections, nil
 }
 
-func (s *ForeignSection) add(key, value string) {
+func (s *ForeignSection) addClickHouseField(key, value string) {
 	key, value = strings.TrimSpace(key), strings.TrimSpace(value)
 	if key == clickhouseNameKey {
 		s.Name = value
@@ -279,7 +284,6 @@ type sqlConfig struct {
 	} `yaml:"contexts"`
 	Users []struct {
 		Name      string `yaml:"name"`
-		AuthType  string `yaml:"authentication-type"`
 		BasicAuth struct {
 			Username           string `yaml:"username"`
 			Password           string `yaml:"password"`
@@ -291,7 +295,6 @@ type sqlConfig struct {
 const (
 	SQLConfigAddress            = "address"
 	SQLConfigPort               = "port"
-	SQLConfigAuthType           = "authentication-type"
 	SQLConfigUsername           = "username"
 	SQLConfigPassword           = "password"
 	SQLConfigPasswordEncryption = "password-encryption"
@@ -316,10 +319,10 @@ func ReadSQLConfig(path string) ([]ForeignSection, error) {
 			if endpoint.Name != context.Context.Endpoint {
 				continue
 			}
-			section.Params = append(section.Params,
-				ForeignParam{Key: SQLConfigAddress, Value: endpoint.Endpoint.Address},
-				ForeignParam{Key: SQLConfigPort, Value: strconv.Itoa(endpoint.Endpoint.Port)},
-			)
+			section.Params = append(section.Params, ForeignParam{Key: SQLConfigAddress, Value: endpoint.Endpoint.Address})
+			if port := endpoint.Endpoint.Port; port != 0 {
+				section.Params = append(section.Params, ForeignParam{Key: SQLConfigPort, Value: strconv.Itoa(port)})
+			}
 
 			break
 		}
@@ -329,7 +332,6 @@ func ReadSQLConfig(path string) ([]ForeignSection, error) {
 				continue
 			}
 			section.Params = append(section.Params,
-				ForeignParam{Key: SQLConfigAuthType, Value: user.AuthType},
 				ForeignParam{Key: SQLConfigUsername, Value: user.BasicAuth.Username},
 				ForeignParam{Key: SQLConfigPassword, Value: user.BasicAuth.Password},
 				ForeignParam{Key: SQLConfigPasswordEncryption, Value: user.BasicAuth.PasswordEncryption},
@@ -358,7 +360,7 @@ func ReadSSHConfig(path string) ([]ForeignSection, error) {
 			continue
 		}
 
-		keyword, value := splitSSHConfigLine(line)
+		keyword, value := SplitSSHOption(line)
 		switch strings.ToLower(keyword) {
 		case sshHostKeyword:
 			sections, skipping = append(sections, ForeignSection{Name: value}), false
@@ -376,7 +378,8 @@ func ReadSSHConfig(path string) ([]ForeignSection, error) {
 	return sections, nil
 }
 
-func splitSSHConfigLine(line string) (keyword, value string) {
+func SplitSSHOption(line string) (keyword, value string) {
+	line = strings.TrimSpace(line)
 	at := strings.IndexAny(line, "= \t")
 	if at < 0 {
 		return line, ""

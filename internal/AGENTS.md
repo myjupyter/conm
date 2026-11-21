@@ -58,7 +58,9 @@ Hard rules — the ones that cross modules. Each module's own rules are in its f
   `internal/cli`.
 - **A connection's password field holds a *reference*, not necessarily a password**: a bare
   literal or `"<scheme>:<location>"`. `spec.JoinSecret`/`SplitSecret` are the only place that
-  format is assembled and taken apart, and `secret.IsStore` — never `!= secret.Literal` — is
+  format is assembled and taken apart — below the form layer, which cannot reach `ui/spec`,
+  `params` writes a parsed password as `literal:` and `importer.withoutPassword` swaps it for
+  `keyring:`, both through `secret.Ref`/`ParseRef` — and `secret.IsStore` — never `!= secret.Literal` — is
   the one test for "this points into a store".
 - **The password never lives in a displayed string.** `ConnectionString(pw)` injects the
   resolved secret; views build password-free targets, and the search index cannot reach it.

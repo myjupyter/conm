@@ -54,6 +54,11 @@ var sshOptions = map[string]sshKey{
 	"localforward":        sshLocalForward,
 }
 
+var sshRepeatable = map[sshKey]string{
+	sshIdentity:     "identity file",
+	sshLocalForward: "local forward",
+}
+
 type sshValues map[sshKey]string
 
 func parseSSH(req request) (Result, error) {
@@ -139,31 +144,19 @@ func applySSHFlag(values sshValues, flag argFlag) []string {
 	case key == sshPort:
 		values.override(sshPort, flag.value)
 	case key == sshOption:
-		name, value := splitSSHOption(flag.value)
+		name, value := config.SplitSSHOption(flag.value)
 		if optionKey, known := sshOptions[strings.ToLower(name)]; known {
 			if optionKey == sshLocalForward {
 				value = strings.Join(strings.Fields(value), ":")
 			}
-			values.set(optionKey, value)
-			return nil
+			return values.keep(optionKey, value)
 		}
 		return []string{"ignored option " + flag.value}
 	default:
-		values.set(key, flag.value)
+		return values.keep(key, flag.value)
 	}
 
 	return nil
-}
-
-func splitSSHOption(option string) (name, value string) {
-	option = strings.TrimSpace(option)
-	at := strings.IndexAny(option, "= \t")
-	if at < 0 {
-		return option, ""
-	}
-	value = strings.TrimSpace(option[at:])
-	value = strings.TrimSpace(strings.TrimPrefix(value, "="))
-	return option[:at], value
 }
 
 func applySSHDestination(values sshValues, destination string) {
@@ -225,6 +218,15 @@ func buildSSH(values sshValues) (config.SSH, []string) {
 		KeepAlive:    keepAlive,
 		LocalForward: values[sshLocalForward],
 	}, warnings
+}
+
+func (v sshValues) keep(key sshKey, value string) []string {
+	if kept, taken := v[key]; taken && sshRepeatable[key] != "" && value != "" && value != kept {
+		return []string{fmt.Sprintf("kept only the first %s %s, dropped %s", sshRepeatable[key], kept, value)}
+	}
+	v.set(key, value)
+
+	return nil
 }
 
 func (v sshValues) set(key sshKey, value string) {

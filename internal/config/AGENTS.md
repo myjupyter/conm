@@ -162,26 +162,30 @@ a section means is `internal/importer`'s to decide.
 - Every reader returns `ForeignSection`s — a name and its `ForeignParam`s in file order —
   whatever the file's syntax, so `internal/importer` deals with one shape.
 - `ReadClickHouseConnections` reads `connections_credentials` from XML (under any root
-  element) or YAML, by the file's extension. In YAML a single connection is a map and several
-  are a list; both are accepted. The `name` key becomes the section's name.
+  element) or YAML. The format is told by the content — XML starts with `<` — since the file
+  may be `--path` to a copy under any name. In YAML a single connection is a map and several
+  are a list; both are accepted, and a null value is a key that is not there. The `name` key
+  becomes the section's name.
 - `ClickHouseClientPath` follows the client's search order — `./clickhouse-client.*`,
   `$XDG_CONFIG_HOME/clickhouse/config.*` (`~/.config` when unset, not the platform directory
   `xdg` would give), `~/.clickhouse-client/config.*`, `/etc/clickhouse-client/config.*` — over
   `.xml`, `.yaml`, `.yml`, and names the home XML file when none exists.
 - `ReadSQLConfig` joins each context of a sqlcmd `sqlconfig` with the endpoint and the user it
-  names, under the `SQLConfig*` keys. A name that resolves to nothing leaves those keys out.
-  The password is passed on as stored.
+  names, under the `SQLConfig*` keys. A name that resolves to nothing leaves those keys out,
+  and so does an endpoint without a port. The password is passed on as stored.
 - `ReadSSHConfig` returns one section per `Host` line, named by the whole pattern list, after
   a first section `*` holding the options given before any `Host`. The options of a `Match`
   block are dropped up to the next `Host`. A keyword ends at a space, a tab or `=`, and a
-  value loses one pair of surrounding double quotes.
+  value loses one pair of surrounding double quotes — `SplitSSHOption`, which
+  `internal/parser/params` reads an `-o` value with as well.
 - `ReadINI` drops comment lines (`#`, `;`), blank lines and anything before the first
   section. A line without `=` is a key with an empty value, which is how an option file
   spells a flag.
 - `PGServicePath` and `PGPassPath` honour `PGSERVICEFILE` and `PGPASSFILE` before falling
   back to the home directory, as libpq does.
 - `ReadPGPass` treats a missing file as an empty one, since the file is optional. A row has
-  exactly five fields, `\:` and `\\` are the escapes, and `PGPass.Password` returns the first
+  five fields and everything after the fourth colon is the password, `\:` and `\\` are the
+  escapes, and `PGPass.Password` returns the first
   row whose host, port, database and user each match or are `*`.
 
 ## The settings row — `conm.toml`

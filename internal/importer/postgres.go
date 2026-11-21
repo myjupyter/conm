@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"cmp"
 	"fmt"
 	"strconv"
 	"strings"
@@ -8,6 +9,11 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/parser/params"
 	"github.com/myjupyter/conm/internal/secret"
+)
+
+const (
+	pgPassfileKeyword = "passfile"
+	pgDefaultHost     = "localhost"
 )
 
 var conninfoEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
@@ -18,13 +24,14 @@ func readPostgres(path string) ([]Entry, error) {
 		return nil, err
 	}
 
-	passwords, err := config.ReadPGPass(config.PGPassPath())
-	if err != nil {
-		return nil, err
-	}
+	shared, _ := config.ReadPGPass(config.PGPassPath())
 
 	entries := make([]Entry, 0, len(services))
 	for _, service := range services {
+		passwords := shared
+		if own := values(service.Params)[pgPassfileKeyword]; own != "" {
+			passwords, _ = config.ReadPGPass(own)
+		}
 		entries = append(entries, postgresEntry(service, passwords))
 	}
 
@@ -47,7 +54,8 @@ func postgresEntry(service config.ForeignSection, passwords config.PGPass) Entry
 	}
 
 	if pg.Password == "" {
-		found := passwords.Password(pg.Hostname, strconv.Itoa(pg.PortNumber), pg.DBName, pg.User)
+		host := cmp.Or(pg.Hostname, pgDefaultHost)
+		found := passwords.Password(host, strconv.Itoa(pg.PortNumber), pg.DBName, pg.User)
 		pg.Password = secret.Ref(secret.Literal, found)
 	}
 	pg.Metadata.Name = service.Name
@@ -60,7 +68,12 @@ func postgresEntry(service config.ForeignSection, passwords config.PGPass) Entry
 
 func conninfo(pairs []config.ForeignParam) string {
 	keywords := make([]string, 0, len(pairs))
+	seen := make(map[string]bool, len(pairs))
 	for _, pair := range pairs {
+		if seen[pair.Key] {
+			continue
+		}
+		seen[pair.Key] = true
 		keywords = append(keywords, pair.Key+"='"+conninfoEscaper.Replace(pair.Value)+"'")
 	}
 

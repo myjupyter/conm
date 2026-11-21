@@ -12,6 +12,7 @@ import (
 const (
 	mysqlClientGroup = "client"
 	mysqlToolGroup   = "mysql"
+	mysqlHostOption  = "host"
 )
 
 var mysqlSharedGroups = []string{"client-server", "client-mariadb"}
@@ -35,12 +36,11 @@ func readMySQL(path string) ([]Entry, error) {
 
 	base := options(mysqlClientGroup, mysqlToolGroup)
 
-	var entries []Entry
-	if len(base) > 0 {
-		entries = append(entries, mysqlEntry(mysqlClientGroup, base))
-	}
-
-	var seen []string
+	var (
+		entries []Entry
+		seen    []string
+		names   = []string{mysqlClientGroup}
+	)
 	for _, group := range groups {
 		suffix, ok := strings.CutPrefix(group.Name, mysqlClientGroup)
 		if !ok || suffix == "" || slices.Contains(mysqlSharedGroups, group.Name) || slices.Contains(seen, suffix) {
@@ -48,8 +48,18 @@ func readMySQL(path string) ([]Entry, error) {
 		}
 		seen = append(seen, suffix)
 
+		name := strings.TrimLeft(suffix, "_-.")
+		if name == "" || slices.Contains(names, name) {
+			name = suffix
+		}
+		names = append(names, name)
+
 		own := options(mysqlClientGroup+suffix, mysqlToolGroup+suffix)
-		entries = append(entries, mysqlEntry(strings.TrimLeft(suffix, "_-."), slices.Concat(base, own)))
+		entries = append(entries, mysqlEntry(name, slices.Concat(base, own)))
+	}
+
+	if len(base) > 0 && (len(entries) == 0 || values(base)[mysqlHostOption] != "") {
+		entries = slices.Insert(entries, 0, mysqlEntry(mysqlClientGroup, base))
 	}
 
 	return entries, nil
@@ -90,10 +100,7 @@ func mysqlArgs(options []config.ForeignParam) []string {
 		}
 
 		name := "--" + strings.ReplaceAll(option.Key, "_", "-")
-		arg := name
-		if option.Value != "" {
-			arg += "=" + unquoted(option.Value)
-		}
+		arg := name + "=" + unquoted(option.Value)
 
 		if i, repeated := index[name]; repeated {
 			args[i] = arg

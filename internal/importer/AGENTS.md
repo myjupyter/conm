@@ -54,28 +54,42 @@ May import (internal): `config`, `parser/params`, `secret`.
 
 ### Postgres
 
-A service without a `password` gets the one `.pgpass` holds for its host, port, database and
-user, the way libpq picks it: first matching row, `*` matching anything. `.pgpass` rows are
-never connections of their own — they have no name and are mostly wildcards.
+- A service without a `password` gets the one the password file holds for its host, port,
+  database and user, the way libpq picks it: first matching row, `*` matching anything, a
+  service without a host looked up as `localhost`. The file is the service's own `passfile`
+  when it names one, else `config.PGPassPath()`.
+- A password file that cannot be read is one without rows, as for libpq: the file is
+  optional and never fails the import.
+- **The first of a repeated keyword is kept**, since libpq never overrides a keyword a
+  service file already set; `conninfo` drops the later ones before the parser sees them.
+- `.pgpass` rows are never connections of their own — they have no name and are mostly
+  wildcards.
 
 ### MySQL
 
-- `[client]` and `[mysql]` together are one connection, named `client`.
+- `[client]` and `[mysql]` together are one connection, named `client` — when they name a
+  `host`, or when the file has no suffixed group. Otherwise they are the defaults the
+  suffixed groups share, and an entry made of them would only be a refusal that keeps a
+  strict import from the connections the file does hold.
 - Every `[client<suffix>]` group is another one, named after the suffix without its leading
-  `_`, `-` or `.` — the connection `mysql --defaults-group-suffix=<suffix>` opens. Its options
-  are those of `[client]` and `[mysql]` followed by `[client<suffix>]` and `[mysql<suffix>]`.
+  `_`, `-` or `.` — the connection `mysql --defaults-group-suffix=<suffix>` opens. A suffix
+  whose short name is empty or already taken (`[client_a]` beside `[client-a]`) keeps its
+  whole spelling. Its options are those of `[client]` and `[mysql]` followed by
+  `[client<suffix>]` and `[mysql<suffix>]`.
 - Suffixes are discovered from `client…` groups only: `[mysqld]` and `[mysqldump]` start with
   `mysql` and are other programs, not suffixed groups. `[client-server]` and
   `[client-mariadb]` are shared MariaDB groups, not suffixes either.
 - Only the last of a repeated option is passed on. The parser ignores an empty value, so
   without this an empty `password=` in a suffixed group could not take back the password it
   inherits.
+- **Every option is passed as `--key=value`, the `=` kept when the value is empty.** A bare
+  `--key` would take the argument after it as its value.
 - `!include` and `!includedir` lines are dropped, included files are not followed, a
   `# comment` after a value is not stripped, and the obfuscated `~/.mylogin.cnf` is not read.
 
 ### ClickHouse
 
-- The file is the client's own config, XML or YAML by its extension; `config.ClickHouseClientPath`
+- The file is the client's own config, XML or YAML by its content; `config.ClickHouseClientPath`
   picks the first that exists in the client's search order.
 - A connection without `hostname` uses its `name` as the host, as the client does.
 - `secure` and `accept-invalid-certificate` become their flags only when true; the second is
@@ -98,8 +112,13 @@ never connections of their own — they have no name and are mostly wildcards.
   block whose patterns match the alias are passed in file order as `-o Key=Value`, and the
   parser keeps the first value of each — which is how ssh itself reads the file. Options
   before the first `Host` are the block `*`. A negated pattern that matches excludes its
-  block.
-- The alias is passed as the destination, so it is the host unless a `HostName` came first.
+  block. `LocalForward` and `IdentityFile` are the options ssh adds up instead: the parser
+  keeps the first and warns about the rest.
+- The alias is passed as a last `-o HostName=<alias>`, so it is the host unless a `HostName`
+  came first. It is never a positional argument: the parser would read an alias such as
+  `mysql` or `ssh` as the client binary in front of a command line.
+- `%h` in a `HostName` is the alias and `%%` a percent sign, as ssh expands them. No other
+  token is expanded.
 - `Match` blocks are dropped by `config.ReadSSHConfig`: their conditions cannot be evaluated
   without running ssh. `Include` is an option like any other and ends as a warning.
 

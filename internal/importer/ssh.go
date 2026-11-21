@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	sshPatternMarks = "*?!"
-	sshNegation     = "!"
+	sshPatternMarks   = "*?!"
+	sshNegation       = "!"
+	sshHostNameOption = "HostName"
 )
 
 func readSSH(file string) ([]Entry, error) {
@@ -41,17 +42,24 @@ func readSSH(file string) ([]Entry, error) {
 func sshEntry(alias string, blocks []config.ForeignSection) Entry {
 	entry := Entry{Name: alias}
 
+	hostTokens := strings.NewReplacer("%%", "%", "%h", alias)
+
 	var args []string
 	for _, block := range blocks {
 		if !sshMatches(block.Name, alias) {
 			continue
 		}
 		for _, option := range block.Params {
-			args = append(args, "-o", option.Key+"="+option.Value)
+			value := option.Value
+			if strings.EqualFold(option.Key, sshHostNameOption) {
+				value = hostTokens.Replace(value)
+			}
+			args = append(args, "-o", option.Key+"="+value)
 		}
 	}
+	args = append(args, "-o", sshHostNameOption+"="+alias)
 
-	res, err := params.ParseArgs(config.SSHConnType, append(args, alias))
+	res, err := params.ParseArgs(config.SSHConnType, args)
 	if err != nil {
 		entry.Err = err
 		return entry
