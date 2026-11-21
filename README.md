@@ -2,8 +2,6 @@
   <img src="logo.png" alt="conm logo" width="200">
 </p>
 
-# conm
-
 [![Go version](https://img.shields.io/github/go-mod/go-version/myjupyter/conm)](go.mod)
 [![Build](https://github.com/myjupyter/conm/actions/workflows/go.yml/badge.svg)](https://github.com/myjupyter/conm/actions/workflows/go.yml)
 [![License](https://img.shields.io/github/license/myjupyter/conm)](LICENSE)
