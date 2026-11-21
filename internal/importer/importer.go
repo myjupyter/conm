@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
 type Entry struct {
@@ -20,8 +21,11 @@ type source struct {
 }
 
 var sources = map[config.ConnType]source{
-	config.PostgresConnType: {path: config.PGServicePath, read: readPostgres},
-	config.MySQLConnType:    {path: config.MySQLOptionPath, read: readMySQL},
+	config.PostgresConnType:   {path: config.PGServicePath, read: readPostgres},
+	config.MySQLConnType:      {path: config.MySQLOptionPath, read: readMySQL},
+	config.ClickHouseConnType: {path: config.ClickHouseClientPath, read: readClickHouse},
+	config.MSSQLConnType:      {path: config.SQLConfigPath, read: readMSSQL},
+	config.SSHConnType:        {path: config.SSHConfigPath, read: readSSH},
 }
 
 func Supported(t config.ConnType) bool {
@@ -44,4 +48,31 @@ func Read(t config.ConnType, path string) ([]Entry, error) {
 
 func SecretLocation(t config.ConnType, name string) string {
 	return t.String() + "/" + name
+}
+
+type secretHolder[C any] interface {
+	*C
+	secret.Reference
+	SetSecretRef(ref string)
+}
+
+func withoutPassword[C any, H secretHolder[C]](conn C, t config.ConnType, name string) (C, string) {
+	holder := H(&conn)
+
+	_, password, _ := secret.ParseRef(holder.SecretRef())
+	holder.SetSecretRef("")
+	if password != "" {
+		holder.SetSecretRef(secret.Ref(secret.Keyring, SecretLocation(t, name)))
+	}
+
+	return conn, password
+}
+
+func values(params []config.ForeignParam) map[string]string {
+	found := make(map[string]string, len(params))
+	for _, param := range params {
+		found[param.Key] = param.Value
+	}
+
+	return found
 }

@@ -51,6 +51,11 @@ conm postgres import --show           # print what would happen, change nothing
 |---|---|---|
 | `postgres` | `~/.pg_service.conf`: one connection per service | from the service, else from `~/.pgpass` |
 | `mysql` | `~/.my.cnf`: `[client]` as `client`, each `[client_<name>]` as `<name>` | from the group |
+| `clickhouse` | the client's `config.xml` or `config.yaml`: one connection per `connections_credentials` entry | from the entry |
+| `mssql` | `~/.sqlcmd/sqlconfig`: one connection per context | from the context's user |
+| `ssh` | `~/.ssh/config`: one connection per `Host` that is not a pattern | none: a key file stays a path |
+
+Redis and MongoDB clients keep no connections in a file, so they have no `import`.
 
 Each connection is named after its entry and printed with what happened to it:
 
@@ -61,6 +66,7 @@ Each connection is named after its entry and printed with what happened to it:
 | `!` | already in conm, so left alone |
 | `✗` | cannot be imported, for the reason printed below it |
 
+`--show` also lists what conm leaves out of an entry, such as an option it has no field for.
 If one connection cannot be imported, nothing is. Add `--skip-errors` to import the rest.
 
 ![Importing Postgres services from the shell](../demo/import-shell.gif)

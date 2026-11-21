@@ -23,8 +23,8 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `secret.go`, `keyring.go` | `Secret`, `SecretParam`; `Keyring`, the one stored secret record, and its wrapper |
 | `transport.go` | `Transport`, `TransportKind`, its wrapper and validators |
 | `workspace.go` | the active workspace, the startup workspace, create/rename/remove of a workspace's directories |
-| `ini.go` | `ReadINI` — the sectioned `key=value` format of `pg_service.conf` and MySQL option files, as `INISection`s in file order |
-| `foreign.go` | where the clients' own files are (`PGServicePath`, `PGPassPath`, `MySQLOptionPath`) and `PGPass`, the rows of a `.pgpass` with libpq's lookup |
+| `ini.go` | `ReadINI` — the sectioned `key=value` format of `pg_service.conf` and MySQL option files, as `ForeignSection`s in file order |
+| `foreign.go` | `ForeignSection`/`ForeignParam`, where the clients' own files are (`PGServicePath`, `PGPassPath`, `MySQLOptionPath`, `ClickHouseClientPath`, `SQLConfigPath`, `SSHConfigPath`), `PGPass` with libpq's lookup, and the readers `ReadClickHouseConnections`, `ReadSQLConfig`, `ReadSSHConfig` |
 | `xdg.go` | every path: `ConmPath()`, `PostgresPath()`, `TransportPath()`, `SecretConfigPath()`, … — workspace-scoped except `conm.toml` |
 
 ## Main entities
@@ -159,6 +159,22 @@ merely unset already is.
 file's own shape — sections and pairs, password rows — and know nothing of connections: what
 a section means is `internal/importer`'s to decide.
 
+- Every reader returns `ForeignSection`s — a name and its `ForeignParam`s in file order —
+  whatever the file's syntax, so `internal/importer` deals with one shape.
+- `ReadClickHouseConnections` reads `connections_credentials` from XML (under any root
+  element) or YAML, by the file's extension. In YAML a single connection is a map and several
+  are a list; both are accepted. The `name` key becomes the section's name.
+- `ClickHouseClientPath` follows the client's search order — `./clickhouse-client.*`,
+  `$XDG_CONFIG_HOME/clickhouse/config.*` (`~/.config` when unset, not the platform directory
+  `xdg` would give), `~/.clickhouse-client/config.*`, `/etc/clickhouse-client/config.*` — over
+  `.xml`, `.yaml`, `.yml`, and names the home XML file when none exists.
+- `ReadSQLConfig` joins each context of a sqlcmd `sqlconfig` with the endpoint and the user it
+  names, under the `SQLConfig*` keys. A name that resolves to nothing leaves those keys out.
+  The password is passed on as stored.
+- `ReadSSHConfig` returns one section per `Host` line, named by the whole pattern list, after
+  a first section `*` holding the options given before any `Host`. The options of a `Match`
+  block are dropped up to the next `Host`. A keyword ends at a space, a tab or `=`, and a
+  value loses one pair of surrounding double quotes.
 - `ReadINI` drops comment lines (`#`, `;`), blank lines and anything before the first
   section. A line without `=` is a key with an empty value, which is how an option file
   spells a flag.

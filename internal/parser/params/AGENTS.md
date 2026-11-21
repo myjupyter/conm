@@ -253,3 +253,6 @@ And ssh's own:
   too: it overwrites, so it beats `-o Port` and a url port wherever it stands.
 - **`-o` takes `Key=Value`, `Key Value` and `Key = Value`**, the spellings `ssh_config`
   accepts; the key is matched lowercased.
+- **A `LocalForward` option is rewritten to the `-L` spelling.** `ssh_config` separates the
+  listening port from the target with a space (`LocalForward 15432 localhost:5432`), `-L` and
+  `config.SSH.LocalForward` with a colon, so the option's fields are joined with `:`.

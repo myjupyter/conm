@@ -66,7 +66,9 @@ repository, not through `ui/view`, and opens a screen only in `ImportInteractive
   form pointed at another provider keeps what the user chose and nothing is stored. A
   keyring failure leaves the connection saved and is reported in `ImportResult.Note`; it is
   not rolled back.
-- `RenderImport` prints `[glyph] name dsn` with the reason underneath, the way `doctor`
+- `ImportResult.Warnings` — what the importer left out of an entry — is filled in
+  `ImportShow` only, so an import of a large file prints one line per connection.
+- `RenderImport` prints `[glyph] name dsn` with the reason and the warnings underneath, the way `doctor`
   prints a check: `kindOK` imported, `kindErr` refused, `kindWarn` already there, and
   `gImportNew` in `cPostgres` for an entry that could be imported but was not. The DSN is
   `ConnectionString("")`, so it never carries the password.

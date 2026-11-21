@@ -89,10 +89,21 @@ func TestImportConnections(t *testing.T) {
 			wantNames: []string{"orders"},
 		},
 		{
-			name:      "showing saves nothing",
-			args:      args{entries: []importer.Entry{{Name: "orders", Conn: orders}}, mode: ImportShow},
-			want:      []ImportResult{{Name: "orders", DSN: dsn, Status: ImportNew}},
+			name: "showing saves nothing and passes the warnings on",
+			args: args{
+				entries: []importer.Entry{{Name: "orders", Conn: orders, Warnings: []string{"ignored parameter x=1"}}},
+				mode:    ImportShow,
+			},
+			want: []ImportResult{
+				{Name: "orders", DSN: dsn, Status: ImportNew, Warnings: []string{"ignored parameter x=1"}},
+			},
 			wantNames: []string{},
+		},
+		{
+			name:      "importing keeps the warnings to itself",
+			args:      args{entries: []importer.Entry{{Name: "orders", Conn: orders, Warnings: []string{"ignored parameter x=1"}}}},
+			want:      []ImportResult{{Name: "orders", DSN: dsn, Status: ImportDone}},
+			wantNames: []string{"orders"},
 		},
 	}
 	for _, tt := range tests {
@@ -147,6 +158,7 @@ func TestRenderImport(t *testing.T) {
 				{Name: "same", DSN: "postgresql://app@db:5432/same", Status: ImportPresent, Note: "same"},
 				{Name: "copy", DSN: "postgresql://app@db:5432/orders", Status: ImportPresent, Note: "orders"},
 				{Name: "broken", Status: ImportFailed, Note: "unreadable"},
+				{Name: "warned", DSN: "postgresql://app@db:5432/warned", Status: ImportNew, Warnings: []string{"ignored parameter x=1"}},
 			}},
 			want: "[✓] orders  postgresql://app@db:5432/orders\n" +
 				"[○] new     postgresql://app@db:5432/new\n" +
@@ -154,7 +166,9 @@ func TestRenderImport(t *testing.T) {
 				"[!] copy    postgresql://app@db:5432/orders\n" +
 				"  - already there as \"orders\"\n" +
 				"[✗] broken  \n" +
-				"  - unreadable\n",
+				"  - unreadable\n" +
+				"[○] warned  postgresql://app@db:5432/warned\n" +
+				"  - ignored parameter x=1\n",
 		},
 	}
 	for _, tt := range tests {

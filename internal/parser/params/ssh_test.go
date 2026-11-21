@@ -37,6 +37,19 @@ func TestParseSSH(t *testing.T) {
 			},
 		},
 		{
+			name:   "a forward spelled the ssh_config way, with a space",
+			input:  `ssh -o "LocalForward 15432 localhost:5432" ci@runner-03.ci`,
+			syntax: FlagSyntax,
+			client: "ssh",
+			conn: config.SSH{
+				Hostname:     "runner-03.ci",
+				PortNumber:   22,
+				User:         "ci",
+				Auth:         config.SSHAuthAgent,
+				LocalForward: "15432:localhost:5432",
+			},
+		},
+		{
 			name:   "a bare url needs no client",
 			input:  `ssh://deploy@bastion.eu:2200`,
 			syntax: URISyntax,

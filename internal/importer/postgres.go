@@ -31,7 +31,7 @@ func readPostgres(path string) ([]Entry, error) {
 	return entries, nil
 }
 
-func postgresEntry(service config.INISection, passwords config.PGPass) Entry {
+func postgresEntry(service config.ForeignSection, passwords config.PGPass) Entry {
 	entry := Entry{Name: service.Name}
 
 	res, err := params.ParseArgs(config.PostgresConnType, []string{conninfo(service.Params)})
@@ -46,23 +46,19 @@ func postgresEntry(service config.INISection, passwords config.PGPass) Entry {
 		return entry
 	}
 
-	_, password, _ := secret.ParseRef(pg.Password)
-	if password == "" {
-		password = passwords.Password(pg.Hostname, strconv.Itoa(pg.PortNumber), pg.DBName, pg.User)
-	}
-
-	pg.Password = ""
-	if password != "" {
-		pg.Password = secret.Ref(secret.Keyring, SecretLocation(config.PostgresConnType, service.Name))
+	if pg.Password == "" {
+		found := passwords.Password(pg.Hostname, strconv.Itoa(pg.PortNumber), pg.DBName, pg.User)
+		pg.Password = secret.Ref(secret.Literal, found)
 	}
 	pg.Metadata.Name = service.Name
 
-	entry.Conn, entry.Password, entry.Warnings = pg, password, res.Warnings
+	entry.Conn, entry.Password = withoutPassword(pg, config.PostgresConnType, service.Name)
+	entry.Warnings = res.Warnings
 
 	return entry
 }
 
-func conninfo(pairs []config.INIParam) string {
+func conninfo(pairs []config.ForeignParam) string {
 	keywords := make([]string, 0, len(pairs))
 	for _, pair := range pairs {
 		keywords = append(keywords, pair.Key+"='"+conninfoEscaper.Replace(pair.Value)+"'")

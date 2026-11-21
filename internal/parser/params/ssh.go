@@ -141,6 +141,9 @@ func applySSHFlag(values sshValues, flag argFlag) []string {
 	case key == sshOption:
 		name, value := splitSSHOption(flag.value)
 		if optionKey, known := sshOptions[strings.ToLower(name)]; known {
+			if optionKey == sshLocalForward {
+				value = strings.Join(strings.Fields(value), ":")
+			}
 			values.set(optionKey, value)
 			return nil
 		}

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -32,7 +33,7 @@ form to be fixed. Passwords found in the file go to the system keyring.
   conm %[1]s import
   conm %[1]s import orders billing
   conm %[1]s import --show
-  conm %[1]s import --path ./pg_service.conf --workspace staging`, t),
+  conm %[1]s import --path ./%[2]s --workspace staging`, t, filepath.Base(importer.DefaultPath(t))),
 		Args:         cobra.ArbitraryArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

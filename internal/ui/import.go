@@ -34,10 +34,11 @@ const (
 )
 
 type ImportResult struct {
-	Name   string
-	DSN    string
-	Status ImportStatus
-	Note   string
+	Name     string
+	DSN      string
+	Status   ImportStatus
+	Warnings []string
+	Note     string
 }
 
 func RenderImport(w io.Writer, results []ImportResult) {
@@ -50,6 +51,9 @@ func RenderImport(w io.Writer, results []ImportResult) {
 		lipgloss.Fprintf(w, "[%s] %-*s  %s\n", importGlyph(res.Status), width, res.Name, res.DSN)
 		if note := importNote(res); note != "" {
 			fmt.Fprintf(w, "  - %s\n", note)
+		}
+		for _, warning := range res.Warnings {
+			fmt.Fprintf(w, "  - %s\n", warning)
 		}
 	}
 }
@@ -95,6 +99,11 @@ func ImportConnections(
 	defer ws.Close()
 
 	results, ready, refused := planImport(repo, entries)
+	if mode == ImportShow {
+		for i, entry := range entries {
+			results[i].Warnings = entry.Warnings
+		}
+	}
 	if mode == ImportShow || (mode == ImportStrict && len(refused) > 0) {
 		return results, nil
 	}

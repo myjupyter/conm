@@ -7,7 +7,6 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/parser/params"
-	"github.com/myjupyter/conm/internal/secret"
 )
 
 const (
@@ -23,8 +22,8 @@ func readMySQL(path string) ([]Entry, error) {
 		return nil, err
 	}
 
-	options := func(names ...string) []config.INIParam {
-		var found []config.INIParam
+	options := func(names ...string) []config.ForeignParam {
+		var found []config.ForeignParam
 		for _, group := range groups {
 			if slices.Contains(names, group.Name) {
 				found = append(found, group.Params...)
@@ -56,7 +55,7 @@ func readMySQL(path string) ([]Entry, error) {
 	return entries, nil
 }
 
-func mysqlEntry(name string, options []config.INIParam) Entry {
+func mysqlEntry(name string, options []config.ForeignParam) Entry {
 	entry := Entry{Name: name}
 
 	res, err := params.ParseArgs(config.MySQLConnType, mysqlArgs(options))
@@ -71,19 +70,15 @@ func mysqlEntry(name string, options []config.INIParam) Entry {
 		return entry
 	}
 
-	_, password, _ := secret.ParseRef(my.Password)
-	my.Password = ""
-	if password != "" {
-		my.Password = secret.Ref(secret.Keyring, SecretLocation(config.MySQLConnType, name))
-	}
 	my.Metadata.Name = name
 
-	entry.Conn, entry.Password, entry.Warnings = my, password, res.Warnings
+	entry.Conn, entry.Password = withoutPassword(my, config.MySQLConnType, name)
+	entry.Warnings = res.Warnings
 
 	return entry
 }
 
-func mysqlArgs(options []config.INIParam) []string {
+func mysqlArgs(options []config.ForeignParam) []string {
 	var (
 		args  []string
 		index = map[string]int{}
