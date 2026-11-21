@@ -4,7 +4,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
+	"strconv"
+
+	"github.com/adrg/xdg"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/parser/params"
@@ -18,7 +24,7 @@ const (
 var errNoEndpoint = errors.New("context points at no endpoint")
 
 func readMSSQL(path string) ([]Entry, error) {
-	contexts, err := config.ReadSQLConfig(path)
+	contexts, err := ReadSQLConfig(path)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +37,7 @@ func readMSSQL(path string) ([]Entry, error) {
 	return entries, nil
 }
 
-func mssqlEntry(context config.ForeignSection) Entry {
+func mssqlEntry(context Section) Entry {
 	entry := Entry{Name: context.Name}
 
 	args, warnings, err := mssqlArgs(values(context.Params))
@@ -64,25 +70,25 @@ func mssqlEntry(context config.ForeignSection) Entry {
 }
 
 func mssqlArgs(context map[string]string) (args, warnings []string, err error) {
-	server := context[config.SQLConfigAddress]
+	server := context[SQLConfigAddress]
 	if server == "" {
 		return nil, nil, errNoEndpoint
 	}
-	if port := context[config.SQLConfigPort]; port != "" {
+	if port := context[SQLConfigPort]; port != "" {
 		server += "," + port
 	}
 	args = append(args, "--server="+server)
 
-	if user := context[config.SQLConfigUsername]; user != "" {
+	if user := context[SQLConfigUsername]; user != "" {
 		args = append(args, "--user-name="+user)
 	}
 
-	stored := context[config.SQLConfigPassword]
+	stored := context[SQLConfigPassword]
 	if stored == "" {
 		return args, nil, nil
 	}
 
-	if method := context[config.SQLConfigPasswordEncryption]; method != "" && method != mssqlNoEncryption {
+	if method := context[SQLConfigPasswordEncryption]; method != "" && method != mssqlNoEncryption {
 		return args, []string{fmt.Sprintf("password is encrypted with %s and was left out", method)}, nil
 	}
 
@@ -99,3 +105,91 @@ func decoded(stored string) (string, bool) {
 
 	return string(password), err == nil
 }
+
+const (
+	sqlConfigFileName = "sqlconfig"
+	sqlConfigDirName  = ".sqlcmd"
+)
+
+func SQLConfigPath() string {
+	return filepath.Join(xdg.Home, sqlConfigDirName, sqlConfigFileName)
+}
+
+type sqlConfig struct {
+	Endpoints []struct {
+		Name     string `yaml:"name"`
+		Endpoint struct {
+			Address string `yaml:"address"`
+			Port    int    `yaml:"port"`
+		} `yaml:"endpoint"`
+	} `yaml:"endpoints"`
+	Contexts []struct {
+		Name    string `yaml:"name"`
+		Context struct {
+			Endpoint string `yaml:"endpoint"`
+			User     string `yaml:"user"`
+		} `yaml:"context"`
+	} `yaml:"contexts"`
+	Users []struct {
+		Name      string `yaml:"name"`
+		BasicAuth struct {
+			Username           string `yaml:"username"`
+			Password           string `yaml:"password"`
+			PasswordEncryption string `yaml:"password-encryption"`
+		} `yaml:"basic-auth"`
+	} `yaml:"users"`
+}
+
+func ReadSQLConfig(path string) ([]Section, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var file sqlConfig
+	if err := yaml.Unmarshal(raw, &file); err != nil {
+		return nil, fmt.Errorf("couldn't parse file %q: %w", path, err)
+	}
+
+	sections := make([]Section, 0, len(file.Contexts))
+	for _, context := range file.Contexts {
+		section := Section{Name: context.Name}
+
+		for _, endpoint := range file.Endpoints {
+			if endpoint.Name != context.Context.Endpoint {
+				continue
+			}
+			section.Params = append(section.Params, Param{Key: SQLConfigAddress, Value: endpoint.Endpoint.Address})
+			if port := endpoint.Endpoint.Port; port != 0 {
+				section.Params = append(section.Params, Param{Key: SQLConfigPort, Value: strconv.Itoa(port)})
+			}
+
+			break
+		}
+
+		for _, user := range file.Users {
+			if user.Name != context.Context.User {
+				continue
+			}
+			section.Params = append(section.Params,
+				Param{Key: SQLConfigUsername, Value: user.BasicAuth.Username},
+				Param{Key: SQLConfigPassword, Value: user.BasicAuth.Password},
+				Param{Key: SQLConfigPasswordEncryption, Value: user.BasicAuth.PasswordEncryption},
+			)
+
+			break
+		}
+
+		sections = append(sections, section)
+	}
+
+	return sections, nil
+}
+
+const (
+	SQLConfigAddress            = "address"
+	SQLConfigPort               = "port"
+	SQLConfigUsername           = "username"
+	SQLConfigPassword           = "password"
+	SQLConfigPasswordEncryption = "password-encryption"
+)

@@ -234,7 +234,7 @@ And ssh's own:
   too: it overwrites, so it beats `-o Port` and a url port wherever it stands.
 - **`-o` takes `Key=Value`, `Key Value` and `Key = Value`**, the spellings `ssh_config`
   accepts; the key is matched lowercased. The split is `config.SplitSSHOption`, the one
-  `config.ReadSSHConfig` reads a line with, so a quoted value loses its quotes here too.
+  `importer.ReadSSHConfig` reads a line with, so a quoted value loses its quotes here too.
 - **A second forward or identity file is a warning.** ssh adds up `LocalForward` and
   `IdentityFile`, and `config.SSH` holds one of each: `sshValues.keep` keeps the first and
   names the one it dropped.

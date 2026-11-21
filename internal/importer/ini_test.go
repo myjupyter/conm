@@ -1,7 +1,8 @@
-package config
+package importer
 
 import (
 	"io/fs"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -16,7 +17,7 @@ func TestReadINI(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want []ForeignSection
+		want []Section
 	}{
 		{
 			name: "empty file",
@@ -28,97 +29,97 @@ func TestReadINI(t *testing.T) {
 		{
 			name: "sections keep their order and their pairs",
 			args: args{content: "[orders]\nhost=db.internal\nport=5433\n\n[billing]\ndbname=billing\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "host", Value: "db.internal"}, {Key: "port", Value: "5433"}}},
-				{Name: "billing", Params: []ForeignParam{{Key: "dbname", Value: "billing"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "host", Value: "db.internal"}, {Key: "port", Value: "5433"}}},
+				{Name: "billing", Params: []Param{{Key: "dbname", Value: "billing"}}},
 			},
 		},
 		{
 			name: "a section without pairs is still a section",
 			args: args{content: "[orders]\n[billing]\n"},
-			want: []ForeignSection{{Name: "orders"}, {Name: "billing"}},
+			want: []Section{{Name: "orders"}, {Name: "billing"}},
 		},
 		{
 			name: "the last line needs no newline",
 			args: args{content: "[orders]\nhost=db.internal"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "host", Value: "db.internal"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "host", Value: "db.internal"}}},
 			},
 		},
 		{
 			name: "comments between pairs are dropped",
 			args: args{content: "[orders]\n# the host\nhost=db.internal\n; the port\nport=5433\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "host", Value: "db.internal"}, {Key: "port", Value: "5433"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "host", Value: "db.internal"}, {Key: "port", Value: "5433"}}},
 			},
 		},
 		{
 			name: "spaces around a section name, a key and a value are dropped",
 			args: args{content: "  [ orders ]  \n\thost = db.internal  \n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "host", Value: "db.internal"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "host", Value: "db.internal"}}},
 			},
 		},
 		{
 			name: "windows line endings",
 			args: args{content: "[orders]\r\nhost=db.internal\r\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "host", Value: "db.internal"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "host", Value: "db.internal"}}},
 			},
 		},
 		{
 			name: "pairs before the first section belong to nothing",
 			args: args{content: "host=stray\n[orders]\n"},
-			want: []ForeignSection{{Name: "orders"}},
+			want: []Section{{Name: "orders"}},
 		},
 		{
 			name: "a value keeps its own equals signs and inner spaces",
 			args: args{content: "[orders]\noptions=-c search_path=app\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "options", Value: "-c search_path=app"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "options", Value: "-c search_path=app"}}},
 			},
 		},
 		{
 			name: "a bare key and a key with nothing after the equals sign have no value",
 			args: args{content: "[orders]\nssl\npassword=\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "ssl"}, {Key: "password"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "ssl"}, {Key: "password"}}},
 			},
 		},
 		{
 			name: "a repeated key is kept every time, in order",
 			args: args{content: "[orders]\nhost=first\nhost=second\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "host", Value: "first"}, {Key: "host", Value: "second"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "host", Value: "first"}, {Key: "host", Value: "second"}}},
 			},
 		},
 		{
 			name: "a repeated section is kept every time, not merged",
 			args: args{content: "[orders]\nhost=first\n[orders]\nport=5433\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "host", Value: "first"}}},
-				{Name: "orders", Params: []ForeignParam{{Key: "port", Value: "5433"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "host", Value: "first"}}},
+				{Name: "orders", Params: []Param{{Key: "port", Value: "5433"}}},
 			},
 		},
 		{
 			name: "a comment mark inside a value is part of the value",
 			args: args{content: "[orders]\npassword=a#b;c\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "password", Value: "a#b;c"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "password", Value: "a#b;c"}}},
 			},
 		},
 		{
 			name: "quotes are left to the caller",
 			args: args{content: "[orders]\npassword=\"s3cret\"\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "password", Value: `"s3cret"`}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "password", Value: `"s3cret"`}}},
 			},
 		},
 		{
 			name: "a bracket that is not closed is a key, not a section",
 			args: args{content: "[orders]\n[billing\n"},
-			want: []ForeignSection{
-				{Name: "orders", Params: []ForeignParam{{Key: "[billing"}}},
+			want: []Section{
+				{Name: "orders", Params: []Param{{Key: "[billing"}}},
 			},
 		},
 	}
@@ -135,4 +136,13 @@ func TestReadINI_missingFile(t *testing.T) {
 	got, err := ReadINI(filepath.Join(t.TempDir(), "absent"))
 	require.ErrorIs(t, err, fs.ErrNotExist)
 	assert.Nil(t, got)
+}
+
+func writeTemp(t *testing.T, content string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "file")
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+	return path
 }

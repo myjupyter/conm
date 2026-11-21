@@ -19,6 +19,7 @@ cmd ──► parser/params ─────────────────�
 cmd ──► ui/spec
 parser/params ──► cli
 cmd, ui ──► importer ──► parser/params
+cmd, ui ──► exporter ──► importer, config, secret
 
 repository ──► utils        (leaf — domain-free generics)
 config, ui ──► utils/keys   (leaf — keystroke parsing)
@@ -29,7 +30,7 @@ ui/spec    ──► utils/names  (leaf — random adjective-noun names)
 | Package | May import (internal) | Responsibility | Detail |
 |---|---|---|---|
 | `internal/utils` (+ `keys`, `pathname`, `names`) | *(nothing)* | Domain-free helpers: a duplicate finder, keystroke parsing, portable folder names, random names. | `internal/utils/AGENTS.md` |
-| `internal/config` | `utils/keys`, `utils/pathname` | Data model — connections, secrets, transports, settings, workspaces — validation, **all TOML file I/O**, config paths, and the readers of the clients' own config files. | `internal/config/AGENTS.md` |
+| `internal/config` | `utils/keys`, `utils/pathname` | Data model — connections, secrets, transports, settings, workspaces — validation, **all TOML file I/O**, config paths. | `internal/config/AGENTS.md` |
 | `internal/secret` | *(nothing)* | Resolve/store/remove password material behind a scheme (`literal:`, `none:`, `filepath:`, `keyring:`) via pluggable `Provider`s. | `internal/secret/AGENTS.md` |
 | `internal/transport` | `config`, `secret` | The route to a connection that is not directly reachable: open an SSH tunnel, hand back its local end. | `internal/transport/AGENTS.md` |
 | `internal/cli` | `config` | The binaries conm shells out to: clients per type, detection, argv and env, the `exec`, the transport process, the clipboard. | `internal/cli/AGENTS.md` |
@@ -37,17 +38,20 @@ ui/spec    ──► utils/names  (leaf — random adjective-noun names)
 | `internal/repository` | `config`, `network`, `cli`, `secret`, `transport`, `utils` | Composition root: opens the config files, builds live connections, secret stores and transports; the only mutation API the runtime UI has. | `internal/repository/AGENTS.md` |
 | `internal/ui/view` | `repository`, `config`, `network`, `cli`, `secret`, `transport` | What a screen is looking at and where: one view per entity, a search index across them, and the cursor. | `internal/ui/view/AGENTS.md` |
 | `internal/ui/spec` | `config`, `secret`, `transport`, `utils/names` | Declarative form definitions, one named spec per entity, and the values-map formats they are read and written through. | `internal/ui/spec/AGENTS.md` |
-| `internal/ui` | `ui/view`, `ui/spec`, `repository`, `importer`, `config`, `network`, `cli`, `secret`, `transport`, `utils/keys` | Bubble Tea TUI. | `internal/ui/AGENTS.md` |
+| `internal/ui` | `ui/view`, `ui/spec`, `repository`, `importer`, `exporter`, `config`, `network`, `cli`, `secret`, `transport`, `utils/keys` | Bubble Tea TUI. | `internal/ui/AGENTS.md` |
 | `internal/parser/params` | `config`, `cli`, `secret` | Read a client's command line back into a connection. | `internal/parser/params/AGENTS.md` |
-| `internal/importer` | `config`, `parser/params` | Read the connections of a client's own config file as `config.Connection`s. | `internal/importer/AGENTS.md` |
-| `cmd` | `config`, `ui`, `ui/spec`, `parser/params`, `importer` | Cobra command tree. | `cmd/AGENTS.md` |
+| `internal/importer` | `config`, `parser/params` | Find and read a client's own config file; hand its connections over as `config.Connection`s. | `internal/importer/AGENTS.md` |
+| `internal/exporter` | `config`, `secret`, `importer` | Turn `config.Connection`s into the entries of a client's own config file and merge them into it. | `internal/exporter/AGENTS.md` |
+| `cmd` | `config`, `ui`, `ui/spec`, `parser/params`, `importer`, `exporter` | Cobra command tree. | `cmd/AGENTS.md` |
 
 Hard rules — the ones that cross modules. Each module's own rules are in its file.
 
-- **`config` is the only package that reads or writes config files.** Everyone else goes
+- **`config` is the only package that reads or writes conm's own files.** Everyone else goes
   through `config.OpenConfig` / `config.File` / `CreateConm` / `ReadConm`; never open a TOML
-  file by hand from `ui`, `repository` or `cmd`. A client's own file (`pg_service.conf`, an
-  option file) is read there too, and is never written.
+  file by hand from `ui`, `repository` or `cmd`.
+- **A client's own file (`pg_service.conf`, an option file, `~/.ssh/config`) is read only in
+  `importer` and changed only by `exporter`**, which adds entries, never replaces one, and
+  writes through `config.WriteForeign`.
 - **`cli` is the only package that names a client binary.** The resolved client of a
   connection travels up as a `cli.Info` value — `cli.Launcher.Info(ctx)` →
   `repository.Connections.ClientInfo(ctx)` → `view.Connections.ClientInfo(ctx)` — never as a
@@ -79,8 +83,9 @@ Hard rules — the ones that cross modules. Each module's own rules are in its f
   - A form's preview ping (`ui/form.go`, `ui/transport_table_commands.go`) builds a throwaway
     `network.Connection` from values that are not saved yet.
   - The shell entry points in `internal/ui` — `Connect`, `Ping`, `Connections`,
-    `RemoveConnection` in `ui/ui.go`, `ImportConnections` in `ui/import.go` — work on
-    repositories directly; import opens the add form from there.
+    `RemoveConnection` in `ui/ui.go`, `ImportConnections` in `ui/import.go`,
+    `ExportConnections` in `ui/export.go` — work on repositories directly; import opens the
+    add form from there.
 - **No layer above `repository` names a connection type in its control flow.** A session
   hands out repositories by `config.ConnType`, never through a per-type field. Two
   exceptions: `typeColor` in `ui/theme.go`, one colour per type; and `config.SSHConnType`
@@ -124,4 +129,5 @@ Hard rules — the ones that cross modules. Each module's own rules are in its f
   the repository passed to `view.NewSecrets`. No form or screen code changes.
 - **New transport kind** — `internal/transport/AGENTS.md`.
 - **New import format** — `internal/importer/AGENTS.md`.
+- **New export format** — `internal/exporter/AGENTS.md`.
 - **New entity table** — `internal/ui/view/AGENTS.md`.

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var ReservedNames = []string{"add", "edit", "remove", "ping", "list", "exec", "import", "help"}
+var ReservedNames = []string{"add", "edit", "remove", "ping", "list", "exec", "import", "export", "help"}
 
 type WebLink struct {
 	Name string `toml:"name"`

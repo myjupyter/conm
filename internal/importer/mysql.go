@@ -2,8 +2,11 @@ package importer
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/adrg/xdg"
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/parser/params"
@@ -18,13 +21,13 @@ const (
 var mysqlSharedGroups = []string{"client-server", "client-mariadb"}
 
 func readMySQL(path string) ([]Entry, error) {
-	groups, err := config.ReadINI(path)
+	groups, err := ReadINI(path)
 	if err != nil {
 		return nil, err
 	}
 
-	options := func(names ...string) []config.ForeignParam {
-		var found []config.ForeignParam
+	options := func(names ...string) []Param {
+		var found []Param
 		for _, group := range groups {
 			if slices.Contains(names, group.Name) {
 				found = append(found, group.Params...)
@@ -65,7 +68,7 @@ func readMySQL(path string) ([]Entry, error) {
 	return entries, nil
 }
 
-func mysqlEntry(name string, options []config.ForeignParam) Entry {
+func mysqlEntry(name string, options []Param) Entry {
 	entry := Entry{Name: name}
 
 	res, err := params.ParseOptions(config.MySQLConnType, mysqlArgs(options))
@@ -87,7 +90,7 @@ func mysqlEntry(name string, options []config.ForeignParam) Entry {
 	return entry
 }
 
-func mysqlArgs(options []config.ForeignParam) []string {
+func mysqlArgs(options []Param) []string {
 	var (
 		args  []string
 		index = map[string]int{}
@@ -122,4 +125,10 @@ func unquoted(value string) string {
 	}
 
 	return value
+}
+
+const mysqlOptionFileName = ".my.cnf"
+
+func MySQLOptionPath() string {
+	return filepath.Join(xdg.Home, mysqlOptionFileName)
 }
