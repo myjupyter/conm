@@ -35,8 +35,6 @@ const (
 	postgresFormFieldSSLMode     postgresFormField = "SSLMode"
 )
 
-// SSLModesOrder lists the selectable values for the SSL mode field, in the
-// order they are cycled through on the form.
 var SSLModesOrder = []config.PostgresSSLMode{
 	config.PostgresSSLModeDisable,
 	config.PostgresSSLModeAllow,
@@ -46,9 +44,7 @@ var SSLModesOrder = []config.PostgresSSLMode{
 	config.PostgresSSLModeVerifyFull,
 }
 
-// PostgresFormFields is the order in which the fields are displayed.
 var PostgresFormFields = []FormField{
-	// Connection information
 	{
 		Key:          strings.ToLower(postgresFormFieldHost),
 		Label:        postgresFormFieldHost,
@@ -102,7 +98,6 @@ var PostgresFormFields = []FormField{
 		Options:      SSLModesOrder,
 		ValidateFunc: config.ValidatePostgresSSLMode,
 	},
-	// Meta information (optinal)
 	{
 		Key:          strings.ToLower(postgresFormFieldName),
 		Label:        postgresFormFieldName,

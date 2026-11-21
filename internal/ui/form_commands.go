@@ -187,9 +187,6 @@ func seedConnection(t config.ConnType, existing config.Connection) (formValues, 
 	return initial, nil
 }
 
-// openLink hands a link's url to the browser. The form stays where it is: the
-// url is checked first, and whatever the browser reports comes back as a status
-// line rather than as a reason to leave.
 func (m formModel) openLink(key spec.FormFieldKey) (tea.Model, tea.Cmd) {
 	i, ok := spec.LinkIndexOf(key)
 	if !ok {
@@ -224,9 +221,6 @@ func openURLCmd(name, url string) tea.Cmd {
 			opener = "open"
 		}
 
-		// The opener hands off to the browser and is done with; it is started
-		// rather than waited for, because xdg-open on some desktops does not
-		// return until the browser it launched exits.
 		cmd := exec.Command(opener, url)
 		if err := cmd.Start(); err != nil {
 			return linkOpenedMsg{name: name, err: err}

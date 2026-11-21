@@ -32,8 +32,6 @@ func IsLinkKey(key FormFieldKey) bool {
 	return ok
 }
 
-// LinkIndexOf reports which link the key belongs to, and whether it is one at
-// all.
 func LinkIndexOf(key FormFieldKey) (int, bool) {
 	rest, found := strings.CutPrefix(key, linkKeyPrefix)
 	if !found {
@@ -55,8 +53,6 @@ func LinkIndexOf(key FormFieldKey) (int, bool) {
 	return i, true
 }
 
-// LinkCount reports how many links the values hold. The keys are a gapless run,
-// so the first index missing a name is the end of it.
 func LinkCount(values map[FormFieldKey]FormFieldValue) int {
 	n := 0
 	for {
@@ -92,9 +88,6 @@ func SeedLinks(links []config.WebLink, values map[FormFieldKey]FormFieldValue) {
 	}
 }
 
-// LinksFrom reads the links back in index order. A pair with neither half
-// filled is a row the user added and left alone, not a link, so it is dropped
-// rather than saved or refused.
 func LinksFrom(values map[FormFieldKey]FormFieldValue) []config.WebLink {
 	var links []config.WebLink
 	for i := range LinkCount(values) {
@@ -108,8 +101,6 @@ func LinksFrom(values map[FormFieldKey]FormFieldValue) []config.WebLink {
 	return links
 }
 
-// ValidateLink checks one link the way LinksFrom reads it: an untouched pair
-// passes, and a pair with either half filled must have both.
 func ValidateLink(name, url string) (nameErr, urlErr error) {
 	name, url = strings.TrimSpace(name), strings.TrimSpace(url)
 	if name == "" && url == "" {

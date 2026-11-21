@@ -94,9 +94,6 @@ func (v *Secrets) UsagesAt(i int) []repository.Usage {
 	return repo.UsagesAt(ref.Index)
 }
 
-// LocationsOf lists the entries a store holds, in repository order and
-// independent of the current query: a password field offers the store it names,
-// not the rows the table happens to show.
 func (v *Secrets) LocationsOf(kind secret.Scheme) []string {
 	repo, ok := v.repos[kind]
 	if !ok {

@@ -104,7 +104,6 @@ func ImportFromPGPass() ([]Postgres, error) {
 			continue
 		}
 
-		// .pgpass format: hostname:port:database:username:password
 		conf := Postgres{
 			Hostname:   values[0],
 			PortNumber: port,
@@ -210,7 +209,6 @@ func ValidatePostgresDescription(desc string) error {
 }
 
 func (w *PostgresConfigWrapper) Add(conn Connection) {
-	// TODO: validate collisions
 	pg, ok := conn.(Postgres)
 	if !ok {
 		return
@@ -246,7 +244,6 @@ func (w *PostgresConfigWrapper) Get(i int) Connection {
 }
 
 func (w *PostgresConfigWrapper) Put(i int, conn Connection) {
-	// TODO: validate collisions
 	pg, ok := conn.(Postgres)
 	if !ok {
 		return

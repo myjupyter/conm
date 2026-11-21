@@ -21,8 +21,6 @@ const (
 	keyringFormFieldDescription keyringFormField = "description"
 )
 
-// KeyringIDKey and KeyringPasswordKey name the two fields the keyring screens
-// read back off the form: the entry's id, and the password typed for it.
 const (
 	KeyringIDKey       FormFieldKey = keyringFormFieldID
 	KeyringPasswordKey FormFieldKey = keyringFormFieldPassword
@@ -48,7 +46,7 @@ var KeyringFormFields = []FormField{
 		Example:  keyringExamplePassword,
 		Property: OptionalFieldProperty,
 		ValidateFunc: func(string) error {
-			return nil // empty keeps whatever the keyring already holds
+			return nil
 		},
 	},
 	{
@@ -60,8 +58,6 @@ var KeyringFormFields = []FormField{
 	},
 }
 
-// KeyringFormSpec drives both the add and the edit keyring form. It is a single
-// section: an entry is four fields, too few to be worth splitting into tabs.
 var KeyringFormSpec = FormSpec[config.Secret]{
 	AddTitle:  "new entry",
 	EditTitle: "editing an entry",
@@ -69,7 +65,6 @@ var KeyringFormSpec = FormSpec[config.Secret]{
 	Sections: []FormSection{
 		{
 			Title: "secret",
-			Note:  "where the password lives · conm never writes it to disk",
 			Fields: []FormFieldKey{
 				keyringFormFieldID,
 				keyringFormFieldLocation,

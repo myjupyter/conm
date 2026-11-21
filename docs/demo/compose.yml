@@ -1,0 +1,24 @@
+name: conm-demo
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo-secret
+      POSTGRES_DB: orders
+    ports: ["127.0.0.1:15432:5432"]
+
+  bastion:
+    image: linuxserver/openssh-server
+    environment:
+      USER_NAME: demo
+      PASSWORD_ACCESS: "true"
+      USER_PASSWORD: demo-secret
+    volumes:
+      - ./init-forwarding.sh:/custom-cont-init.d/init-forwarding.sh:ro
+    ports: ["127.0.0.1:2222:2222"]
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "--requirepass", "demo-secret"]

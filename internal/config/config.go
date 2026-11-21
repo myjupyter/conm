@@ -48,11 +48,9 @@ func validationErrors(checks ...error) []error {
 }
 
 type ConfigWrapper[C any] interface {
-	// TODO: Add method to return error
 	Add(C)
 	Len() int
 	Get(int) C
-	// TODO: Put method to return error
 	Put(int, C)
 	Remove(int)
 	Validate()
@@ -77,7 +75,6 @@ type Config[W ConfigWrapper[C], C any] struct {
 }
 
 func OpenConfig[W ConfigWrapper[C], C any](path string) (*Config[W, C], error) {
-	// Config and data dirs live under different XDG roots; either may be missing.
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("couldn't create dir for %q: %w", path, err)
 	}

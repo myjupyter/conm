@@ -8,9 +8,6 @@ import (
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
-// secretFormSpecs maps a secret store to the form that edits its records.
-// Keyring is the only store conm supports today; a new one registers its spec
-// here and nothing else in the UI changes.
 var secretFormSpecs = map[secret.Scheme]spec.FormSpec[config.Secret]{
 	secret.Keyring: spec.KeyringFormSpec,
 }

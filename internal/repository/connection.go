@@ -77,7 +77,6 @@ func (r *ConnectionRepository) SecretRefs() iter.Seq2[string, secret.Reference] 
 
 			ref, ok := c.(secret.Reference)
 			if !ok {
-				// TODO: log and maybe action
 				continue
 			}
 
@@ -182,7 +181,6 @@ func (r *ConnectionRepository) Edit(i int, cfg config.Connection) error {
 		return fmt.Errorf("edit: %w", err)
 	}
 
-	// TODO: log error
 	_ = oldNC.Close()
 
 	return nil
@@ -211,7 +209,6 @@ func (r *ConnectionRepository) Remove(i int) error {
 		return fmt.Errorf("remove: %w", err)
 	}
 
-	// TODO: log error
 	_ = oldNC.Close()
 
 	return nil
@@ -233,8 +230,6 @@ func (r *ConnectionRepository) Close() error {
 	defer r.mx.Unlock()
 
 	for _, c := range r.ncs {
-		// silently close connections even if it fails
-		// TODO: log error
 		_ = c.Close()
 	}
 

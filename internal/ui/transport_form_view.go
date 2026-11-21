@@ -38,7 +38,7 @@ func (m transportFormModel) bodyLines() (lines []string, focus focusSpan) {
 	at := 0
 	for _, s := range m.spec.Sections {
 		head := len(lines)
-		lines = append(lines, frameHead(m.size.formInner(), s.Title, s.Note)...)
+		lines = append(lines, frameHead(m.size.formInner(), s.Title, "")...)
 		for j := range s.Fields {
 			if at == m.idx {
 				focus = focusSpan{from: len(lines), row: len(lines), to: len(lines) + 1}

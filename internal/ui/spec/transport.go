@@ -57,7 +57,6 @@ var transportField = FormField{
 
 var transportSection = FormSection{
 	Title:  transportSectionTitle,
-	Note:   "host and port above are the address as the transport sees it",
 	Fields: []FormFieldKey{TransportTypeKey, TransportKey},
 }
 

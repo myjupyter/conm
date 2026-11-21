@@ -18,7 +18,7 @@ var WorkspaceFormSpec = FormSpec[string]{
 		},
 	},
 	Sections: []FormSection{
-		{Title: "workspace", Note: "a folder of its own connections and secrets", Fields: []FormFieldKey{WorkspaceNameKey}},
+		{Title: "workspace", Fields: []FormFieldKey{WorkspaceNameKey}},
 	},
 	BuildFunc: func(values map[FormFieldKey]FormFieldValue) (string, error) {
 		return values[WorkspaceNameKey], nil

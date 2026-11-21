@@ -46,14 +46,11 @@ func secretChangeExec(fn func() error) tea.Cmd {
 	)
 }
 
-// runSecretTable opens the secrets screen and blocks until the user leaves it.
 func runSecretTable(secrets *view.Secrets) error {
 	_, err := runScreen(newSecretModel(secrets))
 	return err
 }
 
-// runSecretPicker opens the same screen as a chooser and reports the location
-// the user attached, if any.
 func runSecretPicker(secrets *view.Secrets, current string) (string, bool, error) {
 	secrets.StartPicking(current)
 

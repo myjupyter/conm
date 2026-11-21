@@ -13,7 +13,6 @@ type keyhintGroup struct {
 }
 
 const (
-	// Group titles shared by every screen's keyhint table.
 	keyhintNavigation = "navigation"
 	keyhintAction     = "action"
 	keyhintSearch     = "search"
