@@ -19,7 +19,6 @@ func TestRead_clickhouse(t *testing.T) {
 	type want struct {
 		name     string
 		conn     config.Connection
-		password string
 		warnings int
 		err      bool
 	}
@@ -30,10 +29,9 @@ func TestRead_clickhouse(t *testing.T) {
 			Hostname:   "localhost",
 			PortNumber: 9000,
 			User:       "app",
-			Password:   "keyring:clickhouse/local",
+			Password:   "literal:s3cret",
 			DBName:     "orders",
 		},
-		password: "s3cret",
 	}
 	tests := []struct {
 		name string
@@ -119,7 +117,6 @@ func TestRead_clickhouse(t *testing.T) {
 				got = append(got, want{
 					name:     e.Name,
 					conn:     e.Conn,
-					password: e.Password,
 					warnings: len(e.Warnings),
 					err:      e.Err != nil,
 				})

@@ -68,7 +68,7 @@ func readMySQL(path string) ([]Entry, error) {
 func mysqlEntry(name string, options []config.ForeignParam) Entry {
 	entry := Entry{Name: name}
 
-	res, err := params.ParseArgs(config.MySQLConnType, mysqlArgs(options))
+	res, err := params.ParseOptions(config.MySQLConnType, mysqlArgs(options))
 	if err != nil {
 		entry.Err = err
 		return entry
@@ -82,8 +82,7 @@ func mysqlEntry(name string, options []config.ForeignParam) Entry {
 
 	my.Metadata.Name = name
 
-	entry.Conn, entry.Password = withoutPassword(my, config.MySQLConnType, name)
-	entry.Warnings = res.Warnings
+	entry.Conn, entry.Warnings = my, res.Warnings
 
 	return entry
 }

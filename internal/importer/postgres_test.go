@@ -20,7 +20,6 @@ func TestRead_postgres(t *testing.T) {
 	type want struct {
 		name     string
 		conn     config.Connection
-		password string
 		warnings int
 		err      bool
 	}
@@ -54,11 +53,10 @@ func TestRead_postgres(t *testing.T) {
 					Hostname:   "db.internal",
 					PortNumber: 5432,
 					User:       "app",
-					Password:   "keyring:postgres/orders",
+					Password:   "literal:" + `it's \ here`,
 					DBName:     "orders",
 					SSLMode:    config.PostgresSSLModePrefer,
 				},
-				password: `it's \ here`,
 			}},
 		},
 		{
@@ -74,11 +72,10 @@ func TestRead_postgres(t *testing.T) {
 					Hostname:   "db.internal",
 					PortNumber: 5432,
 					User:       "app",
-					Password:   "keyring:postgres/orders",
+					Password:   "literal:from-pgpass",
 					DBName:     "orders",
 					SSLMode:    config.PostgresSSLModePrefer,
 				},
-				password: "from-pgpass",
 			}},
 		},
 		{
@@ -94,11 +91,10 @@ func TestRead_postgres(t *testing.T) {
 					Metadata:   config.ConnMeta{Name: "local"},
 					PortNumber: 5432,
 					User:       "app",
-					Password:   "keyring:postgres/local",
+					Password:   "literal:from-its-own-file",
 					DBName:     "orders",
 					SSLMode:    config.PostgresSSLModePrefer,
 				},
-				password: "from-its-own-file",
 				warnings: 1,
 			}},
 		},
@@ -155,7 +151,6 @@ func TestRead_postgres(t *testing.T) {
 				got = append(got, want{
 					name:     e.Name,
 					conn:     e.Conn,
-					password: e.Password,
 					warnings: len(e.Warnings),
 					err:      e.Err != nil,
 				})
@@ -174,5 +169,8 @@ func TestRead_postgres_unreadablePasswordFile(t *testing.T) {
 	entries, err := Read(config.PostgresConnType, services)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
-	assert.Equal(t, "own", entries[0].Password)
+	require.NoError(t, entries[0].Err)
+	pg, ok := entries[0].Conn.(config.Postgres)
+	require.True(t, ok)
+	assert.Equal(t, "literal:own", pg.Password)
 }

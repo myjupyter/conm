@@ -148,7 +148,6 @@ func TestRead_ssh(t *testing.T) {
 			got := make([]want, 0, len(entries))
 			for _, e := range entries {
 				require.NoError(t, e.Err)
-				assert.Empty(t, e.Password)
 				got = append(got, want{name: e.Name, conn: e.Conn, warnings: len(e.Warnings)})
 			}
 			assert.Equal(t, tt.want, got)

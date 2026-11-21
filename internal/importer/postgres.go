@@ -3,16 +3,17 @@ package importer
 import (
 	"cmp"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/parser/params"
-	"github.com/myjupyter/conm/internal/secret"
 )
 
 const (
 	pgPassfileKeyword = "passfile"
+	pgPasswordKeyword = "password"
 	pgDefaultHost     = "localhost"
 )
 
@@ -41,29 +42,37 @@ func readPostgres(path string) ([]Entry, error) {
 func postgresEntry(service config.ForeignSection, passwords config.PGPass) Entry {
 	entry := Entry{Name: service.Name}
 
-	res, err := params.ParseArgs(config.PostgresConnType, []string{conninfo(service.Params)})
+	pg, warnings, err := postgresService(service.Params)
+	if err == nil && pg.Password == "" {
+		host := cmp.Or(pg.Hostname, pgDefaultHost)
+		if found := passwords.Password(host, strconv.Itoa(pg.PortNumber), pg.DBName, pg.User); found != "" {
+			fromFile := config.ForeignParam{Key: pgPasswordKeyword, Value: found}
+			pg, warnings, err = postgresService(slices.Insert(slices.Clone(service.Params), 0, fromFile))
+		}
+	}
 	if err != nil {
 		entry.Err = err
 		return entry
 	}
+	pg.Metadata.Name = service.Name
+
+	entry.Conn, entry.Warnings = pg, warnings
+
+	return entry
+}
+
+func postgresService(pairs []config.ForeignParam) (config.Postgres, []string, error) {
+	res, err := params.ParseOptions(config.PostgresConnType, []string{conninfo(pairs)})
+	if err != nil {
+		return config.Postgres{}, nil, err
+	}
 
 	pg, ok := res.Conn.(config.Postgres)
 	if !ok {
-		entry.Err = fmt.Errorf("service was read as a %T", res.Conn)
-		return entry
+		return config.Postgres{}, nil, fmt.Errorf("service was read as a %T", res.Conn)
 	}
 
-	if pg.Password == "" {
-		host := cmp.Or(pg.Hostname, pgDefaultHost)
-		found := passwords.Password(host, strconv.Itoa(pg.PortNumber), pg.DBName, pg.User)
-		pg.Password = secret.Ref(secret.Literal, found)
-	}
-	pg.Metadata.Name = service.Name
-
-	entry.Conn, entry.Password = withoutPassword(pg, config.PostgresConnType, service.Name)
-	entry.Warnings = res.Warnings
-
-	return entry
+	return pg, res.Warnings, nil
 }
 
 func conninfo(pairs []config.ForeignParam) string {

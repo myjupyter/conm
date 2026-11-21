@@ -18,10 +18,16 @@ type Secrets interface {
 	UsagesAt(int) []Usage
 
 	Add(ctx context.Context, s config.Secret, password string) error
+	PutAll(ctx context.Context, writes ...SecretWrite) ([]error, error)
 	Edit(ctx context.Context, i int, s config.Secret, password string) error
 	Remove(ctx context.Context, i int) error
 
 	Save() error
+}
+
+type SecretWrite struct {
+	Secret   config.Secret
+	Password string
 }
 
 type SecretRepository struct {
@@ -84,6 +90,60 @@ func (r *SecretRepository) Add(ctx context.Context, s config.Secret, password st
 		return fmt.Errorf("add secret %q: material already exists at %s, the password entered was not written", s.ID(), ref)
 	case !exists && password == "":
 		return fmt.Errorf("add secret %q: no material found at %s", s.ID(), ref)
+	}
+
+	return nil
+}
+
+func (r *SecretRepository) PutAll(ctx context.Context, writes ...SecretWrite) ([]error, error) {
+	r.mx.Lock()
+	defer r.mx.Unlock()
+
+	stored := r.file.Len()
+	refused := make([]error, len(writes))
+	for n, write := range writes {
+		refused[n] = r.put(ctx, write)
+	}
+	if r.file.Len() == stored {
+		return refused, nil
+	}
+
+	if err := r.file.Save(); err != nil {
+		for r.file.Len() > stored {
+			r.file.Remove(r.file.Len() - 1)
+		}
+
+		return refused, fmt.Errorf("save secrets: %w", err)
+	}
+
+	return refused, nil
+}
+
+func (r *SecretRepository) put(ctx context.Context, write SecretWrite) error {
+	s := write.Secret
+	if err := r.check(s); err != nil {
+		return fmt.Errorf("put secret: %w", err)
+	}
+	if errs := s.Validate(); errs != nil {
+		return fmt.Errorf("put secret: validation error: %w", errors.Join(errs...))
+	}
+
+	ref := makeSecRef(s)
+	i, found := r.indexOf(ref)
+	if used := r.usages(ref); len(used) > 0 {
+		id := s.ID()
+		if found {
+			id = r.file.Get(i).ID()
+		}
+
+		return &SecretInUseError{ID: id, By: used}
+	}
+
+	if err := r.provider.Store(ctx, ref, write.Password); err != nil {
+		return fmt.Errorf("put secret %q: %w", s.ID(), err)
+	}
+	if !found {
+		r.file.Add(s)
 	}
 
 	return nil

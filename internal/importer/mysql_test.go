@@ -16,10 +16,9 @@ func TestRead_mysql(t *testing.T) {
 		options string
 	}
 	type want struct {
-		name     string
-		conn     config.Connection
-		password string
-		err      bool
+		name string
+		conn config.Connection
+		err  bool
 	}
 	tests := []struct {
 		name string
@@ -36,11 +35,10 @@ func TestRead_mysql(t *testing.T) {
 					Hostname:   "db.internal",
 					PortNumber: 3306,
 					User:       "app",
-					Password:   "keyring:mysql/client",
+					Password:   "literal:s3cret",
 					DBName:     "orders",
 					TLSMode:    config.MySQLTLSModePreferred,
 				},
-				password: "s3cret",
 			}},
 		},
 		{
@@ -87,10 +85,9 @@ func TestRead_mysql(t *testing.T) {
 					Metadata:   config.ConnMeta{Name: "client"},
 					PortNumber: 3306,
 					User:       "app",
-					Password:   "keyring:mysql/client",
+					Password:   "literal:s3cret",
 					TLSMode:    config.MySQLTLSModePreferred,
 				},
-				password: "s3cret",
 			}},
 		},
 		{
@@ -132,7 +129,7 @@ func TestRead_mysql(t *testing.T) {
 
 			got := make([]want, 0, len(entries))
 			for _, e := range entries {
-				got = append(got, want{name: e.Name, conn: e.Conn, password: e.Password, err: e.Err != nil})
+				got = append(got, want{name: e.Name, conn: e.Conn, err: e.Err != nil})
 			}
 			assert.Equal(t, tt.want, got)
 		})

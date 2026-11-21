@@ -59,7 +59,7 @@ func sshEntry(alias string, blocks []config.ForeignSection) Entry {
 	}
 	args = append(args, "-o", sshHostNameOption+"="+alias)
 
-	res, err := params.ParseArgs(config.SSHConnType, args)
+	res, err := params.ParseOptions(config.SSHConnType, args)
 	if err != nil {
 		entry.Err = err
 		return entry

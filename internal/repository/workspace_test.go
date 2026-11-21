@@ -227,3 +227,68 @@ func TestWorkspaceRepository(t *testing.T) {
 		})
 	}
 }
+
+func TestSecretRepository_PutAll(t *testing.T) {
+	testWorkspaces(t)
+	ctx := context.Background()
+
+	inUse := UsageLookupFunc(func(ref string) []Usage {
+		if ref == "keyring:postgres/taken" {
+			return []Usage{{Kind: "postgres", Owner: "other"}}
+		}
+
+		return nil
+	})
+	repo, err := NewKeyringRepository("conm.test", inUse)
+	require.NoError(t, err)
+
+	record := func(name string) config.Keyring {
+		return config.Keyring{SecretID: name, ProviderID: secret.Keyring, LocationRef: "postgres/" + name}
+	}
+
+	tests := []struct {
+		name        string
+		writes      []SecretWrite
+		wantRefused []bool
+		wantRecords int
+		wantStored  map[string]string
+	}{
+		{
+			name: "every free location is written, one a connection uses is refused alone",
+			writes: []SecretWrite{
+				{Secret: record("orders"), Password: "first"},
+				{Secret: record("taken"), Password: "never"},
+				{Secret: record("billing"), Password: "second"},
+			},
+			wantRefused: []bool{false, true, false},
+			wantRecords: 2,
+			wantStored:  map[string]string{"postgres/orders": "first", "postgres/billing": "second"},
+		},
+		{
+			name:        "a record nobody uses takes the new password and stays one record",
+			writes:      []SecretWrite{{Secret: record("orders"), Password: "rotated"}},
+			wantRefused: []bool{false},
+			wantRecords: 2,
+			wantStored:  map[string]string{"postgres/orders": "rotated", "postgres/billing": "second"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			refused, err := repo.PutAll(ctx, tt.writes...)
+			require.NoError(t, err)
+
+			got := make([]bool, 0, len(refused))
+			for _, refusal := range refused {
+				got = append(got, refusal != nil)
+			}
+			assert.Equal(t, tt.wantRefused, got)
+			assert.Equal(t, tt.wantRecords, repo.Len())
+
+			for location, want := range tt.wantStored {
+				stored, err := keyring.Get("conm.test", location)
+				require.NoError(t, err)
+				assert.Equal(t, want, stored)
+			}
+		})
+	}
+}

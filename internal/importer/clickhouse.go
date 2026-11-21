@@ -48,7 +48,7 @@ func clickhouseEntry(connection config.ForeignSection) Entry {
 
 	args, warnings := clickhouseArgs(connection)
 
-	res, err := params.ParseArgs(config.ClickHouseConnType, args)
+	res, err := params.ParseOptions(config.ClickHouseConnType, args)
 	if err != nil {
 		entry.Err = err
 		return entry
@@ -70,8 +70,7 @@ func clickhouseEntry(connection config.ForeignSection) Entry {
 	}
 	ch.Metadata.Name = connection.Name
 
-	entry.Conn, entry.Password = withoutPassword(ch, config.ClickHouseConnType, connection.Name)
-	entry.Warnings = slices.Concat(warnings, res.Warnings)
+	entry.Conn, entry.Warnings = ch, slices.Concat(warnings, res.Warnings)
 
 	return entry
 }

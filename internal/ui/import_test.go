@@ -3,8 +3,12 @@ package ui
 import (
 	"context"
 	"errors"
+	"io"
 	"strings"
 	"testing"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/adrg/xdg"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +17,7 @@ import (
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/importer"
-	"github.com/myjupyter/conm/internal/ui/spec"
+	"github.com/myjupyter/conm/internal/secret"
 )
 
 func TestImportConnections(t *testing.T) {
@@ -22,9 +26,11 @@ func TestImportConnections(t *testing.T) {
 		Hostname:   "db.internal",
 		PortNumber: 5432,
 		User:       "app",
-		Password:   "keyring:postgres/orders",
 		DBName:     "orders",
 	}
+	secured := orders
+	secured.Password = "literal:s3cret"
+
 	renamed := orders
 	renamed.Metadata.Name = "orders-again"
 
@@ -46,7 +52,7 @@ func TestImportConnections(t *testing.T) {
 	}{
 		{
 			name:         "a clean entry is saved and its password goes to the keyring",
-			args:         args{entries: []importer.Entry{{Name: "orders", Conn: orders, Password: "s3cret"}}},
+			args:         args{entries: []importer.Entry{{Name: "orders", Conn: secured}}},
 			want:         []ImportResult{{Name: "orders", DSN: dsn, Status: ImportDone}},
 			wantNames:    []string{"orders"},
 			wantPassword: "s3cret",
@@ -133,9 +139,21 @@ func TestImportConnections(t *testing.T) {
 				stored, err := keyring.Get(workspace, "postgres/orders")
 				require.NoError(t, err)
 				assert.Equal(t, tt.wantPassword, stored)
+
+				require.Len(t, conns, 1)
+				assert.Equal(t, "keyring:postgres/orders", secretRefOf(t, conns[0]))
 			}
 		})
 	}
+}
+
+func secretRefOf(t *testing.T, conn config.Connection) string {
+	t.Helper()
+
+	ref, ok := conn.(secret.Reference)
+	require.True(t, ok)
+
+	return ref.SecretRef()
 }
 
 func emptyWorkspace(t *testing.T) config.Conm {
@@ -155,70 +173,175 @@ func emptyWorkspace(t *testing.T) config.Conm {
 }
 
 func TestImportConnections_replacesTheSecretAConnectionLeftBehind(t *testing.T) {
-	orders := config.Postgres{
-		Metadata:   config.ConnMeta{Name: "orders"},
-		Hostname:   "db.internal",
-		PortNumber: 5432,
-		User:       "app",
-		Password:   "keyring:postgres/orders",
-		DBName:     "orders",
-	}
 	conm := emptyWorkspace(t)
 	ctx := context.Background()
 
 	for _, password := range []string{"before", "rotated"} {
-		entries := []importer.Entry{{Name: "orders", Conn: orders, Password: password}}
+		orders := config.Postgres{
+			Metadata:   config.ConnMeta{Name: "orders"},
+			Hostname:   "db.internal",
+			PortNumber: 5432,
+			User:       "app",
+			Password:   "literal:" + password,
+			DBName:     "orders",
+		}
+		entries := []importer.Entry{{Name: "orders", Conn: orders}}
 
 		got, err := ImportConnections(ctx, conm, config.PostgresConnType, entries, ImportStrict)
 		require.NoError(t, err)
 		require.Equal(t, []ImportResult{{Name: "orders", DSN: orders.ConnectionString(""), Status: ImportDone}}, got)
-
-		workspace, err := config.SecretWorkspace()
-		require.NoError(t, err)
-		stored, err := keyring.Get(workspace, "postgres/orders")
-		require.NoError(t, err)
-		assert.Equal(t, password, stored)
+		assert.Equal(t, password, storedPassword(t, "postgres/orders"))
 
 		require.NoError(t, RemoveConnection(conm, config.PostgresConnType, "orders"))
 	}
 }
 
-func TestImportSeed_opensAFormThatCanBeSaved(t *testing.T) {
-	entry := importer.Entry{
-		Name: "orders",
-		Conn: config.Postgres{
-			Metadata:   config.ConnMeta{Name: "orders"},
-			Hostname:   "db.internal",
-			PortNumber: 5432,
-			User:       "app",
-			Password:   "keyring:postgres/orders",
-			DBName:     "orders",
-			SSLMode:    config.PostgresSSLModePrefer,
+func storedPassword(t *testing.T, location string) string {
+	t.Helper()
+
+	workspace, err := config.SecretWorkspace()
+	require.NoError(t, err)
+	stored, err := keyring.Get(workspace, location)
+	require.NoError(t, err)
+
+	return stored
+}
+
+func Test_keyringBound(t *testing.T) {
+	meta := config.ConnMeta{Name: "orders", Description: "the orders database", Tags: []string{"prod"}}
+
+	tests := []struct {
+		name         string
+		conn         config.Connection
+		want         config.Connection
+		wantPassword string
+	}{
+		{
+			name:         "postgres",
+			conn:         config.Postgres{Metadata: meta, Hostname: "db", PortNumber: 5433, User: "app", Password: "literal:s3:cret", DBName: "orders", SchemaName: "public", SSLMode: config.PostgresSSLModeRequire},
+			want:         config.Postgres{Metadata: meta, Hostname: "db", PortNumber: 5433, User: "app", Password: "keyring:postgres/orders", DBName: "orders", SchemaName: "public", SSLMode: config.PostgresSSLModeRequire},
+			wantPassword: "s3:cret",
 		},
-		Password: "s3cret",
+		{
+			name:         "mysql",
+			conn:         config.MySQL{Metadata: meta, Hostname: "db", PortNumber: 3307, User: "app", Password: "literal:s3cret", DBName: "orders", TLSMode: config.MySQLTLSModeSkipVerify},
+			want:         config.MySQL{Metadata: meta, Hostname: "db", PortNumber: 3307, User: "app", Password: "keyring:mysql/orders", DBName: "orders", TLSMode: config.MySQLTLSModeSkipVerify},
+			wantPassword: "s3cret",
+		},
+		{
+			name:         "clickhouse",
+			conn:         config.ClickHouse{Metadata: meta, Hostname: "db", PortNumber: 9440, User: "app", Password: "literal:s3cret", DBName: "orders", Secure: true},
+			want:         config.ClickHouse{Metadata: meta, Hostname: "db", PortNumber: 9440, User: "app", Password: "keyring:clickhouse/orders", DBName: "orders", Secure: true},
+			wantPassword: "s3cret",
+		},
+		{
+			name:         "mssql",
+			conn:         config.MSSQL{Metadata: meta, Hostname: "db", PortNumber: 1434, User: "sa", Password: "literal:s3cret", DBName: "master"},
+			want:         config.MSSQL{Metadata: meta, Hostname: "db", PortNumber: 1434, User: "sa", Password: "keyring:mssql/orders", DBName: "master"},
+			wantPassword: "s3cret",
+		},
+		{
+			name: "a key file is not a password and stays where it is",
+			conn: config.SSH{Metadata: meta, Hostname: "db", PortNumber: 22, User: "ops", Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/id"},
+			want: config.SSH{Metadata: meta, Hostname: "db", PortNumber: 22, User: "ops", Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/id"},
+		},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, write, err := keyringBound(tt.conn.ConnType(), tt.conn)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantPassword, write.Password)
+		})
+	}
+}
+
+func TestImportConnections_fixesARefusedEntryInTheForm(t *testing.T) {
 	conm := emptyWorkspace(t)
+	ctx := context.Background()
 
-	ws, _, formCtx, err := openConnectionForm(conm, config.PostgresConnType)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = ws.Close() })
-
-	initial, err := importSeed(config.PostgresConnType, entry)
-	require.NoError(t, err)
-
-	formSpec := spec.FormSpecs[config.PostgresConnType]
-	model, _ := newFormModel(config.PostgresConnType, formSpec, formSpec.AddTitle, initial, false, formCtx).submit()
-	form, ok := model.(formModel)
-	require.True(t, ok)
-	require.True(t, form.submitted, form.status)
-
-	typed, err := form.result()
+	existing := config.Postgres{
+		Metadata:   config.ConnMeta{Name: "orders"},
+		Hostname:   "db.internal",
+		PortNumber: 5432,
+		User:       "app",
+		Password:   "literal:kept",
+		DBName:     "orders",
+		SSLMode:    config.PostgresSSLModePrefer,
+	}
+	_, err := ImportConnections(ctx, conm, config.PostgresConnType, []importer.Entry{{Name: "orders", Conn: existing}}, ImportStrict)
 	require.NoError(t, err)
 
-	bound, password, err := keyringBound(config.PostgresConnType, typed)
+	clashing := existing
+	clashing.Hostname, clashing.Password = "eu.internal", "literal:fresh"
+
+	opened := make(chan struct{}, 1)
+	host := &screenHost{
+		program: tea.NewProgram(
+			screenStack{},
+			tea.WithInput(nil),
+			tea.WithOutput(io.Discard),
+			tea.WithoutSignals(),
+			tea.WithWindowSize(160, 50),
+			tea.WithFilter(func(_ tea.Model, msg tea.Msg) tea.Msg {
+				if _, pushed := msg.(pushScreenMsg); pushed {
+					opened <- struct{}{}
+				}
+
+				return msg
+			}),
+		),
+		closed: make(chan struct{}),
+	}
+	go func() {
+		_, _ = host.program.Run()
+		close(host.closed)
+	}()
+	activeScreenHost.Store(host)
+	t.Cleanup(func() {
+		activeScreenHost.Store(nil)
+		host.program.Quit()
+		<-host.closed
+	})
+
+	tab, enter, esc := tea.KeyPressMsg{Code: tea.KeyTab}, tea.KeyPressMsg{Code: tea.KeyEnter}, tea.KeyPressMsg{Code: tea.KeyEscape}
+	renameAndSave := []tea.KeyPressMsg{tab, tab, char('i'), char('-'), char('e'), char('u'), esc, enter}
+	go func() {
+		<-opened
+		for _, key := range renameAndSave {
+			host.program.Send(key)
+		}
+	}()
+
+	type outcome struct {
+		results []ImportResult
+		err     error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		results, err := ImportConnections(ctx, conm, config.PostgresConnType, []importer.Entry{{Name: "orders", Conn: clashing}}, ImportInteractive)
+		done <- outcome{results: results, err: err}
+	}()
+
+	var got outcome
+	select {
+	case got = <-done:
+	case <-time.After(10 * time.Second):
+		require.FailNow(t, "the form was never saved")
+	}
+	require.NoError(t, got.err)
+
+	saved := clashing
+	saved.Metadata.Name, saved.Password = "orders-eu", "keyring:postgres/orders-eu"
+	assert.Equal(t, []ImportResult{{Name: "orders-eu", DSN: saved.ConnectionString(""), Status: ImportDone}}, got.results)
+
+	assert.Equal(t, "kept", storedPassword(t, "postgres/orders"))
+	assert.Equal(t, "fresh", storedPassword(t, "postgres/orders-eu"))
+
+	conns, err := Connections(conm, config.PostgresConnType)
 	require.NoError(t, err)
-	assert.Equal(t, "s3cret", password)
-	assert.Equal(t, entry.Conn, bound)
+	require.Len(t, conns, 2)
+	assert.Equal(t, saved, conns[1])
 }
 
 func TestRenderImport(t *testing.T) {

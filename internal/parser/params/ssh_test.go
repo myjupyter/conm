@@ -162,3 +162,16 @@ func TestParseSSHRefusesForeignScheme(t *testing.T) {
 	_, err := Parse(config.SSHConnType, "postgres://me@db.local:5432/app")
 	require.ErrorIs(t, err, ErrTypeMismatch)
 }
+
+func TestParseOptions_readsNoClientAndNoEnvironment(t *testing.T) {
+	_, err := ParseArgs(config.SSHConnType, []string{"mysql"})
+	require.ErrorIs(t, err, ErrTypeMismatch)
+
+	res, err := ParseOptions(config.SSHConnType, []string{"mysql"})
+	require.NoError(t, err)
+	assert.Empty(t, res.Client)
+	assert.Equal(t, config.SSH{Hostname: "mysql", PortNumber: 22, Auth: config.SSHAuthAgent}, res.Conn)
+
+	_, err = ParseOptions(config.SSHConnType, nil)
+	require.ErrorIs(t, err, ErrEmptyInput)
+}

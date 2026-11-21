@@ -4,13 +4,11 @@ import (
 	"fmt"
 
 	"github.com/myjupyter/conm/internal/config"
-	"github.com/myjupyter/conm/internal/secret"
 )
 
 type Entry struct {
 	Name     string
 	Conn     config.Connection
-	Password string
 	Warnings []string
 	Err      error
 }
@@ -44,28 +42,6 @@ func Read(t config.ConnType, path string) ([]Entry, error) {
 	}
 
 	return src.read(path)
-}
-
-func SecretLocation(t config.ConnType, name string) string {
-	return t.String() + "/" + name
-}
-
-type secretHolder[C any] interface {
-	*C
-	secret.Reference
-	SetSecretRef(ref string)
-}
-
-func withoutPassword[C any, H secretHolder[C]](conn C, t config.ConnType, name string) (C, string) {
-	holder := H(&conn)
-
-	_, password, _ := secret.ParseRef(holder.SecretRef())
-	holder.SetSecretRef("")
-	if password != "" {
-		holder.SetSecretRef(secret.Ref(secret.Keyring, SecretLocation(t, name)))
-	}
-
-	return conn, password
 }
 
 func values(params []config.ForeignParam) map[string]string {

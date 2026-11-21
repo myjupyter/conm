@@ -40,7 +40,7 @@ func mssqlEntry(context config.ForeignSection) Entry {
 		return entry
 	}
 
-	res, err := params.ParseArgs(config.MSSQLConnType, args)
+	res, err := params.ParseOptions(config.MSSQLConnType, args)
 	if err != nil {
 		entry.Err = err
 		return entry
@@ -58,8 +58,7 @@ func mssqlEntry(context config.ForeignSection) Entry {
 	}
 	ms.Metadata.Name = context.Name
 
-	entry.Conn, entry.Password = withoutPassword(ms, config.MSSQLConnType, context.Name)
-	entry.Warnings = slices.Concat(warnings, res.Warnings)
+	entry.Conn, entry.Warnings = ms, slices.Concat(warnings, res.Warnings)
 
 	return entry
 }

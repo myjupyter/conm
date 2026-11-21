@@ -22,7 +22,6 @@ func TestRead_mssql(t *testing.T) {
 	type want struct {
 		name     string
 		conn     config.Connection
-		password string
 		warnings int
 		err      bool
 	}
@@ -43,11 +42,10 @@ func TestRead_mssql(t *testing.T) {
 					Hostname:    "localhost",
 					PortNumber:  1433,
 					User:        "sa",
-					Password:    "keyring:mssql/local",
+					Password:    "literal:s3cret",
 					DBName:      "master",
 					EncryptMode: config.MSSQLEncryptLogin,
 				},
-				password: "s3cret",
 				warnings: 1,
 			}},
 		},
@@ -107,7 +105,6 @@ func TestRead_mssql(t *testing.T) {
 				got = append(got, want{
 					name:     e.Name,
 					conn:     e.Conn,
-					password: e.Password,
 					warnings: len(e.Warnings),
 					err:      e.Err != nil,
 				})

@@ -107,17 +107,9 @@ func ImportConnections(
 		return results, nil
 	}
 
-	saved := make([]int, 0, len(plan.ready))
-	accepted := make([]config.Connection, 0, len(plan.ready))
-	for _, i := range plan.ready {
-		if err := storeImportedPassword(ctx, ws.Keyring, entries[i].Conn, entries[i].Password); err != nil {
-			results[i].Status, results[i].Note = ImportFailed, passwordNote(err)
-			continue
-		}
-		saved, accepted = append(saved, i), append(accepted, entries[i].Conn)
-	}
-	if mode == ImportStrict && len(saved) < len(plan.ready) {
-		return results, nil
+	saved, accepted, err := bindPasswords(ctx, ws.Keyring, t, entries, plan)
+	if err != nil || (mode == ImportStrict && len(saved) < len(plan.ready)) {
+		return results, err
 	}
 
 	if err := repo.AddAll(accepted...); err != nil {
@@ -132,29 +124,84 @@ func ImportConnections(
 		}
 	}
 
+	if mode != ImportInteractive {
+		return results, nil
+	}
+
+	return results, fixRefused(ctx, ws.Keyring, repo, formCtx, entries, plan)
+}
+
+func bindPasswords(
+	ctx context.Context,
+	secrets repository.Secrets,
+	t config.ConnType,
+	entries []importer.Entry,
+	plan importPlan,
+) (saved []int, accepted []config.Connection, err error) {
+	results := plan.results
+
+	bound := make(map[int]config.Connection, len(plan.ready))
+	writes, owners := make([]repository.SecretWrite, 0, len(plan.ready)), make([]int, 0, len(plan.ready))
+	for _, i := range plan.ready {
+		conn, write, err := keyringBound(t, entries[i].Conn)
+		if err != nil {
+			results[i].Status, results[i].Note = ImportFailed, oneLine(err)
+			continue
+		}
+		bound[i] = conn
+		if write.Password != "" {
+			writes, owners = append(writes, write), append(owners, i)
+		}
+	}
+
+	refusals, err := secrets.PutAll(ctx, writes...)
+	if err != nil {
+		return nil, nil, err
+	}
+	for n, i := range owners {
+		if refusals[n] != nil {
+			results[i].Status, results[i].Note = ImportFailed, passwordNote(refusals[n])
+		}
+	}
+
+	for _, i := range plan.ready {
+		if results[i].Status != ImportFailed {
+			saved, accepted = append(saved, i), append(accepted, bound[i])
+		}
+	}
+
+	return saved, accepted, nil
+}
+
+func fixRefused(
+	ctx context.Context,
+	secrets repository.Secrets,
+	repo repository.Connections,
+	formCtx formContext,
+	entries []importer.Entry,
+	plan importPlan,
+) error {
 	fixable := make([]int, 0, len(plan.refused))
 	for _, i := range plan.refused {
 		if entries[i].Err == nil {
 			fixable = append(fixable, i)
 		}
 	}
-	if mode != ImportInteractive || len(fixable) == 0 {
-		return results, nil
+	if len(fixable) == 0 {
+		return nil
 	}
 
-	err = WithScreens(func() error {
+	return WithScreens(func() error {
 		for _, i := range fixable {
-			fixed, err := fixEntry(ctx, ws.Keyring, repo, formCtx, entries[i])
+			fixed, err := fixEntry(ctx, secrets, repo, formCtx, entries[i])
 			if err != nil {
 				return err
 			}
-			results[i] = fixed
+			plan.results[i] = fixed
 		}
 
 		return nil
 	})
-
-	return results, err
 }
 
 type importPlan struct {
@@ -220,15 +267,12 @@ func fixEntry(
 
 	var saved config.Connection
 	add := func(c config.Connection) error {
-		if entry.Password != "" {
-			bound, password, err := keyringBound(repo.Kind(), c)
+		if literalPassword(entry.Conn) != "" {
+			bound, write, err := keyringBound(repo.Kind(), c)
 			if err != nil {
 				return err
 			}
-			if err := repo.Check(bound); err != nil {
-				return err
-			}
-			if err := storeImportedPassword(ctx, secrets, bound, password); err != nil {
+			if err := storePassword(ctx, secrets, repo, bound, write); err != nil {
 				return err
 			}
 			c = bound
@@ -242,7 +286,7 @@ func fixEntry(
 		return nil
 	}
 
-	initial, err := importSeed(repo.Kind(), entry)
+	initial, err := seedConnection(repo.Kind(), entry.Conn)
 	if err != nil {
 		return res, err
 	}
@@ -263,16 +307,6 @@ func fixEntry(
 	return res, nil
 }
 
-func importSeed(t config.ConnType, entry importer.Entry) (formValues, error) {
-	initial, err := seedConnection(t, entry.Conn)
-	if err != nil || entry.Password == "" {
-		return initial, err
-	}
-	initial[spec.SecretProviderKey], initial[spec.SecretValueKey] = secret.Literal, entry.Password
-
-	return initial, nil
-}
-
 func refusalStatus(refusal error) formStatus {
 	if refusal == nil {
 		return formStatus{}
@@ -281,76 +315,58 @@ func refusalStatus(refusal error) formStatus {
 	return formStatus{text: oneLine(refusal), kind: kindErr}
 }
 
-func keyringBound(t config.ConnType, conn config.Connection) (config.Connection, string, error) {
+func literalPassword(conn config.Connection) string {
 	ref, ok := conn.(secret.Reference)
 	if !ok {
-		return conn, "", nil
+		return ""
 	}
 
 	scheme, password := spec.SplitSecret(ref.SecretRef())
-	if scheme != secret.Literal || password == "" {
-		return conn, "", nil
+	if scheme != secret.Literal {
+		return ""
 	}
+
+	return password
+}
+
+func keyringBound(t config.ConnType, conn config.Connection) (config.Connection, repository.SecretWrite, error) {
+	password := literalPassword(conn)
+	if password == "" {
+		return conn, repository.SecretWrite{}, nil
+	}
+
+	name := conn.Meta().Name
+	location := t.String() + "/" + name
 
 	values, err := seedConnection(t, conn)
 	if err != nil {
-		return nil, "", err
+		return nil, repository.SecretWrite{}, err
 	}
-	values[spec.SecretProviderKey] = secret.Keyring
-	values[spec.SecretValueKey] = importer.SecretLocation(t, conn.Meta().Name)
+	values[spec.SecretProviderKey], values[spec.SecretValueKey] = secret.Keyring, location
 
 	bound, err := spec.FormSpecs[t].BuildFunc(values)
+	record := config.Keyring{SecretID: name, ProviderID: secret.Keyring, LocationRef: location}
 
-	return bound, password, err
+	return bound, repository.SecretWrite{Secret: record, Password: password}, err
 }
 
-func storeImportedPassword(
+func storePassword(
 	ctx context.Context,
 	secrets repository.Secrets,
-	conn config.Connection,
-	password string,
+	repo repository.Connections,
+	bound config.Connection,
+	write repository.SecretWrite,
 ) error {
-	ref, ok := conn.(secret.Reference)
-	if !ok || password == "" {
+	if write.Password == "" {
 		return nil
 	}
-
-	scheme, location := spec.SplitSecret(ref.SecretRef())
-	if scheme != secrets.Kind() {
-		return nil
+	if err := repo.Check(bound); err != nil {
+		return err
 	}
 
-	i, found := secretAt(secrets, location)
-	if !found {
-		err := secrets.Add(ctx, config.Keyring{
-			SecretID:    conn.Meta().Name,
-			ProviderID:  scheme,
-			LocationRef: location,
-		}, password)
-		if err == nil {
-			return nil
-		}
-		if i, found = secretAt(secrets, location); !found {
-			return err
-		}
-	}
+	refusals, err := secrets.PutAll(ctx, write)
 
-	existing, _ := secrets.Get(i)
-	if used := secrets.UsagesAt(i); len(used) > 0 {
-		return &repository.SecretInUseError{ID: existing.ID(), By: used}
-	}
-
-	return secrets.Edit(ctx, i, existing, password)
-}
-
-func secretAt(secrets repository.Secrets, location string) (int, bool) {
-	for i := range secrets.Len() {
-		if s, ok := secrets.Get(i); ok && s.Location() == location {
-			return i, true
-		}
-	}
-
-	return 0, false
+	return cmp.Or(err, refusals[0])
 }
 
 func passwordNote(err error) string {
