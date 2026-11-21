@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-10-11 15:46'
+updated_date: '2026-11-21 11:34'
 labels:
   - release
 dependencies: []
@@ -46,3 +47,15 @@ Decisions already taken:
 - [ ] #7 Round-trip tests per format: import of a fixture, then export, yields an equivalent file for every representable field
 - [ ] #8 Documentation lists the supported formats, the fields mapped and the known gaps
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Decisions taken while building import on feat/add-config-import (2026-11-21), replacing 'rejection is the whole strategy' for import:
+- `conm <type> import [name...]` with `--path`, `--show`, `--skip-errors`, `-i`; `--workspace` is the global flag. `--show` replaces the dry-run of AC #6.
+- Default is all-or-nothing: if any entry cannot be imported nothing is written and the exit status is 1. `--skip-errors` imports the rest. `-i` opens each refused entry in the add form to be fixed, so a name clash can be renamed there instead of only being refused (AC #3).
+- A connection conm already has (same target, any name) is not an error in any mode; it is left alone and marked as a duplicate.
+- Postgres reads pg_service.conf for connections and uses .pgpass only to look up their passwords.
+- Types with a native connections file: postgres, mysql, ssh, clickhouse (connections_credentials), mssql (go-sqlcmd sqlconfig). Redis and MongoDB have none and get no import command.
+- Linking to the foreign file instead of copying is a separate task.
+<!-- SECTION:NOTES:END -->

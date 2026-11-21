@@ -203,3 +203,21 @@ func TestIndexOf(t *testing.T) {
 		})
 	}
 }
+
+type unsavable struct {
+	config.File[config.Connection]
+}
+
+func (unsavable) Save() error { return errors.New("read-only") }
+
+func TestAddAllKeepsNothingOfABatchThatCouldNotBeSaved(t *testing.T) {
+	repo := testRepo(t)
+
+	require.NoError(t, repo.Add(pg("kept", "db0.example.com", "metrics")))
+	repo.file = unsavable{repo.file}
+
+	require.Error(t, repo.AddAll(pg("first", "db1.example.com", "metrics"), pg("second", "db2.example.com", "metrics")))
+
+	assert.Equal(t, 1, repo.Len())
+	require.NoError(t, repo.Check(pg("first", "db1.example.com", "metrics")))
+}

@@ -1,8 +1,8 @@
 # AGENTS.md
 
-The entry point of this repository: what it is, what to do after a change, and where the
-rest is written down. **The architecture lives in `internal/AGENTS.md` and the detail of
-each module in the `AGENTS.md` inside that module — put new detail there rather than here.**
+What this repository is, what to do after a change, and where the rest is written down.
+**The architecture lives in `internal/AGENTS.md` and the detail of each module in the
+`AGENTS.md` inside that module — put new detail there rather than here.**
 
 ## What this is
 
@@ -55,10 +55,9 @@ Then the documentation, in the same piece of work:
 
 **Do not write comments** — inline, block, doc, `// TODO` or section headers. The code must
 read on its own: pick names that say what a value is, split a function that needs an
-explanation, let the types carry the intent. The non-test code holds none; keep it that
-way. If something genuinely cannot be expressed in code — an external constraint, a
-non-obvious protocol detail — it belongs in the module's `AGENTS.md`, not next to the
-statement.
+explanation, let the types carry the intent. The non-test code holds none. What cannot be
+expressed in code — an external constraint, a non-obvious protocol detail — belongs in the
+module's `AGENTS.md`.
 
 Keep everything gofmt-clean, vet-clean and lint-clean. Tests are table-driven and assert
 through **`testify`** — `require` for the preconditions a failure would make the rest of the

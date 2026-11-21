@@ -129,6 +129,18 @@ func ParseArgs(t config.ConnType, args []string) (Result, error) {
 	return parse(req)
 }
 
+func ParseOptions(t config.ConnType, options []string) (Result, error) {
+	parse, ok := parsers[t]
+	if !ok {
+		return Result{}, fmt.Errorf("%w: %s", ErrUnsupported, t)
+	}
+	if len(options) == 0 {
+		return Result{}, ErrEmptyInput
+	}
+
+	return parse(request{kind: t, args: options})
+}
+
 func newRequest(t config.ConnType, args []string) (request, error) {
 	if len(args) == 0 {
 		return request{}, ErrEmptyInput

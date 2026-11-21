@@ -31,8 +31,8 @@ conm postgres orders-local
 
 `exec` runs one query and exits. The result goes to stdout, errors go to stderr, and conm exits
 with the client's exit code, so it works in scripts and pipes. Quote an SQL query, or the shell
-expands `*` and ends the command at `;`. Redis is the exception: it takes the command as
-separate words, `conm redis exec cache -- get foo`, not `"get foo"`.
+expands `*` and ends the command at `;`. Redis and SSH are the exceptions: they take the
+command as separate words, `conm redis exec cache -- get foo`, not `"get foo"`.
 
 ```sh
 conm postgres exec orders-local -- "select current_user, current_database();"
@@ -47,7 +47,7 @@ conm postgres orders-local < script.sql
 
 ![Running a query and a script from the shell](../demo/exec-shell.gif)
 
-Everything after `--` is the query, not client flags; only the Redis clients read flags there too.
+Everything after `--` is the query, not client flags; only the Redis clients and `ssh` read flags there too.
 
 ---
 

@@ -36,6 +36,51 @@ is missing (here the password), then save. The name is prefilled with a random o
 
 `conm <database> add --help` prints the examples for each database.
 
+## Import from a client's config file
+
+If a client already keeps your connections in its own config file, import them instead of
+typing them again. The file is only read, never changed.
+
+```sh
+conm postgres import                  # every connection in the file
+conm postgres import orders billing   # only these
+conm postgres import --show           # print what would happen, change nothing
+```
+
+| Type | File | Passwords |
+|---|---|---|
+| `postgres` | `~/.pg_service.conf`: one connection per service | from the service, else from its `passfile` or `~/.pgpass` |
+| `mysql` | `~/.my.cnf`: each `[client_<name>]` as `<name>`, and `[client]` as `client` when it names a host or is the only group | from the group |
+| `clickhouse` | the client's `config.xml` or `config.yaml`: one connection per `connections_credentials` entry | from the entry |
+| `mssql` | `~/.sqlcmd/sqlconfig`: one connection per context | from the context's user |
+| `ssh` | `~/.ssh/config`: one connection per `Host` that is not a pattern | none: a key file stays a path |
+
+Redis and MongoDB clients keep no connections in a file, so they have no `import`.
+
+Each connection is named after its entry and printed with what happened to it:
+
+| Mark | Meaning |
+|---|---|
+| `✓` | imported |
+| `○` | can be imported, but was not |
+| `!` | already in conm, so left alone |
+| `✗` | cannot be imported, for the reason printed below it |
+
+Under a connection conm lists what it left out of the entry, such as an option it has no
+field for or a password it could not read. An entry that repeats a connection of the same
+file is not imported a second time. If one connection cannot be imported, nothing is. Add `--skip-errors` to import the rest.
+
+![Importing Postgres services from the shell](../demo/import-shell.gif)
+
+With `-i`, each connection that was read but cannot be saved opens in the add form with the
+reason shown: fix it and save, or cancel to skip it. An entry conm could not read stays `✗`.
+
+![Fixing a service that cannot be imported in the add form](../demo/import-interactive.gif)
+
+A password found in the file goes to the system [keyring](secrets.md), not into conm's files,
+and a connection whose password cannot be stored there is not imported.
+`conm <database> import --help` lists the other options, such as another file to read.
+
 ---
 
 [← First run](first-run.md) · [Contents](README.md) · [Edit or remove a connection →](edit-connection.md)

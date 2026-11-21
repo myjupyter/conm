@@ -8,7 +8,7 @@ For people who use conm and have never seen its source. `README.md` is the entry
 | Page | Covers |
 |---|---|
 | `first-run.md` | what `conm` shows before any connection exists |
-| `add-connection.md` | the add form, and prefilling it from a command line or URL |
+| `add-connection.md` | the add form, prefilling it from a command line or URL, and importing from a client's config file |
 | `edit-connection.md` | editing and removing, from the table and from the shell |
 | `connect-and-execute.md` | opening the client, running a query or a script |
 | `secrets.md` | the secrets screen, keyring references, secrets per workspace |
@@ -59,7 +59,9 @@ docs/demo/record.sh secrets-add.tape
 `record.sh` starts the databases and the SSH host from `compose.yml`, builds conm from the
 working tree, points `XDG_CONFIG_HOME`/`XDG_DATA_HOME` at a temporary directory and puts
 `stubs/` first on `PATH`, so a recording never touches the real config. It needs Docker and
-`vhs`, and clears its keyring entries through macOS `security`.
+`vhs` — `make tools` installs the pinned one into `bin/tools`, which `record.sh` puts on
+`PATH` — plus `ttyd` and `ffmpeg`, which VHS drives, and clears its keyring entries through
+macOS `security`.
 
 - One tape per behaviour shown, named `<area>-<what>.tape` (`secrets-add`, `transport-use`,
   `workspace-shell`); its `Output` is the same name with `.gif`.

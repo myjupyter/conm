@@ -12,10 +12,10 @@ describes, so it is created, changed and deleted together with it.
 | `<module>/AGENTS.md` | one module: its purpose, files, entities, own rules, extension seam | on demand, when working in that module |
 | `docs/user/AGENTS.md`, `docs/agents/AGENTS.md` | how to write the two kinds of documentation | on demand |
 
-A fact has one home. If it is about one module, it goes into that module's file and
-`internal/AGENTS.md` at most links to it. If it constrains several modules — an import
-direction, who may name a binary — it goes into `internal/AGENTS.md`. The root holds only
-what applies to every change regardless of where it lands. Never copy a paragraph between the two.
+A fact has one home. About one module: that module's file, and `internal/AGENTS.md` at most
+links to it. Constraining several modules — an import direction, who may name a binary —
+`internal/AGENTS.md`. The root holds only what applies to every change wherever it lands.
+Never copy a paragraph between files.
 
 Every `AGENTS.md` has a `CLAUDE.md` beside it holding the single line `@AGENTS.md`, so tools
 that look for either name reach the same text. Create it together with the file, and never
@@ -78,6 +78,6 @@ In the same change as the code:
 - a rule introduced, lifted or bent → the rules section of the module that owns it;
 - a package added → a new `AGENTS.md` and its `CLAUDE.md`, a row in the package table of
   `internal/AGENTS.md`, an arrow in its diagram;
-- an import added between internal packages → the table and diagram in `internal/AGENTS.md` first; if the
-  arrow points outward, the change is wrong, not the table;
+- an import added between internal packages → the table and diagram in `internal/AGENTS.md`
+  first; if the arrow points outward, the change is wrong, not the table;
 - a registration point of a connection type moved → the `add-new-database-type` skill too.

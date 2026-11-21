@@ -51,7 +51,7 @@ linters:
     - unconvert
     - goconst
     - prealloc
-    # architecture — enforces the layering rules in CLAUDE.md
+    # architecture — enforces the layering rules in internal/AGENTS.md
     - depguard
     # modernization
     - modernize
@@ -160,7 +160,7 @@ linters:
         - name: unexported-return
           disabled: true # NewPGClient & friends intentionally return interfaces
 
-    # Dependencies point inward toward `config`. One rule per layer; a rule's
+    # Dependencies point inward toward the leaves, `config` and `secret`. One rule per layer; a rule's
     # `files` globs select the layer, `deny` lists the layers it may not reach.
     depguard:
       rules:
@@ -169,28 +169,28 @@ linters:
             - "**/internal/config/**"
           deny:
             - pkg: github.com/myjupyter/conm/internal/secret
-              desc: config is the leaf package — it imports no other internal package
+              desc: config is a leaf — it imports only utils/keys and utils/pathname
             - pkg: github.com/myjupyter/conm/internal/network
-              desc: config is the leaf package — it imports no other internal package
+              desc: config is a leaf — it imports only utils/keys and utils/pathname
             - pkg: github.com/myjupyter/conm/internal/repository
-              desc: config is the leaf package — it imports no other internal package
+              desc: config is a leaf — it imports only utils/keys and utils/pathname
             - pkg: github.com/myjupyter/conm/internal/ui
-              desc: config is the leaf package — it imports no other internal package
+              desc: config is a leaf — it imports only utils/keys and utils/pathname
             - pkg: github.com/myjupyter/conm/cmd
-              desc: config is the leaf package — it imports no other internal package
+              desc: config is a leaf — it imports only utils/keys and utils/pathname
 
         secret:
           files:
             - "**/internal/secret/**"
           deny:
             - pkg: github.com/myjupyter/conm/internal/network
-              desc: secret points inward — it may import only config
+              desc: secret is a leaf — it imports no internal package
             - pkg: github.com/myjupyter/conm/internal/repository
-              desc: secret points inward — it may import only config
+              desc: secret is a leaf — it imports no internal package
             - pkg: github.com/myjupyter/conm/internal/ui
-              desc: secret points inward — it may import only config
+              desc: secret is a leaf — it imports no internal package
             - pkg: github.com/myjupyter/conm/cmd
-              desc: secret points inward — it may import only config
+              desc: secret is a leaf — it imports no internal package
 
         network:
           files:
@@ -217,13 +217,13 @@ linters:
             - "**/internal/ui/spec/**"
           deny:
             - pkg: github.com/myjupyter/conm/internal/network
-              desc: ui/spec is declarative — config and secret only
+              desc: ui/spec is declarative — config, secret, transport and utils/names only
             - pkg: github.com/myjupyter/conm/internal/repository
-              desc: ui/spec is declarative — config and secret only
+              desc: ui/spec is declarative — config, secret, transport and utils/names only
             - pkg: github.com/myjupyter/conm/internal/ui
-              desc: ui/spec is declarative — config and secret only
+              desc: ui/spec is declarative — config, secret, transport and utils/names only
             - pkg: github.com/myjupyter/conm/cmd
-              desc: ui/spec is declarative — config and secret only
+              desc: ui/spec is declarative — config, secret, transport and utils/names only
 
         ui:
           files:
@@ -237,9 +237,9 @@ linters:
             - "**/cmd/**"
           deny:
             - pkg: github.com/myjupyter/conm/internal/network
-              desc: cmd talks to config and ui only
+              desc: cmd talks to config, ui, ui/spec, parser/params and importer only
             - pkg: github.com/myjupyter/conm/internal/repository
-              desc: cmd talks to config and ui only
+              desc: cmd talks to config, ui, ui/spec, parser/params and importer only
 
   exclusions:
     generated: lax
@@ -273,9 +273,9 @@ linters:
         linters:
           - gosec
 
-      # ImportFromPGPass reads $PGPASSFILE / ~/.pgpass — a user-supplied path
+      # ReadPGPass reads $PGPASSFILE / ~/.pgpass — a user-supplied path
       # into the user's own home directory is the whole point of the feature.
-      - path: internal/config/postgres\.go
+      - path: internal/config/foreign\.go
         text: "G703"
         linters:
           - gosec
