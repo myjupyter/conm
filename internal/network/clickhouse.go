@@ -16,8 +16,6 @@ import (
 
 const clickhouseDialTimeout = 5 * time.Second
 
-// The clickhouse binary is a multi-call tool: the interactive client is a
-// subcommand of it rather than a program of its own.
 const (
 	clickhouseErrAuthFailed     = 516
 	clickhouseErrUnknownUser    = 192

@@ -24,8 +24,6 @@ func (v *Secrets) Picked() string {
 	return v.picked
 }
 
-// StartPicking turns the view into a chooser and opens it on the entry the
-// caller already holds.
 func (v *Secrets) StartPicking(current string) {
 	v.picking, v.picked = true, ""
 
@@ -37,7 +35,6 @@ func (v *Secrets) StartPicking(current string) {
 	}
 }
 
-// StopPicking leaves chooser mode and reports what was attached, if anything.
 func (v *Secrets) StopPicking() (string, bool) {
 	picked := v.picked
 	v.picking, v.picked = false, ""

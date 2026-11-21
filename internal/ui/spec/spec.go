@@ -4,15 +4,12 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-// The section a connection form is split into, shared by every entity spec so
-// the copy reads the same whatever database the form is for.
 const (
 	connectionSectionTitle = "connection"
 	MetadataSectionTitle   = "meta"
 )
 
 const (
-	// TextFieldKind is a default kind if isn't set.
 	TextFieldKind FieldKind = iota
 	HiddenFieldKind
 	IntFieldKind
@@ -22,7 +19,6 @@ const (
 )
 
 const (
-	// RequiredFieldProperty is a default property if isn't set.
 	RequiredFieldProperty FieldProperty = iota
 	OptionalFieldProperty
 )
@@ -60,7 +56,7 @@ type FormField struct {
 	Example      string
 	DefaultValue string
 	DefaultFunc  func() string
-	Options      []string // only used for SelectFieldKind
+	Options      []string
 	OptionsFunc  func(map[FormFieldKey]FormFieldValue) []string
 	Source       *FieldSource
 	TextFunc     func(map[FormFieldKey]FormFieldValue) FieldText
@@ -74,7 +70,6 @@ type FieldText struct {
 
 type FormSection struct {
 	Title  string
-	Note   string
 	Fields []FormFieldKey
 }
 

@@ -53,7 +53,6 @@ func NewSSHClient(
 func (s *SSHClient) Ping(ctx context.Context) (PingResult, error) {
 	now := time.Now()
 
-	// TODO(CONM-15): with a jump set this pings the first jump hop, not the target
 	dialer := net.Dialer{Timeout: sshDialTimeout}
 	conn, err := dialer.DialContext(ctx, "tcp", firstHopAddress(s.cfg))
 	if err != nil {

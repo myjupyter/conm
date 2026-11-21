@@ -47,7 +47,6 @@ func ValidateSecretProvider(provider string) error {
 }
 
 func ValidateSecretLocation(location string) error {
-	// TODO: validate location properly
 	if location == "" {
 		return errors.New("secret location can't be empty")
 	}

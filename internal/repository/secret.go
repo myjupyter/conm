@@ -67,9 +67,6 @@ func (r *SecretRepository) Add(ctx context.Context, s config.Secret, password st
 		return fmt.Errorf("add secret: %w", err)
 	}
 
-	// Outside the lock: a provider call is arbitrarily slow — it may prompt,
-	// unlock a store, or cross the network — and the render path reads this
-	// repository.
 	exists := r.hasMaterial(ctx, ref)
 
 	if !exists && password != "" {
@@ -82,7 +79,6 @@ func (r *SecretRepository) Add(ctx context.Context, s config.Secret, password st
 		return fmt.Errorf("add secret: %w", err)
 	}
 
-	// Both cases are informational: the record is on disk either way.
 	switch {
 	case exists && password != "":
 		return fmt.Errorf("add secret %q: material already exists at %s, the password entered was not written", s.ID(), ref)
@@ -99,8 +95,6 @@ func (r *SecretRepository) Edit(ctx context.Context, i int, s config.Secret, pas
 		return fmt.Errorf("edit secret: %w", err)
 	}
 
-	// An unchanged reference is not probed: a metadata-only edit has no reason
-	// to reach the provider at all.
 	repointed := makeSecRef(old) != ref
 	exists := repointed && r.hasMaterial(ctx, ref)
 
@@ -210,7 +204,6 @@ func (r *SecretRepository) checkEdit(i int, s config.Secret) (config.Secret, sec
 	ref := makeSecRef(s)
 
 	if key := makeSecRef(old); key != ref {
-		// Re-pointing a secret would orphan every connection referencing it.
 		if used := r.usages(key); len(used) > 0 {
 			return nil, "", &SecretInUseError{ID: old.ID(), By: used}
 		}

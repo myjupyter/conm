@@ -15,10 +15,6 @@ const (
 	secretNestedFormFieldPassword       secretNestedFormFieldKey = "password"
 )
 
-// SecretProviderKey and SecretValueKey name the pair of fields that together
-// say where a connection's password comes from: the provider picks literal,
-// none or a store, and the value is either the password itself, nothing at all
-// or a location inside that store. A spec without them is literal-only.
 const (
 	SecretProviderKey FormFieldKey = secretNestedFormFieldSecretProvider
 	SecretValueKey    FormFieldKey = secretNestedFormFieldPassword
