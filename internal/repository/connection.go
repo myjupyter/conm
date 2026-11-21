@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"slices"
 	"sync"
 
 	"github.com/myjupyter/conm/internal/cli"
@@ -24,6 +25,8 @@ type Connections interface {
 	ConfigAt(int) (config.Connection, bool)
 
 	Add(cfg config.Connection) error
+	AddAll(cfgs ...config.Connection) error
+	Check(cfg config.Connection, pending ...config.Connection) error
 	Edit(int, config.Connection) error
 	Remove(int) error
 }
@@ -113,29 +116,34 @@ func (r *ConnectionRepository) ConfigAt(i int) (config.Connection, bool) {
 }
 
 func (r *ConnectionRepository) Add(cfg config.Connection) error {
-	if err := r.checkTransport(cfg); err != nil {
-		return fmt.Errorf("add: %w", err)
+	return r.AddAll(cfg)
+}
+
+func (r *ConnectionRepository) AddAll(cfgs ...config.Connection) error {
+	for _, cfg := range cfgs {
+		if err := r.checkTransport(cfg); err != nil {
+			return fmt.Errorf("add: %w", err)
+		}
 	}
 
 	r.mx.Lock()
 	defer r.mx.Unlock()
 
-	const noSelf = -1
-	if err := r.check(cfg, noSelf); err != nil {
-		return fmt.Errorf("add: %w", err)
+	ncs := make([]network.Connection, 0, len(cfgs))
+	for i, cfg := range cfgs {
+		if err := r.admit(cfg, cfgs[:i]); err != nil {
+			return fmt.Errorf("add: %w", err)
+		}
+
+		conn, err := r.build(cfg)
+		if err != nil {
+			return fmt.Errorf("add: open new connection error: %w", err)
+		}
+		ncs = append(ncs, conn)
 	}
 
-	if errs := cfg.Validate(); errs != nil {
-		return fmt.Errorf("add: validation error: %w", errors.Join(errs...))
-	}
-
-	conn, err := r.build(cfg)
-	if err != nil {
-		return fmt.Errorf("add: open new connection error: %w", err)
-	}
-
-	r.ncs = append(r.ncs, conn)
-	r.file.Add(cfg)
+	r.ncs = append(r.ncs, ncs...)
+	r.file.Add(cfgs...)
 
 	if err := r.file.Save(); err != nil {
 		return fmt.Errorf("add: %w", err)
@@ -143,6 +151,35 @@ func (r *ConnectionRepository) Add(cfg config.Connection) error {
 
 	return nil
 }
+
+func (r *ConnectionRepository) Check(cfg config.Connection, pending ...config.Connection) error {
+	if err := r.checkTransport(cfg); err != nil {
+		return err
+	}
+
+	r.mx.RLock()
+	defer r.mx.RUnlock()
+
+	return r.admit(cfg, pending)
+}
+
+func (r *ConnectionRepository) admit(cfg config.Connection, pending []config.Connection) error {
+	const noSelf = -1
+	if err := r.check(cfg, noSelf); err != nil {
+		return err
+	}
+
+	if err := validateUnique(slices.Values(pending), cfg); err != nil {
+		return err
+	}
+
+	if errs := cfg.Validate(); errs != nil {
+		return fmt.Errorf("validation error: %w", errors.Join(errs...))
+	}
+
+	return nil
+}
+
 func (r *ConnectionRepository) Edit(i int, cfg config.Connection) error {
 	if err := r.checkTransport(cfg); err != nil {
 		return fmt.Errorf("edit: %w", err)

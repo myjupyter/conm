@@ -6,7 +6,7 @@ Every screen conm draws, and the blocking entry points `cmd` calls. Screens are 
 from shared primitives, reach entities only through `ui/view`, and take their forms from
 `ui/spec`.
 
-May import (internal): `ui/view`, `ui/spec`, `repository`, `config`, `network`, `cli`,
+May import (internal): `ui/view`, `ui/spec`, `repository`, `importer`, `config`, `network`, `cli`,
 `secret`, `transport`, `utils/keys`.
 
 ## Files
@@ -32,6 +32,7 @@ A screen is split `<name>.go` (model, `Update`) / `<name>_view.go` (render) /
 | `workspace_table*.go`, `workspace_form_commands.go` | the workspaces screen and its form |
 | `settings*.go`, `settings_keybind*.go` | settings: the client per type, keybinding overrides |
 | `init_table*.go` | the type picker: shown before any connection exists, and when adding a connection of another type |
+| `import.go` | `ImportConnections`, `RenderImport` — saves `importer.Entry`s for `conm <type> import` and prints what became of each |
 | `doctor.go` | `Doctor` — renders `repository.CheckClients`/`CheckFiles` for `conm doctor` |
 
 ## Main entities
@@ -43,6 +44,32 @@ A screen is split `<name>.go` (model, `Update`) / `<name>_view.go` (render) /
 - `formLoop[T]` — how any form is run to completion; a screen supplies `open` and `save`.
 - `keyMap` — every key the TUI reacts to, named by meaning.
 - `screenStack` — the host a screen pushes another screen onto.
+
+## Import — `import.go`
+
+`ImportConnections` is a shell entry point like `RemoveConnection`: it works on the
+repository, not through `ui/view`, and opens a screen only in `ImportInteractive`.
+
+- `planImport` sorts the entries with `repository.Connections.Check` before anything is
+  written: the ones that can be saved together, the ones refused, and the ones conm already
+  has a connection to. **A `*repository.DuplicateConnectionError` is not a refusal** — the
+  same target under any name is `ImportPresent` in every mode, so importing a file twice is
+  not an error. A taken name with another target is a refusal.
+- `ImportStrict` writes nothing when one entry is refused and leaves the rest `ImportNew`;
+  the others save what was admitted with one `AddAll`. `ImportShow` stops after the plan.
+- `ImportInteractive` then opens each refused entry that has a connection in the add form,
+  seeded from it and with the refusal as its status, through the same `formLoop` as
+  `conm <type> add`. An entry the importer could not read has nothing to seed a form with
+  and stays `ImportFailed`.
+- **The password is stored after the connection is saved**, in the keyring at the location
+  the saved connection refers to, as a secret named after the connection. A connection the
+  form pointed at another provider keeps what the user chose and nothing is stored. A
+  keyring failure leaves the connection saved and is reported in `ImportResult.Note`; it is
+  not rolled back.
+- `RenderImport` prints `[glyph] name dsn` with the reason underneath, the way `doctor`
+  prints a check: `kindOK` imported, `kindErr` refused, `kindWarn` already there, and
+  `gImportNew` in `cPostgres` for an entry that could be imported but was not. The DSN is
+  `ConnectionString("")`, so it never carries the password.
 
 ## Shared primitives — reuse, never re-implement
 

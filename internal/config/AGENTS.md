@@ -4,7 +4,8 @@
 
 The persisted, validatable data model: every connection type, the secret records, the
 transports, the settings in `conm.toml`, the workspaces — and **all TOML file I/O and every
-config path**. A leaf: it knows nothing about drivers, clients, repositories or screens.
+config path**, plus the read-only readers of the files other clients keep their connections
+in. A leaf: it knows nothing about drivers, clients, repositories or screens.
 
 May import (internal): `utils/keys`, `utils/pathname`.
 
@@ -22,6 +23,8 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `secret.go`, `keyring.go` | `Secret`, `SecretParam`; `Keyring`, the one stored secret record, and its wrapper |
 | `transport.go` | `Transport`, `TransportKind`, its wrapper and validators |
 | `workspace.go` | the active workspace, the startup workspace, create/rename/remove of a workspace's directories |
+| `ini.go` | `ReadINI` — the sectioned `key=value` format of `pg_service.conf` and MySQL option files, as `INISection`s in file order |
+| `foreign.go` | where the clients' own files are (`PGServicePath`, `PGPassPath`, `MySQLOptionPath`) and `PGPass`, the rows of a `.pgpass` with libpq's lookup |
 | `xdg.go` | every path: `ConmPath()`, `PostgresPath()`, `TransportPath()`, `SecretConfigPath()`, … — workspace-scoped except `conm.toml` |
 
 ## Main entities
@@ -149,6 +152,21 @@ points into a store" — the usage index's `trackable`, the form's `isRef` — a
 `secret.IsStore`, never `!= secret.Literal`. The `none` reference is stored as `"none:"`: a
 bare `""` would read back as an empty literal, which is what a connection whose password is
 merely unset already is.
+
+## The clients' own files
+
+`ini.go` and `foreign.go` read files conm does not own and never writes. They return the
+file's own shape — sections and pairs, password rows — and know nothing of connections: what
+a section means is `internal/importer`'s to decide.
+
+- `ReadINI` drops comment lines (`#`, `;`), blank lines and anything before the first
+  section. A line without `=` is a key with an empty value, which is how an option file
+  spells a flag.
+- `PGServicePath` and `PGPassPath` honour `PGSERVICEFILE` and `PGPASSFILE` before falling
+  back to the home directory, as libpq does.
+- `ReadPGPass` treats a missing file as an empty one, since the file is optional. A row has
+  exactly five fields, `\:` and `\\` are the escapes, and `PGPass.Password` returns the first
+  row whose host, port, database and user each match or are `*`.
 
 ## The settings row — `conm.toml`
 

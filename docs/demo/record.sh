@@ -22,5 +22,5 @@ mkdir "$work/bin"
 go build -C ../.. -o "$work/bin/conm" .
 
 export XDG_CONFIG_HOME="$work/config" XDG_DATA_HOME="$work/data"
-export PATH="$PWD/stubs:$work/bin:$PATH"
+export PATH="$PWD/stubs:$work/bin:$PWD/../../bin/tools:$PATH"
 vhs "${1:-demo.tape}"

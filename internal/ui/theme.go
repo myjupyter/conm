@@ -56,6 +56,7 @@ const (
 	gStatusPending = "◐"
 	gStatusWarn    = "!"
 	gStatusErr     = "✗"
+	gImportNew     = "○"
 
 	gCaret    = "❯"
 	gDotOn    = "●"

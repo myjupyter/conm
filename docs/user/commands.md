@@ -27,6 +27,7 @@ The examples use Postgres.
 | `conm postgres <name>` | Open the client on a connection ([more](connect-and-execute.md#from-the-shell)) |
 | `conm postgres list` | Print the Postgres connections |
 | `conm postgres add [command line]` | Add a connection, optionally prefilled from a command line or URL ([more](add-connection.md#prefill-from-a-command-line)) |
+| `conm postgres import [name...]` | Import connections from the client's own config file ([more](add-connection.md#import-from-a-clients-config-file)) |
 | `conm postgres edit <name>` | Edit a connection ([more](edit-connection.md#from-the-shell)) |
 | `conm postgres remove <name>` | Remove a connection ([more](edit-connection.md#remove-a-connection)) |
 | `conm postgres ping <name>` | Check that a connection answers |

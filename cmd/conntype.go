@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/importer"
 	"github.com/myjupyter/conm/internal/ui"
 )
 
@@ -46,6 +47,9 @@ func connTypeCmd(t config.ConnType) *cobra.Command {
 		listConnectionsCmd(t),
 		execConnectionCmd(t),
 	)
+	if importer.Supported(t) {
+		cmd.AddCommand(importConnectionsCmd(t))
+	}
 
 	return cmd
 }

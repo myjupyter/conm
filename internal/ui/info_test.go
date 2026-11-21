@@ -19,14 +19,16 @@ type stubConnections struct {
 	confs []config.Connection
 }
 
-func (stubConnections) Kind() config.ConnType                       { return config.PostgresConnType }
-func (stubConnections) ClientInfo(context.Context) cli.Info         { return cli.Info{} }
-func (r stubConnections) Len() int                                  { return len(r.confs) }
-func (stubConnections) IndexOf(string) (int, bool)                  { return -1, false }
-func (stubConnections) ConnectionAt(int) (network.Connection, bool) { return nil, false }
-func (stubConnections) Add(config.Connection) error                 { return nil }
-func (stubConnections) Edit(int, config.Connection) error           { return nil }
-func (stubConnections) Remove(int) error                            { return nil }
+func (stubConnections) Kind() config.ConnType                               { return config.PostgresConnType }
+func (stubConnections) ClientInfo(context.Context) cli.Info                 { return cli.Info{} }
+func (r stubConnections) Len() int                                          { return len(r.confs) }
+func (stubConnections) IndexOf(string) (int, bool)                          { return -1, false }
+func (stubConnections) ConnectionAt(int) (network.Connection, bool)         { return nil, false }
+func (stubConnections) Add(config.Connection) error                         { return nil }
+func (stubConnections) AddAll(...config.Connection) error                   { return nil }
+func (stubConnections) Check(config.Connection, ...config.Connection) error { return nil }
+func (stubConnections) Edit(int, config.Connection) error                   { return nil }
+func (stubConnections) Remove(int) error                                    { return nil }
 
 func (r stubConnections) ConfigAt(i int) (config.Connection, bool) {
 	if i < 0 || i >= len(r.confs) {

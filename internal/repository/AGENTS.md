@@ -34,6 +34,8 @@ type Connections interface {
     ConnectionAt(int) (network.Connection, bool)
     ConfigAt(int) (config.Connection, bool)
     Add(cfg config.Connection) error
+    AddAll(cfgs ...config.Connection) error
+    Check(cfg config.Connection, pending ...config.Connection) error
     Edit(int, config.Connection) error
     Remove(int) error
 }
@@ -75,6 +77,11 @@ type Workspaces interface {
   stores. Built by `NewSession(conm)`, closed with `Close()`.
 - `Connections` is not generic: `Kind()` says which `config.ConnType` every entry has, so a
   caller knows what `ConfigAt` asserts to, and `Add`/`Edit` reject a foreign type.
+- `AddAll` saves several connections with one write or none of them: each is admitted
+  against the stored ones and the ones before it in the same call, so two entries of one
+  batch cannot be duplicates of each other. `Add` is `AddAll` of one. `Check` is the same
+  admission without the write, with `pending` standing for connections that would be added
+  first; it is what lets an import refuse a whole file before touching it.
 - `Secrets`: the password travels beside the record, never inside it, and only from the form
   into `Add`/`Edit`.
 - `Transports` is also the `transport.Provider` connections resolve their route through; it

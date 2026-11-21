@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -75,50 +73,6 @@ var _ ConfigWrapper[Connection] = (*PostgresConfigWrapper)(nil)
 
 type PostgresConfigWrapper struct {
 	Conns []Postgres `toml:"postgres"`
-}
-
-func ImportFromPGPass() ([]Postgres, error) {
-	pgPassPath := os.Getenv("PGPASSFILE")
-	if pgPassPath == "" {
-		homeDir := os.Getenv("HOME")
-		const pgpassFile = ".pgpass"
-		pgPassPath = filepath.Join(homeDir, pgpassFile)
-	}
-
-	raw, err := os.ReadFile(pgPassPath)
-	if err != nil {
-		return nil, err
-	}
-
-	lines := strings.Split(string(raw), "\n")
-
-	var confs []Postgres
-	for _, line := range lines {
-		values := strings.Split(line, ":")
-		if skipPGPassRow(values) {
-			continue
-		}
-
-		port, err := strconv.Atoi(values[1])
-		if err != nil {
-			continue
-		}
-
-		conf := Postgres{
-			Hostname:   values[0],
-			PortNumber: port,
-			DBName:     values[2],
-			User:       values[3],
-			Password:   values[4],
-			Metadata: ConnMeta{
-				Name: values[0],
-			},
-		}
-
-		confs = append(confs, conf)
-	}
-
-	return confs, nil
 }
 
 func ValidatePostgresHost(host string) error {
@@ -359,14 +313,6 @@ func (p Postgres) Validate() []error {
 
 func (p Postgres) IsValid() bool {
 	return len(p.validationErrs) == 0
-}
-
-func skipPGPassRow(values []string) bool {
-	if len(values) != 5 {
-		return true
-	}
-
-	return values[0] == "*" || values[1] == "*" || values[2] == "*" || values[3] == "*" || values[4] == "*"
 }
 
 func (p Postgres) Identity() string {

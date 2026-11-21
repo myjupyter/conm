@@ -16,6 +16,7 @@ cmd ──► ui ──► ui/view ──► repository ──► network ──
         └──► ui/spec ────────────┴───────────┴──► transport ─────┴──► secret   (leaf)
                                                                  │
 cmd ──► parser/params ───────────────────────────────────────────┘
+cmd, ui ──► importer ──► parser/params
 
 repository ──► utils        (leaf — domain-free generics)
 config, ui ──► utils/keys   (leaf — keystroke parsing)
@@ -26,7 +27,7 @@ ui/spec    ──► utils/names  (leaf — random adjective-noun names)
 | Package | May import (internal) | Responsibility | Detail |
 |---|---|---|---|
 | `internal/utils` (+ `keys`, `pathname`, `names`) | *(nothing)* | Domain-free helpers: a duplicate finder, keystroke parsing, portable folder names, random names. | `internal/utils/AGENTS.md` |
-| `internal/config` | `utils/keys`, `utils/pathname` | Data model — connections, secrets, transports, settings, workspaces — validation, **all TOML file I/O**, config paths. | `internal/config/AGENTS.md` |
+| `internal/config` | `utils/keys`, `utils/pathname` | Data model — connections, secrets, transports, settings, workspaces — validation, **all TOML file I/O**, config paths, and the readers of the clients' own config files. | `internal/config/AGENTS.md` |
 | `internal/secret` | *(nothing)* | Resolve/store/remove password material behind a scheme (`literal:`, `none:`, `filepath:`, `keyring:`) via pluggable `Provider`s. | `internal/secret/AGENTS.md` |
 | `internal/transport` | `config`, `secret` | The route to a connection that is not directly reachable: open an SSH tunnel, hand back its local end. | `internal/transport/AGENTS.md` |
 | `internal/cli` | `config` | The binaries conm shells out to: clients per type, detection, argv and env, the `exec`, the transport process, the clipboard. | `internal/cli/AGENTS.md` |
@@ -34,15 +35,17 @@ ui/spec    ──► utils/names  (leaf — random adjective-noun names)
 | `internal/repository` | `config`, `network`, `cli`, `secret`, `transport`, `utils` | Composition root: opens the config files, builds live connections, secret stores and transports; the only mutation API the runtime UI has. | `internal/repository/AGENTS.md` |
 | `internal/ui/view` | `repository`, `config`, `network`, `cli`, `secret`, `transport` | What a screen is looking at and where: one view per entity, a search index across them, and the cursor. | `internal/ui/view/AGENTS.md` |
 | `internal/ui/spec` | `config`, `cli`, `secret`, `transport`, `utils/names` | Declarative form definitions, one named spec per entity, and the values-map formats they are read and written through. | `internal/ui/spec/AGENTS.md` |
-| `internal/ui` | `ui/view`, `ui/spec`, `repository`, `config`, `network`, `cli`, `secret`, `transport`, `utils/keys` | Bubble Tea TUI. | `internal/ui/AGENTS.md` |
+| `internal/ui` | `ui/view`, `ui/spec`, `repository`, `importer`, `config`, `network`, `cli`, `secret`, `transport`, `utils/keys` | Bubble Tea TUI. | `internal/ui/AGENTS.md` |
 | `internal/parser/params` | `config`, `cli`, `secret` | Read a client's command line back into a connection. | `internal/parser/params/AGENTS.md` |
-| `cmd` | `config`, `ui`, `ui/spec`, `parser/params` | Cobra command tree. | `cmd/AGENTS.md` |
+| `internal/importer` | `config`, `parser/params`, `secret` | Read the connections of a client's own config file as `config.Connection`s. | `internal/importer/AGENTS.md` |
+| `cmd` | `config`, `ui`, `ui/spec`, `parser/params`, `importer` | Cobra command tree. | `cmd/AGENTS.md` |
 
 Hard rules — the ones that cross modules. Each module's own rules are in its file.
 
 - **`config` is the only package that reads or writes config files.** Everyone else goes
   through `config.OpenConfig` / `config.File` / `CreateConm` / `ReadConm`; never open a TOML
-  file by hand from `ui`, `repository` or `cmd`.
+  file by hand from `ui`, `repository` or `cmd`. A client's own file (`pg_service.conf`, an
+  option file) is read there too, and is never written.
 - **`cli` is the only package that names a client binary.** The resolved client of a
   connection travels up as a `cli.Info` value — `cli.Launcher.Info(ctx)` →
   `repository.Connections.ClientInfo(ctx)` → `view.Connections.ClientInfo(ctx)` — never as a
@@ -105,4 +108,5 @@ Hard rules — the ones that cross modules. Each module's own rules are in its f
   constructor, a named spec in `secretFormSpecs`, the scheme in `spec.SecretProvidersOrder`,
   the repository passed to `view.NewSecrets`. No form or screen code changes.
 - **New transport kind** — `internal/transport/AGENTS.md`.
+- **New import format** — `internal/importer/AGENTS.md`.
 - **New entity table** — `internal/ui/view/AGENTS.md`.
