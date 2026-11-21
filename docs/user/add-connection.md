@@ -72,8 +72,8 @@ file is not imported a second time. If one connection cannot be imported, nothin
 
 ![Importing Postgres services from the shell](../demo/import-shell.gif)
 
-With `-i`, each connection that cannot be imported opens in the add form with the reason
-shown: fix it and save, or cancel to skip it.
+With `-i`, each connection that was read but cannot be saved opens in the add form with the
+reason shown: fix it and save, or cancel to skip it. An entry conm could not read stays `✗`.
 
 ![Fixing a service that cannot be imported in the add form](../demo/import-interactive.gif)
 

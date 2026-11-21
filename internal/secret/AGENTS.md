@@ -31,16 +31,20 @@ type Provider interface {
 }
 ```
 
-- A reference is a bare literal or `"<scheme>:<location>"`. `Ref` and `ParseRef` spell and
-  split it here; the form-side `spec.JoinSecret`/`SplitSecret` are the only callers that
-  assemble one from user input.
+- A reference is a bare literal or `"<scheme>:<location>"`; `Ref` and `ParseRef` spell and
+  split it. Callers: the form-side `spec.JoinSecret`/`SplitSecret` (user input),
+  `parser/params` (`literal:` for a parsed password, `filepath:` for an ssh identity) and
+  `repository` (from a stored record, and for the usage index).
 - `Resolver` is itself a `Provider`: it dispatches by scheme and falls back to the literal
   provider for a value with no known scheme, so a bare password containing a colon stays a
   password. `DefaultFor(workspace)` registers the four providers.
-- `LiteralProvider` returns the value itself; `NoneProvider` resolves to the empty string;
-  `FilepathProvider` resolves to the path (with `~` expanded) and never opens the file;
-  `KeyringProvider` reads and writes the system keyring under a per-workspace service
-  name, so workspaces do not see each other's secrets.
+
+| Provider | Resolves to |
+|---|---|
+| `LiteralProvider` | the value itself |
+| `NoneProvider` | the empty string |
+| `FilepathProvider` | the path verbatim, after an `os.Stat` existence check on the `~`-expanded path — a missing file is an error; the file is never opened |
+| `KeyringProvider` | the system keyring entry, read and written under a per-workspace service name, so workspaces do not see each other's secrets |
 
 ## Rules
 

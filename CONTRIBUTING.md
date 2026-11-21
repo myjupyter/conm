@@ -102,8 +102,9 @@ covers several features — one commit per feature is easier to review and to re
    git checkout -b fix/ssh-tunnel-leak main
    ```
 
-   The accepted types are `feature`/`feat`, `bugfix`/`fix`, `hotfix`, `release` and `chore`;
-   the description uses lowercase letters, digits and hyphens.
+   The accepted types are `feature`/`feat`, `bugfix`/`fix`, `hotfix`, `release`, `chore` and
+   the agent prefixes `ai`, `claude`, `codex`, `copilot`, `cursor`; the description uses
+   lowercase letters, digits, hyphens and dots.
 
 2. Commit your changes and push the branch to your fork.
 3. Open a pull request against `main`. Describe what changed and why, and link the issue.

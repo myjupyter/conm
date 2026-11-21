@@ -63,7 +63,7 @@ go install github.com/myjupyter/conm@latest
 ```
 
 
-Needs Go 1.26, plus the client for each database you connect to. Then run `conm`: with no
+Needs the Go version in `go.mod`, plus the client for each database you connect to. Then run `conm`: with no
 connections yet it asks for the type of the first one.
 
 ## Supported

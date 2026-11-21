@@ -21,8 +21,7 @@ May import (internal): `config`, `ui`, `ui/spec`, `parser/params`, `importer`.
 ## Rules
 
 - **Commands are generated per type, never written per type.** A subcommand is a function of
-  `config.ConnType`; a new connection type appears in the tree with no change here beyond an
-  optional alias.
+  `config.ConnType`; a new connection type needs no change here beyond an optional alias.
 - A command that opens a screen wraps it in `ui.WithScreens`; one that needs a connection by
   name goes through the `ui` entry points (`ui.Connect`, `ui.Ping`, `ui.Connections`,
   `ui.RemoveConnection`), not through `repository`.
@@ -32,10 +31,10 @@ May import (internal): `config`, `ui`, `ui/spec`, `parser/params`, `importer`.
 - `import` reads the entries with `importer.Read`, narrows them to the names given and hands
   them to `ui.ImportConnections` with the mode its flags select; `ui.RenderImport` prints the
   result. The one decision made here is the exit status: a strict import with a refused entry
-  is an error. `--path` has no default value: `importer.DefaultPath` is asked in `RunE`, since
-  finding a client's file touches the disk and the command tree is built on every start.
-- Every subcommand name of a connection type is in `config.ReservedNames`, since
-  `conm <type> <name>` would otherwise be ambiguous.
+  is an error. `--path` has no default value: `importer.DefaultPath` is asked in `RunE`,
+  because finding a client's file touches the disk and the tree is built on every start.
+- Every subcommand name of a connection type is in `config.ReservedNames`: `conm <type> <name>`
+  would otherwise be ambiguous.
 - Exit codes are decided in `Execute` only: a client's own exit code is passed through,
   `ui.ErrDoctorFound` is `1` without a message, any other error is printed and is `1`.
 - A new or changed command is user-visible: update `docs/user/commands.md` and the page of

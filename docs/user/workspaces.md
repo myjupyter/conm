@@ -11,7 +11,7 @@ conm starts with a single workspace named `default`.
 
 | Separate in every workspace | Shared by all workspaces |
 |---|---|
-| Connections of every database type | Which databases are enabled and [which client each one opens](additional-screens.md#switching-clients) |
+| Connections of every database type | [Which client each database opens](additional-screens.md#switching-clients) |
 | [Transports](ssh-transport.md) (SSH tunnels) | [Keybindings](additional-screens.md#overriding-keybindings) |
 | [Secrets](secrets.md): the records and the passwords in the system keyring | |
 
