@@ -8,7 +8,7 @@ For people who use conm and have never seen its source. `README.md` is the entry
 | Page | Covers |
 |---|---|
 | `first-run.md` | what `conm` shows before any connection exists |
-| `add-connection.md` | the add form, prefilling it from a command line or URL, and importing from a client's config file |
+| `add-connection.md` | the add form, prefilling it from a command line or URL, importing from a client's config file and exporting back to it |
 | `edit-connection.md` | editing and removing, from the table and from the shell |
 | `connect-and-execute.md` | opening the client, running a query or a script |
 | `secrets.md` | the secrets screen, keyring references, secrets per workspace |

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -27,8 +28,9 @@ type Session struct {
 	Keyring    *SecretRepository
 	Transports *TransportRepository
 
-	conns  []*ConnectionRepository
-	byKind map[config.ConnType]Connections
+	conns   []*ConnectionRepository
+	secrets secret.Provider
+	byKind  map[config.ConnType]Connections
 }
 
 func NewSession(cfg config.Conm) (*Session, error) {
@@ -38,7 +40,7 @@ func NewSession(cfg config.Conm) (*Session, error) {
 	}
 	secrets := secret.DefaultFor(workspace)
 
-	w := &Session{byKind: make(map[config.ConnType]Connections, len(connectionRepositories))}
+	w := &Session{secrets: secrets, byKind: make(map[config.ConnType]Connections, len(connectionRepositories))}
 
 	trs, err := NewTransportRepository(secrets, UsageLookupFunc(w.transportUsages), w)
 	if err != nil {
@@ -94,6 +96,19 @@ func (w *Session) Connections() []Connections {
 func (w *Session) ConnectionsOf(t config.ConnType) (Connections, bool) {
 	repo, ok := w.byKind[t]
 	return repo, ok
+}
+
+func (w *Session) Password(ctx context.Context, conn config.Connection) (string, error) {
+	ref, ok := conn.(secret.Reference)
+	if !ok {
+		return "", nil
+	}
+
+	if scheme, _, _ := secret.ParseRef(ref.SecretRef()); scheme == secret.Filepath {
+		return "", nil
+	}
+
+	return w.secrets.Resolve(ctx, ref)
 }
 
 func (w *Session) Close() error {

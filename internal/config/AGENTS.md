@@ -4,8 +4,7 @@
 
 The persisted, validatable data model: every connection type, the secret records, the
 transports, the settings in `conm.toml`, the workspaces — and **all TOML file I/O and every
-config path**, plus the read-only readers of the files other clients keep their connections
-in. A leaf: it knows nothing about drivers, clients, repositories or screens.
+config path**. A leaf: it knows nothing about drivers, clients, repositories or screens.
 
 May import (internal): `utils/keys`, `utils/pathname`.
 
@@ -13,7 +12,7 @@ May import (internal): `utils/keys`, `utils/pathname`.
 
 | File | Holds |
 |---|---|
-| `config.go` | `Connection`, the persistence generics `ConfigWrapper[C]` / `File[C]` / `Config[W, C]`, `OpenConfig`, the `validationErrors` collector |
+| `config.go` | `Connection`, the persistence generics `ConfigWrapper[C]` / `File[C]` / `Config[W, C]`, `OpenConfig`, the `validationErrors` collector, `WriteForeign` |
 | `database.go` | `DBConnection` — a `Connection` with a database and a schema; `Databases`/`ConnTypes`, `ConnTypeNames()` |
 | `distinct.go` | `Distinct` and `identity(...)`, the uniqueness key a record builds for itself |
 | `meta.go` | `ConnMeta`, `WebLink` and their validators, `ValidateConnectionName`, `ValidateTags` |
@@ -23,8 +22,6 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `secret.go`, `keyring.go` | `Secret`, `SecretParam`; `Keyring`, the one stored secret record, and its wrapper |
 | `transport.go` | `Transport`, `TransportKind`, its wrapper and validators |
 | `workspace.go` | the active workspace, the startup workspace, create/rename/remove of a workspace's directories |
-| `ini.go` | `ReadINI` — the sectioned `key=value` format of `pg_service.conf` and MySQL option files, as `ForeignSection`s in file order |
-| `foreign.go` | `ForeignSection`/`ForeignParam`, where the clients' own files are (`PGServicePath`, `PGPassPath`, `MySQLOptionPath`, `ClickHouseClientPath`, `SQLConfigPath`, `SSHConfigPath`), `PGPass` with libpq's lookup, and the readers `ReadClickHouseConnections`, `ReadSQLConfig`, `ReadSSHConfig` with `SplitSSHOption` |
 | `xdg.go` | every path: `ConmPath()`, `PostgresPath()`, `TransportPath()`, `SecretConfigPath()`, … — workspace-scoped except `conm.toml` |
 
 ## Main entities
@@ -125,6 +122,13 @@ type Secret interface {
 - `ConfigWrapper.Add` and `Put` return no error: a record of the wrong concrete type is
   silently ignored, and collisions are not checked — uniqueness is the repository's rule.
 - `ValidateSecretLocation` only refuses an empty location.
+- `WriteForeign` is the same atomic write for a file conm does not own — a client's config
+  `internal/exporter` merged entries into: the directory is created, the file replaced in
+  one rename and **left `0600`** whatever it was, since it may now hold a password.
+- `SplitSSHOption` (`ssh.go`) cuts an ssh option line into keyword and value: the keyword
+  ends at a space, a tab or `=`, the value loses one pair of surrounding double quotes. It
+  sits here because both `internal/parser/params` (an `-o` value) and `internal/importer`
+  (a line of `~/.ssh/config`) read with it.
 
 ## The secret reference stored on a connection
 
@@ -148,39 +152,6 @@ repository and no tab on the secrets screen:
   index's `trackable` and the form's `isRef` ask it, never `!= secret.Literal`.
 - `secret.IsMaterial` — `literal` only — is what the form masks and keeps untrimmed; a
   `filepath` value is typed plain like a location.
-
-## The clients' own files
-
-`ini.go` and `foreign.go` read files conm does not own and never writes. They return the
-file's own shape — sections and pairs, password rows — and know nothing of connections: what
-a section means is `internal/importer`'s to decide.
-
-- Every reader returns `ForeignSection`s — a name and its `ForeignParam`s in file order —
-  whatever the file's syntax.
-- `ReadClickHouseConnections` reads `connections_credentials` from XML (under any root
-  element) or YAML, told apart by content — XML starts with `<` — since `--path` may name a
-  copy under any name. In YAML one connection is a map and several are a list; a null value
-  is a key that is not there. The `name` key becomes the section's name.
-- `ClickHouseClientPath` follows the client's search order — `./clickhouse-client.*`,
-  `$XDG_CONFIG_HOME/clickhouse/config.*` (`~/.config` when unset, not the platform directory
-  `xdg` would give), `~/.clickhouse-client/config.*`, `/etc/clickhouse-client/config.*` — over
-  `.xml`, `.yaml`, `.yml`, and names the home XML file when none exists.
-- `ReadSQLConfig` joins each context of a sqlcmd `sqlconfig` with the endpoint and the user it
-  names, under the `SQLConfig*` keys. A name that resolves to nothing leaves those keys out,
-  as does an endpoint without a port. The password is passed on as stored.
-- `ReadSSHConfig` returns one section per `Host` line, named by the whole pattern list, after
-  a first section `*` holding the options given before any `Host`. The options of a `Match`
-  block are dropped up to the next `Host`. A keyword ends at a space, a tab or `=`, and a
-  value loses one pair of surrounding double quotes — `SplitSSHOption`, which
-  `internal/parser/params` also reads an `-o` value with.
-- `ReadINI` drops comment lines (`#`, `;`), blank lines and anything before the first
-  section. A line without `=` is a key with an empty value — an option file's flag.
-- `PGServicePath` and `PGPassPath` honour `PGSERVICEFILE` and `PGPASSFILE` before falling
-  back to the home directory, as libpq does.
-- `ReadPGPass` treats a missing file as an empty one. A row has five fields, everything
-  after the fourth colon is the password, `\:` and `\\` are the escapes, and
-  `PGPass.Password` returns the first row whose host, port, database and user each match or
-  are `*`.
 
 ## The settings row — `conm.toml`
 

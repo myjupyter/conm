@@ -2,9 +2,13 @@ package importer
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/adrg/xdg"
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/parser/params"
@@ -17,7 +21,7 @@ const (
 )
 
 func readSSH(file string) ([]Entry, error) {
-	blocks, err := config.ReadSSHConfig(file)
+	blocks, err := ReadSSHConfig(file)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +43,7 @@ func readSSH(file string) ([]Entry, error) {
 	return entries, nil
 }
 
-func sshEntry(alias string, blocks []config.ForeignSection) Entry {
+func sshEntry(alias string, blocks []Section) Entry {
 	entry := Entry{Name: alias}
 
 	hostTokens := strings.NewReplacer("%%", "%", "%h", alias)
@@ -90,4 +94,48 @@ func sshMatches(patterns, alias string) bool {
 	}
 
 	return matched
+}
+
+const (
+	sshClientConfigFileName = "config"
+	sshConfigDirName        = ".ssh"
+	sshHostKeyword          = "host"
+	sshMatchKeyword         = "match"
+	sshAnyHost              = "*"
+)
+
+func SSHConfigPath() string {
+	return filepath.Join(xdg.Home, sshConfigDirName, sshClientConfigFileName)
+}
+
+func ReadSSHConfig(file string) ([]Section, error) {
+	raw, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	sections := []Section{{Name: sshAnyHost}}
+	skipping := false
+	for line := range strings.Lines(string(raw)) {
+		line = strings.TrimSpace(line)
+		if line == "" || line[0] == '#' {
+			continue
+		}
+
+		keyword, value := config.SplitSSHOption(line)
+		switch strings.ToLower(keyword) {
+		case sshHostKeyword:
+			sections, skipping = append(sections, Section{Name: value}), false
+		case sshMatchKeyword:
+			skipping = true
+		default:
+			if skipping {
+				continue
+			}
+			last := &sections[len(sections)-1]
+			last.Params = append(last.Params, Param{Key: keyword, Value: value})
+		}
+	}
+
+	return sections, nil
 }

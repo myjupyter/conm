@@ -113,3 +113,56 @@ func TestRead_mssql(t *testing.T) {
 		})
 	}
 }
+
+func TestReadSQLConfig(t *testing.T) {
+	type args struct {
+		content string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []Section
+		wantErr bool
+	}{
+		{
+			name: "a context is joined with the endpoint and the user it names",
+			args: args{content: "endpoints:\n  - name: local\n    endpoint:\n      address: localhost\n      port: 1433\n" +
+				"contexts:\n  - name: dev\n    context:\n      endpoint: local\n      user: sa\n" +
+				"users:\n  - name: sa\n    authentication-type: basic\n    basic-auth:\n      username: sa\n      password-encryption: none\n      password: czNjcmV0\n"},
+			want: []Section{{Name: "dev", Params: []Param{
+				{Key: SQLConfigAddress, Value: "localhost"},
+				{Key: SQLConfigPort, Value: "1433"},
+				{Key: SQLConfigUsername, Value: "sa"},
+				{Key: SQLConfigPassword, Value: "czNjcmV0"},
+				{Key: SQLConfigPasswordEncryption, Value: "none"},
+			}}},
+		},
+		{
+			name: "an endpoint without a port has no port",
+			args: args{content: "endpoints:\n  - name: local\n    endpoint:\n      address: localhost\n" +
+				"contexts:\n  - name: dev\n    context:\n      endpoint: local\n"},
+			want: []Section{{Name: "dev", Params: []Param{{Key: SQLConfigAddress, Value: "localhost"}}}},
+		},
+		{
+			name: "an endpoint or a user that is not there leaves the context without it",
+			args: args{content: "contexts:\n  - name: orphan\n    context:\n      endpoint: gone\n      user: nobody\n"},
+			want: []Section{{Name: "orphan"}},
+		},
+		{
+			name:    "not yaml",
+			args:    args{content: "contexts: [\n"},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ReadSQLConfig(writeTemp(t, tt.args.content))
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

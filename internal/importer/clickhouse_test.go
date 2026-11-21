@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/adrg/xdg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -132,4 +133,124 @@ func TestRead_clickhouseBrokenFile(t *testing.T) {
 
 	_, err := Read(config.ClickHouseConnType, path)
 	assert.Error(t, err)
+}
+
+func TestReadClickHouseConnections(t *testing.T) {
+	want := []Section{
+		{Name: "local", Params: []Param{{Key: "hostname", Value: "localhost"}, {Key: "secure", Value: "true"}}},
+		{Name: "other", Params: []Param{{Key: "port", Value: "9440"}}},
+	}
+
+	type args struct {
+		file    string
+		content string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    []Section
+		wantErr bool
+	}{
+		{
+			name: "xml, under any root element",
+			args: args{file: "config.xml", content: "<clickhouse><connections_credentials>" +
+				"<connection><name>local</name><hostname> localhost </hostname><secure>true</secure></connection>" +
+				"<connection><name>other</name><port>9440</port></connection>" +
+				"</connections_credentials></clickhouse>"},
+			want: want,
+		},
+		{
+			name: "yaml",
+			args: args{file: "config.yaml", content: "connections_credentials:\n  connection:\n" +
+				"    - name: local\n      hostname: localhost\n      secure: true\n    - name: other\n      port: 9440\n"},
+			want: want,
+		},
+		{
+			name: "the format is told by the content, not the file name",
+			args: args{file: "clickhouse-client", content: "<config><connections_credentials>" +
+				"<connection><name>other</name><port>9440</port></connection>" +
+				"</connections_credentials></config>"},
+			want: want[1:],
+		},
+		{
+			name: "a yaml null is no value at all",
+			args: args{file: "config.yaml", content: "connections_credentials:\n  connection:\n" +
+				"    name: other\n    port: 9440\n    password: ~\n    user: null\n"},
+			want: want[1:],
+		},
+		{
+			name: "yaml without the section",
+			args: args{file: "config.yml", content: "user: app\n"},
+		},
+		{
+			name:    "broken xml",
+			args:    args{file: "config.xml", content: "<config>"},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), tt.args.file)
+			require.NoError(t, os.WriteFile(path, []byte(tt.args.content), 0o600))
+
+			got, err := ReadClickHouseConnections(path)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestClickHouseClientPath(t *testing.T) {
+	type args struct {
+		files []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "nothing there falls back to the home config",
+			want: filepath.Join("home", ".clickhouse-client", "config.xml"),
+		},
+		{
+			name: "the home config, in whatever format it is",
+			args: args{files: []string{filepath.Join("home", ".clickhouse-client", "config.yaml")}},
+			want: filepath.Join("home", ".clickhouse-client", "config.yaml"),
+		},
+		{
+			name: "the xdg config wins over the home one",
+			args: args{files: []string{
+				filepath.Join("home", ".clickhouse-client", "config.xml"),
+				filepath.Join("xdg", "clickhouse", "config.yml"),
+			}},
+			want: filepath.Join("xdg", "clickhouse", "config.yml"),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			t.Setenv("HOME", filepath.Join(root, "home"))
+			t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "xdg"))
+			xdg.Reload()
+			t.Cleanup(xdg.Reload)
+			t.Chdir(root)
+
+			systemDir := clickhouseSystemDir
+			clickhouseSystemDir = filepath.Join(root, "etc")
+			t.Cleanup(func() { clickhouseSystemDir = systemDir })
+
+			for _, file := range tt.args.files {
+				path := filepath.Join(root, file)
+				require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+				require.NoError(t, os.WriteFile(path, nil, 0o600))
+			}
+
+			assert.Equal(t, filepath.Join(root, tt.want), ClickHouseClientPath())
+		})
+	}
 }

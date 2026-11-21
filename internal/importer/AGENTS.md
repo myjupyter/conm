@@ -4,8 +4,10 @@
 
 Turns the file a client keeps its connections in — `pg_service.conf`, a MySQL option file,
 the ClickHouse client config, sqlcmd's `sqlconfig`, `~/.ssh/config` — into
-`config.Connection`s for `conm <type> import`. It decides what an entry of that file *is* and
-how it maps onto a connection; it does not open files, save anything or print anything.
+`config.Connection`s for `conm <type> import`. It knows where each file is, reads it into
+`Section`s and decides what an entry *is* and how it maps onto a connection; it saves
+nothing and prints nothing. The files are only read here — `internal/exporter` is what adds
+entries to them.
 
 May import (internal): `config`, `parser/params`.
 
@@ -13,18 +15,21 @@ May import (internal): `config`, `parser/params`.
 
 | File | Holds |
 |---|---|
-| `importer.go` | `Entry`, the `sources` table, `Supported`, `DefaultPath`, `Read` |
-| `postgres.go` | `readPostgres` — one entry per service of a `pg_service.conf` |
-| `mysql.go` | `readMySQL` — the entries of an option file |
-| `clickhouse.go` | `readClickHouse` — one entry per `connections_credentials` connection |
-| `mssql.go` | `readMSSQL` — one entry per sqlcmd context |
-| `ssh.go` | `readSSH` — one entry per concrete `Host` alias |
+| `importer.go` | `Entry`, `Section`/`Param`, the `sources` table, `Supported`, `DefaultPath`, `Read` |
+| `ini.go` | `ReadINI` — the sectioned `key=value` format `pg_service.conf` and MySQL option files share |
+| `postgres.go` | `readPostgres` — one entry per service of a `pg_service.conf`; `PGServicePath`, `PGPassPath`, `PGPass` with libpq's lookup, `ReadPGPass` |
+| `mysql.go` | `readMySQL` — the entries of an option file; `MySQLOptionPath` |
+| `clickhouse.go` | `readClickHouse` — one entry per `connections_credentials` connection; `ClickHouseClientPath`, `ReadClickHouseConnections` |
+| `mssql.go` | `readMSSQL` — one entry per sqlcmd context; `SQLConfigPath`, `ReadSQLConfig` and the `SQLConfig*` keys |
+| `ssh.go` | `readSSH` — one entry per concrete `Host` alias; `SSHConfigPath`, `ReadSSHConfig` |
 
 ## Main entities
 
 - `Entry` is one connection found in a foreign file: its `Name`, the `Conn` built from it,
   the parser's `Warnings`, and `Err` when the entry could not be read as a connection — in
   which case `Conn` is nil.
+- `Section` is a file's own shape — a name and its `Param`s in file order, whatever the
+  syntax — and knows nothing of connections. `internal/exporter` writes the same shape back.
 - `sources` maps a `config.ConnType` to its default path and its reader. A type not in it
   has no `import` command: `cmd` asks `Supported`. Redis and MongoDB are not in it:
   `.redisclirc` holds preferences and `mongosh.conf` shell settings, neither a connection.
@@ -49,8 +54,9 @@ May import (internal): `config`, `parser/params`.
   context — and the entry says so in a warning. A machine-dependent default, such as the OS
   user psql and ssh fall back to, is not guessed: validation refuses the entry and it can be
   completed in the form.
-- **File I/O stays in `config`**: `config.ReadINI`, `config.ReadPGPass` and the default
-  paths. A reader for a new format adds its file reader there.
+- **Each type's file reader and default path sit in that type's file**, exported where
+  `internal/exporter` needs them to see what a file already holds. This is the one place
+  outside `config` that opens a file, and it never writes one.
 
 ### Postgres
 
@@ -120,13 +126,42 @@ May import (internal): `config`, `parser/params`.
   `user@host`.
 - `%h` in a `HostName` is the alias and `%%` a percent sign, as ssh expands them. No other
   token is expanded.
-- `Match` blocks are dropped by `config.ReadSSHConfig`: their conditions cannot be evaluated
+- `Match` blocks are dropped by `ReadSSHConfig`: their conditions cannot be evaluated
   without running ssh. `Include` is an option like any other and ends as a warning.
+
+## Reading the files
+
+- Every reader returns `Section`s — a name and its `Param`s in file order —
+  whatever the file's syntax.
+- `ReadClickHouseConnections` reads `connections_credentials` from XML (under any root
+  element) or YAML, told apart by content — XML starts with `<` — since `--path` may name a
+  copy under any name. In YAML one connection is a map and several are a list; a null value
+  is a key that is not there. The `name` key becomes the section's name.
+- `ClickHouseClientPath` follows the client's search order — `./clickhouse-client.*`,
+  `$XDG_CONFIG_HOME/clickhouse/config.*` (`~/.config` when unset, not the platform directory
+  `xdg` would give), `~/.clickhouse-client/config.*`, `/etc/clickhouse-client/config.*` — over
+  `.xml`, `.yaml`, `.yml`, and names the home XML file when none exists.
+- `ReadSQLConfig` joins each context of a sqlcmd `sqlconfig` with the endpoint and the user it
+  names, under the `SQLConfig*` keys. A name that resolves to nothing leaves those keys out,
+  as does an endpoint without a port. The password is passed on as stored.
+- `ReadSSHConfig` returns one section per `Host` line, named by the whole pattern list, after
+  a first section `*` holding the options given before any `Host`. The options of a `Match`
+  block are dropped up to the next `Host`. A line is cut by `config.SplitSSHOption`, which
+  `internal/parser/params` also reads an `-o` value with.
+- `ReadINI` drops comment lines (`#`, `;`), blank lines and anything before the first
+  section. A line without `=` is a key with an empty value — an option file's flag.
+- `PGServicePath` and `PGPassPath` honour `PGSERVICEFILE` and `PGPASSFILE` before falling
+  back to the home directory, as libpq does.
+- `ReadPGPass` treats a missing file as an empty one. A row has five fields, everything
+  after the fourth colon is the password, `\:` and `\\` are the escapes, and
+  `PGPass.Password` returns the first row whose host, port, database and user each match or
+  are `*`.
 
 ## Adding a format
 
-1. The file reader and the default path in `internal/config/foreign.go` (or `ini.go` if the
-   file is sectioned key/value).
-2. `internal/importer/<type>.go` with a `read<Type>(path) ([]Entry, error)`.
+1. `internal/importer/<type>.go`: the default path, the reader of the file into `Section`s
+   (`ReadINI` if it is sectioned key/value).
+2. In the same file, a `read<Type>(path) ([]Entry, error)`.
 3. A row in `sources`.
 4. The type's row in the table of `docs/user/add-connection.md`.
+5. The way back, if the format can be written: `internal/exporter/AGENTS.md`.

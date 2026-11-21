@@ -300,3 +300,19 @@ func normalizeSSHJump(jump string) string {
 	}
 	return strings.Join(hops, ",")
 }
+
+func SplitSSHOption(line string) (keyword, value string) {
+	line = strings.TrimSpace(line)
+	at := strings.IndexAny(line, "= \t")
+	if at < 0 {
+		return line, ""
+	}
+
+	value = strings.TrimSpace(line[at:])
+	value = strings.TrimSpace(strings.TrimPrefix(value, "="))
+	if len(value) > 1 && value[0] == '"' && value[len(value)-1] == '"' {
+		value = value[1 : len(value)-1]
+	}
+
+	return line[:at], value
+}
