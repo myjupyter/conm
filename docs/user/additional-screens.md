@@ -54,10 +54,10 @@ connect = ['enter', 'o']
 
 The appearance page changes the look of every screen at once, as soon as you pick a value.
 It has four sections:
-- **accent**: the colour of the highlighted row and the active tab — `green`, `lime`, `teal`,
-  `blue`, `purple`, `pink`, `red`, `orange` or `amber`, or your own colour: edit the row and
-  type it as `#rrggbb`. Status colours stay as they are: a success is always green, a warning
-  amber, a failure red;
+- **colour**: the **accent** — the colour of the highlighted row and the active tab, `green`,
+  `lime`, `teal`, `blue`, `purple`, `pink`, `red`, `orange` or `amber`, or your own colour: edit
+  the row and type it as `#rrggbb` — and the **gradients** switch (below). Status colours stay as
+  they are: a success is always green, a warning amber, a failure red;
 - **text**: how text is drawn in your terminal's font — `default` (titles, tabs, headings,
   the selection, keys and values in bold), `plain` (nothing bold), `emphasis` (underlined
   titles and headings, italic notes) or `soft` (bold titles and headings only, faint italic
@@ -100,6 +100,20 @@ yourself does. The highlighted row keeps its own colours so it stays readable; o
 which only ever sits on that row, takes its colour there. The `…`, `—`, the password mask and
 the scroll arrows sit inside text and keep the text's colour, so they have no colour row.
 
+#### Gradients
+
+Gradients are off until you switch them on in the colour section. A border or text colour can
+then be a gradient: colours joined by `>`, like `teal>pink` or `#ff8800>accent>#ff0088`. The
+top, bottom and the rules between sections run from left to right across the screen, the left
+and right sides from top to bottom, and a text role across its characters. The `sunset` and
+`ocean` palettes, for the border and for text, are made of gradients. With the switch off,
+every gradient is drawn in its first colour, so you can keep them in your settings and turn
+them on when you like. Glyph colours and the accent are always one colour.
+
+Gradients need a terminal with 24-bit colour, which most current terminals have. In a terminal
+with 256 colours they show steps, and with 16 colours they fall apart into a few blocks — leave
+the switch off there.
+
 #### Changing one element
 
 Under the text style, the border style and the glyph set, every element has its own row (and,
@@ -118,6 +132,7 @@ and they are kept when you pick another preset.
 
 ```toml
 [conm.appearance]
+gradients = true
 border = 'rounded'
 accent = '#ff8800'
 glyphs = 'emoji'
@@ -138,6 +153,7 @@ note = 'italic'
 
 [conm.appearance.border_colors]
 left = '#ff0000'
+top = 'teal>pink'
 
 [conm.appearance.glyph_colors]
 caret = 'pink'

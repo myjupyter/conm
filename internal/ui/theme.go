@@ -7,6 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -74,8 +75,10 @@ var borderVars = map[string]*string{
 var glyphCell int
 
 var (
-	borderColors map[string]color.Color
-	glyphColors  map[string]color.Color
+	gradientsOn     bool
+	borderGradients map[string][]color.Color
+	borderColors    map[string]color.Color
+	glyphColors     map[string]color.Color
 )
 
 var (
@@ -83,7 +86,7 @@ var (
 )
 
 var textVars = map[string]*textStyle{
-	"title": &tTitle, "tab": &tTab, "heading": &tHeading, "selection": &tSelection,
+	roleTitle: &tTitle, "tab": &tTab, roleHeading: &tHeading, "selection": &tSelection,
 	"key": &tKey, "value": &tValue, "note": &tNote,
 }
 
@@ -103,6 +106,8 @@ const (
 	elDotFail   = "dot_fail"
 	colorAccent = config.AccentColor
 	colorSoft   = "soft"
+	roleHeading = "heading"
+	roleTitle   = "title"
 )
 
 const (
@@ -232,6 +237,18 @@ var borderPalettes = map[string]map[string]string{
 	colorSoft:   colors(config.BorderElements, colorSoft, nil),
 	"bright":    colors(config.BorderElements, "fg", nil),
 	"duotone":   colors(config.BorderElements, colorAccent, map[string]string{"left": config.AutoColor, "right": config.AutoColor}),
+	"sunset":    gradientFrame("amber", "pink", "purple", "blue"),
+	"ocean":     gradientFrame("teal", "blue", "purple", "pink"),
+}
+
+func gradientFrame(topLeft, topRight, bottomLeft, bottomRight string) map[string]string {
+	via := func(from, to string) string { return from + config.GradientSeparator + to }
+	return map[string]string{
+		"top_left": topLeft, "top": via(topLeft, topRight), "top_right": topRight,
+		"left": via(topLeft, bottomLeft), "right": via(topRight, bottomRight),
+		"bottom_left": bottomLeft, "bottom": via(bottomLeft, bottomRight), "bottom_right": bottomRight,
+		"tee_left": topLeft, "rule": via(topLeft, topRight), "tee_right": topRight,
+	}
 }
 
 var glyphPalettes = map[string]map[string]string{
@@ -243,8 +260,10 @@ var glyphPalettes = map[string]map[string]string{
 
 var textPalettes = map[string]map[string]string{
 	defaultPalette: colors(config.TextElements, config.AutoColor, nil),
-	colorAccent:    colors(config.TextElements, config.AutoColor, map[string]string{"title": colorAccent, "heading": colorAccent, "key": colorAccent}),
-	"muted":        colors(config.TextElements, config.AutoColor, map[string]string{"heading": colorSoft, "key": colorSoft, "value": colorSoft, "note": "dim"}),
+	colorAccent:    colors(config.TextElements, config.AutoColor, map[string]string{roleTitle: colorAccent, roleHeading: colorAccent, "key": colorAccent}),
+	"muted":        colors(config.TextElements, config.AutoColor, map[string]string{roleHeading: colorSoft, "key": colorSoft, "value": colorSoft, "note": "dim"}),
+	"sunset":       colors(config.TextElements, config.AutoColor, map[string]string{roleTitle: "amber>pink", roleHeading: "amber>pink>purple", "tab": "amber>pink"}),
+	"ocean":        colors(config.TextElements, config.AutoColor, map[string]string{roleTitle: "teal>blue", roleHeading: "teal>blue>purple", "tab": "teal>blue"}),
 }
 
 var accentColors = map[string]color.Color{
@@ -294,6 +313,27 @@ func glyphColorNames(a config.AppearanceSettings) map[string]string {
 
 func textColorNames(a config.AppearanceSettings) map[string]string {
 	return resolveRunes(textPalettes, a.TextColor, defaultPalette, a.TextColors)
+}
+
+func colorStops(value string) []color.Color {
+	if value == "" || value == config.AutoColor {
+		return nil
+	}
+	parts := strings.Split(value, config.GradientSeparator)
+	stops := make([]color.Color, 0, len(parts))
+	for _, part := range parts {
+		if c := namedColor(part); c != nil {
+			stops = append(stops, c)
+		}
+	}
+	return stops
+}
+
+func firstStop(value string) color.Color {
+	if stops := colorStops(value); len(stops) > 0 {
+		return stops[0]
+	}
+	return nil
 }
 
 func namedColor(name string) color.Color {
@@ -352,17 +392,21 @@ func applyAppearance(a config.AppearanceSettings) {
 		*glyphVars[element] = value
 		glyphCell = max(glyphCell, ansi.StringWidth(value))
 	}
+	gradientsOn = a.Gradients
 	textColors := textColorNames(a)
 	for element, value := range textStyles(a) {
-		style := parseTextStyle(value)
-		style.fg = namedColor(textColors[element])
-		*textVars[element] = style
+		*textVars[element] = roleStyle(value, textColors[element])
 	}
 	borderColors = make(map[string]color.Color, len(config.BorderElements))
+	borderGradients = make(map[string][]color.Color)
 	for element, name := range borderColorNames(a) {
 		borderColors[element] = cBorder
-		if c := namedColor(name); c != nil {
-			borderColors[element] = c
+		stops := colorStops(name)
+		if len(stops) > 0 {
+			borderColors[element] = stops[0]
+		}
+		if len(stops) > 1 && gradientsOn {
+			borderGradients[element] = stops
 		}
 	}
 	glyphColors = make(map[string]color.Color, len(config.GlyphColorElements))
@@ -373,7 +417,89 @@ func applyAppearance(a config.AppearanceSettings) {
 	}
 }
 
+func roleStyle(style, colour string) textStyle {
+	t := parseTextStyle(style)
+	stops := colorStops(colour)
+	if len(stops) > 0 {
+		t.fg = stops[0]
+	}
+	if len(stops) > 1 && gradientsOn {
+		t.stops = stops
+	}
+	return t
+}
+
 func edge(element, runes string) string {
+	return edgeAt(element, runes, 0, ansi.StringWidth(runes))
+}
+
+func edgeAt(element, runes string, from, total int) string {
+	stops := borderGradients[element]
+	if len(stops) < 2 || total < 2 {
+		return flatEdge(element, runes)
+	}
+	colors := lipgloss.Blend1D(total, stops...)
+	var b strings.Builder
+	at := from
+	for _, cell := range graphemes(runes) {
+		b.WriteString(lipgloss.NewStyle().Foreground(colors[min(max(at, 0), total-1)]).Render(cell))
+		at += ansi.StringWidth(cell)
+	}
+	return b.String()
+}
+
+func gradientText(text string, stops []color.Color, base lipgloss.Style) string {
+	cells := graphemes(text)
+	if len(cells) < 2 {
+		return base.Foreground(stops[0]).Render(text)
+	}
+	var b strings.Builder
+	for i, c := range lipgloss.Blend1D(len(cells), stops...) {
+		b.WriteString(base.Foreground(c).Render(cells[i]))
+	}
+	return b.String()
+}
+
+func graphemes(text string) []string {
+	var cells []string
+	g := uniseg.NewGraphemes(text)
+	for g.Next() {
+		cells = append(cells, g.Str())
+	}
+	return cells
+}
+
+func sideGradients(lines []string) []string {
+	left, right := borderGradients["left"], borderGradients["right"]
+	if len(left) < 2 && len(right) < 2 {
+		return lines
+	}
+	lefts, rights := sideColors(left, len(lines)), sideColors(right, len(lines))
+	out := make([]string, len(lines))
+	for i, line := range lines {
+		out[i] = repaintSides(line, lefts[i], rights[i])
+	}
+	return out
+}
+
+func sideColors(stops []color.Color, n int) []color.Color {
+	if len(stops) < 2 || n == 0 {
+		return make([]color.Color, n)
+	}
+	return lipgloss.Blend1D(n, stops...)
+}
+
+func repaintSides(line string, left, right color.Color) string {
+	if prefix := flatEdge("left", gLineLeft); left != nil && strings.HasPrefix(line, prefix) {
+		line = lipgloss.NewStyle().Foreground(left).Render(gLineLeft) + strings.TrimPrefix(line, prefix)
+	}
+	if suffix := flatEdge("right", gLineRight); right != nil && strings.HasSuffix(line, suffix) {
+		line = strings.TrimSuffix(line, suffix) + lipgloss.NewStyle().Foreground(right).Render(gLineRight)
+	}
+	return line
+}
+
+func flatEdge(element, runes string) string {
 	return lipgloss.NewStyle().Foreground(borderColors[element]).Render(runes)
 }
 
@@ -395,6 +521,7 @@ func blankCell() string {
 type textStyle struct {
 	bold, italic, underline, faint bool
 	fg                             color.Color
+	stops                          []color.Color
 }
 
 func parseTextStyle(value string) textStyle {

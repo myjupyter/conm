@@ -145,6 +145,17 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
       the caret (`caretOf`, `tinted("caret", …)`), which only ever sits on that row.
     - No glyph palette touches the status icons, `dot_fail` or `field_bad` (`theme_test.go`
       checks it); an explicit per-element colour does.
+  - **Gradients.** `colorStops` splits a colour value on `>`; `firstStop` is what a flat
+    consumer draws. Only with `gradientsOn` (`config.AppearanceSettings.Gradients`) does a
+    value with more stops reach `borderGradients` or `textStyle.stops`.
+    - `edgeAt(element, runes, from, total)` colours a horizontal piece by its column in a line
+      `total` wide, so `frameTop`'s three pieces — the lead before the title, the fill, the
+      tail after the note — form one gradient; `edge` is the one-piece case.
+    - The sides are coloured once the screen is assembled: `screenSize.join` runs
+      `sideGradients`, which swaps the exact `flatEdge` prefix and suffix `frameLine` drew for
+      the colour of that row. A line that does not start with the left side (corners, rules)
+      is left alone.
+    - `span.render` draws a role with `stops` one grapheme at a time (`gradientText`).
   - **Text styles are roles, not bold flags.** `span.style` takes one of `tTitle`, `tTab`,
     `tHeading`, `tSelection` (with `styleIf` for "only when on"), `tKey`, `tValue`, `tNote`;
     `span.render` adds bold, italic, underline and faint from it. `span.bold` is left for what

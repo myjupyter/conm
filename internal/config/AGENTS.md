@@ -171,6 +171,10 @@ repository and no tab on the secrets screen:
   `[conm.appearance.glyph_colors]` / `[conm.appearance.text_colors]` override one element:
   a colour is `auto`, a name from `ColorNames` or `#rrggbb` (`IsColor`). Glyph colours exist
   only for `GlyphColorElements` — the glyphs drawn on their own, not inside text.
+- `gradients` switches gradients on. A border or text colour may be a gradient — two or more
+  colours joined by `GradientSeparator` (`>`), none of them `auto` (`IsGradient`,
+  `IsColorOrGradient`); glyph colours and the accent stay flat. The value is stored whatever
+  the switch says; the switch only decides how `ui` draws it.
 - What an override may hold: a border rune is one grapheme one column wide (`IsBorderRune`);
   a glyph is one grapheme one or two columns wide (`IsGlyph`), so an emoji with a modifier
   counts as one — grapheme counting is `rivo/uniseg`; a text style is `plain` or distinct

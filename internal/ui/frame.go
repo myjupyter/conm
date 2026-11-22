@@ -61,6 +61,9 @@ func (s span) render() string {
 	if s.style.faint {
 		st = st.Faint(true)
 	}
+	if len(s.style.stops) > 1 {
+		return gradientText(s.text, s.style.stops, st)
+	}
 	return st.Render(s.text)
 }
 
@@ -121,7 +124,7 @@ func fitNote(note string, w int) string {
 
 func frameTop(w int, crumb, right string) string {
 	left := []span{
-		{text: gLineTop + " ", fg: borderColors["top"]},
+		{text: gLineTop + " ", raw: edgeAt("top", gLineTop, 0, w) + " "},
 		{text: "conm", fg: cFg, style: tTitle},
 		{text: ":" + config.Workspace(), fg: cAccent},
 		{text: " · " + crumb + " ", fg: cDim},
@@ -139,9 +142,10 @@ func frameTop(w int, crumb, right string) string {
 	if right != "" {
 		tail = gLineTop
 	}
-	b.WriteString(edge("top", strings.Repeat(gLineTop, max(w-spansWidth(left)-ansi.StringWidth(right)-ansi.StringWidth(tail), 0))))
+	fill := max(w-spansWidth(left)-ansi.StringWidth(right)-ansi.StringWidth(tail), 0)
+	b.WriteString(edgeAt("top", strings.Repeat(gLineTop, fill), spansWidth(left), w))
 	b.WriteString((span{text: right, fg: cDim}).render())
-	b.WriteString(edge("top", tail))
+	b.WriteString(edgeAt("top", tail, w-ansi.StringWidth(tail), w))
 	b.WriteString(edge("top_right", gCornerTR))
 	return b.String()
 }
@@ -212,7 +216,7 @@ func frameTabs(w int, titles []string, active int, note string) string {
 }
 
 func frameRule(w int, left, right string) string {
-	return edge("tee_left", left) + edge("rule", strings.Repeat(gLineH, w)) + edge("tee_right", right)
+	return edge("tee_left", left) + edgeAt("rule", strings.Repeat(gLineH, w), 0, w) + edge("tee_right", right)
 }
 
 func frameBottom(w int) string {

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
@@ -159,10 +160,11 @@ func TestColorPalettesAreComplete(t *testing.T) {
 		names    []string
 		palettes map[string]map[string]string
 		elements []string
+		valid    func(string) bool
 	}{
-		{name: "border", names: config.BorderPalettes, palettes: borderPalettes, elements: config.BorderElements},
-		{name: "glyphs", names: config.GlyphPalettes, palettes: glyphPalettes, elements: config.GlyphColorElements},
-		{name: "text", names: config.TextPalettes, palettes: textPalettes, elements: config.TextElements},
+		{name: "border", names: config.BorderPalettes, palettes: borderPalettes, elements: config.BorderElements, valid: config.IsColorOrGradient},
+		{name: "glyphs", names: config.GlyphPalettes, palettes: glyphPalettes, elements: config.GlyphColorElements, valid: config.IsColor},
+		{name: "text", names: config.TextPalettes, palettes: textPalettes, elements: config.TextElements, valid: config.IsColorOrGradient},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -173,7 +175,7 @@ func TestColorPalettesAreComplete(t *testing.T) {
 			for _, name := range tt.names {
 				is.Len(tt.palettes[name], len(tt.elements), name)
 				for _, element := range tt.elements {
-					is.True(config.IsColor(tt.palettes[name][element]), name+" "+element)
+					is.True(tt.valid(tt.palettes[name][element]), name+" "+element)
 				}
 			}
 		})
@@ -222,4 +224,77 @@ func TestApplyAppearanceColoursTextRoles(t *testing.T) {
 	is.Equal(lipgloss.Color("#123456"), tNote.fg)
 	is.Nil(tValue.fg)
 	is.True(tTitle.bold)
+}
+
+func withGradients(t *testing.T, a config.AppearanceSettings) {
+	t.Helper()
+	t.Cleanup(func() {
+		applyAppearance(config.AppearanceSettings{
+			Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
+			BorderColor: "default", GlyphColor: "default", TextColor: "default",
+		})
+	})
+	applyAppearance(a)
+}
+
+func gradientLook(on bool) config.AppearanceSettings {
+	return config.AppearanceSettings{
+		Gradients: on, Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
+		BorderColor: "default", GlyphColor: "default", TextColor: "default",
+		BorderColors: map[string]string{"top": "#ff0000>#0000ff", "left": "#ff0000>#0000ff"},
+		TextColors:   map[string]string{"title": "#ff0000>#0000ff"},
+	}
+}
+
+func distinctSGR(rendered string) int {
+	seen := map[string]bool{}
+	for part := range strings.SplitSeq(rendered, "\x1b[") {
+		if code, _, ok := strings.Cut(part, "m"); ok && strings.Contains(code, "38;2;") {
+			seen[code] = true
+		}
+	}
+	return len(seen)
+}
+
+func TestGradientsFollowTheSwitch(t *testing.T) {
+	tests := []struct {
+		name     string
+		on       bool
+		wantMany bool
+	}{
+		{name: "off draws the first stop", on: false},
+		{name: "on spreads the stops", on: true, wantMany: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			withGradients(t, gradientLook(tt.on))
+
+			top := edge("top", strings.Repeat(gLineTop, 10))
+			title := span{text: "connections", style: tTitle}.render()
+
+			if tt.wantMany {
+				assert.Greater(t, distinctSGR(top), 2)
+				assert.Greater(t, distinctSGR(title), 2)
+				return
+			}
+			assert.Equal(t, 1, distinctSGR(top))
+			assert.Equal(t, 1, distinctSGR(title))
+		})
+	}
+}
+
+func TestSideGradientsRepaintOnlyTheSides(t *testing.T) {
+	withGradients(t, gradientLook(true))
+
+	lines := []string{frameTop(10, "x", ""), frameLine(10, nil, nil), frameLine(10, nil, nil), frameBottom(10)}
+	got := sideGradients(lines)
+
+	is := assert.New(t)
+	is.Equal(lines[0], got[0])
+	is.Equal(lines[3], got[3])
+	is.NotEqual(lines[1], got[1])
+	is.NotEqual(got[1], got[2])
+	for i := range lines {
+		is.Equal(ansi.Strip(lines[i]), ansi.Strip(got[i]))
+	}
 }

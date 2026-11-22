@@ -18,6 +18,8 @@ const (
 	AutoColor     = "auto"
 	DefaultPreset = "default"
 	AccentColor   = "accent"
+
+	GradientSeparator = ">"
 )
 
 var (
@@ -41,9 +43,9 @@ var (
 	TextElements   = []string{"title", "tab", "heading", "selection", "key", "value", "note"}
 	TextAttributes = []string{"bold", "italic", "underline", "faint"}
 
-	BorderPalettes     = []string{DefaultPreset, AccentColor, "soft", "bright", "duotone"}
+	BorderPalettes     = []string{DefaultPreset, AccentColor, "soft", "bright", "duotone", "sunset", "ocean"}
 	GlyphPalettes      = []string{DefaultPreset, AccentColor, "bright", "muted"}
-	TextPalettes       = []string{DefaultPreset, AccentColor, "muted"}
+	TextPalettes       = []string{DefaultPreset, AccentColor, "muted", "sunset", "ocean"}
 	GlyphColorElements = []string{
 		"status_idle", "status_ok", "status_pending", "status_warn", "status_error",
 		"import_new", "caret", "dot_on", "dot_off", "dot_fail", "field_bad",
@@ -55,6 +57,7 @@ var (
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 type AppearanceSettings struct {
+	Gradients   bool              `toml:"gradients"`
 	Border      string            `toml:"border"`
 	BorderRunes map[string]string `toml:"border_runes,omitempty"`
 	Accent      string            `toml:"accent"`
@@ -73,6 +76,23 @@ type AppearanceSettings struct {
 
 func IsColor(value string) bool {
 	return slices.Contains(ColorNames, value) || IsHexColor(value)
+}
+
+func IsGradient(value string) bool {
+	stops := strings.Split(value, GradientSeparator)
+	if len(stops) < 2 {
+		return false
+	}
+	for _, stop := range stops {
+		if stop == AutoColor || !IsColor(stop) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsColorOrGradient(value string) bool {
+	return IsColor(value) || IsGradient(value)
 }
 
 func IsHexColor(value string) bool {
@@ -124,9 +144,10 @@ var (
 	textOverrides   = overrideKind{"text", TextElements, IsTextStyle, "is not plain or a +-joined list of " + strings.Join(TextAttributes, ", ")}
 
 	colorProblem         = "is neither a colour name nor #rrggbb"
-	borderColorOverrides = overrideKind{"border colour", BorderElements, IsColor, colorProblem}
+	gradientProblem      = "is neither a colour name, #rrggbb nor a gradient like teal>pink"
+	borderColorOverrides = overrideKind{"border colour", BorderElements, IsColorOrGradient, gradientProblem}
 	glyphColorOverrides  = overrideKind{"glyph colour", GlyphColorElements, IsColor, colorProblem}
-	textColorOverrides   = overrideKind{"text colour", TextElements, IsColor, colorProblem}
+	textColorOverrides   = overrideKind{"text colour", TextElements, IsColorOrGradient, gradientProblem}
 )
 
 func (a AppearanceSettings) Validate() error {

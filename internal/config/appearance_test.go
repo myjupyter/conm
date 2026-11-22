@@ -67,12 +67,12 @@ func TestReadConm_appearance(t *testing.T) {
 			args: args{toml: "[conm.appearance]\nborder_color = \"duotone\"\nglyph_color = \"muted\"\n" +
 				"[conm.appearance.border_colors]\ntop = \"#ff0000\"\nleft = \"teal\"\nmiddle = \"red\"\n" +
 				"[conm.appearance.glyph_colors]\ncaret = \"accent\"\nstatus_ok = \"neon\"\nellipsis = \"red\"\n" +
-				"[conm.appearance.text_colors]\nnote = \"dim\"\nshadow = \"red\"\n"},
+				"[conm.appearance.text_colors]\nnote = \"dim\"\nshadow = \"red\"\ntitle = \"teal>pink\"\n"},
 			want: defaultAppearance(func(a *AppearanceSettings) {
 				a.BorderColor, a.GlyphColor = "duotone", "muted"
 				a.BorderColors = map[string]string{"top": "#ff0000", "left": "teal"}
 				a.GlyphColors = map[string]string{"caret": "accent"}
-				a.TextColors = map[string]string{"note": "dim"}
+				a.TextColors = map[string]string{"note": "dim", "title": "teal>pink"}
 			}),
 		},
 		{
@@ -118,6 +118,14 @@ func TestAppearanceSettings_Validate(t *testing.T) {
 			a.BorderColors = map[string]string{"top": "#123456", "rule": "dim"}
 			a.GlyphColors = map[string]string{"caret": "auto", "status_ok": "pink"}
 		}},
+		{name: "gradients", override: func(a *AppearanceSettings) {
+			a.Gradients, a.BorderColor, a.TextColor = true, "sunset", "ocean"
+			a.BorderColors = map[string]string{"top": "teal>pink", "left": "#ff0000>#00ff00>blue"}
+			a.TextColors = map[string]string{"title": "accent>pink"}
+		}},
+		{name: "gradient on a glyph", override: func(a *AppearanceSettings) { a.GlyphColors = map[string]string{"caret": "teal>pink"} }, wantErr: true},
+		{name: "one-stop gradient", override: func(a *AppearanceSettings) { a.BorderColors = map[string]string{"top": "teal>"} }, wantErr: true},
+		{name: "auto in a gradient", override: func(a *AppearanceSettings) { a.BorderColors = map[string]string{"top": "auto>pink"} }, wantErr: true},
 		{name: "text colours", override: func(a *AppearanceSettings) {
 			a.TextColor = "accent"
 			a.TextColors = map[string]string{"title": "#abcdef", "note": "soft"}
@@ -147,6 +155,30 @@ func TestAppearanceSettings_Validate(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestIsGradient(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		value string
+		want  bool
+	}{
+		{value: "teal>pink", want: true},
+		{value: "#ff0000>accent>#0000ff", want: true},
+		{value: "teal"},
+		{value: "teal>"},
+		{value: ">pink"},
+		{value: "auto>pink"},
+		{value: "teal>neon"},
+		{value: "teal > pink"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, IsGradient(tt.value))
 		})
 	}
 }

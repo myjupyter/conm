@@ -155,7 +155,7 @@ func TestSettingsModel_cycleAppearance(t *testing.T) {
 		{
 			name:    "accent wraps backward",
 			current: plainAppearance,
-			row:     "accent colour",
+			row:     "colour accent",
 			step:    -1,
 			want:    withAppearance(func(a *config.AppearanceSettings) { a.Accent = "amber" }),
 		},
@@ -251,25 +251,25 @@ func TestSettingsModel_appearanceInput(t *testing.T) {
 	}{
 		{
 			name:  "a full hex colour is saved",
-			row:   "accent colour",
+			row:   "colour accent",
 			typed: []string{"ff", "88", "00"},
 			want:  withAppearance(func(a *config.AppearanceSettings) { a.Accent = "#ff8800" }),
 		},
 		{
 			name:  "non-hex characters are dropped",
-			row:   "accent colour",
+			row:   "colour accent",
 			typed: []string{"zz12", "34 5", "6"},
 			want:  withAppearance(func(a *config.AppearanceSettings) { a.Accent = "#123456" }),
 		},
 		{
 			name:  "hex input stops at seven characters",
-			row:   "accent colour",
+			row:   "colour accent",
 			typed: []string{"abcdef99"},
 			want:  withAppearance(func(a *config.AppearanceSettings) { a.Accent = "#abcdef" }),
 		},
 		{
 			name:     "a short hex colour keeps the input open",
-			row:      "accent colour",
+			row:      "colour accent",
 			typed:    []string{"abc"},
 			wantEdit: true,
 		},
@@ -389,7 +389,7 @@ func TestSettingsModel_sectionNote(t *testing.T) {
 		row     string
 		want    string
 	}{
-		{name: "accent has none", current: plainAppearance, row: "accent colour"},
+		{name: "accent has none", current: plainAppearance, row: "colour accent"},
 		{name: "untouched border", current: plainAppearance, row: "border style"},
 		{
 			name:    "one glyph customised",
@@ -522,10 +522,39 @@ func TestSettingsModel_colorRows(t *testing.T) {
 			row:     "glyphs caret colour",
 			act: func(m settingsModel) (tea.Model, tea.Cmd) {
 				m = m.startAppearanceInput()
-				m = m.typeAppearance("ff0088")
+				m = m.typeAppearance("#FF0088")
 				return m.saveAppearanceDraft()
 			},
 			want: withAppearance(func(a *config.AppearanceSettings) { a.GlyphColors = map[string]string{"caret": "#ff0088"} }),
+		},
+		{
+			name:    "gradients switch on",
+			current: plainAppearance,
+			row:     "colour gradients",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.Gradients = true }),
+		},
+		{
+			name:    "a border gradient is typed",
+			current: plainAppearance,
+			row:     "border top colour",
+			act: func(m settingsModel) (tea.Model, tea.Cmd) {
+				m = m.startAppearanceInput()
+				m = m.typeAppearance("Teal > Pink")
+				return m.saveAppearanceDraft()
+			},
+			want: withAppearance(func(a *config.AppearanceSettings) { a.BorderColors = map[string]string{"top": "teal>pink"} }),
+		},
+		{
+			name:    "a text gradient is typed",
+			current: plainAppearance,
+			row:     "text title colour",
+			act: func(m settingsModel) (tea.Model, tea.Cmd) {
+				m = m.startAppearanceInput()
+				m = m.typeAppearance("#ff8800>accent")
+				return m.saveAppearanceDraft()
+			},
+			want: withAppearance(func(a *config.AppearanceSettings) { a.TextColors = map[string]string{"title": "#ff8800>accent"} }),
 		},
 		{
 			name: "a colour override is reset",
@@ -588,7 +617,7 @@ func TestSettingsModel_appearanceSubheads(t *testing.T) {
 		{subhead: "STATUS OK", rows: []string{"glyph", "colour"}},
 		{subhead: "ELLIPSIS", rows: []string{"glyph"}},
 	}
-	m := newAppearanceFixture(t, plainAppearance, "accent colour")
+	m := newAppearanceFixture(t, plainAppearance, "colour accent")
 	m.size.observe(tea.WindowSizeMsg{Width: 110, Height: 40})
 	lines := m.appearanceLines()
 	plain := make([]string, len(lines))
@@ -610,4 +639,17 @@ func TestSettingsModel_appearanceSubheads(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSettingsModel_glyphColourRefusesGradient(t *testing.T) {
+	m := newAppearanceFixture(t, plainAppearance, "glyphs caret colour")
+	m = m.startAppearanceInput()
+	m = m.typeAppearance("teal>pink")
+
+	model, cmd := m.saveAppearanceDraft()
+	assert.Nil(t, cmd)
+	got, ok := model.(settingsModel)
+	require.True(t, ok)
+	assert.True(t, got.appear.editing)
+	assert.Equal(t, kindWarn, got.statusKind)
 }

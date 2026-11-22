@@ -98,7 +98,7 @@ func (s screenSize) join(lines []string) string {
 		kept := slices.Clone(lines[:s.height-footerLines])
 		lines = append(kept, lines[len(lines)-footerLines:]...)
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(sideGradients(lines), "\n")
 }
 
 type follower[M any] interface {

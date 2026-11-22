@@ -18,6 +18,8 @@ import (
 const (
 	appearanceWindow = 15
 	hexDraftMax      = len("#rrggbb")
+	colorDraftMax    = 64
+	gradientBar      = 8
 	swatch           = "    "
 )
 
@@ -26,6 +28,7 @@ type appearanceInput int
 const (
 	inputNone appearanceInput = iota
 	inputHex
+	inputColor
 	inputGlyph
 	inputStyle
 )
@@ -95,11 +98,12 @@ func colorGroup(
 	preset func(config.AppearanceSettings) string,
 	overrides func(*config.AppearanceSettings) *map[string]string,
 	resolve func(config.AppearanceSettings) map[string]string,
+	accepts func(string) bool,
 	auto color.Color,
 ) elementGroup {
 	return elementGroup{
 		order: order, presets: presets, preset: preset, overrides: overrides, resolve: resolve,
-		locked: never, input: inputHex, accepts: config.IsColor, choices: config.ColorNames, auto: auto,
+		locked: never, input: inputColor, accepts: accepts, choices: config.ColorNames, auto: auto,
 	}
 }
 
@@ -107,15 +111,15 @@ var (
 	borderColorGroup = colorGroup(config.BorderPalettes, borderPalettes,
 		func(a config.AppearanceSettings) string { return a.BorderColor },
 		func(a *config.AppearanceSettings) *map[string]string { return &a.BorderColors },
-		borderColorNames, cBorder)
+		borderColorNames, config.IsColorOrGradient, cBorder)
 	glyphColorGroup = colorGroup(config.GlyphPalettes, glyphPalettes,
 		func(a config.AppearanceSettings) string { return a.GlyphColor },
 		func(a *config.AppearanceSettings) *map[string]string { return &a.GlyphColors },
-		glyphColorNames, nil)
+		glyphColorNames, config.IsColor, nil)
 	textColorGroup = colorGroup(config.TextPalettes, textPalettes,
 		func(a config.AppearanceSettings) string { return a.TextColor },
 		func(a *config.AppearanceSettings) *map[string]string { return &a.TextColors },
-		textColorNames, nil)
+		textColorNames, config.IsColorOrGradient, nil)
 )
 
 func (g elementGroup) variants(element string) []string {
@@ -140,6 +144,7 @@ type appearanceRow struct {
 
 	options []string
 	field   func(*config.AppearanceSettings) *string
+	flag    func(*config.AppearanceSettings) *bool
 	preview func(config.AppearanceSettings) []span
 
 	group   *elementGroup
@@ -149,6 +154,8 @@ type appearanceRow struct {
 const (
 	paletteLabel = "palette"
 	colorLabel   = "colour"
+	flagOff      = "off"
+	flagOn       = "on"
 )
 
 var appearanceRows = buildAppearanceRows()
@@ -156,12 +163,24 @@ var appearanceRows = buildAppearanceRows()
 func buildAppearanceRows() []appearanceRow {
 	rows := []appearanceRow{
 		{
-			section: colorAccent,
-			label:   colorLabel,
+			section: colorLabel,
+			label:   colorAccent,
 			input:   inputHex,
 			options: config.AccentColors,
 			field:   func(a *config.AppearanceSettings) *string { return &a.Accent },
 			preview: func(a config.AppearanceSettings) []span { return []span{{text: swatch, bg: accentColor(a.Accent)}} },
+		},
+		{
+			section: colorLabel,
+			label:   "gradients",
+			options: []string{flagOff, flagOn},
+			flag:    func(a *config.AppearanceSettings) *bool { return &a.Gradients },
+			preview: func(a config.AppearanceSettings) []span {
+				if !a.Gradients {
+					return []span{{text: "every gradient draws in its first colour", fg: cMuted}}
+				}
+				return gradientSwatch(colorStops("teal>blue>purple>pink"))
+			},
 		},
 		{
 			section: "text",
@@ -215,9 +234,7 @@ func paletteRow(section string, options []string, field func(*config.AppearanceS
 func textSample(a config.AppearanceSettings) []span {
 	styles, colors := textStyles(a), textColorNames(a)
 	sample := func(element, text string, auto color.Color) span {
-		style := parseTextStyle(styles[element])
-		style.fg = namedColor(colors[element])
-		return span{text: text, fg: auto, style: style}
+		return span{text: text, fg: auto, style: roleStyle(styles[element], colors[element])}
 	}
 	return []span{
 		sample("title", "title", cFg),
@@ -257,7 +274,7 @@ func resolvedColors(names map[string]string, auto color.Color) map[string]color.
 	colors := make(map[string]color.Color, len(names))
 	for element, name := range names {
 		colors[element] = auto
-		if c := namedColor(name); c != nil {
+		if c := firstStop(name); c != nil {
 			colors[element] = c
 		}
 	}
@@ -297,6 +314,12 @@ func (r appearanceRow) name() string {
 }
 
 func (r appearanceRow) value(a config.AppearanceSettings) string {
+	if r.flag != nil {
+		if *r.flag(&a) {
+			return flagOn
+		}
+		return flagOff
+	}
 	if r.element != "" {
 		return r.group.resolve(a)[r.element]
 	}
@@ -324,6 +347,10 @@ func (r appearanceRow) overridden(a config.AppearanceSettings) bool {
 }
 
 func (r appearanceRow) set(a *config.AppearanceSettings, value string) {
+	if r.flag != nil {
+		*r.flag(a) = value == flagOn
+		return
+	}
 	if r.element == "" {
 		*r.field(a) = value
 		return
@@ -354,6 +381,9 @@ func (r appearanceRow) typed(draft, text string) string {
 		return draft[:min(len(draft), hexDraftMax)]
 	case inputStyle:
 		return draft + strings.Map(styleRune, strings.ToLower(text))
+	case inputColor:
+		draft += strings.Map(colorRune, strings.ToLower(text))
+		return draft[:min(len(draft), colorDraftMax)]
 	default:
 		if last := lastGrapheme(text); last != "" {
 			return last
@@ -373,6 +403,13 @@ func lastGrapheme(text string) string {
 
 func hexRune(r rune) rune {
 	if r == '#' || strings.ContainsRune("0123456789abcdefABCDEF", r) {
+		return r
+	}
+	return -1
+}
+
+func colorRune(r rune) rune {
+	if r == '#' || r == '>' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
 		return r
 	}
 	return -1
@@ -435,6 +472,18 @@ func (m settingsModel) startAppearanceInput() settingsModel {
 
 	if row.input == inputStyle {
 		m.setSettingsStatus("type plain or attributes joined by +: "+strings.Join(config.TextAttributes, ", "), kindIdle)
+		return m
+	}
+
+	if row.input == inputColor {
+		if value := row.value(m.conm.Appearance); value != config.AutoColor {
+			m.appear.draft = value
+		}
+		hint := "type a colour name or #rrggbb"
+		if row.group.accepts("teal>pink") {
+			hint += ", or a gradient like teal>pink"
+		}
+		m.setSettingsStatus(hint, kindIdle)
 		return m
 	}
 
@@ -585,8 +634,8 @@ func (m settingsModel) appearanceLine(row appearanceRow, on bool) string {
 	}
 
 	box := selectBox{value: value, at: slices.Index(choices, value) + 1, n: len(choices), active: on}
-	if row.input == inputHex {
-		box.tint = namedColor(value)
+	if row.input == inputHex || row.input == inputColor {
+		box.tint = firstStop(value)
 	}
 	preview := m.appearancePreview(row, a)
 	switch {
@@ -594,8 +643,11 @@ func (m settingsModel) appearanceLine(row appearanceRow, on bool) string {
 		box.pos = "locked"
 	case on && m.appear.editing:
 		box.value, box.pos, box.tint = m.appear.draft+gInputCursor, "type", nil
-		if row.input == inputHex && config.IsHexColor(m.appear.draft) {
+		switch {
+		case row.input == inputHex && config.IsHexColor(m.appear.draft):
 			preview = []span{{text: swatch, bg: lipgloss.Color(m.appear.draft)}}
+		case row.input == inputColor && row.accepts(m.appear.draft):
+			preview = colorSwatch(row.group, m.appear.draft)
 		}
 	case !slices.Contains(choices, value):
 		box.pos = "custom"
@@ -605,7 +657,7 @@ func (m settingsModel) appearanceLine(row appearanceRow, on bool) string {
 	spans = append(spans, span{text: "  ", bg: bg})
 	for _, p := range preview {
 		if on && p.bg == nil {
-			p.fg, p.bg, p.style.fg = cInvFg, bg, nil
+			p.fg, p.bg, p.style.fg, p.style.stops = cInvFg, bg, nil, nil
 		}
 		spans = append(spans, p)
 	}
@@ -624,11 +676,10 @@ func (m settingsModel) appearancePreview(row appearanceRow, a config.AppearanceS
 
 	var spans []span
 	switch {
-	case row.input == inputHex:
+	case row.input == inputColor:
 		spans = append(spans, colorSwatch(row.group, row.value(a))...)
 	case row.group == &textGroup:
-		style := parseTextStyle(row.value(a))
-		style.fg = namedColor(textColorNames(a)[row.element])
+		style := roleStyle(row.value(a), textColorNames(a)[row.element])
 		spans = append(spans, span{text: "sample", fg: cFg, style: style}, span{text: " "})
 	}
 	if !row.locked(a) && row.overridden(a) {
@@ -638,12 +689,24 @@ func (m settingsModel) appearancePreview(row appearanceRow, a config.AppearanceS
 }
 
 func colorSwatch(g *elementGroup, name string) []span {
-	c := namedColor(name)
-	if c == nil {
-		c = g.auto
+	stops := colorStops(name)
+	switch {
+	case len(stops) > 1 && gradientsOn:
+		return append(gradientSwatch(stops), span{text: " "})
+	case len(stops) > 1:
+		return []span{{text: swatch, bg: stops[0]}, {text: " flat while gradients are off ", fg: cMuted}}
+	case len(stops) == 1:
+		return []span{{text: swatch, bg: stops[0]}, {text: " "}}
+	case g.auto != nil:
+		return []span{{text: swatch, bg: g.auto}, {text: " "}}
 	}
-	if c == nil {
-		return []span{{text: "set by the screen ", fg: cMuted}}
+	return []span{{text: "set by the screen ", fg: cMuted}}
+}
+
+func gradientSwatch(stops []color.Color) []span {
+	spans := make([]span, 0, gradientBar)
+	for _, c := range lipgloss.Blend1D(gradientBar, stops...) {
+		spans = append(spans, span{text: " ", bg: c})
 	}
-	return []span{{text: swatch, bg: c}, {text: " "}}
+	return spans
 }
