@@ -63,6 +63,7 @@ func newSettingsModel(conm config.Conm) settingsModel {
 	}
 	m.window.Resize(settingsSectionWindow)
 	m.binds.window.Resize(bindsWindow)
+	m.appear.window.Resize(appearanceWindow)
 
 	for _, db := range conm.Connections {
 		m.clients[db.Type] = cli.Detect(db.Type)
@@ -83,6 +84,8 @@ func (m settingsModel) followCursor() settingsModel {
 	switch m.tab {
 	case settingsKeybindTab:
 		m.size.fit(&m.binds.window, chrome, m.binds.cursor, len(m.bindings()), func() int { return len(m.bindsLines()) })
+	case settingsAppearanceTab:
+		m.size.fit(&m.appear.window, chrome, m.appear.cursor, len(appearanceRows), func() int { return len(m.appearanceLines()) })
 	case settingsClientTab:
 		m.size.fit(&m.window, chrome, m.cursor, len(m.conm.Connections), func() int { return len(m.clientLines()) })
 	}
@@ -93,13 +96,13 @@ func (m settingsModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if m.appear.editing {
-			return m.handleHexKey(msg)
+			return m.handleAppearanceInput(msg)
 		}
 		return m.handleSettingsKey(msg.String())
 
 	case tea.PasteMsg:
 		if m.appear.editing {
-			m = m.typeHex(msg.Content)
+			m = m.typeAppearance(msg.Content)
 		}
 
 	case bindCaptureExpiredMsg:

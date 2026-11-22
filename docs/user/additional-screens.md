@@ -52,25 +52,45 @@ connect = ['enter', 'o']
 
 ### Appearance
 
-The appearance page changes the look of every screen at once, as soon as you pick a value:
-- **border**: the frame around each screen — `single` `┌──┐`, `rounded` `╭──╮`, `double` `╔══╗`
-  or `heavy` `┏━━┓`;
+The appearance page changes the look of every screen at once, as soon as you pick a value.
+It has three sections:
 - **accent**: the colour of the highlighted row and the active tab — `green`, `lime`, `teal`,
-  `blue`, `purple`, `pink`, `red`, `orange` or `amber`, or your own colour: edit the accent row
-  and type it as `#rrggbb`;
+  `blue`, `purple`, `pink`, `red`, `orange` or `amber`, or your own colour: edit the row and
+  type it as `#rrggbb`. Status colours stay as they are: a success is always green, a warning
+  amber, a failure red;
+- **border**: the frame around each screen — `single` `┌──┐`, `rounded` `╭──╮`, `double`
+  `╔══╗`, `heavy` `┏━━┓`, `dashed` `┌╌╌┐`, `dotted` `┌┄┄┐`, `mixed` `╒══╕`, `ascii` `+--+` or
+  `hidden`, which draws no frame at all;
 - **glyphs**: the symbols for status, cursor and markers — `unicode`, `heavy` (`➜ ✔ ✘`),
-  `geometric` (`▶ ◆ ■`), `nerd` (icons from a [Nerd Font](https://www.nerdfonts.com), which
-  your terminal must use) or `ascii`, for a terminal or font that draws symbols like `❯ ✓ ◐` as
-  boxes. `ascii` draws the frame with `+ - |` too, so the border is locked while it is on.
+  `geometric` (`▶ ◆ ■`), `minimal` (`▸ • ×`), `nerd` (icons from a
+  [Nerd Font](https://www.nerdfonts.com), which your terminal must use) or `ascii`, for a
+  terminal or font that draws symbols like `❯ ✓ ◐` as boxes. `ascii` draws the frame with
+  `+ - |` too, so the border section is locked while it is on.
+
+#### Changing one element
+
+Under the border style and the glyph set, every element has its own row — each corner, the
+lines, each status icon, the cursor, the markers, the `<` `>` arrows of a selector. Step through the characters the presets use
+for it, or edit the row and type any single character. The preset stays as it is: your
+character replaces just that element, the row shows the preset's character beside it, and you
+can reset the row to the preset again. The section heading counts how many elements you
+changed, and they are kept when you pick another preset.
 
 ```toml
 [conm.appearance]
 border = 'rounded'
 accent = '#ff8800'
-glyphs = 'unicode'
+glyphs = 'heavy'
+
+[conm.appearance.border_runes]
+horizontal = '═'
+
+[conm.appearance.glyph_runes]
+caret = '»'
 ```
 
-A value conm does not know falls back to the first one in its list.
+A name conm does not know falls back to the first one in its list; a character that is not
+one column wide is ignored.
 
 ## Info screen
 

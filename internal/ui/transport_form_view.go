@@ -169,7 +169,7 @@ func (m transportFormModel) transportGutter(i int, active bool) (string, color.C
 	case m.attempted && m.fieldError(i) != "":
 		g, c = gFieldBad, cRed
 	case m.vals[f.Key] != "" || f.DefaultValue != "":
-		g, c = gDotOn, cAccent
+		g, c = gDotOn, cOK
 	default:
 		g, c = gDotOff, cFaint
 	}

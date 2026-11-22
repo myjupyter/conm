@@ -212,7 +212,7 @@ func frameStatus(w int, icon string, fg color.Color, text, pos string) string {
 func statusGlyph(k statusKind) (string, color.Color) {
 	switch k {
 	case kindOK:
-		return gStatusOK, cAccent
+		return gStatusOK, cOK
 	case kindPending:
 		return gStatusPending, cAmber
 	case kindWarn:
@@ -281,7 +281,7 @@ func frameSearch(w int, query string, typing bool) string {
 }
 
 func framePong(w int, text string) string {
-	return frameTagged(w, " PONG ", cAccent, text)
+	return frameTagged(w, " PONG ", cOK, text)
 }
 
 func framePing(w int, text string) string {

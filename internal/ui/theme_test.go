@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
@@ -10,39 +9,75 @@ import (
 	"github.com/myjupyter/conm/internal/config"
 )
 
-func TestThemeRunesAreOneCellWide(t *testing.T) {
+func TestThemePresetsAreComplete(t *testing.T) {
 	t.Parallel()
 
-	sets := map[string]any{"ascii box": asciiBox}
-	for name, box := range borderStyles {
-		sets["border "+name] = box
+	tests := []struct {
+		name     string
+		names    []string
+		presets  map[string]map[string]string
+		elements []string
+		vars     map[string]*string
+	}{
+		{name: "border", names: config.BorderStyles, presets: borderPresets, elements: config.BorderElements, vars: borderVars},
+		{name: "glyphs", names: config.GlyphSets, presets: glyphPresets, elements: config.GlyphElements, vars: glyphVars},
 	}
-	for name, glyphs := range glyphSets {
-		sets["glyphs "+name] = glyphs
-	}
-
-	for name, set := range sets {
-		t.Run(name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			v := reflect.ValueOf(set)
-			for i := range v.NumField() {
-				assert.Equal(t, 1, ansi.StringWidth(v.Field(i).String()), v.Type().Field(i).Name)
+			is := assert.New(t)
+			is.Len(tt.presets, len(tt.names))
+			is.Len(tt.vars, len(tt.elements))
+			for _, element := range tt.elements {
+				is.Contains(tt.vars, element)
+			}
+			for _, name := range tt.names {
+				is.Len(tt.presets[name], len(tt.elements), name)
+				for _, element := range tt.elements {
+					is.Equal(1, ansi.StringWidth(tt.presets[name][element]), name+" "+element)
+				}
 			}
 		})
 	}
 }
 
-func TestThemeCoversEveryConfigName(t *testing.T) {
+func TestThemeAccentsAreComplete(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range config.BorderStyles {
-		assert.Contains(t, borderStyles, name)
-	}
+	assert.Len(t, accentColors, len(config.AccentColors))
 	for _, name := range config.AccentColors {
 		assert.Contains(t, accentColors, name)
 	}
-	for _, name := range config.GlyphSets {
-		assert.Contains(t, glyphSets, name)
+}
+
+func TestBorderRunes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		a    config.AppearanceSettings
+		want map[string]string
+	}{
+		{
+			name: "preset with an override",
+			a:    config.AppearanceSettings{Border: "single", Glyphs: "unicode", BorderRunes: map[string]string{"top_left": "╭"}},
+			want: map[string]string{"top_left": "╭", "top_right": "┐", "horizontal": "─"},
+		},
+		{
+			name: "ascii glyphs replace preset and overrides",
+			a:    config.AppearanceSettings{Border: "double", Glyphs: config.ASCIIGlyphs, BorderRunes: map[string]string{"top_left": "╭"}},
+			want: map[string]string{"top_left": "+", "top_right": "+", "horizontal": "-"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := borderRunes(tt.a)
+			for element, want := range tt.want {
+				assert.Equal(t, want, got[element], element)
+			}
+		})
 	}
 }

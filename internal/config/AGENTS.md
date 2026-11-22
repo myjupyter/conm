@@ -18,7 +18,7 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `meta.go` | `ConnMeta`, `WebLink` and their validators, `ValidateConnectionName`, `ValidateTags` |
 | `conm.go` | `Conm`, `ConnectionSettings`, `ConnType`, `ConnKind`, `ReadConm`/`CreateConm`, `withKnownTypes` |
 | `keybinding.go` | `KeybindingSettings` — the keybinding overrides stored in `conm.toml` |
-| `appearance.go` | `AppearanceSettings` — border, accent and glyph set; `BorderStyles`, `AccentColors`, `GlyphSets` list the names each accepts |
+| `appearance.go` | `AppearanceSettings` — border, accent and glyph set plus per-element overrides; `BorderStyles`, `AccentColors`, `GlyphSets` list the preset names, `BorderElements`, `GlyphElements` the overridable elements |
 | `postgres.go`, `mysql.go`, `mssql.go`, `clickhouse.go`, `redis.go`, `mongodb.go`, `ssh.go` | one connection type each: the struct, its `*ConfigWrapper`, its mode constants and validators; `postgres.go` also holds the limits and regexps the types share |
 | `secret.go`, `keyring.go` | `Secret`, `SecretParam`; `Keyring`, the one stored secret record, and its wrapper |
 | `transport.go` | `Transport`, `TransportKind`, its wrapper and validators |
@@ -163,9 +163,13 @@ repository and no tab on the secrets screen:
   every known type" for granted, and the tab order is this package's to decide. A type the
   file does not mention gets a row with no client.
 - `[conm.appearance]` holds names — `border`, `accent`, `glyphs` — and `accent` may instead
-  be a `#rrggbb` colour (`IsHexColor`). `Conm.complete` replaces a missing or unknown value
-  with the first entry of its list, so every layer above gets a value it knows;
-  `AppearanceSettings.Validate` refuses one at the write point. What a name looks like is
-  `ui/theme.go`'s to decide.
+  be a `#rrggbb` colour (`IsHexColor`). `[conm.appearance.border_runes]` and
+  `[conm.appearance.glyph_runes]` map an element name to the one character that replaces the
+  preset's; both are omitted when empty.
+- `Conm.complete` replaces a missing or unknown name with the first entry of its list and
+  drops an override for an unknown element or one that is not a single one-cell character
+  (`IsOneCell`), so every layer above gets values it can draw;
+  `AppearanceSettings.Validate` refuses the same at the write point. What a name looks like
+  is `ui/theme.go`'s to decide.
 - `ConnType.Kind()` says which `ConnKind` (`database`, `ssh`) a type belongs to; it is
   derived, never stored.

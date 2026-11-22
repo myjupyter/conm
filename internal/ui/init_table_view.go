@@ -103,7 +103,7 @@ func (m initModel) initRowLine(i int) string {
 	case !available:
 		fg, markC, stateC = cDead, cFaint, cDim
 	default:
-		fg, markC, stateC = cFg, typeColor(t), cAccent
+		fg, markC, stateC = cFg, typeColor(t), cOK
 	}
 
 	caret := " "

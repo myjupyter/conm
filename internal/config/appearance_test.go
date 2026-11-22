@@ -39,8 +39,17 @@ func TestReadConm_appearance(t *testing.T) {
 			want: AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode"},
 		},
 		{
+			name: "rune overrides are kept, bad ones dropped",
+			args: args{toml: "[conm.appearance.border_runes]\ntop_left = \"╭\"\nwide = \"x\"\nvertical = \"||\"\n[conm.appearance.glyph_runes]\ncaret = \"→\"\nstatus_ok = \"好\"\n"},
+			want: AppearanceSettings{
+				Border: "single", Accent: "green", Glyphs: "unicode",
+				BorderRunes: map[string]string{"top_left": "╭"},
+				GlyphRunes:  map[string]string{"caret": "→"},
+			},
+		},
+		{
 			name: "unknown values fall back to the default",
-			args: args{toml: "[conm.appearance]\nborder = \"dotted\"\naccent = \"blue\"\nglyphs = \"emoji\"\n"},
+			args: args{toml: "[conm.appearance]\nborder = \"wavy\"\naccent = \"blue\"\nglyphs = \"emoji\"\n"},
 			want: AppearanceSettings{Border: "single", Accent: "blue", Glyphs: "unicode"},
 		},
 	}
@@ -67,7 +76,15 @@ func TestAppearanceSettings_Validate(t *testing.T) {
 		{name: "hex accent", a: AppearanceSettings{Border: "single", Accent: "#ff8800", Glyphs: "ascii"}},
 		{name: "short hex", a: AppearanceSettings{Border: "single", Accent: "#f80", Glyphs: "ascii"}, wantErr: true},
 		{name: "hex without hash", a: AppearanceSettings{Border: "single", Accent: "ff8800", Glyphs: "ascii"}, wantErr: true},
-		{name: "unknown border", a: AppearanceSettings{Border: "dotted", Accent: "green", Glyphs: "unicode"}, wantErr: true},
+		{name: "unknown border", a: AppearanceSettings{Border: "wavy", Accent: "green", Glyphs: "unicode"}, wantErr: true},
+		{name: "rune overrides", a: AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode",
+			BorderRunes: map[string]string{"top_left": "╭"}, GlyphRunes: map[string]string{"caret": "»"}}},
+		{name: "unknown border element", a: AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode",
+			BorderRunes: map[string]string{"middle": "+"}}, wantErr: true},
+		{name: "two-cell glyph", a: AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode",
+			GlyphRunes: map[string]string{"caret": "好"}}, wantErr: true},
+		{name: "two-rune glyph", a: AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode",
+			GlyphRunes: map[string]string{"caret": "->"}}, wantErr: true},
 		{name: "unknown glyphs", a: AppearanceSettings{Border: "single", Accent: "green", Glyphs: "emoji"}, wantErr: true},
 	}
 	for _, tt := range tests {

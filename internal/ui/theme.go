@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"maps"
 
 	"charm.land/lipgloss/v2"
 
@@ -17,6 +18,7 @@ var (
 	cFg         = lipgloss.Color("#ddd6c8")
 	cDead       = lipgloss.Color("#7d7668")
 	cAccent     color.Color
+	cOK         = lipgloss.Color("#63d18a")
 	cRed        = lipgloss.Color("#e5654a")
 	cAmber      = lipgloss.Color("#e3b34a")
 	cInvFg      = lipgloss.Color("#0f0f0d")
@@ -50,63 +52,102 @@ var (
 	gImportNew                          string
 	gCaret, gDotOn, gDotOff, gDotFail   string
 	gFieldBad, gInputCursor, gInputMask string
-	gSelectPrev, gSelectNext            string
-	gEmpty, gEmptyList, gEllipsis       string
+	gEmpty, gEllipsis                   string
 	gHintArrow, gScrollUp, gScrollDown  string
+	gSelectPrev, gSelectNext            string
 )
 
-type boxRunes struct {
-	cornerTL, cornerTR, cornerBL, cornerBR string
-	teeL, teeR, lineH, lineV               string
+const (
+	gEmptyList = "none"
+)
+
+var borderVars = map[string]*string{
+	"top_left": &gCornerTL, "top_right": &gCornerTR, "bottom_left": &gCornerBL, "bottom_right": &gCornerBR,
+	"tee_left": &gTeeL, "tee_right": &gTeeR, "horizontal": &gLineH, "vertical": &gLineV,
 }
 
-var borderStyles = map[string]boxRunes{
-	"single":  {"┌", "┐", "└", "┘", "├", "┤", "─", "│"},
-	"rounded": {"╭", "╮", "╰", "╯", "├", "┤", "─", "│"},
-	"double":  {"╔", "╗", "╚", "╝", "╠", "╣", "═", "║"},
-	"heavy":   {"┏", "┓", "┗", "┛", "┣", "┫", "━", "┃"},
+var glyphVars = map[string]*string{
+	"status_idle": &gStatusIdle, "status_ok": &gStatusOK, "status_pending": &gStatusPending,
+	"status_warn": &gStatusWarn, "status_error": &gStatusErr, "import_new": &gImportNew,
+	"caret": &gCaret, "dot_on": &gDotOn, "dot_off": &gDotOff, "dot_fail": &gDotFail,
+	"field_bad": &gFieldBad, "input_cursor": &gInputCursor, "input_mask": &gInputMask,
+	"empty": &gEmpty, "ellipsis": &gEllipsis, "hint_arrow": &gHintArrow,
+	"scroll_up": &gScrollUp, "scroll_down": &gScrollDown,
+	"select_prev": &gSelectPrev, "select_next": &gSelectNext,
 }
 
-var asciiBox = boxRunes{"+", "+", "+", "+", "+", "+", "-", "|"}
+const (
+	defaultBorder = "single"
+	asciiBorder   = "ascii"
+	defaultGlyphs = "unicode"
+	defaultAccent = "green"
+)
 
-type glyphRunes struct {
-	statusIdle, statusOK, statusPending, statusWarn, statusErr string
-	importNew, caret, dotOn, dotOff, dotFail                   string
-	fieldBad, inputCursor, inputMask                           string
-	empty, ellipsis, hintArrow, scrollUp, scrollDown           string
+func box(tl, tr, bl, br, teeL, teeR, h, v string) map[string]string {
+	runes := make(map[string]string, len(config.BorderElements))
+	for i, value := range []string{tl, tr, bl, br, teeL, teeR, h, v} {
+		runes[config.BorderElements[i]] = value
+	}
+	return runes
 }
 
-var glyphSets = map[string]glyphRunes{
-	"unicode": {
-		statusIdle: "›", statusOK: "✓", statusPending: "◐", statusWarn: "!", statusErr: "✗",
-		importNew: "○", caret: "❯", dotOn: "●", dotOff: "○", dotFail: "✕",
-		fieldBad: "✗", inputCursor: "█", inputMask: "•",
-		empty: "—", ellipsis: "…", hintArrow: "→", scrollUp: "↑", scrollDown: "↓",
-	},
-	"heavy": {
-		statusIdle: "›", statusOK: "✔", statusPending: "◑", statusWarn: "!", statusErr: "✘",
-		importNew: "◌", caret: "➜", dotOn: "◉", dotOff: "◎", dotFail: "✘",
-		fieldBad: "✘", inputCursor: "▌", inputMask: "●",
-		empty: "–", ellipsis: "…", hintArrow: "➜", scrollUp: "▲", scrollDown: "▼",
-	},
-	"geometric": {
-		statusIdle: "▹", statusOK: "◆", statusPending: "◈", statusWarn: "▲", statusErr: "■",
-		importNew: "◇", caret: "▶", dotOn: "◆", dotOff: "◇", dotFail: "■",
-		fieldBad: "■", inputCursor: "█", inputMask: "▪",
-		empty: "—", ellipsis: "…", hintArrow: "▸", scrollUp: "▴", scrollDown: "▾",
-	},
-	"nerd": {
-		statusIdle: "\uf105", statusOK: "\uf00c", statusPending: "\uf110", statusWarn: "\uf071", statusErr: "\uf00d",
-		importNew: "\uf10c", caret: "\uf054", dotOn: "\uf111", dotOff: "\uf10c", dotFail: "\uf057",
-		fieldBad: "\uf00d", inputCursor: "█", inputMask: "•",
-		empty: "—", ellipsis: "…", hintArrow: "\uf061", scrollUp: "\uf062", scrollDown: "\uf063",
-	},
-	config.ASCIIGlyphs: {
-		statusIdle: ">", statusOK: "+", statusPending: "~", statusWarn: "!", statusErr: "x",
-		importNew: "o", caret: ">", dotOn: "*", dotOff: "o", dotFail: "x",
-		fieldBad: "x", inputCursor: "_", inputMask: "*",
-		empty: "-", ellipsis: "~", hintArrow: ">", scrollUp: "^", scrollDown: "v",
-	},
+var borderPresets = map[string]map[string]string{
+	"single":    box("┌", "┐", "└", "┘", "├", "┤", "─", "│"),
+	"rounded":   box("╭", "╮", "╰", "╯", "├", "┤", "─", "│"),
+	"double":    box("╔", "╗", "╚", "╝", "╠", "╣", "═", "║"),
+	"heavy":     box("┏", "┓", "┗", "┛", "┣", "┫", "━", "┃"),
+	"dashed":    box("┌", "┐", "└", "┘", "├", "┤", "╌", "╎"),
+	"dotted":    box("┌", "┐", "└", "┘", "├", "┤", "┄", "┆"),
+	"mixed":     box("╒", "╕", "╘", "╛", "╞", "╡", "═", "│"),
+	asciiBorder: box("+", "+", "+", "+", "+", "+", "-", "|"),
+	"hidden":    box(" ", " ", " ", " ", " ", " ", " ", " "),
+}
+
+func glyphs(values ...string) map[string]string {
+	runes := make(map[string]string, len(config.GlyphElements))
+	for i, value := range values {
+		runes[config.GlyphElements[i]] = value
+	}
+	return runes
+}
+
+var glyphPresets = map[string]map[string]string{
+	"unicode": glyphs(
+		"›", "✓", "◐", "!", "✗",
+		"○", "❯", "●", "○", "✕", "✗",
+		"█", "•", "—", "…", "→", "↑", "↓",
+		"<", ">",
+	),
+	"heavy": glyphs(
+		"›", "✔", "◑", "!", "✘",
+		"◌", "➜", "◉", "◎", "✘", "✘",
+		"▌", "●", "–", "…", "➜", "▲", "▼",
+		"◀", "▶",
+	),
+	"geometric": glyphs(
+		"▹", "◆", "◈", "▲", "■",
+		"◇", "▶", "◆", "◇", "■", "■",
+		"█", "▪", "—", "…", "▸", "▴", "▾",
+		"◂", "▸",
+	),
+	"minimal": glyphs(
+		"·", "•", "∘", "!", "×",
+		"∘", "▸", "•", "◦", "×", "×",
+		"▏", "∙", "–", "…", "›", "˄", "˅",
+		"‹", "›",
+	),
+	"nerd": glyphs(
+		"\uf105", "\uf00c", "\uf110", "\uf071", "\uf00d",
+		"\uf10c", "\uf054", "\uf111", "\uf10c", "\uf057", "\uf00d",
+		"█", "•", "—", "…", "\uf061", "\uf062", "\uf063",
+		"\uf053", "\uf054",
+	),
+	config.ASCIIGlyphs: glyphs(
+		">", "+", "~", "!", "x",
+		"o", ">", "*", "o", "x", "x",
+		"_", "*", "-", "~", ">", "^", "v",
+		"<", ">",
+	),
 }
 
 var accentColors = map[string]color.Color{
@@ -128,40 +169,46 @@ func accentColor(value string) color.Color {
 	if c, ok := accentColors[value]; ok {
 		return c
 	}
-	return accentColors["green"]
+	return accentColors[defaultAccent]
 }
 
-func boxFor(a config.AppearanceSettings) boxRunes {
-	if a.Glyphs == config.ASCIIGlyphs {
-		return asciiBox
+func borderLocked(a config.AppearanceSettings) bool {
+	return a.Glyphs == config.ASCIIGlyphs
+}
+
+func borderRunes(a config.AppearanceSettings) map[string]string {
+	if borderLocked(a) {
+		return maps.Clone(borderPresets[asciiBorder])
 	}
-	if box, ok := borderStyles[a.Border]; ok {
-		return box
+	return resolveRunes(borderPresets, a.Border, defaultBorder, a.BorderRunes)
+}
+
+func glyphRunes(a config.AppearanceSettings) map[string]string {
+	return resolveRunes(glyphPresets, a.Glyphs, defaultGlyphs, a.GlyphRunes)
+}
+
+func resolveRunes(presets map[string]map[string]string, preset, fallback string, overrides map[string]string) map[string]string {
+	base, ok := presets[preset]
+	if !ok {
+		base = presets[fallback]
 	}
-	return borderStyles["single"]
+	runes := maps.Clone(base)
+	maps.Copy(runes, overrides)
+	return runes
 }
 
 func init() {
-	applyAppearance(config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode"})
+	applyAppearance(config.AppearanceSettings{Border: defaultBorder, Accent: defaultAccent, Glyphs: defaultGlyphs})
 }
 
 func applyAppearance(a config.AppearanceSettings) {
-	box := boxFor(a)
-	glyphs, ok := glyphSets[a.Glyphs]
-	if !ok {
-		glyphs = glyphSets["unicode"]
-	}
-
 	cAccent = accentColor(a.Accent)
-	gCornerTL, gCornerTR, gCornerBL, gCornerBR = box.cornerTL, box.cornerTR, box.cornerBL, box.cornerBR
-	gTeeL, gTeeR, gLineH, gLineV = box.teeL, box.teeR, box.lineH, box.lineV
-	gStatusIdle, gStatusOK, gStatusPending = glyphs.statusIdle, glyphs.statusOK, glyphs.statusPending
-	gStatusWarn, gStatusErr, gImportNew = glyphs.statusWarn, glyphs.statusErr, glyphs.importNew
-	gCaret, gDotOn, gDotOff, gDotFail = glyphs.caret, glyphs.dotOn, glyphs.dotOff, glyphs.dotFail
-	gFieldBad, gInputCursor, gInputMask = glyphs.fieldBad, glyphs.inputCursor, glyphs.inputMask
-	gSelectPrev, gSelectNext = "<", ">"
-	gEmpty, gEmptyList, gEllipsis = glyphs.empty, "none", glyphs.ellipsis
-	gHintArrow, gScrollUp, gScrollDown = glyphs.hintArrow, glyphs.scrollUp, glyphs.scrollDown
+	for element, value := range borderRunes(a) {
+		*borderVars[element] = value
+	}
+	for element, value := range glyphRunes(a) {
+		*glyphVars[element] = value
+	}
 }
 
 func applyConm(c config.Conm) {

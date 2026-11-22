@@ -217,7 +217,7 @@ func (m Model) pingSpan(i int, bg color.Color, sel bool) span {
 		text = fmt.Sprintf("%dms", ms)
 		fg = cAmber
 		if ms < 40 {
-			fg = cAccent
+			fg = cOK
 		}
 	}
 	if sel {

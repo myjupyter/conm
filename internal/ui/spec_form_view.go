@@ -164,7 +164,7 @@ func (m specFormModel[T]) gutter(i int, active bool) (string, color.Color) {
 	case m.attempted && m.fieldError(i) != "":
 		g, c = gFieldBad, cRed
 	case m.vals[f.Key] != "":
-		g, c = gDotOn, cAccent
+		g, c = gDotOn, cOK
 	default:
 		g, c = gDotOff, cFaint
 	}

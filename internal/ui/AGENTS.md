@@ -119,11 +119,20 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
   decides *how* a line is built, `theme.go` *what it looks like*: a view never uses a
   literal rune or `lipgloss.Color`, so a restyle never touches drawing code.
   - The glyphs and `cAccent` are variables set by `applyAppearance` from
-    `config.AppearanceSettings`: `borderStyles` and `glyphSets` hold the runes per name,
-    `accentColors` the presets and `accentColor` also takes a `#rrggbb` value. `boxFor` is
-    the one place that decides the frame: the `ascii` glyph set replaces the border. Every
-    rune is one cell wide, as the width arithmetic in `frame.go` assumes —
-    `theme_test.go` checks it, and that every `config` name has an entry.
+    `config.AppearanceSettings`. `borderPresets` and `glyphPresets` map a preset name to its
+    runes keyed by `config.BorderElements` / `config.GlyphElements` (built positionally by
+    `box` and `glyphs`); `borderVars` and `glyphVars` map each element to the `g*` variable
+    it sets. `accentColors` holds the presets and `accentColor` also takes a `#rrggbb` value.
+  - **`cAccent` is for highlight only** — the selected row, the active tab, the caret, the
+    key in a hint. A colour that means a state stays fixed whatever the accent: `cOK` for
+    success (the ✓ of a status line and of `doctor`/`import`, PONG, a fast ping, an installed
+    client, a filled form field), beside `cAmber` and `cRed`.
+  - `borderRunes` and `glyphRunes` are the one place a preset and the user's per-element
+    overrides are merged. `borderRunes` ignores both border preset and overrides while the
+    glyphs are `ascii` (`borderLocked`).
+  - Every rune is one cell wide, as the width arithmetic in `frame.go` assumes —
+    `theme_test.go` checks every preset has every element at that width, and that every
+    `config` name has an entry.
   - `applyConm` sets both `keyMap` and the appearance; every entry point that draws calls it
     (or `applyAppearance`, for `doctor` and `export`) before its first line.
 - **`ui/form_loop.go` — running a form to completion.** `formStatus` (message plus
@@ -354,14 +363,22 @@ through `formLoop`:
   - A binding marked `OnlyAppend` keeps its default keys: they can be added to, not replaced
     or removed (`isPinned`).
   - Every change is checked through `KeybindingSettings.Validate` before it is written.
-- **Appearance.** One row per `appearanceRows` entry — border, accent, glyphs — each a
-  select box over its `config` name list with a preview beside it. `Cycle` writes the next
-  name; the saved message runs `applyConm`, so the screen redraws in the new look at once.
-  - A row with `lockedBy` refuses to cycle and says why: the border while the glyphs are
-    `ascii`, since `boxFor` ignores it then.
-  - A `typed` row (accent) opens a hex input on `keyMap.Settings.EditValue`: only `#` and hex digits are kept,
-    up to seven; `Confirm` saves a full `#rrggbb`, `Cancel` drops it. A value outside the
-    presets shows `custom` in the box.
+- **Appearance.** Three sections from `appearanceRows`, scrolled like the keybindings: the
+  accent; the border style and one row per border element; the glyph set and one row per
+  glyph. Every row is a select box with a preview or note beside it, and every change is
+  saved at once; the saved message runs `applyConm`, so the screen redraws in the new look.
+  - A preset row (`options`, `field`) cycles its `config` name list. An element row
+    (`group`, `element`) cycles the distinct runes the presets use for that element
+    (`runeGroup.variants`) and stores the choice as an override — or drops the override when
+    the choice is the current preset's rune, so the file keeps only real differences. Its
+    note names the preset's rune while it is overridden; `keyMap.Settings.Reset` drops it.
+  - `keyMap.Settings.EditValue` opens typed input: the accent keeps `#` and hex digits up
+    to seven and needs a full `#rrggbb`; an element keeps the last character typed and needs
+    one cell (`config.IsOneCell`). `Confirm` saves, `Cancel` drops the draft; an unfit draft
+    keeps the input open. A value outside the choices shows `custom` in the box.
+  - While the glyphs are `ascii`, every border row is `locked` and refuses to change.
+  - A change copies the settings (`AppearanceSettings.Clone`) before it touches the
+    override maps, so the screen's own `conm` is never mutated before the write succeeds.
 
 Every write goes through `config.CreateConm` at once; there is no "save" step. The screen
 reports only whether anything changed, and the connections table answers a change with a

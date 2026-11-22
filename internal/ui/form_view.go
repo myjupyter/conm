@@ -361,11 +361,11 @@ func (m formModel) gutter(i int, active bool) (string, color.Color) {
 	case m.attempted && m.fieldError(i) != "":
 		g, c = gFieldBad, cRed
 	case m.isSecretField(i) && m.noSecret():
-		g, c = gDotOn, cAccent
+		g, c = gDotOn, cOK
 	case m.isSecretField(i) && m.isRef() && raw == "":
 		g, c = gDotOff, cFaint
 	case raw != "" || f.Kind == spec.SelectFieldKind || f.DefaultValue != "":
-		g, c = gDotOn, cAccent
+		g, c = gDotOn, cOK
 	default:
 		g, c = gDotOff, cFaint
 	}
