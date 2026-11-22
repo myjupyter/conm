@@ -18,9 +18,10 @@ func TestThemePresetsAreComplete(t *testing.T) {
 		presets  map[string]map[string]string
 		elements []string
 		vars     map[string]*string
+		valid    func(string) bool
 	}{
-		{name: "border", names: config.BorderStyles, presets: borderPresets, elements: config.BorderElements, vars: borderVars},
-		{name: "glyphs", names: config.GlyphSets, presets: glyphPresets, elements: config.GlyphElements, vars: glyphVars},
+		{name: "border", names: config.BorderStyles, presets: borderPresets, elements: config.BorderElements, vars: borderVars, valid: config.IsBorderRune},
+		{name: "glyphs", names: config.GlyphSets, presets: glyphPresets, elements: config.GlyphElements, vars: glyphVars, valid: config.IsGlyph},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -35,7 +36,7 @@ func TestThemePresetsAreComplete(t *testing.T) {
 			for _, name := range tt.names {
 				is.Len(tt.presets[name], len(tt.elements), name)
 				for _, element := range tt.elements {
-					is.Equal(1, ansi.StringWidth(tt.presets[name][element]), name+" "+element)
+					is.True(tt.valid(tt.presets[name][element]), name+" "+element)
 				}
 			}
 		})
@@ -62,12 +63,12 @@ func TestBorderRunes(t *testing.T) {
 		{
 			name: "preset with an override",
 			a:    config.AppearanceSettings{Border: "single", Glyphs: "unicode", BorderRunes: map[string]string{"top_left": "╭"}},
-			want: map[string]string{"top_left": "╭", "top_right": "┐", "horizontal": "─"},
+			want: map[string]string{"top_left": "╭", "top_right": "┐", "top": "─", "left": "│"},
 		},
 		{
 			name: "ascii glyphs replace preset and overrides",
 			a:    config.AppearanceSettings{Border: "double", Glyphs: config.ASCIIGlyphs, BorderRunes: map[string]string{"top_left": "╭"}},
-			want: map[string]string{"top_left": "+", "top_right": "+", "horizontal": "-"},
+			want: map[string]string{"top_left": "+", "top_right": "+", "top": "-", "right": "|"},
 		},
 	}
 	for _, tt := range tests {
@@ -78,6 +79,73 @@ func TestBorderRunes(t *testing.T) {
 			for element, want := range tt.want {
 				assert.Equal(t, want, got[element], element)
 			}
+		})
+	}
+}
+
+func TestTextPresetsAreComplete(t *testing.T) {
+	t.Parallel()
+
+	is := assert.New(t)
+	is.Len(textPresets, len(config.TextStyles))
+	is.Len(textVars, len(config.TextElements))
+	for _, name := range config.TextStyles {
+		is.Len(textPresets[name], len(config.TextElements), name)
+		for _, element := range config.TextElements {
+			is.True(config.IsTextStyle(textPresets[name][element]), name+" "+element)
+		}
+	}
+}
+
+func TestParseTextStyle(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		value string
+		want  textStyle
+	}{
+		{value: "plain", want: textStyle{}},
+		{value: "bold", want: textStyle{bold: true}},
+		{value: "italic+faint", want: textStyle{italic: true, faint: true}},
+		{value: "bold+italic+underline+faint", want: textStyle{bold: true, italic: true, underline: true, faint: true}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, parseTextStyle(tt.value))
+		})
+	}
+}
+
+func TestBlockBorderSplitsTheLines(t *testing.T) {
+	t.Parallel()
+
+	got := borderRunes(config.AppearanceSettings{Border: "block", Glyphs: "unicode"})
+	assert.Equal(t, map[string]string{
+		"top_left": "▛", "top_right": "▜", "bottom_left": "▙", "bottom_right": "▟",
+		"tee_left": "▌", "tee_right": "▐", "top": "▀", "bottom": "▄", "rule": "▀", "left": "▌", "right": "▐",
+	}, got)
+}
+
+func TestFrameMeasuresWideGlyphs(t *testing.T) {
+	t.Parallel()
+
+	const w = 60
+	tests := []struct {
+		name string
+		line string
+		want string
+	}{
+		{name: "tab note", line: frameTabs(w, []string{"one", "two"}, 0, "🔽 24 below"), want: "🔽 24 below"},
+		{name: "select box", line: frameLine(w, frameSelectBox(30, selectBox{value: "✅", at: 1, n: 2}, nil), nil), want: "✅"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			plain := ansi.Strip(tt.line)
+			assert.Contains(t, plain, tt.want)
+			assert.Equal(t, w+2, ansi.StringWidth(plain))
 		})
 	}
 }

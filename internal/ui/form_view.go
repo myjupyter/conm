@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
@@ -117,7 +118,7 @@ func (m formModel) tabLine() string {
 	spans := []span{{text: "  ", fg: cDim}}
 	for si, s := range m.sections {
 		if si == m.section {
-			spans = append(spans, span{text: " " + s.Title + " ", fg: cInvFg, bg: cAccent, bold: true})
+			spans = append(spans, span{text: " " + s.Title + " ", fg: cInvFg, bg: cAccent, style: tTab})
 		} else {
 			spans = append(spans, span{text: " " + s.Title + " ", fg: cSoft})
 		}
@@ -154,9 +155,9 @@ func (m formModel) fieldRow(i int) string {
 
 	bg := m.rowBg(active, pair, pairActive)
 
-	caret := caretBlank
+	caret := caretBlank()
 	if active {
-		caret = " " + gCaret + " "
+		caret = " " + cell(gCaret) + " "
 	}
 	gutter, gc := m.gutter(i, active)
 
@@ -173,14 +174,14 @@ func (m formModel) fieldRow(i int) string {
 	labelW := formLabelW
 
 	spans := make([]span, 0, 4+len(box))
-	spans = append(spans, span{text: caret, fg: caretColor(active), bg: bg, bold: true})
+	spans = append(spans, span{text: caret, fg: caretColor(active), bg: bg, style: tSelection})
 	if pair {
 		labelW -= railW
 		spans = append(spans, span{text: railGlyph(first) + " ", fg: railColor(active, pairActive), bg: bg})
 	}
 	spans = append(spans,
-		span{text: gutter + " ", fg: gc, bg: bg},
-		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, bold: active},
+		span{text: cell(gutter) + " ", fg: gc, bg: bg},
+		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, style: styleIf(active, tSelection)},
 	)
 	spans = append(spans, box...)
 	return frameLine(m.size.formInner(), spans, bg)
@@ -245,9 +246,9 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 		valFg = cInvFg
 	}
 	return []span{
-		{text: gLineV, fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: borderFg, bg: bg},
 		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
-		{text: gLineV, fg: borderFg, bg: bg},
+		{text: gLineRight, fg: borderFg, bg: bg},
 	}
 }
 
@@ -293,10 +294,11 @@ func selectSpans(w int, value string, options []string, missing, active bool, bo
 	if value == "" {
 		value = gEmpty
 	}
-	mid := max(w-8-len([]rune(pos)), 0)
+	prefix, suffix := selectEnds()
+	mid := max(w-ansi.StringWidth(prefix)-ansi.StringWidth(suffix)-1-ansi.StringWidth(pos), 0)
 	value = truncPad(value, mid, false)
-	left := max((mid-len([]rune(value)))/2, 0)
-	right := max(mid-left-len([]rune(value)), 0)
+	left := max((mid-ansi.StringWidth(value))/2, 0)
+	right := max(mid-left-ansi.StringWidth(value), 0)
 
 	valFg, posFg := cValue, cMuted
 	if missing {
@@ -306,12 +308,12 @@ func selectSpans(w int, value string, options []string, missing, active bool, bo
 		valFg, posFg = cInvFg, cInvFg
 	}
 	return []span{
-		{text: gLineV + " " + gSelectPrev + " ", fg: borderFg, bg: bg},
+		{text: prefix, fg: borderFg, bg: bg},
 		{text: strings.Repeat(" ", left), bg: bg},
-		{text: value, fg: valFg, bg: bg, bold: true},
+		{text: value, fg: valFg, bg: bg, style: tValue},
 		{text: strings.Repeat(" ", right), bg: bg},
 		{text: pos + " ", fg: posFg, bg: bg},
-		{text: gSelectNext + " " + gLineV, fg: borderFg, bg: bg},
+		{text: suffix, fg: borderFg, bg: bg},
 	}
 }
 
@@ -389,7 +391,7 @@ func (m formModel) messageRow(i int) string {
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
 	return frameLine(m.size.formInner(), []span{
 		{text: prefix, fg: cDim, bg: bg},
-		{text: truncPad(text, m.size.formInner()-len([]rune(prefix))-2, false), fg: col, bg: bg},
+		{text: truncPad(text, m.size.formInner()-ansi.StringWidth(prefix)-2, false), fg: col, bg: bg},
 	}, bg)
 }
 
@@ -402,7 +404,9 @@ func (m formModel) formStatusLine() string {
 	return frameStatus(m.size.formInner(), icon, col, m.status, cursorPos(m.idx, len(m.sectionFields(m.section))))
 }
 
-const caretBlank = "   "
+func caretBlank() string {
+	return " " + blankCell() + " "
+}
 
 func caretColor(active bool) color.Color {
 	if active {

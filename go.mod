@@ -14,6 +14,7 @@ require (
 	github.com/microsoft/go-mssqldb v1.11.2
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/redis/go-redis/v9 v9.23.0
+	github.com/rivo/uniseg v0.4.7
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/zalando/go-keyring v0.2.8
@@ -50,7 +51,6 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/paulmach/orb v0.14.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/shopspring/decimal v1.6.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect

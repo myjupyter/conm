@@ -163,7 +163,7 @@ func (m settingsModel) supportsSpans(db config.ConnectionSettings) []span {
 			fg = cFg
 		}
 
-		spans = append(spans, span{text: text, fg: fg, bold: c.Name == m.current(db)})
+		spans = append(spans, span{text: text, fg: fg, style: styleIf(c.Name == m.current(db), tValue)})
 	}
 
 	return spans
@@ -194,15 +194,15 @@ func (m settingsModel) settingsLine(label string, value []span, on bool) string 
 
 func (m settingsModel) settingsLabelLine(label string, labelW int, value []span, on bool) string {
 	labelFg, bg := cDim, color.Color(nil)
-	caret := "  "
+	caret := " " + blankCell()
 	if on {
-		labelFg, bg, caret = cInvFg, cAccent, " "+gCaret
+		labelFg, bg, caret = cInvFg, cAccent, " "+cell(gCaret)
 	}
 
 	spans := make([]span, 0, 3+len(value))
 	spans = append(spans,
-		span{text: caret, fg: labelFg, bg: bg, bold: true},
-		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, bold: on},
+		span{text: caret, fg: labelFg, bg: bg, style: tSelection},
+		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, style: styleIf(on, tSelection)},
 		span{text: "  ", bg: bg},
 	)
 

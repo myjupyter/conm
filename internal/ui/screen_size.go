@@ -123,5 +123,5 @@ func topNote(parts ...string) string {
 	if len(kept) == 0 {
 		return ""
 	}
-	return " " + strings.Join(kept, " · ") + " " + gLineH
+	return " " + strings.Join(kept, " · ") + " " + gLineTop
 }

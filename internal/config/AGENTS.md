@@ -18,7 +18,7 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `meta.go` | `ConnMeta`, `WebLink` and their validators, `ValidateConnectionName`, `ValidateTags` |
 | `conm.go` | `Conm`, `ConnectionSettings`, `ConnType`, `ConnKind`, `ReadConm`/`CreateConm`, `withKnownTypes` |
 | `keybinding.go` | `KeybindingSettings` — the keybinding overrides stored in `conm.toml` |
-| `appearance.go` | `AppearanceSettings` — border, accent and glyph set plus per-element overrides; `BorderStyles`, `AccentColors`, `GlyphSets` list the preset names, `BorderElements`, `GlyphElements` the overridable elements |
+| `appearance.go` | `AppearanceSettings` — border, accent, glyph set and text style plus per-element overrides; `BorderStyles`, `AccentColors`, `GlyphSets`, `TextStyles` list the preset names, `BorderElements`, `GlyphElements`, `TextElements` the overridable elements |
 | `postgres.go`, `mysql.go`, `mssql.go`, `clickhouse.go`, `redis.go`, `mongodb.go`, `ssh.go` | one connection type each: the struct, its `*ConfigWrapper`, its mode constants and validators; `postgres.go` also holds the limits and regexps the types share |
 | `secret.go`, `keyring.go` | `Secret`, `SecretParam`; `Keyring`, the one stored secret record, and its wrapper |
 | `transport.go` | `Transport`, `TransportKind`, its wrapper and validators |
@@ -162,13 +162,17 @@ repository and no tab on the secrets screen:
   `ConnTypes`, in that order, whatever the file holds. Every layer above may take "a row for
   every known type" for granted, and the tab order is this package's to decide. A type the
   file does not mention gets a row with no client.
-- `[conm.appearance]` holds names — `border`, `accent`, `glyphs` — and `accent` may instead
-  be a `#rrggbb` colour (`IsHexColor`). `[conm.appearance.border_runes]` and
-  `[conm.appearance.glyph_runes]` map an element name to the one character that replaces the
-  preset's; both are omitted when empty.
+- `[conm.appearance]` holds names — `border`, `accent`, `glyphs`, `text` — and `accent` may
+  instead be a `#rrggbb` colour (`IsHexColor`). `[conm.appearance.border_runes]`,
+  `[conm.appearance.glyph_runes]` and `[conm.appearance.text_style]` map an element name to
+  the value that replaces the preset's; each is omitted when empty.
+- What an override may hold: a border rune is one grapheme one column wide (`IsBorderRune`);
+  a glyph is one grapheme one or two columns wide (`IsGlyph`), so an emoji with a modifier
+  counts as one — grapheme counting is `rivo/uniseg`; a text style is `plain` or distinct
+  `TextAttributes` joined by `+` (`IsTextStyle`).
 - `Conm.complete` replaces a missing or unknown name with the first entry of its list and
-  drops an override for an unknown element or one that is not a single one-cell character
-  (`IsOneCell`), so every layer above gets values it can draw;
+  drops an override for an unknown element or one that does not fit its kind, so every layer
+  above gets values it can draw;
   `AppearanceSettings.Validate` refuses the same at the write point. What a name looks like
   is `ui/theme.go`'s to decide.
 - `ConnType.Kind()` says which `ConnKind` (`database`, `ssh`) a type belongs to; it is

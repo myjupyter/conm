@@ -8,6 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/rivo/uniseg"
+
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/ui/view"
 )
@@ -22,7 +24,8 @@ type appearanceInput int
 const (
 	inputNone appearanceInput = iota
 	inputHex
-	inputRune
+	inputGlyph
+	inputStyle
 )
 
 type appearanceTab struct {
@@ -32,34 +35,61 @@ type appearanceTab struct {
 	draft   string
 }
 
-type runeGroup struct {
+type elementGroup struct {
 	order     []string
 	presets   map[string]map[string]string
 	preset    func(config.AppearanceSettings) string
 	overrides func(*config.AppearanceSettings) *map[string]string
 	resolve   func(config.AppearanceSettings) map[string]string
 	locked    func(config.AppearanceSettings) bool
+	input     appearanceInput
+	accepts   func(string) bool
+	choices   []string
 }
 
-var borderGroup = runeGroup{
+func never(config.AppearanceSettings) bool { return false }
+
+var borderGroup = elementGroup{
 	order:     config.BorderStyles,
 	presets:   borderPresets,
 	preset:    func(a config.AppearanceSettings) string { return a.Border },
 	overrides: func(a *config.AppearanceSettings) *map[string]string { return &a.BorderRunes },
 	resolve:   borderRunes,
 	locked:    borderLocked,
+	input:     inputGlyph,
+	accepts:   config.IsBorderRune,
 }
 
-var glyphGroup = runeGroup{
+var glyphGroup = elementGroup{
 	order:     config.GlyphSets,
 	presets:   glyphPresets,
 	preset:    func(a config.AppearanceSettings) string { return a.Glyphs },
 	overrides: func(a *config.AppearanceSettings) *map[string]string { return &a.GlyphRunes },
 	resolve:   glyphRunes,
-	locked:    func(config.AppearanceSettings) bool { return false },
+	locked:    never,
+	input:     inputGlyph,
+	accepts:   config.IsGlyph,
 }
 
-func (g runeGroup) variants(element string) []string {
+var textGroup = elementGroup{
+	order:     config.TextStyles,
+	presets:   textPresets,
+	preset:    func(a config.AppearanceSettings) string { return a.Text },
+	overrides: func(a *config.AppearanceSettings) *map[string]string { return &a.TextStyle },
+	resolve:   textStyles,
+	locked:    never,
+	input:     inputStyle,
+	accepts:   config.IsTextStyle,
+	choices: []string{
+		config.PlainText, "bold", "italic", "underline", "faint",
+		"bold+italic", "bold+underline", "italic+underline", "italic+faint",
+	},
+}
+
+func (g elementGroup) variants(element string) []string {
+	if g.choices != nil {
+		return g.choices
+	}
 	var variants []string
 	for _, name := range g.order {
 		if r := g.presets[name][element]; !slices.Contains(variants, r) {
@@ -76,9 +106,9 @@ type appearanceRow struct {
 
 	options []string
 	field   func(*config.AppearanceSettings) *string
-	preview func(config.AppearanceSettings) span
+	preview func(config.AppearanceSettings) []span
 
-	group   *runeGroup
+	group   *elementGroup
 	element string
 }
 
@@ -92,43 +122,59 @@ func buildAppearanceRows() []appearanceRow {
 			input:   inputHex,
 			options: config.AccentColors,
 			field:   func(a *config.AppearanceSettings) *string { return &a.Accent },
-			preview: func(a config.AppearanceSettings) span { return span{text: "    ", bg: accentColor(a.Accent)} },
+			preview: func(a config.AppearanceSettings) []span { return []span{{text: "    ", bg: accentColor(a.Accent)}} },
 		},
 		{
-			section: "border",
+			section: "text",
 			label:   "style",
-			options: config.BorderStyles,
-			field:   func(a *config.AppearanceSettings) *string { return &a.Border },
-			preview: func(a config.AppearanceSettings) span {
-				r := borderRunes(a)
-				return span{text: r["top_left"] + r["horizontal"] + r["horizontal"] + r["top_right"], fg: cSoft}
+			options: config.TextStyles,
+			field:   func(a *config.AppearanceSettings) *string { return &a.Text },
+			preview: func(a config.AppearanceSettings) []span {
+				t := textStyles(a)
+				return []span{
+					{text: "title", fg: cFg, style: parseTextStyle(t["title"])},
+					{text: " heading", fg: cFg, style: parseTextStyle(t["heading"])},
+					{text: " note", fg: cFaint, style: parseTextStyle(t["note"])},
+				}
 			},
-			group: &borderGroup,
+			group: &textGroup,
 		},
 	}
+	rows = append(rows, elementRows("text", &textGroup, config.TextElements)...)
+	rows = append(rows, appearanceRow{
+		section: "border",
+		label:   "style",
+		options: config.BorderStyles,
+		field:   func(a *config.AppearanceSettings) *string { return &a.Border },
+		preview: func(a config.AppearanceSettings) []span {
+			r := borderRunes(a)
+			return []span{{text: r["top_left"] + r["top"] + r["top"] + r["top_right"], fg: cSoft}}
+		},
+		group: &borderGroup,
+	})
 	rows = append(rows, elementRows("border", &borderGroup, config.BorderElements)...)
 	rows = append(rows, appearanceRow{
 		section: "glyphs",
 		label:   "set",
 		options: config.GlyphSets,
 		field:   func(a *config.AppearanceSettings) *string { return &a.Glyphs },
-		preview: func(a config.AppearanceSettings) span {
+		preview: func(a config.AppearanceSettings) []span {
 			r := glyphRunes(a)
 			sample := []string{r["caret"], r["status_ok"], r["status_pending"], r["status_error"], r["dot_on"], r["ellipsis"]}
-			return span{text: strings.Join(sample, " "), fg: cSoft}
+			return []span{{text: strings.Join(sample, " "), fg: cSoft}}
 		},
 		group: &glyphGroup,
 	})
 	return append(rows, elementRows("glyphs", &glyphGroup, config.GlyphElements)...)
 }
 
-func elementRows(section string, group *runeGroup, elements []string) []appearanceRow {
+func elementRows(section string, group *elementGroup, elements []string) []appearanceRow {
 	rows := make([]appearanceRow, 0, len(elements))
 	for _, element := range elements {
 		rows = append(rows, appearanceRow{
 			section: section,
 			label:   strings.ReplaceAll(element, "_", " "),
-			input:   inputRune,
+			input:   group.input,
 			group:   group,
 			element: element,
 		})
@@ -158,7 +204,7 @@ func (r appearanceRow) locked(a config.AppearanceSettings) bool {
 	return r.group != nil && r.group.locked(a)
 }
 
-func (r appearanceRow) presetRune(a config.AppearanceSettings) string {
+func (r appearanceRow) presetValue(a config.AppearanceSettings) string {
 	return r.group.presets[r.group.preset(a)][r.element]
 }
 
@@ -174,7 +220,7 @@ func (r appearanceRow) set(a *config.AppearanceSettings, value string) {
 	}
 
 	overrides := r.group.overrides(a)
-	if value == r.presetRune(*a) {
+	if value == r.presetValue(*a) {
 		delete(*overrides, r.element)
 		return
 	}
@@ -188,22 +234,42 @@ func (r appearanceRow) accepts(draft string) bool {
 	if r.input == inputHex {
 		return config.IsHexColor(draft)
 	}
-	return config.IsOneCell(draft)
+	return r.group.accepts(draft)
 }
 
 func (r appearanceRow) typed(draft, text string) string {
-	if r.input == inputHex {
+	switch r.input {
+	case inputHex:
 		draft += strings.Map(hexRune, text)
 		return draft[:min(len(draft), hexDraftMax)]
+	case inputStyle:
+		return draft + strings.Map(styleRune, strings.ToLower(text))
+	default:
+		if last := lastGrapheme(text); last != "" {
+			return last
+		}
+		return draft
 	}
-	if runes := []rune(text); len(runes) > 0 {
-		return string(runes[len(runes)-1])
+}
+
+func lastGrapheme(text string) string {
+	var last string
+	g := uniseg.NewGraphemes(text)
+	for g.Next() {
+		last = g.Str()
 	}
-	return draft
+	return last
 }
 
 func hexRune(r rune) rune {
 	if r == '#' || strings.ContainsRune("0123456789abcdefABCDEF", r) {
+		return r
+	}
+	return -1
+}
+
+func styleRune(r rune) rune {
+	if r == '+' || (r >= 'a' && r <= 'z') {
 		return r
 	}
 	return -1
@@ -254,6 +320,11 @@ func (m settingsModel) startAppearanceInput() settingsModel {
 			m.appear.draft = value
 		}
 		m.setSettingsStatus("type a #rrggbb colour", kindIdle)
+		return m
+	}
+
+	if row.input == inputStyle {
+		m.setSettingsStatus("type plain or attributes joined by +: "+strings.Join(config.TextAttributes, ", "), kindIdle)
 		return m
 	}
 
@@ -320,7 +391,7 @@ func (m settingsModel) resetElement() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	return m, m.setAppearance(row, row.presetRune(m.conm.Appearance))
+	return m, m.setAppearance(row, row.presetValue(m.conm.Appearance))
 }
 
 func (m settingsModel) setAppearance(row appearanceRow, value string) tea.Cmd {
@@ -385,27 +456,35 @@ func (m settingsModel) appearanceLine(row appearanceRow, on bool) string {
 	case on && m.appear.editing:
 		box.value, box.pos = m.appear.draft+gInputCursor, "type"
 		if row.input == inputHex && config.IsHexColor(m.appear.draft) {
-			preview = span{text: "    ", bg: accentColor(m.appear.draft)}
+			preview = []span{{text: "    ", bg: accentColor(m.appear.draft)}}
 		}
 	case !slices.Contains(choices, value):
 		box.pos = "custom"
 	}
-	if on && preview.bg == nil {
-		preview.fg, preview.bg = cInvFg, bg
-	}
 
 	spans := frameSelectBox(formBoxW, box, bg)
-	spans = append(spans, span{text: "  ", bg: bg}, preview)
+	spans = append(spans, span{text: "  ", bg: bg})
+	for _, p := range preview {
+		if on && p.bg == nil {
+			p.fg, p.bg = cInvFg, bg
+		}
+		spans = append(spans, p)
+	}
 
 	return m.settingsLabelLine(row.label, bindLabelW, spans, on)
 }
 
-func (m settingsModel) appearancePreview(row appearanceRow, a config.AppearanceSettings) span {
-	switch {
-	case row.preview != nil:
+func (m settingsModel) appearancePreview(row appearanceRow, a config.AppearanceSettings) []span {
+	if row.preview != nil {
 		return row.preview(a)
-	case !row.locked(a) && row.overridden(a):
-		return span{text: "preset " + row.presetRune(a), fg: cMuted}
 	}
-	return span{}
+
+	var spans []span
+	if row.group == &textGroup {
+		spans = append(spans, span{text: "sample ", fg: cFg, style: parseTextStyle(row.value(a))})
+	}
+	if !row.locked(a) && row.overridden(a) {
+		spans = append(spans, span{text: "preset " + row.presetValue(a), fg: cMuted})
+	}
+	return spans
 }

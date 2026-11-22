@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -61,7 +63,7 @@ func keyhintPrompt(w int, f keyhintFooter) string {
 			used += s.width()
 		}
 		spans = append(spans,
-			span{text: strings.Repeat(" ", max(w-used-len([]rune(f.pos))-1, 0)), fg: cDim},
+			span{text: strings.Repeat(" ", max(w-used-ansi.StringWidth(f.pos)-1, 0)), fg: cDim},
 			span{text: f.pos + " ", fg: cMuted},
 		)
 	}
@@ -73,9 +75,9 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 	if f.typing {
 		spans = append(spans,
 			span{text: " ", fg: cDim},
-			span{text: keyMap.Confirm.hint, fg: cFg, bold: true},
+			span{text: keyMap.Confirm.hint, fg: cFg, style: tKey},
 			span{text: " keep · ", fg: cDim},
-			span{text: keyMap.Cancel.hint, fg: cFg, bold: true},
+			span{text: keyMap.Cancel.hint, fg: cFg, style: tKey},
 			span{text: " clear", fg: cDim},
 		)
 	} else {
@@ -85,7 +87,7 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 		}
 		spans = append(spans,
 			span{text: " ", fg: cDim},
-			span{text: keyMap.Help.hint, fg: cAccent, bold: true},
+			span{text: keyMap.Help.hint, fg: cAccent, style: tKey},
 			span{text: label, fg: cDim},
 		)
 	}
@@ -96,7 +98,7 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 
 	spans = append(spans,
 		span{text: " · ", fg: cFaint},
-		span{text: keyMap.Search.hint, fg: cAccent, bold: true},
+		span{text: keyMap.Search.hint, fg: cAccent, style: tKey},
 		span{text: " search", fg: cDim},
 	)
 
@@ -106,7 +108,7 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 
 	return append(spans,
 		span{text: " · ", fg: cFaint},
-		span{text: keyMap.Cancel.hint, fg: cAccent, bold: true},
+		span{text: keyMap.Cancel.hint, fg: cAccent, style: tKey},
 		span{text: " clear filter", fg: cDim},
 	)
 }
@@ -138,7 +140,7 @@ func keyhintTable(w int, groups []keyhintGroup) []string {
 	keyW := 0
 	for _, g := range groups {
 		for _, b := range g.binds {
-			keyW = max(keyW, len([]rune(b.key)))
+			keyW = max(keyW, ansi.StringWidth(b.key))
 		}
 	}
 
@@ -149,7 +151,7 @@ func keyhintTable(w int, groups []keyhintGroup) []string {
 		}
 		lines = append(lines, frameLine(w, []span{
 			{text: "  ", fg: cDim},
-			{text: strings.ToUpper(g.title), fg: cSoft, bold: true},
+			{text: strings.ToUpper(g.title), fg: cSoft, style: tHeading},
 		}, nil))
 		lines = append(lines, keyhintRowLines(w, g.binds, keyW)...)
 	}
@@ -175,7 +177,7 @@ func keyhintRowLines(w int, binds []keybind, keyW int) []string {
 				continue
 			}
 			spans = append(spans,
-				span{text: truncPad(binds[i].key, keyW, true), fg: cFg, bold: true},
+				span{text: truncPad(binds[i].key, keyW, true), fg: cFg, style: tKey},
 				span{text: strings.Repeat(" ", keyhintGap) + truncPad(binds[i].label, labelW, false), fg: cDim},
 			)
 		}

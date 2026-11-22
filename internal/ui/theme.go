@@ -3,8 +3,10 @@ package ui
 import (
 	"image/color"
 	"maps"
+	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -45,7 +47,9 @@ var (
 
 var (
 	gCornerTL, gCornerTR, gCornerBL, gCornerBR string
-	gTeeL, gTeeR, gLineH, gLineV               string
+	gTeeL, gTeeR                               string
+	gLineTop, gLineBottom, gLineH              string
+	gLineLeft, gLineRight                      string
 
 	gStatusIdle, gStatusOK, gStatusPending, gStatusWarn, gStatusErr string
 
@@ -63,7 +67,19 @@ const (
 
 var borderVars = map[string]*string{
 	"top_left": &gCornerTL, "top_right": &gCornerTR, "bottom_left": &gCornerBL, "bottom_right": &gCornerBR,
-	"tee_left": &gTeeL, "tee_right": &gTeeR, "horizontal": &gLineH, "vertical": &gLineV,
+	"tee_left": &gTeeL, "tee_right": &gTeeR,
+	"top": &gLineTop, "bottom": &gLineBottom, "rule": &gLineH, "left": &gLineLeft, "right": &gLineRight,
+}
+
+var glyphCell int
+
+var (
+	tTitle, tTab, tHeading, tSelection, tKey, tValue, tNote textStyle
+)
+
+var textVars = map[string]*textStyle{
+	"title": &tTitle, "tab": &tTab, "heading": &tHeading, "selection": &tSelection,
+	"key": &tKey, "value": &tValue, "note": &tNote,
 }
 
 var glyphVars = map[string]*string{
@@ -81,14 +97,23 @@ const (
 	asciiBorder   = "ascii"
 	defaultGlyphs = "unicode"
 	defaultAccent = "green"
+	defaultText   = "default"
 )
 
-func box(tl, tr, bl, br, teeL, teeR, h, v string) map[string]string {
-	runes := make(map[string]string, len(config.BorderElements))
-	for i, value := range []string{tl, tr, bl, br, teeL, teeR, h, v} {
-		runes[config.BorderElements[i]] = value
+func zip(elements []string, values ...string) map[string]string {
+	runes := make(map[string]string, len(elements))
+	for i, value := range values {
+		runes[elements[i]] = value
 	}
 	return runes
+}
+
+func box(tl, tr, bl, br, teeL, teeR, h, v string) map[string]string {
+	return frame(tl, tr, bl, br, teeL, teeR, h, h, h, v, v)
+}
+
+func frame(tl, tr, bl, br, teeL, teeR, top, bottom, rule, left, right string) map[string]string {
+	return zip(config.BorderElements, tl, tr, bl, br, teeL, teeR, top, bottom, rule, left, right)
 }
 
 var borderPresets = map[string]map[string]string{
@@ -99,16 +124,15 @@ var borderPresets = map[string]map[string]string{
 	"dashed":    box("┌", "┐", "└", "┘", "├", "┤", "╌", "╎"),
 	"dotted":    box("┌", "┐", "└", "┘", "├", "┤", "┄", "┆"),
 	"mixed":     box("╒", "╕", "╘", "╛", "╞", "╡", "═", "│"),
+	"block":     frame("▛", "▜", "▙", "▟", "▌", "▐", "▀", "▄", "▀", "▌", "▐"),
+	"solid":     box("█", "█", "█", "█", "█", "█", "█", "█"),
+	"shade":     box("░", "░", "░", "░", "░", "░", "░", "░"),
 	asciiBorder: box("+", "+", "+", "+", "+", "+", "-", "|"),
 	"hidden":    box(" ", " ", " ", " ", " ", " ", " ", " "),
 }
 
 func glyphs(values ...string) map[string]string {
-	runes := make(map[string]string, len(config.GlyphElements))
-	for i, value := range values {
-		runes[config.GlyphElements[i]] = value
-	}
-	return runes
+	return zip(config.GlyphElements, values...)
 }
 
 var glyphPresets = map[string]map[string]string{
@@ -136,6 +160,12 @@ var glyphPresets = map[string]map[string]string{
 		"▏", "∙", "–", "…", "›", "˄", "˅",
 		"‹", "›",
 	),
+	"emoji": glyphs(
+		"🔹", "✅", "⏳", "❗", "❌",
+		"🆕", "👉", "🟢", "⚪", "🔴", "❌",
+		"█", "•", "➖", "…", "👉", "🔼", "🔽",
+		"⏪", "⏩",
+	),
 	"nerd": glyphs(
 		"\uf105", "\uf00c", "\uf110", "\uf071", "\uf00d",
 		"\uf10c", "\uf054", "\uf111", "\uf10c", "\uf057", "\uf00d",
@@ -148,6 +178,17 @@ var glyphPresets = map[string]map[string]string{
 		"_", "*", "-", "~", ">", "^", "v",
 		"<", ">",
 	),
+}
+
+func styles(values ...string) map[string]string {
+	return zip(config.TextElements, values...)
+}
+
+var textPresets = map[string]map[string]string{
+	defaultText:      styles("bold", "bold", "bold", "bold", "bold", "bold", config.PlainText),
+	config.PlainText: styles(config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText),
+	"emphasis":       styles("bold+underline", "bold", "bold+underline", "bold", "bold", "bold", "italic"),
+	"soft":           styles("bold", config.PlainText, "bold", config.PlainText, config.PlainText, config.PlainText, "italic+faint"),
 }
 
 var accentColors = map[string]color.Color{
@@ -187,6 +228,10 @@ func glyphRunes(a config.AppearanceSettings) map[string]string {
 	return resolveRunes(glyphPresets, a.Glyphs, defaultGlyphs, a.GlyphRunes)
 }
 
+func textStyles(a config.AppearanceSettings) map[string]string {
+	return resolveRunes(textPresets, a.Text, defaultText, a.TextStyle)
+}
+
 func resolveRunes(presets map[string]map[string]string, preset, fallback string, overrides map[string]string) map[string]string {
 	base, ok := presets[preset]
 	if !ok {
@@ -198,7 +243,9 @@ func resolveRunes(presets map[string]map[string]string, preset, fallback string,
 }
 
 func init() {
-	applyAppearance(config.AppearanceSettings{Border: defaultBorder, Accent: defaultAccent, Glyphs: defaultGlyphs})
+	applyAppearance(config.AppearanceSettings{
+		Border: defaultBorder, Accent: defaultAccent, Glyphs: defaultGlyphs, Text: defaultText,
+	})
 }
 
 func applyAppearance(a config.AppearanceSettings) {
@@ -206,9 +253,50 @@ func applyAppearance(a config.AppearanceSettings) {
 	for element, value := range borderRunes(a) {
 		*borderVars[element] = value
 	}
+	glyphCell = 1
 	for element, value := range glyphRunes(a) {
 		*glyphVars[element] = value
+		glyphCell = max(glyphCell, ansi.StringWidth(value))
 	}
+	for element, value := range textStyles(a) {
+		*textVars[element] = parseTextStyle(value)
+	}
+}
+
+func cell(glyph string) string {
+	return glyph + strings.Repeat(" ", max(glyphCell-ansi.StringWidth(glyph), 0))
+}
+
+func blankCell() string {
+	return strings.Repeat(" ", glyphCell)
+}
+
+type textStyle struct {
+	bold, italic, underline, faint bool
+}
+
+func parseTextStyle(value string) textStyle {
+	var t textStyle
+	for attr := range strings.SplitSeq(value, "+") {
+		switch attr {
+		case "bold":
+			t.bold = true
+		case "italic":
+			t.italic = true
+		case "underline":
+			t.underline = true
+		case "faint":
+			t.faint = true
+		}
+	}
+	return t
+}
+
+func styleIf(on bool, t textStyle) textStyle {
+	if on {
+		return t
+	}
+	return textStyle{}
 }
 
 func applyConm(c config.Conm) {

@@ -14,7 +14,6 @@ import (
 const tableInner = 108
 
 const (
-	wMark = 2
 	wName = 17
 	wUser = 14
 	wHost = 39
@@ -106,7 +105,7 @@ func (m Model) tabsLine() string {
 	for _, kind := range m.conns.Kinds() {
 		label := fmt.Sprintf(" %s %d ", kind, m.conns.CountOf(kind))
 		if kind == m.conns.Active() {
-			spans = append(spans, span{text: label, fg: cInvFg, bg: typeColor(kind), bold: true})
+			spans = append(spans, span{text: label, fg: cInvFg, bg: typeColor(kind), style: tTab})
 		} else {
 			spans = append(spans, span{text: label, fg: typeColor(kind)})
 		}
@@ -129,7 +128,7 @@ func (m Model) hostWidth() int {
 
 func (m Model) headerLine() string {
 	spans := []span{
-		{text: truncPad("", wMark, false), fg: cDim},
+		{text: blankCell() + blankCell(), fg: cDim},
 		{text: " " + truncPad("NAME", wName, false), fg: cDim},
 		{text: " " + truncPad("USERNAME", wUser, false), fg: cDim},
 		{text: " " + truncPad("HOST", m.hostWidth(), false), fg: cDim},
@@ -165,9 +164,9 @@ func (m Model) rowLine(i int) string {
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
 
-	caret := " "
+	caret := blankCell()
 	if sel {
-		caret = gCaret
+		caret = cell(gCaret)
 	}
 	mark := gDotOff
 	switch {
@@ -178,7 +177,7 @@ func (m Model) rowLine(i int) string {
 	}
 
 	spans := []span{
-		{text: caret + mark, fg: markC, bg: bg},
+		{text: caret + cell(mark), fg: markC, bg: bg},
 		{text: " " + truncPad(cfg.Meta().Name, wName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(cfg.Username(), wUser, false), fg: soft, bg: bg},
 		{text: " " + truncPad(cfg.Host(), m.hostWidth(), false), fg: fg, bg: bg},

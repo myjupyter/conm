@@ -4,6 +4,8 @@ import (
 	"image/color"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -79,9 +81,9 @@ func (m specFormModel[T]) fieldRow(i int) string {
 		bg = cAccent
 	}
 
-	caret := caretBlank
+	caret := caretBlank()
 	if active {
-		caret = " " + gCaret + " "
+		caret = " " + cell(gCaret) + " "
 	}
 	gutter, gc := m.gutter(i, active)
 
@@ -97,9 +99,9 @@ func (m specFormModel[T]) fieldRow(i int) string {
 	box := m.inputBox(i, active, bg)
 	spans := make([]span, 0, 3+len(box))
 	spans = append(spans,
-		span{text: caret, fg: caretColor(active), bg: bg, bold: true},
-		span{text: gutter + " ", fg: gc, bg: bg},
-		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
+		span{text: caret, fg: caretColor(active), bg: bg, style: tSelection},
+		span{text: cell(gutter) + " ", fg: gc, bg: bg},
+		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, style: styleIf(active, tSelection)},
 	)
 	spans = append(spans, box...)
 	return frameLine(m.size.formInner(), spans, bg)
@@ -126,9 +128,9 @@ func (m specFormModel[T]) inputBox(i int, active bool, bg color.Color) []span {
 		valFg = cInvFg
 	}
 	return []span{
-		{text: gLineV, fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: borderFg, bg: bg},
 		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
-		{text: gLineV, fg: borderFg, bg: bg},
+		{text: gLineRight, fg: borderFg, bg: bg},
 	}
 }
 
@@ -184,7 +186,7 @@ func (m specFormModel[T]) messageRow(i int) string {
 	prefix := strings.Repeat(" ", 5+formLabelW+1)
 	return frameLine(m.size.formInner(), []span{
 		{text: prefix, fg: cDim},
-		{text: truncPad(text, m.size.formInner()-len([]rune(prefix))-2, false), fg: cRed},
+		{text: truncPad(text, m.size.formInner()-ansi.StringWidth(prefix)-2, false), fg: cRed},
 	}, nil)
 }
 

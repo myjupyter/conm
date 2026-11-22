@@ -77,7 +77,7 @@ func (m workspaceModel) workspaceFooterLines(n int) []string {
 
 func (m workspaceModel) workspaceHeaderLine() string {
 	return frameLine(m.inner(), []span{
-		{text: truncPad("", wMark, false), fg: cDim},
+		{text: blankCell() + blankCell(), fg: cDim},
 		{text: " " + truncPad("NAME", m.nameWidth(), false), fg: cDim},
 		{text: " " + truncPad("STATUS", wWsStatus, false), fg: cDim},
 	}, nil)
@@ -101,16 +101,16 @@ func (m workspaceModel) workspaceRowLine(i int) string {
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
 
-	caret, mark, note := " ", gDotOff, ""
+	caret, mark, note := blankCell(), gDotOff, ""
 	if sel {
-		caret = gCaret
+		caret = cell(gCaret)
 	}
 	if current {
 		mark, note = gDotOn, "current"
 	}
 
 	return frameLine(m.inner(), []span{
-		{text: caret + mark, fg: markC, bg: bg},
+		{text: caret + cell(mark), fg: markC, bg: bg},
 		{text: " " + truncPad(name, m.nameWidth(), false), fg: fg, bg: bg},
 		{text: " " + truncPad(note, wWsStatus, false), fg: soft, bg: bg},
 	}, bg)

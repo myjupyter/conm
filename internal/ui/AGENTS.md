@@ -119,10 +119,20 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
   decides *how* a line is built, `theme.go` *what it looks like*: a view never uses a
   literal rune or `lipgloss.Color`, so a restyle never touches drawing code.
   - The glyphs and `cAccent` are variables set by `applyAppearance` from
-    `config.AppearanceSettings`. `borderPresets` and `glyphPresets` map a preset name to its
-    runes keyed by `config.BorderElements` / `config.GlyphElements` (built positionally by
-    `box` and `glyphs`); `borderVars` and `glyphVars` map each element to the `g*` variable
-    it sets. `accentColors` holds the presets and `accentColor` also takes a `#rrggbb` value.
+    `config.AppearanceSettings`. `borderPresets`, `glyphPresets` and `textPresets` map a
+    preset name to its values keyed by `config.BorderElements` / `GlyphElements` /
+    `TextElements` (built positionally by `frame`/`box`, `glyphs` and `styles`);
+    `borderVars`, `glyphVars` and `textVars` map each element to the variable it sets.
+    `accentColors` holds the presets and `accentColor` also takes a `#rrggbb` value.
+  - **The frame has five lines, not two**: `gLineTop` (`frameTop`), `gLineBottom`
+    (`frameBottom`), `gLineH` (`frameRule`, between sections), `gLineLeft` and `gLineRight`
+    (both sides of `frameLine`, and of every input and select box). A preset with one line
+    per axis is built by `box`; `frame` takes all eleven pieces, as `block` needs.
+  - **Text styles are roles, not bold flags.** `span.style` takes one of `tTitle`, `tTab`,
+    `tHeading`, `tSelection` (with `styleIf` for "only when on"), `tKey`, `tValue`, `tNote`;
+    `span.render` adds bold, italic, underline and faint from it. `span.bold` is left for what
+    stays bold whatever the style — the error tags, PONG, the picker's state — the same rule as
+    the fixed state colours.
   - **`cAccent` is for highlight only** — the selected row, the active tab, the caret, the
     key in a hint. A colour that means a state stays fixed whatever the accent: `cOK` for
     success (the ✓ of a status line and of `doctor`/`import`, PONG, a fast ping, an installed
@@ -130,9 +140,17 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
   - `borderRunes` and `glyphRunes` are the one place a preset and the user's per-element
     overrides are merged. `borderRunes` ignores both border preset and overrides while the
     glyphs are `ascii` (`borderLocked`).
-  - Every rune is one cell wide, as the width arithmetic in `frame.go` assumes —
-    `theme_test.go` checks every preset has every element at that width, and that every
-    `config` name has an entry.
+  - **A glyph may be two columns wide** (emoji); a border rune is always one.
+    `applyAppearance` sets `glyphCell` to the widest glyph, and every slot a glyph shares
+    with another glyph or a blank — the caret, a row's mark, a form's gutter dot — is drawn
+    with `cell(g)` / `blankCell()`, padded to that width, so columns stay put whichever glyph
+    is in the slot. Everything else measures with `ansi.StringWidth`, never a rune count:
+    `frameSelectBox` and the form's select box take their ends from `selectEnds`. The table
+    headers leave `blankCell()` twice where a row has caret and mark.
+  - `theme_test.go` checks every preset has every element and that each value is valid for
+    its kind; `TestSettingsRenderStaysAligned` renders the settings tabs with `emoji`,
+    `block`, `hidden` and `ascii` and checks every line has one width and every selector
+    starts in one column.
   - `applyConm` sets both `keyMap` and the appearance; every entry point that draws calls it
     (or `applyAppearance`, for `doctor` and `export`) before its first line.
 - **`ui/form_loop.go` — running a form to completion.** `formStatus` (message plus
@@ -363,9 +381,11 @@ through `formLoop`:
   - A binding marked `OnlyAppend` keeps its default keys: they can be added to, not replaced
     or removed (`isPinned`).
   - Every change is checked through `KeybindingSettings.Validate` before it is written.
-- **Appearance.** Three sections from `appearanceRows`, scrolled like the keybindings: the
-  accent; the border style and one row per border element; the glyph set and one row per
-  glyph. Every row is a select box with a preview or note beside it, and every change is
+- **Appearance.** Four sections from `appearanceRows`, scrolled like the keybindings: the
+  accent; the text style and one row per text role; the border style and one row per border
+  element; the glyph set and one row per glyph. An `elementGroup` holds what differs per
+  section: its presets, its overrides, how a value is typed and checked, and for text a fixed
+  list of style `choices` in place of the presets' values. Every row is a select box with a preview or note beside it, and every change is
   saved at once; the saved message runs `applyConm`, so the screen redraws in the new look.
   - A preset row (`options`, `field`) cycles its `config` name list. An element row
     (`group`, `element`) cycles the distinct runes the presets use for that element
@@ -373,8 +393,10 @@ through `formLoop`:
     the choice is the current preset's rune, so the file keeps only real differences. Its
     note names the preset's rune while it is overridden; `keyMap.Settings.Reset` drops it.
   - `keyMap.Settings.EditValue` opens typed input: the accent keeps `#` and hex digits up
-    to seven and needs a full `#rrggbb`; an element keeps the last character typed and needs
-    one cell (`config.IsOneCell`). `Confirm` saves, `Cancel` drops the draft; an unfit draft
+    to seven and needs a full `#rrggbb`; a border or glyph element keeps the last grapheme
+    typed (so an emoji with a skin tone stays whole) and needs `config.IsBorderRune` /
+    `config.IsGlyph`; a text element keeps lower-case letters and `+` and needs
+    `config.IsTextStyle`. `Confirm` saves, `Cancel` drops the draft; an unfit draft
     keeps the input open. A value outside the choices shows `custom` in the box.
   - While the glyphs are `ascii`, every border row is `locked` and refuses to change.
   - A change copies the settings (`AppearanceSettings.Clone`) before it touches the

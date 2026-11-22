@@ -2,9 +2,11 @@ package ui
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -124,7 +126,7 @@ func savedAppearance(t *testing.T, cmd tea.Cmd) config.AppearanceSettings {
 	return msg.conm.Appearance
 }
 
-var plainAppearance = config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode"}
+var plainAppearance = config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode", Text: "default"}
 
 func withAppearance(override func(*config.AppearanceSettings)) config.AppearanceSettings {
 	a := plainAppearance.Clone()
@@ -160,6 +162,20 @@ func TestSettingsModel_cycleAppearance(t *testing.T) {
 			row:     "glyphs set",
 			step:    1,
 			want:    plainAppearance,
+		},
+		{
+			name:    "text style steps forward",
+			current: plainAppearance,
+			row:     "text style",
+			step:    1,
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.Text = "plain" }),
+		},
+		{
+			name:    "a text element steps through the style choices",
+			current: plainAppearance,
+			row:     "text note",
+			step:    1,
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.TextStyle = map[string]string{"note": "bold"} }),
 		},
 		{
 			name:    "an element steps to another preset's rune",
@@ -203,7 +219,7 @@ func TestSettingsModel_lockedBorder(t *testing.T) {
 		row  string
 	}{
 		{name: "style", row: "border style"},
-		{name: "element", row: "border vertical"},
+		{name: "element", row: "border left"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -262,19 +278,37 @@ func TestSettingsModel_appearanceInput(t *testing.T) {
 		},
 		{
 			name:  "a border element is overridden",
-			row:   "border horizontal",
+			row:   "border top",
 			typed: []string{"="},
-			want:  withAppearance(func(a *config.AppearanceSettings) { a.BorderRunes = map[string]string{"horizontal": "="} }),
+			want:  withAppearance(func(a *config.AppearanceSettings) { a.BorderRunes = map[string]string{"top": "="} }),
 		},
 		{
-			name:     "a wide character keeps the input open",
-			row:      "glyphs caret",
+			name:     "a wide border character keeps the input open",
+			row:      "border right",
 			typed:    []string{"好"},
 			wantEdit: true,
 		},
 		{
+			name:  "an emoji glyph is accepted",
+			row:   "glyphs status ok",
+			typed: []string{"👍🏽"},
+			want:  withAppearance(func(a *config.AppearanceSettings) { a.GlyphRunes = map[string]string{"status_ok": "👍🏽"} }),
+		},
+		{
+			name:  "a text style is typed",
+			row:   "text note",
+			typed: []string{"Italic", "+", "under line"},
+			want:  withAppearance(func(a *config.AppearanceSettings) { a.TextStyle = map[string]string{"note": "italic+underline"} }),
+		},
+		{
+			name:     "an unknown text attribute keeps the input open",
+			row:      "text title",
+			typed:    []string{"blink"},
+			wantEdit: true,
+		},
+		{
 			name:     "nothing typed keeps the input open",
-			row:      "border vertical",
+			row:      "border left",
 			wantEdit: true,
 		},
 	}
@@ -319,10 +353,10 @@ func TestSettingsModel_resetElement(t *testing.T) {
 		{
 			name: "an override is dropped",
 			current: withAppearance(func(a *config.AppearanceSettings) {
-				a.BorderRunes = map[string]string{"top_left": "╭", "vertical": "┃"}
+				a.BorderRunes = map[string]string{"top_left": "╭", "left": "┃"}
 			}),
 			row:     "border top left",
-			want:    withAppearance(func(a *config.AppearanceSettings) { a.BorderRunes = map[string]string{"vertical": "┃"} }),
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.BorderRunes = map[string]string{"left": "┃"} }),
 			wantCmd: true,
 		},
 		{
@@ -363,7 +397,7 @@ func TestSettingsModel_sectionNote(t *testing.T) {
 		{
 			name: "two border elements customised",
 			current: withAppearance(func(a *config.AppearanceSettings) {
-				a.BorderRunes = map[string]string{"top_left": "╭", "vertical": "┃"}
+				a.BorderRunes = map[string]string{"top_left": "╭", "left": "┃"}
 			}),
 			row:  "border style",
 			want: "2 elements customised",
@@ -380,5 +414,45 @@ func TestSettingsModel_sectionNote(t *testing.T) {
 			m := newAppearanceFixture(t, tt.current, tt.row)
 			assert.Equal(t, tt.want, m.sectionNote(m.appearanceRow()))
 		})
+	}
+}
+
+func TestSettingsRenderStaysAligned(t *testing.T) {
+	looks := []config.AppearanceSettings{
+		withAppearance(func(a *config.AppearanceSettings) { a.Glyphs = "emoji" }),
+		withAppearance(func(a *config.AppearanceSettings) { a.Glyphs, a.Border = "emoji", "block" }),
+		withAppearance(func(a *config.AppearanceSettings) { a.Border, a.Text = "hidden", "emphasis" }),
+		withAppearance(func(a *config.AppearanceSettings) { a.Glyphs = config.ASCIIGlyphs }),
+	}
+	t.Cleanup(func() { applyAppearance(plainAppearance) })
+
+	for _, look := range looks {
+		for tab := range settingsTabTitles {
+			t.Run(look.Glyphs+"/"+look.Border+"/"+settingsTabTitles[tab], func(t *testing.T) {
+				applyAppearance(look)
+				m := newSettingsFixture(cli.Psql)
+				m.conm.Appearance = look
+				m.tab = tab
+				m.appear.window.Resize(appearanceWindow)
+				model, _ := m.Update(tea.WindowSizeMsg{Width: 110, Height: 40})
+				rendered, ok := model.(settingsModel)
+				require.True(t, ok)
+
+				lines := strings.Split(ansi.Strip(rendered.render()), "\n")
+				require.NotEmpty(t, lines)
+				selector := -1
+				for _, line := range lines {
+					assert.Equal(t, ansi.StringWidth(lines[0]), ansi.StringWidth(line), line)
+					before, _, found := strings.Cut(line, gSelectPrev+" ")
+					if !found || !strings.Contains(line, gSelectNext) {
+						continue
+					}
+					if selector < 0 {
+						selector = ansi.StringWidth(before)
+					}
+					assert.Equal(t, selector, ansi.StringWidth(before), line)
+				}
+			})
+		}
 	}
 }

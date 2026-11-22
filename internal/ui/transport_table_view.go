@@ -92,13 +92,13 @@ func (m transportModel) kindTabsLine(n int) string {
 	label := fmt.Sprintf(" %s %d ", m.transports.Active(), n)
 	return frameLine(m.inner(), []span{
 		{text: " ", fg: cDim},
-		{text: label, fg: cInvFg, bg: cAccent, bold: true},
+		{text: label, fg: cInvFg, bg: cAccent, style: tTab},
 	}, nil)
 }
 
 func (m transportModel) transportHeaderLine() string {
 	return frameLine(m.inner(), []span{
-		{text: truncPad("", wMark, false), fg: cDim},
+		{text: blankCell() + blankCell(), fg: cDim},
 		{text: " " + truncPad("NAME", wTrName, false), fg: cDim},
 		{text: " " + truncPad("KIND", wTrKind, false), fg: cDim},
 		{text: " " + truncPad("VIA", m.viaWidth(), false), fg: cDim},
@@ -127,9 +127,9 @@ func (m transportModel) transportRowLine(i int) string {
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
 
-	caret := " "
+	caret := blankCell()
 	if sel {
-		caret = gCaret
+		caret = cell(gCaret)
 	}
 	mark := gDotOff
 	switch {
@@ -155,7 +155,7 @@ func (m transportModel) transportRowLine(i int) string {
 	}
 
 	return frameLine(m.inner(), []span{
-		{text: caret + mark, fg: markC, bg: bg},
+		{text: caret + cell(mark), fg: markC, bg: bg},
 		{text: " " + truncPad(t.Name, wTrName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(t.Kind, wTrKind, false), fg: soft, bg: bg},
 		{text: " " + truncPad(m.viaText(t), m.viaWidth(), false), fg: soft, bg: bg},

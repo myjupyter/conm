@@ -28,10 +28,11 @@ const (
 )
 
 type span struct {
-	text string
-	fg   color.Color
-	bg   color.Color
-	bold bool
+	text  string
+	fg    color.Color
+	bg    color.Color
+	bold  bool
+	style textStyle
 
 	raw string
 }
@@ -44,8 +45,17 @@ func (s span) render() string {
 	if s.bg != nil {
 		st = st.Background(s.bg)
 	}
-	if s.bold {
+	if s.bold || s.style.bold {
 		st = st.Bold(true)
+	}
+	if s.style.italic {
+		st = st.Italic(true)
+	}
+	if s.style.underline {
+		st = st.Underline(true)
+	}
+	if s.style.faint {
+		st = st.Faint(true)
 	}
 	return st.Render(s.text)
 }
@@ -111,8 +121,8 @@ func fitNote(note string, w int) string {
 
 func frameTop(w int, crumb, right string) string {
 	left := []span{
-		{text: gLineH + " ", fg: cBorder},
-		{text: "conm", fg: cFg, bold: true},
+		{text: gLineTop + " ", fg: cBorder},
+		{text: "conm", fg: cFg, style: tTitle},
 		{text: ":" + config.Workspace(), fg: cAccent},
 		{text: " · " + crumb + " ", fg: cDim},
 	}
@@ -125,7 +135,7 @@ func frameTop(w int, crumb, right string) string {
 	for _, s := range left {
 		b.WriteString(s.render())
 	}
-	b.WriteString(border(strings.Repeat(gLineH, max(w-spansWidth(left)-ansi.StringWidth(right), 0))))
+	b.WriteString(border(strings.Repeat(gLineTop, max(w-spansWidth(left)-ansi.StringWidth(right), 0))))
 	b.WriteString((span{text: right, fg: cDim}).render())
 	b.WriteString(border(gCornerTR))
 	return b.String()
@@ -138,21 +148,21 @@ func frameLine(w int, spans []span, bg color.Color) string {
 	}
 
 	var b strings.Builder
-	b.WriteString(border(gLineV))
+	b.WriteString(border(gLineLeft))
 	for _, s := range spans {
 		b.WriteString(s.render())
 	}
-	b.WriteString(border(gLineV))
+	b.WriteString(border(gLineRight))
 	return b.String()
 }
 
 func frameHead(w int, title, note string) []string {
 	spans := []span{
 		{text: "  ", bg: cHeadBg},
-		{text: strings.ToUpper(title), fg: cFg, bg: cHeadBg, bold: true},
+		{text: strings.ToUpper(title), fg: cFg, bg: cHeadBg, style: tHeading},
 	}
 	if note != "" {
-		spans = append(spans, span{text: "  " + note, fg: cFaint, bg: cHeadBg})
+		spans = append(spans, span{text: "  " + note, fg: cFaint, bg: cHeadBg, style: tNote})
 	}
 
 	return []string{
@@ -169,7 +179,7 @@ func frameTabs(w int, titles []string, active int, note string) string {
 	for i, title := range titles {
 		s := span{text: " " + title + " ", fg: cDim}
 		if i == active {
-			s = span{text: s.text, fg: cInvFg, bg: cAccent, bold: true}
+			s = span{text: s.text, fg: cInvFg, bg: cAccent, style: tTab}
 		}
 		spans = append(spans, s, span{text: " ", fg: cDim})
 		used += s.width() + 1
@@ -177,8 +187,8 @@ func frameTabs(w int, titles []string, active int, note string) string {
 
 	if note != "" {
 		spans = append(spans,
-			span{text: strings.Repeat(" ", max(w-used-len([]rune(note))-1, 0)), fg: cDim},
-			span{text: note + " ", fg: cFaint},
+			span{text: strings.Repeat(" ", max(w-used-ansi.StringWidth(note)-1, 0)), fg: cDim},
+			span{text: note + " ", fg: cFaint, style: tNote},
 		)
 	}
 
@@ -189,18 +199,20 @@ func frameRule(w int, left, right string) string {
 	return border(left) + border(strings.Repeat(gLineH, w)) + border(right)
 }
 
-func frameBottom(w int) string { return frameRule(w, gCornerBL, gCornerBR) }
+func frameBottom(w int) string {
+	return border(gCornerBL) + border(strings.Repeat(gLineBottom, w)) + border(gCornerBR)
+}
 
 func frameBadge(w int, label string, labelBg color.Color, title string) string {
 	return frameLine(w, []span{
 		{text: "  ", fg: cDim},
-		{text: " " + label + " ", fg: cInvFg, bg: labelBg, bold: true},
+		{text: " " + label + " ", fg: cInvFg, bg: labelBg, style: tTitle},
 		{text: "  " + title, fg: cFg},
 	}, nil)
 }
 
 func frameStatus(w int, icon string, fg color.Color, text, pos string) string {
-	textW := max(w-4-len([]rune(pos)), 0)
+	textW := max(w-4-ansi.StringWidth(pos), 0)
 	return frameLine(w, []span{
 		{text: " ", fg: cDim},
 		{text: icon, fg: fg},
@@ -245,16 +257,16 @@ func frameKeybar(w int, binds []keybind) []string {
 			sep = ""
 		}
 		seg := b.key + " " + b.label + sep
-		if used+len([]rune(seg)) > w && len(spans) > 1 {
+		if used+ansi.StringWidth(seg) > w && len(spans) > 1 {
 			lines = append(lines, frameLine(w, spans, nil))
 			spans = newLine()
 			used = 1
 		}
 		spans = append(spans,
-			span{text: b.key, fg: cFg, bold: true},
+			span{text: b.key, fg: cFg, style: tKey},
 			span{text: " " + b.label + sep, fg: cDim},
 		)
-		used += len([]rune(seg))
+		used += ansi.StringWidth(seg)
 	}
 	return append(lines, frameLine(w, spans, nil))
 }
@@ -265,7 +277,7 @@ func frameSearch(w int, query string, typing bool) string {
 		cursor = gInputCursor
 	}
 
-	room := max(w-3-len([]rune(keyMap.Search.hint)), 0)
+	room := max(w-3-ansi.StringWidth(keyMap.Search.hint), 0)
 	shown := []rune(query)
 	if len(shown) > room {
 		shown = shown[len(shown)-room:]
@@ -273,7 +285,7 @@ func frameSearch(w int, query string, typing bool) string {
 
 	return frameLine(w, []span{
 		{text: "  ", fg: cDim},
-		{text: keyMap.Search.hint, fg: cAccent, bold: true},
+		{text: keyMap.Search.hint, fg: cAccent, style: tKey},
 		{text: string(shown), fg: cFg},
 		{text: cursor, fg: cAccent},
 		{text: strings.Repeat(" ", room-len(shown)), fg: cDim},
@@ -330,9 +342,9 @@ func frameErrPanel(w int, e *connError) []string {
 	}
 	return append(lines, frameLine(w, []span{
 		{text: "  ", fg: cDim},
-		{text: keyMap.Connection.Retry.hint, fg: cFg, bold: true},
+		{text: keyMap.Connection.Retry.hint, fg: cFg, style: tKey},
 		{text: " retry · ", fg: cErrMuted},
-		{text: keyMap.Cancel.hint, fg: cFg, bold: true},
+		{text: keyMap.Cancel.hint, fg: cFg, style: tKey},
 		{text: " dismiss", fg: cErrMuted},
 	}, nil))
 }
@@ -421,18 +433,23 @@ func frameSelectBox(w int, s selectBox, bg color.Color) []span {
 	if pos == "" {
 		pos = fmt.Sprintf("%d/%d", s.at, s.n)
 	}
-	mid := max(w-8-len([]rune(pos)), 0)
-	value := truncPad(s.value, min(len([]rune(s.value)), mid), false)
-	left := (mid - len([]rune(value))) / 2
+	prefix, suffix := selectEnds()
+	mid := max(w-ansi.StringWidth(prefix)-ansi.StringWidth(suffix)-1-ansi.StringWidth(pos), 0)
+	value := truncPad(s.value, min(ansi.StringWidth(s.value), mid), false)
+	left := (mid - ansi.StringWidth(value)) / 2
 
 	return []span{
-		{text: gLineV + " " + gSelectPrev + " ", fg: borderFg, bg: bg},
+		{text: prefix, fg: borderFg, bg: bg},
 		{text: strings.Repeat(" ", left), bg: bg},
-		{text: value, fg: valFg, bg: bg, bold: true},
-		{text: strings.Repeat(" ", mid-left-len([]rune(value))), bg: bg},
+		{text: value, fg: valFg, bg: bg, style: tValue},
+		{text: strings.Repeat(" ", mid-left-ansi.StringWidth(value)), bg: bg},
 		{text: pos + " ", fg: posFg, bg: bg},
-		{text: gSelectNext + " " + gLineV, fg: borderFg, bg: bg},
+		{text: suffix, fg: borderFg, bg: bg},
 	}
+}
+
+func selectEnds() (string, string) {
+	return gLineLeft + " " + gSelectPrev + " ", gSelectNext + " " + gLineRight
 }
 
 const chipMaxW = formBoxW - 8
@@ -443,12 +460,12 @@ type chip struct {
 }
 
 func fitChip(text string, typing bool) string {
-	r := []rune(text)
+	width := ansi.StringWidth(text)
 	switch {
-	case len(r) <= chipMaxW:
+	case width <= chipMaxW:
 		return text
 	case typing:
-		return gEllipsis + string(r[len(r)-chipMaxW+1:])
+		return gEllipsis + ansi.TruncateLeft(text, width-chipMaxW+ansi.StringWidth(gEllipsis), "")
 	default:
 		return truncPad(text, chipMaxW, false)
 	}
@@ -466,7 +483,7 @@ func chipsWindow(chips []chip, w int) (from, to int) {
 	width := func(from, to int) int {
 		n := 0
 		for _, c := range chips[from:to] {
-			n += len([]rune(c.label())) + 1
+			n += ansi.StringWidth(c.label()) + 1
 		}
 		return n
 	}
@@ -509,7 +526,7 @@ func frameChips(w int, chips []chip, active bool, bg color.Color) []span {
 		if j > from {
 			add(span{text: " ", bg: bg})
 		}
-		add(span{text: chips[j].label(), fg: fg, bg: bg, bold: true})
+		add(span{text: chips[j].label(), fg: fg, bg: bg, style: tValue})
 	}
 	if to < len(chips) {
 		add(span{text: " " + gEllipsis, fg: fg, bg: bg})

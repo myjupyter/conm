@@ -53,44 +53,65 @@ connect = ['enter', 'o']
 ### Appearance
 
 The appearance page changes the look of every screen at once, as soon as you pick a value.
-It has three sections:
+It has four sections:
 - **accent**: the colour of the highlighted row and the active tab — `green`, `lime`, `teal`,
   `blue`, `purple`, `pink`, `red`, `orange` or `amber`, or your own colour: edit the row and
   type it as `#rrggbb`. Status colours stay as they are: a success is always green, a warning
   amber, a failure red;
+- **text**: how text is drawn in your terminal's font — `default` (titles, tabs, headings,
+  the selection, keys and values in bold), `plain` (nothing bold), `emphasis` (underlined
+  titles and headings, italic notes) or `soft` (bold titles and headings only, faint italic
+  notes). conm cannot change the font itself, its size or its family: that is your terminal's
+  setting;
 - **border**: the frame around each screen — `single` `┌──┐`, `rounded` `╭──╮`, `double`
-  `╔══╗`, `heavy` `┏━━┓`, `dashed` `┌╌╌┐`, `dotted` `┌┄┄┐`, `mixed` `╒══╕`, `ascii` `+--+` or
-  `hidden`, which draws no frame at all;
+  `╔══╗`, `heavy` `┏━━┓`, `dashed` `┌╌╌┐`, `dotted` `┌┄┄┐`, `mixed` `╒══╕`, `block` `▛▀▀▜`,
+  `solid` `████`, `shade` `░░░░`, `ascii` `+--+` or `hidden`, which draws no frame at all;
 - **glyphs**: the symbols for status, cursor and markers — `unicode`, `heavy` (`➜ ✔ ✘`),
-  `geometric` (`▶ ◆ ■`), `minimal` (`▸ • ×`), `nerd` (icons from a
+  `geometric` (`▶ ◆ ■`), `minimal` (`▸ • ×`), `emoji` (`👉 ✅ ❌`), `nerd` (icons from a
   [Nerd Font](https://www.nerdfonts.com), which your terminal must use) or `ascii`, for a
   terminal or font that draws symbols like `❯ ✓ ◐` as boxes. `ascii` draws the frame with
   `+ - |` too, so the border section is locked while it is on.
 
+Emoji take two columns, and conm makes room for them. Some emoji, mostly those written
+with an invisible variation selector like `✔️` or `⚠️`, are one column in one terminal and two in
+another; conm cannot tell, and such a glyph can push the right edge of a line out of place.
+The `emoji` set only uses emoji every terminal draws two columns wide.
+
 #### Changing one element
 
-Under the border style and the glyph set, every element has its own row — each corner, the
-lines, each status icon, the cursor, the markers, the `<` `>` arrows of a selector. Step through the characters the presets use
-for it, or edit the row and type any single character. The preset stays as it is: your
-character replaces just that element, the row shows the preset's character beside it, and you
-can reset the row to the preset again. The section heading counts how many elements you
-changed, and they are kept when you pick another preset.
+Under the text style, the border style and the glyph set, every element has its own row:
+- **text**: title, tab, heading, selection, key, value, note — each `plain` or a mix of
+  `bold`, `italic`, `underline` and `faint` joined by `+`, like `bold+italic`;
+- **border**: each corner, the joins at either end of a rule, and the top, bottom, left and
+  right lines and the rule between sections — a border can be different on every side;
+- **glyphs**: each status icon, the cursor, the markers, the `<` `>` arrows of a selector.
+
+Step through the choices for an element, or edit the row and type your own: a style, or any
+single character — one column wide for a border, one or two for a glyph. The preset stays as it is:
+your value replaces just that element, the row shows the preset's value beside it, and you can
+reset the row to the preset again. The section heading counts how many elements you changed,
+and they are kept when you pick another preset.
 
 ```toml
 [conm.appearance]
 border = 'rounded'
 accent = '#ff8800'
-glyphs = 'heavy'
+glyphs = 'emoji'
+text = 'default'
 
 [conm.appearance.border_runes]
-horizontal = '═'
+top = '═'
+bottom = '═'
 
 [conm.appearance.glyph_runes]
 caret = '»'
+
+[conm.appearance.text_style]
+note = 'italic'
 ```
 
-A name conm does not know falls back to the first one in its list; a character that is not
-one column wide is ignored.
+A name conm does not know falls back to the first one in its list; a value that does not fit
+its element is ignored.
 
 ## Info screen
 
