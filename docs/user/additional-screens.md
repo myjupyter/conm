@@ -2,8 +2,8 @@
 
 ## Settings
 
-The settings screen is opened from the connections table and has two pages: which client each
-database opens, and which keys do what. A change is saved as soon as you make it. Settings are
+The settings screen is opened from the connections table and has three pages: which client each
+database opens, which keys do what, and how conm looks. A change is saved as soon as you make it. Settings are
 shared by all [workspaces](workspaces.md), and live in `conm.toml`.
 
 ### Switching clients
@@ -49,6 +49,25 @@ The keys are stored in `conm.toml` and can also be edited there:
 [conm.keybinding.connection]
 connect = ['enter', 'o']
 ```
+
+### Appearance
+
+The appearance page changes the look of every screen at once, as soon as you pick a value:
+- **border**: the frame around each screen — `single` `┌──┐`, `rounded` `╭──╮`, `double` `╔══╗`
+  or `heavy` `┏━━┓`;
+- **accent**: the colour of the highlighted row and the active tab — `green`, `amber`, `blue` or
+  `pink`;
+- **glyphs**: `unicode`, or `ascii` for a terminal or font that draws symbols like `❯ ✓ ◐` as
+  boxes. `ascii` also draws the frame with `+ - |`, whatever the border.
+
+```toml
+[conm.appearance]
+border = 'rounded'
+accent = 'blue'
+glyphs = 'unicode'
+```
+
+A value conm does not know falls back to the first one in its list.
 
 ## Info screen
 

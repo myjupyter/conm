@@ -29,6 +29,7 @@ const (
 type Conm struct {
 	Connections []ConnectionSettings `toml:"connection"`
 	Keybindings KeybindingSettings   `toml:"keybinding"`
+	Appearance  AppearanceSettings   `toml:"appearance"`
 }
 
 type ConnectionSettings struct {
@@ -187,6 +188,7 @@ func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
 func (c *Conm) complete() {
 	c.Connections = withKnownTypes(c.Connections)
 	c.Keybindings.fillDefaults()
+	c.Appearance.fillDefaults()
 }
 
 func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {

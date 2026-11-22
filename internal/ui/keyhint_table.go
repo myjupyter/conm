@@ -394,7 +394,11 @@ func (m settingsModel) keyhints() []keyhintGroup {
 		{keyMap.PrevSection.hint, "previous page"},
 	}
 	action := []keybind{{keyMap.Cycle.hint, "change the client"}}
-	if m.tab == settingsKeybindTab {
+	switch m.tab {
+	case settingsAppearanceTab:
+		nav[0].label = "move between options"
+		action = []keybind{{keyMap.Cycle.hint, "change the value"}}
+	case settingsKeybindTab:
 		nav[0].label = "move between actions"
 		action = []keybind{
 			{keyMap.Cycle.hint, "pick a key in the list"},

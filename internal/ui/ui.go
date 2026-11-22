@@ -25,7 +25,7 @@ func RunOn(cfg config.Conm, active config.ConnType) error {
 func runConnectionsLoop(cfg config.Conm, active config.ConnType) error {
 	pickFirst := true
 	for {
-		keyMap = newKeymap(cfg.Keybindings)
+		applyConm(cfg)
 
 		m, err := runConnections(cfg, active, pickFirst)
 		if err != nil || !m.reload {

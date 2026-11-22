@@ -16,7 +16,7 @@ var (
 	cSoft       = lipgloss.Color("#8b8474")
 	cFg         = lipgloss.Color("#ddd6c8")
 	cDead       = lipgloss.Color("#7d7668")
-	cAccent     = lipgloss.Color("#63d18a")
+	cAccent     color.Color
 	cRed        = lipgloss.Color("#e5654a")
 	cAmber      = lipgloss.Color("#e3b34a")
 	cInvFg      = lipgloss.Color("#0f0f0d")
@@ -41,43 +41,100 @@ var (
 	cHint     = lipgloss.Color("#a2938f")
 )
 
-const (
-	gCornerTL = "┌"
-	gCornerTR = "┐"
-	gCornerBL = "└"
-	gCornerBR = "┘"
-	gTeeL     = "├"
-	gTeeR     = "┤"
-	gLineH    = "─"
-	gLineV    = "│"
+var (
+	gCornerTL, gCornerTR, gCornerBL, gCornerBR string
+	gTeeL, gTeeR, gLineH, gLineV               string
 
-	gStatusIdle    = "›"
-	gStatusOK      = "✓"
-	gStatusPending = "◐"
-	gStatusWarn    = "!"
-	gStatusErr     = "✗"
-	gImportNew     = "○"
+	gStatusIdle, gStatusOK, gStatusPending, gStatusWarn, gStatusErr string
 
-	gCaret    = "❯"
-	gDotOn    = "●"
-	gDotOff   = "○"
-	gDotFail  = "✕"
-	gFieldBad = "✗"
-
-	gInputCursor = "█"
-	gInputMask   = "•"
-	gSelectPrev  = "<"
-	gSelectNext  = ">"
-
-	gEmpty     = "—"
-	gEmptyList = "none"
-	gEllipsis  = "…"
-
-	gHintArrow = "→"
-
-	gScrollUp   = "↑"
-	gScrollDown = "↓"
+	gImportNew                          string
+	gCaret, gDotOn, gDotOff, gDotFail   string
+	gFieldBad, gInputCursor, gInputMask string
+	gSelectPrev, gSelectNext            string
+	gEmpty, gEmptyList, gEllipsis       string
+	gHintArrow, gScrollUp, gScrollDown  string
 )
+
+type boxRunes struct {
+	cornerTL, cornerTR, cornerBL, cornerBR string
+	teeL, teeR, lineH, lineV               string
+}
+
+var borderStyles = map[string]boxRunes{
+	"single":  {"┌", "┐", "└", "┘", "├", "┤", "─", "│"},
+	"rounded": {"╭", "╮", "╰", "╯", "├", "┤", "─", "│"},
+	"double":  {"╔", "╗", "╚", "╝", "╠", "╣", "═", "║"},
+	"heavy":   {"┏", "┓", "┗", "┛", "┣", "┫", "━", "┃"},
+}
+
+var asciiBox = boxRunes{"+", "+", "+", "+", "+", "+", "-", "|"}
+
+type glyphRunes struct {
+	statusIdle, statusOK, statusPending, statusWarn, statusErr string
+	importNew, caret, dotOn, dotOff, dotFail                   string
+	fieldBad, inputCursor, inputMask                           string
+	empty, ellipsis, hintArrow, scrollUp, scrollDown           string
+}
+
+var glyphSets = map[string]glyphRunes{
+	"unicode": {
+		statusIdle: "›", statusOK: "✓", statusPending: "◐", statusWarn: "!", statusErr: "✗",
+		importNew: "○", caret: "❯", dotOn: "●", dotOff: "○", dotFail: "✕",
+		fieldBad: "✗", inputCursor: "█", inputMask: "•",
+		empty: "—", ellipsis: "…", hintArrow: "→", scrollUp: "↑", scrollDown: "↓",
+	},
+	"ascii": {
+		statusIdle: ">", statusOK: "+", statusPending: "~", statusWarn: "!", statusErr: "x",
+		importNew: "o", caret: ">", dotOn: "*", dotOff: "o", dotFail: "x",
+		fieldBad: "x", inputCursor: "_", inputMask: "*",
+		empty: "-", ellipsis: "~", hintArrow: ">", scrollUp: "^", scrollDown: "v",
+	},
+}
+
+var accentColors = map[string]color.Color{
+	"green": lipgloss.Color("#63d18a"),
+	"amber": lipgloss.Color("#eebb58"),
+	"blue":  lipgloss.Color("#55bef0"),
+	"pink":  lipgloss.Color("#ec86cc"),
+}
+
+func init() {
+	applyAppearance(config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode"})
+}
+
+func applyAppearance(a config.AppearanceSettings) {
+	box, ok := borderStyles[a.Border]
+	if !ok {
+		box = borderStyles["single"]
+	}
+	glyphs, ok := glyphSets[a.Glyphs]
+	if !ok {
+		glyphs = glyphSets["unicode"]
+	}
+	if a.Glyphs == "ascii" {
+		box = asciiBox
+	}
+	accent, ok := accentColors[a.Accent]
+	if !ok {
+		accent = accentColors["green"]
+	}
+
+	cAccent = accent
+	gCornerTL, gCornerTR, gCornerBL, gCornerBR = box.cornerTL, box.cornerTR, box.cornerBL, box.cornerBR
+	gTeeL, gTeeR, gLineH, gLineV = box.teeL, box.teeR, box.lineH, box.lineV
+	gStatusIdle, gStatusOK, gStatusPending = glyphs.statusIdle, glyphs.statusOK, glyphs.statusPending
+	gStatusWarn, gStatusErr, gImportNew = glyphs.statusWarn, glyphs.statusErr, glyphs.importNew
+	gCaret, gDotOn, gDotOff, gDotFail = glyphs.caret, glyphs.dotOn, glyphs.dotOff, glyphs.dotFail
+	gFieldBad, gInputCursor, gInputMask = glyphs.fieldBad, glyphs.inputCursor, glyphs.inputMask
+	gSelectPrev, gSelectNext = "<", ">"
+	gEmpty, gEmptyList, gEllipsis = glyphs.empty, "none", glyphs.ellipsis
+	gHintArrow, gScrollUp, gScrollDown = glyphs.hintArrow, glyphs.scrollUp, glyphs.scrollDown
+}
+
+func applyConm(c config.Conm) {
+	keyMap = newKeymap(c.Keybindings)
+	applyAppearance(c.Appearance)
+}
 
 func typeColor(t config.ConnType) color.Color {
 	switch t {

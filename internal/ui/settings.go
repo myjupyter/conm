@@ -16,9 +16,10 @@ const settingsSectionWindow = 3
 const (
 	settingsClientTab = iota
 	settingsKeybindTab
+	settingsAppearanceTab
 )
 
-var settingsTabTitles = []string{"client", "keybind"}
+var settingsTabTitles = []string{"client", "keybind", "appearance"}
 
 type settingsModel struct {
 	size screenSize
@@ -33,7 +34,8 @@ type settingsModel struct {
 	window  view.Scroll
 	changed bool
 
-	binds bindsTab
+	binds        bindsTab
+	appearCursor int
 
 	status     string
 	statusKind statusKind
@@ -78,9 +80,10 @@ func (m settingsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m settingsModel) followCursor() settingsModel {
 	chrome := m.chrome()
-	if m.tab == settingsKeybindTab {
+	switch m.tab {
+	case settingsKeybindTab:
 		m.size.fit(&m.binds.window, chrome, m.binds.cursor, len(m.bindings()), func() int { return len(m.bindsLines()) })
-	} else {
+	case settingsClientTab:
 		m.size.fit(&m.window, chrome, m.cursor, len(m.conm.Connections), func() int { return len(m.clientLines()) })
 	}
 	return m
@@ -103,7 +106,7 @@ func (m settingsModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 		m.conm, m.changed = msg.conm, true
-		keyMap = newKeymap(m.conm.Keybindings)
+		applyConm(m.conm)
 		m.setSettingsStatus(msg.status, kindOK)
 	}
 
@@ -111,10 +114,19 @@ func (m settingsModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m settingsModel) handleSettingsKey(key string) (tea.Model, tea.Cmd) {
-	if m.tab == settingsKeybindTab {
-		if model, cmd, handled := m.handleBindsKey(key); handled {
-			return model, cmd
-		}
+	var (
+		model   tea.Model
+		cmd     tea.Cmd
+		handled bool
+	)
+	switch m.tab {
+	case settingsKeybindTab:
+		model, cmd, handled = m.handleBindsKey(key)
+	case settingsAppearanceTab:
+		model, cmd, handled = m.handleAppearanceKey(key)
+	}
+	if handled {
+		return model, cmd
 	}
 
 	switch {

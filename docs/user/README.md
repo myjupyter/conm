@@ -48,6 +48,7 @@ full list of the screen you are on, and `?` again to close it. Keys can be chang
 8. [Additional screens](additional-screens.md): settings and the info screen
    - [Switching clients](additional-screens.md#switching-clients)
    - [Overriding keybindings](additional-screens.md#overriding-keybindings)
+   - [Appearance](additional-screens.md#appearance)
    - [Info screen](additional-screens.md#info-screen)
 9. [Commands](commands.md): every command at a glance, and `conm doctor`
    - [Doctor](commands.md#doctor)

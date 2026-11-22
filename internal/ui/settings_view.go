@@ -32,9 +32,14 @@ func (m settingsModel) inner() int {
 }
 
 func (m settingsModel) render() string {
-	body := m.clientLines()
-	if m.tab == settingsKeybindTab {
+	var body []string
+	switch m.tab {
+	case settingsKeybindTab:
 		body = m.bindsLines()
+	case settingsAppearanceTab:
+		body = m.appearanceLines()
+	default:
+		body = m.clientLines()
 	}
 	lines := append(m.headLines(), m.size.keepEnd(body, m.chrome())...)
 	return m.size.join(append(lines, m.tailLines()...))
@@ -45,8 +50,11 @@ func (m settingsModel) chrome() int {
 }
 
 func (m settingsModel) tabWindow() (view.Scroll, int, int) {
-	if m.tab == settingsKeybindTab {
+	switch m.tab {
+	case settingsKeybindTab:
 		return m.binds.window, m.binds.cursor, len(m.bindings())
+	case settingsAppearanceTab:
+		return view.Scroll{}, m.appearCursor, len(appearanceRows)
 	}
 	return m.window, m.cursor, len(m.conm.Connections)
 }

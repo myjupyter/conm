@@ -93,7 +93,7 @@ func ImportConnections(
 	entries []importer.Entry,
 	mode ImportMode,
 ) ([]ImportResult, error) {
-	keyMap = newKeymap(conm.Keybindings)
+	applyConm(conm)
 
 	ws, repo, formCtx, err := openConnectionForm(conm, t)
 	if err != nil {

@@ -30,7 +30,7 @@ A screen is split `<name>.go` (model, `Update`) / `<name>_view.go` (render) /
 | `secret_table*.go`, `secret_form_commands.go` | the secrets screen and its form |
 | `transport_table*.go`, `transport_form*.go` | the transports screen and its form |
 | `workspace_table*.go`, `workspace_form_commands.go` | the workspaces screen and its form |
-| `settings*.go`, `settings_keybind*.go` | settings: the client per type, keybinding overrides |
+| `settings*.go`, `settings_keybind*.go`, `settings_appearance.go` | settings: the client per type, keybinding overrides, appearance |
 | `init_table*.go` | the type picker: before any connection exists, and when adding one of another type |
 | `import.go` | `ImportConnections`, `RenderImport` — saves `importer.Entry`s for `conm <type> import` and prints what became of each |
 | `export.go` | `ExportConnections` — hands saved connections to `exporter` for `conm <type> export` and reports what became of each |
@@ -118,6 +118,12 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
   status icons, row/field markers, input chrome, ellipsis) and `typeColor`. `frame.go`
   decides *how* a line is built, `theme.go` *what it looks like*: a view never uses a
   literal rune or `lipgloss.Color`, so a restyle never touches drawing code.
+  - The glyphs and `cAccent` are variables set by `applyAppearance` from
+    `config.AppearanceSettings`: `borderStyles` and `glyphSets` hold the runes per name,
+    `accentColors` the colour. The `ascii` glyph set also replaces the border. Every
+    replacement is one cell wide, as the width arithmetic in `frame.go` assumes.
+  - `applyConm` sets both `keyMap` and the appearance; every entry point that draws calls it
+    (or `applyAppearance`, for `doctor` and `export`) before its first line.
 - **`ui/form_loop.go` — running a form to completion.** `formStatus` (message plus
   `statusKind`), `formResult[T]` (what one run produced, plus its raw values) and
   `formLoop[T]` (open → save → on failure open again). A screen supplies only `open` and
@@ -329,9 +335,9 @@ through `formLoop`:
   into `Run`. Removing a workspace also removes its secret material; the active one cannot
   be removed (`*ActiveWorkspaceError`).
 
-## Settings — `settings*.go`, `settings_keybind*.go`
+## Settings — `settings*.go`, `settings_keybind*.go`, `settings_appearance.go`
 
-`settingsModel` edits `conm.toml` and nothing else, in two tabs.
+`settingsModel` edits `conm.toml` and nothing else, in three tabs.
 
 - **Clients.** One row per connection type with the clients `cli.Detect` found and their
   versions, probed in the background on `Init`. `Cycle` moves to the next *installed* client
@@ -346,6 +352,9 @@ through `formLoop`:
   - A binding marked `OnlyAppend` keeps its default keys: they can be added to, not replaced
     or removed (`isPinned`).
   - Every change is checked through `KeybindingSettings.Validate` before it is written.
+- **Appearance.** One row per `appearanceRows` entry — border, accent, glyphs — each a
+  select box over its `config` name list with a preview beside it. `Cycle` writes the next
+  name; the saved message runs `applyConm`, so the screen redraws in the new look at once.
 
 Every write goes through `config.CreateConm` at once; there is no "save" step. The screen
 reports only whether anything changed, and the connections table answers a change with a

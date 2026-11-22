@@ -56,6 +56,15 @@ func (m settingsModel) saveKeysCmd(path string, keys []string, status string) te
 	}
 }
 
+func (m settingsModel) saveAppearanceCmd(a config.AppearanceSettings, status string) tea.Cmd {
+	next, save := m.conm, m.save
+	next.Appearance = a
+
+	return func() tea.Msg {
+		return settingsSavedMsg{conm: next, status: status, err: save(next)}
+	}
+}
+
 func runSettings() (bool, error) {
 	conm, err := config.ReadConm(config.ConmPath())
 	if err != nil {

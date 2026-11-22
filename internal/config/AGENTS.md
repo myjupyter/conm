@@ -18,6 +18,7 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `meta.go` | `ConnMeta`, `WebLink` and their validators, `ValidateConnectionName`, `ValidateTags` |
 | `conm.go` | `Conm`, `ConnectionSettings`, `ConnType`, `ConnKind`, `ReadConm`/`CreateConm`, `withKnownTypes` |
 | `keybinding.go` | `KeybindingSettings` — the keybinding overrides stored in `conm.toml` |
+| `appearance.go` | `AppearanceSettings` — border, accent and glyph set; `BorderStyles`, `AccentColors`, `GlyphSets` list the names each accepts |
 | `postgres.go`, `mysql.go`, `mssql.go`, `clickhouse.go`, `redis.go`, `mongodb.go`, `ssh.go` | one connection type each: the struct, its `*ConfigWrapper`, its mode constants and validators; `postgres.go` also holds the limits and regexps the types share |
 | `secret.go`, `keyring.go` | `Secret`, `SecretParam`; `Keyring`, the one stored secret record, and its wrapper |
 | `transport.go` | `Transport`, `TransportKind`, its wrapper and validators |
@@ -61,7 +62,7 @@ type Secret interface {
   connection references.
 - `Keyring` — the only `Secret`.
 - `Conm` — `conm.toml`: one `ConnectionSettings` row per connection type plus
-  `KeybindingSettings`.
+  `KeybindingSettings` and `AppearanceSettings`.
 - `Config[W, C]` — the one `File[C]`: a typed TOML file opened by `OpenConfig[W](path)`.
 
 ## Per-type deviations from the shared model
@@ -161,5 +162,8 @@ repository and no tab on the secrets screen:
   `ConnTypes`, in that order, whatever the file holds. Every layer above may take "a row for
   every known type" for granted, and the tab order is this package's to decide. A type the
   file does not mention gets a row with no client.
+- `[conm.appearance]` holds names only — `border`, `accent`, `glyphs`. `Conm.complete`
+  replaces a missing or unknown name with the first entry of its list, so every layer above
+  gets a value it knows; what a name looks like is `ui/theme.go`'s to decide.
 - `ConnType.Kind()` says which `ConnKind` (`database`, `ssh`) a type belongs to; it is
   derived, never stored.

@@ -95,3 +95,50 @@ func TestSettingsModel_move(t *testing.T) {
 		})
 	}
 }
+
+func TestSettingsModel_cycleAppearance(t *testing.T) {
+	tests := []struct {
+		name    string
+		current config.AppearanceSettings
+		row     int
+		step    int
+		want    config.AppearanceSettings
+	}{
+		{
+			name:    "border steps forward",
+			current: config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode"},
+			row:     0,
+			step:    1,
+			want:    config.AppearanceSettings{Border: "rounded", Accent: "green", Glyphs: "unicode"},
+		},
+		{
+			name:    "accent wraps backward",
+			current: config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode"},
+			row:     1,
+			step:    -1,
+			want:    config.AppearanceSettings{Border: "single", Accent: "pink", Glyphs: "unicode"},
+		},
+		{
+			name:    "glyphs wrap forward",
+			current: config.AppearanceSettings{Border: "heavy", Accent: "blue", Glyphs: "ascii"},
+			row:     2,
+			step:    1,
+			want:    config.AppearanceSettings{Border: "heavy", Accent: "blue", Glyphs: "unicode"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var saved config.Conm
+			m := newSettingsFixture(cli.Psql)
+			m.conm.Appearance = tt.current
+			m.appearCursor = tt.row
+			m.save = func(c config.Conm) error { saved = c; return nil }
+
+			msg, ok := m.cycleAppearance(tt.step)().(settingsSavedMsg)
+			require.True(t, ok)
+			require.NoError(t, msg.err)
+			assert.Equal(t, tt.want, msg.conm.Appearance)
+			assert.Equal(t, tt.want, saved.Appearance)
+		})
+	}
+}
