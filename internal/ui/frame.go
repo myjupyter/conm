@@ -177,6 +177,17 @@ func frameHead(w int, title, note string) []string {
 	}
 }
 
+func frameSubhead(w int, title, note string) string {
+	spans := []span{
+		{text: "  "},
+		{text: strings.ToUpper(title), fg: cSoft, style: tHeading},
+	}
+	if note != "" {
+		spans = append(spans, span{text: "  " + note, fg: cFaint, style: tNote})
+	}
+	return frameLine(w, spans, nil)
+}
+
 func frameTabs(w int, titles []string, active int, note string) string {
 	spans := make([]span, 0, 3+2*len(titles))
 	spans = append(spans, span{text: " ", fg: cDim})

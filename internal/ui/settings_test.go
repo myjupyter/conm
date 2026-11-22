@@ -577,3 +577,37 @@ func TestAppearanceRowsHaveColourRows(t *testing.T) {
 		})
 	}
 }
+
+func TestSettingsModel_appearanceSubheads(t *testing.T) {
+	tests := []struct {
+		subhead string
+		rows    []string
+	}{
+		{subhead: "TITLE", rows: []string{"style", "colour"}},
+		{subhead: "TOP LEFT", rows: []string{"character", "colour"}},
+		{subhead: "STATUS OK", rows: []string{"glyph", "colour"}},
+		{subhead: "ELLIPSIS", rows: []string{"glyph"}},
+	}
+	m := newAppearanceFixture(t, plainAppearance, "accent colour")
+	m.size.observe(tea.WindowSizeMsg{Width: 110, Height: 40})
+	lines := m.appearanceLines()
+	plain := make([]string, len(lines))
+	for i, line := range lines {
+		plain[i] = strings.TrimSpace(strings.Trim(ansi.Strip(line), gLineLeft+gLineRight))
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.subhead, func(t *testing.T) {
+			at := slices.Index(plain, tt.subhead)
+			require.GreaterOrEqual(t, at, 0)
+			assert.Equal(t, 1, strings.Count(strings.Join(plain, "\n"), "\n"+tt.subhead+"\n"))
+			for i, row := range tt.rows {
+				require.Less(t, at+1+i, len(plain))
+				assert.True(t, strings.HasPrefix(plain[at+1+i], row), plain[at+1+i])
+			}
+			if next := at + 1 + len(tt.rows); next < len(plain) {
+				assert.Empty(t, plain[next], "a blank line closes the element")
+			}
+		})
+	}
+}

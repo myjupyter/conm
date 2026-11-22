@@ -79,9 +79,10 @@ The `emoji` set only uses emoji every terminal draws two columns wide.
 
 #### Colours
 
-The text, border and glyph sections each have a **palette** row under their style, and every
-text role, border piece and glyph has a **colour** row right under its own row, with a swatch
-showing the colour.
+The text, border and glyph sections each have a **palette** row under their style. Every text
+role, border piece and glyph then has a heading of its own with two rows under it — its style,
+character or glyph, and its **colour**, with a swatch showing the colour. A heading says
+"changed" while that element differs from the preset.
 
 The palettes:
 - **text**: `default` (every role keeps its usual colour), `accent` (titles, headings and keys

@@ -106,7 +106,7 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
 
 - **`ui/frame.go` — the frame blanks.** A screen is one box of fixed inner width, built line
   by line from `span` (a styled run of text), `truncPad`, `border` and the builders
-  `frameTop`, `frameLine`, `frameRule`, `frameBottom`, `frameBadge`, `frameStatus`,
+  `frameTop`, `frameLine`, `frameRule`, `frameBottom`, `frameHead`, `frameSubhead`, `frameBadge`, `frameStatus`,
   `frameKeybar`, `frameSearch`, `framePong`, `frameErrPanel`. Each builder takes the inner
   width `w`, so it serves both the wide table and the narrower forms. Also here: `keybind`,
   `statusKind`/`statusGlyph`, `cursorPos`.
@@ -408,8 +408,12 @@ through `formLoop`:
     `config.GlyphColorElements` gets none). A colour row is an ordinary element row over
     `borderColorGroup` / `glyphColorGroup` / `textColorGroup` (`colorGroup`): it cycles
     `config.ColorNames`, types hex, resets, and shows a swatch — or "set by the screen" for an
-    `auto` with no fixed colour (`elementGroup.auto`). `appearanceRow.display` is the indented
-    label drawn; `label` stays the full name the status line and tests use. A colour value is
+    `auto` with no fixed colour (`elementGroup.auto`).
+  - **Every element has its own heading.** An element's value and colour rows share
+    `appearanceRow.subhead`; `appearanceLines` draws a one-line `frameSubhead` when it changes
+    (or at the top of the window), after a blank line unless a section heading is right above, with a "changed" note while the element differs from the
+    preset. The rows under it draw only `display` — `style`, `character`, `glyph`, `colour`;
+    `label` stays the full name ("border top left colour") the status line and tests use. A colour value is
     drawn in its own colour (`selectBox.tint`).
   saved at once; the saved message runs `applyConm`, so the screen redraws in the new look.
   - A preset row (`options`, `field`) cycles its `config` name list. An element row

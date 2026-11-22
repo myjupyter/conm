@@ -133,6 +133,7 @@ func (g elementGroup) variants(element string) []string {
 
 type appearanceRow struct {
 	section string
+	subhead string
 	label   string
 	display string
 	input   appearanceInput
@@ -172,7 +173,7 @@ func buildAppearanceRows() []appearanceRow {
 		},
 		paletteRow("text", config.TextPalettes, func(a *config.AppearanceSettings) *string { return &a.TextColor }, textSample),
 	}
-	rows = append(rows, elementRows("text", &textGroup, config.TextElements, &textColorGroup, config.TextElements)...)
+	rows = append(rows, elementRows("text", "style", &textGroup, config.TextElements, &textColorGroup, config.TextElements)...)
 	rows = append(rows,
 		appearanceRow{
 			section: "border",
@@ -184,7 +185,7 @@ func buildAppearanceRows() []appearanceRow {
 		},
 		paletteRow("border", config.BorderPalettes, func(a *config.AppearanceSettings) *string { return &a.BorderColor }, borderSample),
 	)
-	rows = append(rows, elementRows("border", &borderGroup, config.BorderElements, &borderColorGroup, config.BorderElements)...)
+	rows = append(rows, elementRows("border", "character", &borderGroup, config.BorderElements, &borderColorGroup, config.BorderElements)...)
 	rows = append(rows,
 		appearanceRow{
 			section: "glyphs",
@@ -196,14 +197,14 @@ func buildAppearanceRows() []appearanceRow {
 		},
 		paletteRow("glyphs", config.GlyphPalettes, func(a *config.AppearanceSettings) *string { return &a.GlyphColor }, glyphSample),
 	)
-	return append(rows, elementRows("glyphs", &glyphGroup, config.GlyphElements, &glyphColorGroup, config.GlyphColorElements)...)
+	return append(rows, elementRows("glyphs", "glyph", &glyphGroup, config.GlyphElements, &glyphColorGroup, config.GlyphColorElements)...)
 }
 
 func paletteRow(section string, options []string, field func(*config.AppearanceSettings) *string, preview func(config.AppearanceSettings) []span) appearanceRow {
 	return appearanceRow{
 		section: section,
 		label:   paletteLabel,
-		display: "  " + paletteLabel,
+		display: paletteLabel,
 		input:   inputNone,
 		options: options,
 		field:   field,
@@ -263,13 +264,15 @@ func resolvedColors(names map[string]string, auto color.Color) map[string]color.
 	return colors
 }
 
-func elementRows(section string, group *elementGroup, elements []string, colors *elementGroup, colored []string) []appearanceRow {
+func elementRows(section, valueLabel string, group *elementGroup, elements []string, colors *elementGroup, colored []string) []appearanceRow {
 	rows := make([]appearanceRow, 0, 2*len(elements))
 	for _, element := range elements {
 		label := strings.ReplaceAll(element, "_", " ")
 		rows = append(rows, appearanceRow{
 			section: section,
+			subhead: label,
 			label:   label,
+			display: "  " + valueLabel,
 			input:   group.input,
 			group:   group,
 			element: element,
@@ -277,6 +280,7 @@ func elementRows(section string, group *elementGroup, elements []string, colors 
 		if slices.Contains(colored, element) {
 			rows = append(rows, appearanceRow{
 				section: section,
+				subhead: label,
 				label:   label + " " + colorLabel,
 				display: "  " + colorLabel,
 				input:   colors.input,
@@ -517,8 +521,15 @@ func (m settingsModel) appearanceLines() []string {
 	var lines []string
 	for i := start; i < end; i++ {
 		row := appearanceRows[i]
-		if i == start || row.section != appearanceRows[i-1].section {
+		newSection := i == start || row.section != appearanceRows[i-1].section
+		if newSection {
 			lines = append(lines, frameHead(m.inner(), row.section, m.sectionNote(row))...)
+		}
+		if row.subhead != "" && (newSection || row.subhead != appearanceRows[i-1].subhead) {
+			if !newSection {
+				lines = append(lines, frameLine(m.inner(), nil, nil))
+			}
+			lines = append(lines, frameSubhead(m.inner(), row.subhead, m.subheadNote(row)))
 		}
 		lines = append(lines, m.appearanceLine(row, i == m.appear.cursor))
 	}
@@ -532,7 +543,8 @@ func (m settingsModel) sectionNote(row appearanceRow) string {
 	}
 
 	var groups []*elementGroup
-	for _, r := range appearanceRows {
+	for i := range appearanceRows {
+		r := &appearanceRows[i]
 		if r.section == row.section && r.element != "" && !slices.Contains(groups, r.group) {
 			groups = append(groups, r.group)
 		}
@@ -549,6 +561,17 @@ func (m settingsModel) sectionNote(row appearanceRow) string {
 	default:
 		return strconv.Itoa(n) + " changes to the preset"
 	}
+}
+
+func (m settingsModel) subheadNote(row appearanceRow) string {
+	a := m.conm.Appearance
+	for i := range appearanceRows {
+		r := &appearanceRows[i]
+		if r.section == row.section && r.subhead == row.subhead && !r.locked(a) && r.overridden(a) {
+			return "changed"
+		}
+	}
+	return ""
 }
 
 func (m settingsModel) appearanceLine(row appearanceRow, on bool) string {
