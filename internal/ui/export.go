@@ -35,7 +35,7 @@ func ExportConnections(
 	}
 
 	passwords, unresolved := make([]string, len(conns)), make([]error, len(conns))
-	if opts.WithPasswords {
+	if opts.WithPasswords && exporter.WritesPasswords(t) {
 		for i, conn := range conns {
 			passwords[i], unresolved[i] = ws.Password(ctx, conn)
 		}

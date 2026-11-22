@@ -36,7 +36,7 @@ func readPostgres(path string) ([]Entry, error) {
 	entries := make([]Entry, 0, len(services))
 	for _, service := range services {
 		passwords := shared
-		if own := values(service.Params)[pgPassfileKeyword]; own != "" {
+		if own := Values(service.Params)[pgPassfileKeyword]; own != "" {
 			passwords, _ = ReadPGPass(own)
 		}
 		entries = append(entries, postgresEntry(service, passwords))

@@ -30,42 +30,51 @@ type Entry struct {
 }
 
 type target struct {
-	path     func() string
-	held     func(path string) ([]string, error)
-	merged   func(path string, raw []byte, sections []importer.Section) ([]byte, error)
-	sections func(conn config.Connection, password string) ([]importer.Section, []string)
+	path      func() string
+	held      func(path string) ([]string, error)
+	merged    func(path string, raw []byte, sections []importer.Section) ([]byte, error)
+	sections  func(conn config.Connection, password string) ([]importer.Section, []string)
+	lineBased bool
+	passwords bool
 }
 
 var targets = map[config.ConnType]target{
 	config.PostgresConnType: {
-		path:     importer.PGServicePath,
-		held:     heldBy(importer.ReadINI),
-		merged:   iniMerged,
-		sections: postgresSections,
+		path:      importer.PGServicePath,
+		held:      heldBy(importer.ReadINI),
+		merged:    iniMerged,
+		sections:  postgresSections,
+		lineBased: true,
+		passwords: true,
 	},
 	config.MySQLConnType: {
-		path:     importer.MySQLOptionPath,
-		held:     heldBy(importer.ReadINI),
-		merged:   iniMerged,
-		sections: mysqlSections,
+		path:      importer.MySQLOptionPath,
+		held:      heldBy(importer.ReadINI),
+		merged:    iniMerged,
+		sections:  mysqlSections,
+		lineBased: true,
+		passwords: true,
 	},
 	config.ClickHouseConnType: {
-		path:     importer.ClickHouseClientPath,
-		held:     heldBy(importer.ReadClickHouseConnections),
-		merged:   clickhouseMerged,
-		sections: clickhouseSections,
+		path:      importer.ClickHouseUserPath,
+		held:      heldBy(importer.ReadClickHouseConnections),
+		merged:    clickhouseMerged,
+		sections:  clickhouseSections,
+		passwords: true,
 	},
 	config.MSSQLConnType: {
-		path:     importer.SQLConfigPath,
-		held:     sqlConfigHeld,
-		merged:   sqlConfigMerged,
-		sections: mssqlSections,
+		path:      importer.SQLConfigPath,
+		held:      sqlConfigHeld,
+		merged:    sqlConfigMerged,
+		sections:  mssqlSections,
+		passwords: true,
 	},
 	config.SSHConnType: {
-		path:     importer.SSHConfigPath,
-		held:     sshHeld,
-		merged:   sshMerged,
-		sections: sshSections,
+		path:      importer.SSHConfigPath,
+		held:      sshHeld,
+		merged:    sshMerged,
+		sections:  sshSections,
+		lineBased: true,
 	},
 }
 
@@ -76,6 +85,10 @@ func Supported(t config.ConnType) bool {
 
 func DefaultPath(t config.ConnType) string {
 	return targets[t].path()
+}
+
+func WritesPasswords(t config.ConnType) bool {
+	return targets[t].passwords
 }
 
 func Plan(t config.ConnType, path string, conns []config.Connection, passwords []string) ([]Entry, error) {
@@ -100,6 +113,9 @@ func Plan(t config.ConnType, path string, conns []config.Connection, passwords [
 		}
 
 		entry.Sections, entry.Warnings = to.sections(conn, passwords[i])
+		if to.lineBased && slices.ContainsFunc(entry.Sections, hasLineBreak) {
+			entry.Err = errLineBreak
+		}
 		for _, section := range entry.Sections {
 			if slices.Contains(held, section.Name) {
 				entry.Err = fmt.Errorf("%s already has %s", path, section.Name)
@@ -153,10 +169,26 @@ func heldBy(read func(string) ([]importer.Section, error)) func(string) ([]strin
 }
 
 func appended(raw []byte, sections []importer.Section, header func(name string) string, indent, separator string) ([]byte, error) {
+	added, err := textBlocks(sections, header, indent, separator)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(raw) > 0 {
+		if !bytes.HasSuffix(raw, []byte("\n")) {
+			raw = append(slices.Clone(raw), '\n')
+		}
+		raw = append(slices.Clone(raw), '\n')
+	}
+
+	return append(raw, added...), nil
+}
+
+func textBlocks(sections []importer.Section, header func(name string) string, indent, separator string) (string, error) {
 	blocks := make([]string, 0, len(sections))
 	for _, section := range sections {
 		if hasLineBreak(section) {
-			return nil, fmt.Errorf("%s: %w", section.Name, errLineBreak)
+			return "", fmt.Errorf("%s: %w", section.Name, errLineBreak)
 		}
 
 		var block strings.Builder
@@ -168,14 +200,7 @@ func appended(raw []byte, sections []importer.Section, header func(name string) 
 		blocks = append(blocks, block.String())
 	}
 
-	if len(raw) > 0 {
-		if !bytes.HasSuffix(raw, []byte("\n")) {
-			raw = append(slices.Clone(raw), '\n')
-		}
-		raw = append(slices.Clone(raw), '\n')
-	}
-
-	return append(raw, strings.Join(blocks, "\n")...), nil
+	return strings.Join(blocks, "\n"), nil
 }
 
 func hasLineBreak(section importer.Section) bool {

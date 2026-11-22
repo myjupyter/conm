@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"html"
+	"io"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -36,7 +37,6 @@ const (
 	clickhouseRootTag        = "config"
 	clickhouseCredentialsTag = "connections_credentials"
 	clickhouseConnectionTag  = "connection"
-	clickhouseNameKey        = "name"
 	xmlIndent                = "    "
 	xmlClosing               = "</"
 )
@@ -81,6 +81,19 @@ func clickhouseMerged(path string, raw []byte, sections []importer.Section) ([]b
 	return []byte(merged), nil
 }
 
+type clickhouseXMLSpotKind int
+
+const (
+	xmlUnderRoot clickhouseXMLSpotKind = iota
+	xmlInCredentials
+	xmlEmptyCredentials
+)
+
+type clickhouseXMLSpot struct {
+	kind    clickhouseXMLSpotKind
+	at, end int
+}
+
 func clickhouseXMLInserted(text string, sections []importer.Section) (string, error) {
 	if strings.TrimSpace(text) == "" {
 		credentials := xmlBlock(xmlIndent, clickhouseCredentialsTag, clickhouseXMLText(xmlIndent+xmlIndent, sections))
@@ -88,34 +101,83 @@ func clickhouseXMLInserted(text string, sections []importer.Section) (string, er
 		return xmlBlock("", clickhouseRootTag, credentials), nil
 	}
 
-	inCredentials := true
-	at := strings.LastIndex(text, xmlClosing+clickhouseCredentialsTag+">")
-	if at < 0 {
-		inCredentials, at = false, strings.LastIndex(text, xmlClosing)
-	}
-	if at < 0 {
-		return "", errNoXMLElement
+	spot, err := clickhouseXMLSpotOf(text)
+	if err != nil {
+		return "", err
 	}
 
-	lineStart := strings.LastIndex(text[:at], "\n") + 1
-	indent := text[lineStart:at]
+	lineStart := strings.LastIndex(text[:spot.at], "\n") + 1
+	indent := text[lineStart:spot.at]
 	if strings.TrimSpace(indent) != "" {
-		lineStart, indent = at, ""
+		lineStart, indent = spot.at, ""
 	}
 
-	added := clickhouseXMLText(indent+xmlIndent, sections)
-	if !inCredentials {
-		added = xmlBlock(indent+xmlIndent, clickhouseCredentialsTag, clickhouseXMLText(indent+xmlIndent+xmlIndent, sections))
+	switch spot.kind {
+	case xmlInCredentials:
+		return text[:lineStart] + clickhouseXMLText(indent+xmlIndent, sections) + text[lineStart:], nil
+	case xmlEmptyCredentials:
+		credentials := xmlBlock(indent, clickhouseCredentialsTag, clickhouseXMLText(indent+xmlIndent, sections))
+
+		return text[:lineStart] + strings.TrimSuffix(credentials, "\n") + text[spot.end:], nil
+	default:
+		credentials := xmlBlock(indent+xmlIndent, clickhouseCredentialsTag, clickhouseXMLText(indent+xmlIndent+xmlIndent, sections))
+
+		return text[:lineStart] + credentials + text[lineStart:], nil
+	}
+}
+
+func clickhouseXMLSpotOf(text string) (clickhouseXMLSpot, error) {
+	var (
+		decoder                = xml.NewDecoder(strings.NewReader(text))
+		credentials            *clickhouseXMLSpot
+		rootClosing            = -1
+		depth, opened, emptyAt int
+	)
+	for {
+		at := int(decoder.InputOffset())
+		token, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return clickhouseXMLSpot{}, err
+		}
+
+		switch token := token.(type) {
+		case xml.StartElement:
+			depth++
+			if depth == 2 && token.Name.Local == clickhouseCredentialsTag {
+				opened, emptyAt = at, int(decoder.InputOffset())
+			}
+		case xml.EndElement:
+			if depth == 2 && token.Name.Local == clickhouseCredentialsTag {
+				credentials = &clickhouseXMLSpot{kind: xmlInCredentials, at: at}
+				if int(decoder.InputOffset()) == emptyAt {
+					credentials = &clickhouseXMLSpot{kind: xmlEmptyCredentials, at: opened, end: emptyAt}
+				}
+			}
+			if depth == 1 {
+				rootClosing = at
+			}
+			depth--
+		}
 	}
 
-	return text[:lineStart] + added + text[lineStart:], nil
+	switch {
+	case credentials != nil:
+		return *credentials, nil
+	case rootClosing >= 0:
+		return clickhouseXMLSpot{kind: xmlUnderRoot, at: rootClosing}, nil
+	default:
+		return clickhouseXMLSpot{}, errNoXMLElement
+	}
 }
 
 func clickhouseXMLText(indent string, sections []importer.Section) string {
 	var text strings.Builder
 	for _, section := range sections {
 		var fields strings.Builder
-		fields.WriteString(xmlField(indent+xmlIndent, clickhouseNameKey, section.Name))
+		fields.WriteString(xmlField(indent+xmlIndent, importer.ClickHouseNameKey, section.Name))
 		for _, param := range section.Params {
 			fields.WriteString(xmlField(indent+xmlIndent, param.Key, param.Value))
 		}
@@ -154,7 +216,7 @@ func clickhouseYAMLMerged(raw []byte, sections []importer.Section) ([]byte, erro
 	}
 
 	for _, section := range sections {
-		connection := &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{yamlScalar(clickhouseNameKey), yamlScalar(section.Name)}}
+		connection := &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{yamlScalar(importer.ClickHouseNameKey), yamlScalar(section.Name)}}
 		for _, param := range section.Params {
 			connection.Content = append(connection.Content, yamlScalar(param.Key), yamlScalar(param.Value))
 		}

@@ -19,8 +19,8 @@ May import (internal): `config`, `parser/params`.
 | `ini.go` | `ReadINI` — the sectioned `key=value` format `pg_service.conf` and MySQL option files share |
 | `postgres.go` | `readPostgres` — one entry per service of a `pg_service.conf`; `PGServicePath`, `PGPassPath`, `PGPass` with libpq's lookup, `ReadPGPass` |
 | `mysql.go` | `readMySQL` — the entries of an option file; `MySQLOptionPath` |
-| `clickhouse.go` | `readClickHouse` — one entry per `connections_credentials` connection; `ClickHouseClientPath`, `ReadClickHouseConnections` |
-| `mssql.go` | `readMSSQL` — one entry per sqlcmd context; `SQLConfigPath`, `ReadSQLConfig` and the `SQLConfig*` keys |
+| `clickhouse.go` | `readClickHouse` — one entry per `connections_credentials` connection; `ClickHouseClientPath`, `ClickHouseUserPath`, `ReadClickHouseConnections` |
+| `mssql.go` | `readMSSQL` — one entry per sqlcmd context; `SQLConfigPath`, `ReadSQLConfig`, the `SQLConfig*` keys and types |
 | `ssh.go` | `readSSH` — one entry per concrete `Host` alias; `SSHConfigPath`, `ReadSSHConfig` |
 
 ## Main entities
@@ -55,8 +55,11 @@ May import (internal): `config`, `parser/params`.
   user psql and ssh fall back to, is not guessed: validation refuses the entry and it can be
   completed in the form.
 - **Each type's file reader and default path sit in that type's file**, exported where
-  `internal/exporter` needs them to see what a file already holds. This is the one place
-  outside `config` that opens a file, and it never writes one.
+  `internal/exporter` needs them to see what a file already holds. So are the format's names
+  both sides spell — `ClickHouseNameKey`, `YAMLNullTag`, `MSSQLNoEncryption`, the
+  `SQLConfig*` keys and types — and `Values`, so the reader and the writer of a format keep
+  one copy. This is the one place outside `config` that opens a file, and it never writes
+  one.
 
 ### Postgres
 
@@ -91,13 +94,16 @@ May import (internal): `config`, `parser/params`.
   inherits.
 - **Every option is passed as `--key=value`, the `=` kept when the value is empty.** A bare
   `--key` would take the argument after it as its value.
+- **A value is unquoted, then unescaped as the client does** — `\\`, `\"`, `\'`, `\n`, `\r`,
+  `\t`, `\b`, `\s` — quoted or not. A `loose-` prefix on an option is dropped: it only tells
+  a client that does not know the option to skip it.
 - `!include` and `!includedir` lines are dropped, included files are not followed, a
   `# comment` after a value is not stripped, and the obfuscated `~/.mylogin.cnf` is not read.
 
 ### ClickHouse
 
 - The file is the client's own config, XML or YAML by its content;
-  `config.ClickHouseClientPath` picks the first that exists in the client's search order.
+  `ClickHouseClientPath` picks the first that exists in the client's search order.
 - A connection without `hostname` uses its `name` as the host, as the client does.
 - `secure` and `accept-invalid-certificate` become their flags only when true; the parser
   refuses the second, so such a connection is not importable.
@@ -141,6 +147,7 @@ May import (internal): `config`, `parser/params`.
   `$XDG_CONFIG_HOME/clickhouse/config.*` (`~/.config` when unset, not the platform directory
   `xdg` would give), `~/.clickhouse-client/config.*`, `/etc/clickhouse-client/config.*` — over
   `.xml`, `.yaml`, `.yml`, and names the home XML file when none exists.
+  `ClickHouseUserPath` searches the two user locations only — the file export writes to.
 - `ReadSQLConfig` joins each context of a sqlcmd `sqlconfig` with the endpoint and the user it
   names, under the `SQLConfig*` keys. A name that resolves to nothing leaves those keys out,
   as does an endpoint without a port. The password is passed on as stored.

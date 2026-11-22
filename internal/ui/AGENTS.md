@@ -89,7 +89,9 @@ repository, not through `ui/view`, and opens a screen only in `ImportInteractive
 `ExportConnections` is a shell entry point like `ImportConnections` and opens no screen. It
 picks the connections (all, or the named ones — an unknown name fails the run), resolves
 their passwords through `repository.Session.Password` only under
-`ExportOptions.WithPasswords`, and lets `exporter.Plan` and `exporter.Write` do the rest.
+`ExportOptions.WithPasswords` and for a type `exporter.WritesPasswords` — never SSH, so no
+keychain is asked for a secret that would not be written — and lets `exporter.Plan` and
+`exporter.Write` do the rest.
 
 - **It reports through `ImportResult` and `RenderImport`**, with the same marks:
   `ImportNew` exportable but not written, `ImportDone` written, `ImportFailed` refused.

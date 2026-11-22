@@ -84,7 +84,7 @@ func clickhouseEntry(connection Section) Entry {
 }
 
 func clickhouseArgs(connection Section) (args, warnings []string) {
-	if _, named := values(connection.Params)[clickhouseHostKey]; !named {
+	if _, named := Values(connection.Params)[clickhouseHostKey]; !named {
 		args = append(args, clickhouseFlags[clickhouseHostKey]+"="+connection.Name)
 	}
 
@@ -110,8 +110,8 @@ const (
 	clickhouseConfigName      = "config"
 	clickhouseConfigDirName   = "clickhouse"
 	clickhouseHomeDirName     = ".clickhouse-client"
-	clickhouseNameKey         = "name"
-	yamlNullTag               = "!!null"
+	ClickHouseNameKey         = "name"
+	YAMLNullTag               = "!!null"
 )
 
 var clickhouseConfigExtensions = []string{".xml", ".yaml", ".yml"}
@@ -119,17 +119,30 @@ var clickhouseConfigExtensions = []string{".xml", ".yaml", ".yml"}
 var clickhouseSystemDir = "/etc/clickhouse-client"
 
 func ClickHouseClientPath() string {
+	return clickhouseConfigFile(slices.Concat(
+		[]string{clickhouseLocalConfigName},
+		clickhouseUserStems(),
+		[]string{filepath.Join(clickhouseSystemDir, clickhouseConfigName)},
+	))
+}
+
+func ClickHouseUserPath() string {
+	return clickhouseConfigFile(clickhouseUserStems())
+}
+
+func clickhouseUserStems() []string {
 	userConfigDir := os.Getenv("XDG_CONFIG_HOME")
 	if userConfigDir == "" {
 		userConfigDir = filepath.Join(xdg.Home, ".config")
 	}
 
-	stems := []string{
-		clickhouseLocalConfigName,
+	return []string{
 		filepath.Join(userConfigDir, clickhouseConfigDirName, clickhouseConfigName),
 		filepath.Join(xdg.Home, clickhouseHomeDirName, clickhouseConfigName),
-		filepath.Join(clickhouseSystemDir, clickhouseConfigName),
 	}
+}
+
+func clickhouseConfigFile(stems []string) string {
 	for _, stem := range stems {
 		for _, ext := range clickhouseConfigExtensions {
 			if isFile(stem + ext) {
@@ -218,7 +231,7 @@ func clickhouseYAMLConnections(raw []byte) ([]Section, error) {
 
 		var section Section
 		for i := 0; i+1 < len(node.Content); i += 2 {
-			if key, value := node.Content[i], node.Content[i+1]; value.Tag != yamlNullTag {
+			if key, value := node.Content[i], node.Content[i+1]; value.Tag != YAMLNullTag {
 				section.addClickHouseField(key.Value, value.Value)
 			}
 		}
@@ -230,7 +243,7 @@ func clickhouseYAMLConnections(raw []byte) ([]Section, error) {
 
 func (s *Section) addClickHouseField(key, value string) {
 	key, value = strings.TrimSpace(key), strings.TrimSpace(value)
-	if key == clickhouseNameKey {
+	if key == ClickHouseNameKey {
 		s.Name = value
 		return
 	}

@@ -3,23 +3,35 @@ package exporter
 import (
 	"bytes"
 	"errors"
-	"slices"
+	"io"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/myjupyter/conm/internal/importer"
 )
 
 const (
-	yamlIndent  = 2
-	yamlNullTag = "!!null"
+	yamlIndent = 2
+	yamlStrTag = "!!str"
 )
 
-var errYAMLNotMapping = errors.New("the file is not a yaml mapping")
-
-var yamlNullSpellings = []string{"", "~", "null", "Null", "NULL"}
+var (
+	errYAMLNotMapping = errors.New("the file is not a yaml mapping")
+	errYAMLDocuments  = errors.New("the file holds more than one yaml document")
+)
 
 func yamlMappingRoot(raw []byte) (doc, root *yaml.Node, err error) {
+	decoder := yaml.NewDecoder(bytes.NewReader(raw))
+
 	doc = &yaml.Node{}
-	if err := yaml.Unmarshal(raw, doc); err != nil {
+	if err := decoder.Decode(doc); err != nil && !errors.Is(err, io.EOF) {
+		return nil, nil, err
+	}
+
+	switch err := decoder.Decode(&yaml.Node{}); {
+	case err == nil:
+		return nil, nil, errYAMLDocuments
+	case !errors.Is(err, io.EOF):
 		return nil, nil, err
 	}
 
@@ -42,7 +54,7 @@ func yamlChild(mapping *yaml.Node, key string, kind yaml.Kind) *yaml.Node {
 		}
 
 		value := mapping.Content[i+1]
-		if value.Tag == yamlNullTag {
+		if value.Tag == importer.YAMLNullTag {
 			*value = yaml.Node{Kind: kind}
 		}
 
@@ -56,12 +68,7 @@ func yamlChild(mapping *yaml.Node, key string, kind yaml.Kind) *yaml.Node {
 }
 
 func yamlScalar(value string) *yaml.Node {
-	node := &yaml.Node{Kind: yaml.ScalarNode, Value: value}
-	if slices.Contains(yamlNullSpellings, value) {
-		node.Style = yaml.DoubleQuotedStyle
-	}
-
-	return node
+	return &yaml.Node{Kind: yaml.ScalarNode, Tag: yamlStrTag, Value: value}
 }
 
 func yamlAppend(list *yaml.Node, item any) error {

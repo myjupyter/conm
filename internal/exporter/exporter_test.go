@@ -57,10 +57,10 @@ func TestPlan_roundTrip(t *testing.T) {
 			args: args{conn: config.MySQL{
 				Metadata: meta, Hostname: "my.internal", PortNumber: 3307, User: "app", DBName: "orders",
 				TLSMode: config.MySQLTLSModeSkipVerify, Password: "keyring:mysql/orders",
-			}, password: "pa#ss word"},
+			}, password: `pa#s"s\ word`},
 			want: config.MySQL{
 				Metadata: meta, Hostname: "my.internal", PortNumber: 3307, User: "app", DBName: "orders",
-				TLSMode: config.MySQLTLSModeSkipVerify, Password: "literal:pa#ss word",
+				TLSMode: config.MySQLTLSModeSkipVerify, Password: `literal:pa#s"s\ word`,
 			},
 		},
 		{
@@ -99,15 +99,25 @@ func TestPlan_roundTrip(t *testing.T) {
 			},
 		},
 		{
+			name: "mssql without a user leaves the password out",
+			args: args{conn: config.MSSQL{
+				Metadata: meta, Hostname: "sql.internal", PortNumber: 1433, DBName: "master",
+			}, password: "s3cret"},
+			want: config.MSSQL{
+				Metadata: meta, Hostname: "sql.internal", PortNumber: 1433, DBName: "master", EncryptMode: config.MSSQLEncryptLogin,
+			},
+			wantWarnings: []string{"the password is not exported: a context without a user holds none"},
+		},
+		{
 			name: "ssh with a key file",
 			args: args{conn: config.SSH{
 				Metadata: meta, Hostname: "bastion.internal", PortNumber: 2222, User: "ops",
-				Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/my key", Jump: "ops@gate:22",
+				Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/my key", Jump: "ops@gate:22, gate2",
 				ForwardAgent: true, KeepAlive: 30, LocalForward: "5432:localhost:5432",
 			}},
 			want: config.SSH{
 				Metadata: meta, Hostname: "bastion.internal", PortNumber: 2222, User: "ops",
-				Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/my key", Jump: "ops@gate:22",
+				Auth: config.SSHAuthKey, Password: "filepath:~/.ssh/my key", Jump: "ops@gate:22,gate2",
 				ForwardAgent: true, KeepAlive: 30, LocalForward: "5432:localhost:5432",
 			},
 		},
@@ -163,15 +173,17 @@ func TestPlan_refusals(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "pg_service.conf")
 	require.NoError(t, os.WriteFile(path, []byte("[taken]\nhost=a\n"), 0o600))
 
-	conns := []config.Connection{named("fresh"), named("taken"), named("two words"), named("fresh")}
-	planned, err := exporter.Plan(config.PostgresConnType, path, conns, make([]string, len(conns)))
+	conns := []config.Connection{named("fresh"), named("taken"), named("two words"), named("fresh"), named("broken")}
+	passwords := []string{"", "", "", "", "a\n[other]"}
+	planned, err := exporter.Plan(config.PostgresConnType, path, conns, passwords)
 	require.NoError(t, err)
-	require.Len(t, planned, 4)
+	require.Len(t, planned, 5)
 
 	require.NoError(t, planned[0].Err)
 	require.Error(t, planned[1].Err)
 	require.Error(t, planned[2].Err)
 	require.Error(t, planned[3].Err)
+	require.Error(t, planned[4].Err)
 
 	require.NoError(t, exporter.Write(config.PostgresConnType, path, planned))
 

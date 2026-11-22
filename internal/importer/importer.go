@@ -44,7 +44,7 @@ func Read(t config.ConnType, path string) ([]Entry, error) {
 	return src.read(path)
 }
 
-func values(params []Param) map[string]string {
+func Values(params []Param) map[string]string {
 	found := make(map[string]string, len(params))
 	for _, param := range params {
 		found[param.Key] = param.Value

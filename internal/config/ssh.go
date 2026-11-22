@@ -288,12 +288,12 @@ func (s SSH) Identity() string {
 		s.Hostname,
 		strconv.Itoa(s.PortNumber),
 		s.User,
-		normalizeSSHJump(s.Jump),
+		NormalizeSSHJump(s.Jump),
 		s.LocalForward,
 	)
 }
 
-func normalizeSSHJump(jump string) string {
+func NormalizeSSHJump(jump string) string {
 	hops := strings.Split(jump, ",")
 	for i, hop := range hops {
 		hops[i] = strings.TrimSpace(hop)

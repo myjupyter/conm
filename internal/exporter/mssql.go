@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"slices"
 	"strconv"
 
 	"go.yaml.in/yaml/v3"
@@ -15,24 +14,27 @@ import (
 	"github.com/myjupyter/conm/internal/importer"
 )
 
-const (
-	mssqlDefaultDatabase = "master"
-	mssqlNoEncryption    = "none"
-)
+const mssqlDefaultDatabase = "master"
 
 func mssqlSections(conn config.Connection, password string) ([]importer.Section, []string) {
 	ms, _ := conn.(config.MSSQL)
 
-	var context params
+	var (
+		context  params
+		warnings []string
+	)
 	context.add(importer.SQLConfigAddress, ms.Hostname)
 	context.addPort(importer.SQLConfigPort, ms.PortNumber)
 	context.add(importer.SQLConfigUsername, ms.User)
-	if password != "" {
+	switch {
+	case password == "":
+	case ms.User == "":
+		warnings = append(warnings, "the password is not exported: a context without a user holds none")
+	default:
 		context.add(importer.SQLConfigPassword, base64.StdEncoding.EncodeToString([]byte(password)))
-		context.add(importer.SQLConfigPasswordEncryption, mssqlNoEncryption)
+		context.add(importer.SQLConfigPasswordEncryption, importer.MSSQLNoEncryption)
 	}
 
-	var warnings []string
 	if ms.DBName != "" && ms.DBName != mssqlDefaultDatabase {
 		warnings = append(warnings, fmt.Sprintf("database %s is not exported: a context holds none", ms.DBName))
 	}
@@ -44,49 +46,14 @@ func mssqlSections(conn config.Connection, password string) ([]importer.Section,
 }
 
 const (
-	sqlConfigVersionKey   = "version"
-	sqlConfigVersion      = "v1"
-	sqlConfigEndpointsKey = "endpoints"
-	sqlConfigContextsKey  = "contexts"
-	sqlConfigUsersKey     = "users"
-	sqlConfigBasicAuth    = "basic"
+	sqlConfigVersionKey        = "version"
+	sqlConfigVersion           = "v1"
+	sqlConfigEndpointsKey      = "endpoints"
+	sqlConfigContextsKey       = "contexts"
+	sqlConfigUsersKey          = "users"
+	sqlConfigCurrentContextKey = "currentcontext"
+	sqlConfigBasicAuth         = "basic"
 )
-
-type sqlConfigNamed struct {
-	Name string `yaml:"name"`
-}
-
-type sqlConfigNames struct {
-	Endpoints []sqlConfigNamed `yaml:"endpoints"`
-	Contexts  []sqlConfigNamed `yaml:"contexts"`
-	Users     []sqlConfigNamed `yaml:"users"`
-}
-
-type sqlConfigEndpoint struct {
-	Name     string `yaml:"name"`
-	Endpoint struct {
-		Address string `yaml:"address"`
-		Port    int    `yaml:"port,omitempty"`
-	} `yaml:"endpoint"`
-}
-
-type sqlConfigContext struct {
-	Name    string `yaml:"name"`
-	Context struct {
-		Endpoint string `yaml:"endpoint"`
-		User     string `yaml:"user,omitempty"`
-	} `yaml:"context"`
-}
-
-type sqlConfigUser struct {
-	Name               string `yaml:"name"`
-	AuthenticationType string `yaml:"authentication-type"`
-	BasicAuth          struct {
-		Username           string `yaml:"username"`
-		PasswordEncryption string `yaml:"password-encryption,omitempty"`
-		Password           string `yaml:"password,omitempty"`
-	} `yaml:"basic-auth"`
-}
 
 func sqlConfigHeld(path string) ([]string, error) {
 	raw, err := os.ReadFile(path)
@@ -94,14 +61,20 @@ func sqlConfigHeld(path string) ([]string, error) {
 		return nil, err
 	}
 
-	var file sqlConfigNames
+	var file importer.SQLConfig
 	if err := yaml.Unmarshal(raw, &file); err != nil {
 		return nil, fmt.Errorf("couldn't parse file %q: %w", path, err)
 	}
 
 	held := make([]string, 0, len(file.Endpoints)+len(file.Contexts)+len(file.Users))
-	for _, named := range slices.Concat(file.Endpoints, file.Contexts, file.Users) {
-		held = append(held, named.Name)
+	for _, endpoint := range file.Endpoints {
+		held = append(held, endpoint.Name)
+	}
+	for _, context := range file.Contexts {
+		held = append(held, context.Name)
+	}
+	for _, user := range file.Users {
+		held = append(held, user.Name)
 	}
 
 	return held, nil
@@ -121,21 +94,18 @@ func sqlConfigMerged(_ string, raw []byte, sections []importer.Section) ([]byte,
 	users := yamlChild(root, sqlConfigUsersKey, yaml.SequenceNode)
 
 	for _, section := range sections {
-		values := make(map[string]string, len(section.Params))
-		for _, param := range section.Params {
-			values[param.Key] = param.Value
-		}
+		values := importer.Values(section.Params)
 
-		endpoint := sqlConfigEndpoint{Name: section.Name}
+		endpoint := importer.SQLConfigEndpoint{Name: section.Name}
 		endpoint.Endpoint.Address = values[importer.SQLConfigAddress]
 		endpoint.Endpoint.Port, _ = strconv.Atoi(values[importer.SQLConfigPort])
 
-		context := sqlConfigContext{Name: section.Name}
+		context := importer.SQLConfigContext{Name: section.Name}
 		context.Context.Endpoint = section.Name
 
 		added := []error{yamlAppend(endpoints, endpoint)}
 		if username := values[importer.SQLConfigUsername]; username != "" {
-			user := sqlConfigUser{Name: section.Name, AuthenticationType: sqlConfigBasicAuth}
+			user := importer.SQLConfigUser{Name: section.Name, AuthenticationType: sqlConfigBasicAuth}
 			user.BasicAuth.Username = username
 			user.BasicAuth.Password = values[importer.SQLConfigPassword]
 			user.BasicAuth.PasswordEncryption = values[importer.SQLConfigPasswordEncryption]
@@ -147,6 +117,10 @@ func sqlConfigMerged(_ string, raw []byte, sections []importer.Section) ([]byte,
 		if err := errors.Join(append(added, yamlAppend(contexts, context))...); err != nil {
 			return nil, err
 		}
+	}
+
+	if current := yamlChild(root, sqlConfigCurrentContextKey, yaml.ScalarNode); current.Kind == yaml.ScalarNode && current.Value == "" {
+		*current = *yamlScalar(sections[0].Name)
 	}
 
 	return yamlEncoded(doc)

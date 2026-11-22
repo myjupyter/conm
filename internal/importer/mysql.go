@@ -20,6 +20,12 @@ const (
 
 var mysqlSharedGroups = []string{"client-server", "client-mariadb"}
 
+const mysqlLoosePrefix = "loose-"
+
+var mysqlValueUnescaper = strings.NewReplacer(
+	`\\`, `\`, `\"`, `"`, `\'`, `'`, `\n`, "\n", `\r`, "\r", `\t`, "\t", `\b`, "\b", `\s`, " ",
+)
+
 func readMySQL(path string) ([]Entry, error) {
 	groups, err := ReadINI(path)
 	if err != nil {
@@ -61,7 +67,7 @@ func readMySQL(path string) ([]Entry, error) {
 		entries = append(entries, mysqlEntry(name, slices.Concat(base, own)))
 	}
 
-	if len(base) > 0 && (len(entries) == 0 || values(base)[mysqlHostOption] != "") {
+	if len(base) > 0 && (len(entries) == 0 || Values(base)[mysqlHostOption] != "") {
 		entries = slices.Insert(entries, 0, mysqlEntry(mysqlClientGroup, base))
 	}
 
@@ -101,8 +107,8 @@ func mysqlArgs(options []Param) []string {
 			continue
 		}
 
-		name := "--" + strings.ReplaceAll(option.Key, "_", "-")
-		arg := name + "=" + unquoted(option.Value)
+		name := "--" + strings.TrimPrefix(strings.ReplaceAll(option.Key, "_", "-"), mysqlLoosePrefix)
+		arg := name + "=" + mysqlValueUnescaper.Replace(unquoted(option.Value))
 
 		if i, repeated := index[name]; repeated {
 			args[i] = arg

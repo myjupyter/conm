@@ -209,18 +209,21 @@ func TestClickHouseClientPath(t *testing.T) {
 		files []string
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name     string
+		args     args
+		want     string
+		wantUser string
 	}{
 		{
-			name: "nothing there falls back to the home config",
-			want: filepath.Join("home", ".clickhouse-client", "config.xml"),
+			name:     "nothing there falls back to the home config",
+			want:     filepath.Join("home", ".clickhouse-client", "config.xml"),
+			wantUser: filepath.Join("home", ".clickhouse-client", "config.xml"),
 		},
 		{
-			name: "the home config, in whatever format it is",
-			args: args{files: []string{filepath.Join("home", ".clickhouse-client", "config.yaml")}},
-			want: filepath.Join("home", ".clickhouse-client", "config.yaml"),
+			name:     "the home config, in whatever format it is",
+			args:     args{files: []string{filepath.Join("home", ".clickhouse-client", "config.yaml")}},
+			want:     filepath.Join("home", ".clickhouse-client", "config.yaml"),
+			wantUser: filepath.Join("home", ".clickhouse-client", "config.yaml"),
 		},
 		{
 			name: "the xdg config wins over the home one",
@@ -228,7 +231,14 @@ func TestClickHouseClientPath(t *testing.T) {
 				filepath.Join("home", ".clickhouse-client", "config.xml"),
 				filepath.Join("xdg", "clickhouse", "config.yml"),
 			}},
-			want: filepath.Join("xdg", "clickhouse", "config.yml"),
+			want:     filepath.Join("xdg", "clickhouse", "config.yml"),
+			wantUser: filepath.Join("xdg", "clickhouse", "config.yml"),
+		},
+		{
+			name:     "the system config is read, never written: the user's own is",
+			args:     args{files: []string{filepath.Join("etc", "config.xml")}},
+			want:     filepath.Join("etc", "config.xml"),
+			wantUser: filepath.Join("home", ".clickhouse-client", "config.xml"),
 		},
 	}
 	for _, tt := range tests {
@@ -251,6 +261,7 @@ func TestClickHouseClientPath(t *testing.T) {
 			}
 
 			assert.Equal(t, filepath.Join(root, tt.want), ClickHouseClientPath())
+			assert.Equal(t, filepath.Join(root, tt.wantUser), ClickHouseUserPath())
 		})
 	}
 }

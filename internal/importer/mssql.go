@@ -18,7 +18,7 @@ import (
 
 const (
 	mssqlDefaultDatabase = "master"
-	mssqlNoEncryption    = "none"
+	MSSQLNoEncryption    = "none"
 )
 
 var errNoEndpoint = errors.New("context points at no endpoint")
@@ -40,7 +40,7 @@ func readMSSQL(path string) ([]Entry, error) {
 func mssqlEntry(context Section) Entry {
 	entry := Entry{Name: context.Name}
 
-	args, warnings, err := mssqlArgs(values(context.Params))
+	args, warnings, err := mssqlArgs(Values(context.Params))
 	if err != nil {
 		entry.Err = err
 		return entry
@@ -88,7 +88,7 @@ func mssqlArgs(context map[string]string) (args, warnings []string, err error) {
 		return args, nil, nil
 	}
 
-	if method := context[SQLConfigPasswordEncryption]; method != "" && method != mssqlNoEncryption {
+	if method := context[SQLConfigPasswordEncryption]; method != "" && method != MSSQLNoEncryption {
 		return args, []string{fmt.Sprintf("password is encrypted with %s and was left out", method)}, nil
 	}
 
@@ -115,29 +115,36 @@ func SQLConfigPath() string {
 	return filepath.Join(xdg.Home, sqlConfigDirName, sqlConfigFileName)
 }
 
-type sqlConfig struct {
-	Endpoints []struct {
-		Name     string `yaml:"name"`
-		Endpoint struct {
-			Address string `yaml:"address"`
-			Port    int    `yaml:"port"`
-		} `yaml:"endpoint"`
-	} `yaml:"endpoints"`
-	Contexts []struct {
-		Name    string `yaml:"name"`
-		Context struct {
-			Endpoint string `yaml:"endpoint"`
-			User     string `yaml:"user"`
-		} `yaml:"context"`
-	} `yaml:"contexts"`
-	Users []struct {
-		Name      string `yaml:"name"`
-		BasicAuth struct {
-			Username           string `yaml:"username"`
-			Password           string `yaml:"password"`
-			PasswordEncryption string `yaml:"password-encryption"`
-		} `yaml:"basic-auth"`
-	} `yaml:"users"`
+type SQLConfig struct {
+	Endpoints []SQLConfigEndpoint `yaml:"endpoints"`
+	Contexts  []SQLConfigContext  `yaml:"contexts"`
+	Users     []SQLConfigUser     `yaml:"users"`
+}
+
+type SQLConfigEndpoint struct {
+	Name     string `yaml:"name"`
+	Endpoint struct {
+		Address string `yaml:"address"`
+		Port    int    `yaml:"port,omitempty"`
+	} `yaml:"endpoint"`
+}
+
+type SQLConfigContext struct {
+	Name    string `yaml:"name"`
+	Context struct {
+		Endpoint string `yaml:"endpoint"`
+		User     string `yaml:"user,omitempty"`
+	} `yaml:"context"`
+}
+
+type SQLConfigUser struct {
+	Name               string `yaml:"name"`
+	AuthenticationType string `yaml:"authentication-type"`
+	BasicAuth          struct {
+		Username           string `yaml:"username"`
+		PasswordEncryption string `yaml:"password-encryption,omitempty"`
+		Password           string `yaml:"password,omitempty"`
+	} `yaml:"basic-auth"`
 }
 
 func ReadSQLConfig(path string) ([]Section, error) {
@@ -146,7 +153,7 @@ func ReadSQLConfig(path string) ([]Section, error) {
 		return nil, err
 	}
 
-	var file sqlConfig
+	var file SQLConfig
 	if err := yaml.Unmarshal(raw, &file); err != nil {
 		return nil, fmt.Errorf("couldn't parse file %q: %w", path, err)
 	}

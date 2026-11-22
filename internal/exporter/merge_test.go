@@ -57,9 +57,37 @@ func Test_iniMerged(t *testing.T) {
 func Test_sshMerged(t *testing.T) {
 	bastion := importer.Section{Name: "bastion", Params: []importer.Param{{Key: "HostName", Value: "bastion.internal"}, {Key: "Port", Value: "2222"}}}
 
-	got, err := sshMerged("", []byte("Host *\n  User ops\n"), []importer.Section{bastion})
-	require.NoError(t, err)
-	assert.Equal(t, "Host *\n  User ops\n\nHost bastion\n    HostName bastion.internal\n    Port 2222\n", string(got))
+	type args struct {
+		raw string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "before the first Host block, so a pattern below cannot override it",
+			args: args{raw: "Include ~/.ssh/extra\nUser me\n\n  Host *\n  User ops\n"},
+			want: "Include ~/.ssh/extra\nUser me\n\nHost bastion\n    HostName bastion.internal\n    Port 2222\n\n  Host *\n  User ops\n",
+		},
+		{
+			name: "before a Match block too",
+			args: args{raw: "match host *.internal\n  User ops\n"},
+			want: "Host bastion\n    HostName bastion.internal\n    Port 2222\n\nmatch host *.internal\n  User ops\n",
+		},
+		{
+			name: "a file without blocks gets it at the end",
+			args: args{raw: "User ops"},
+			want: "User ops\n\nHost bastion\n    HostName bastion.internal\n    Port 2222\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := sshMerged("", []byte(tt.args.raw), []importer.Section{bastion})
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(got))
+		})
+	}
 }
 
 func Test_held(t *testing.T) {
@@ -148,8 +176,26 @@ func Test_clickhouseMerged(t *testing.T) {
 			wantContains: "<user>app</user>\n    <connections_credentials>",
 		},
 		{
-			name:    "xml whose section only closes inside a comment is left alone",
-			args:    args{file: "config.xml", raw: "<config><user>app</user></config>\n<!-- </connections_credentials> -->\n"},
+			name:         "xml: a section inside a comment is not the section",
+			args:         args{file: "config.xml", raw: "<config>\n    <connections_credentials>\n    </connections_credentials>\n    <!-- <connections_credentials></connections_credentials> -->\n</config>\n"},
+			want:         added,
+			wantContains: "<connections_credentials>\n        <connection>\n            <name>orders</name>",
+		},
+		{
+			name:         "xml: a section closing only inside a comment gets a real one under the root",
+			args:         args{file: "config.xml", raw: "<config><user>app</user></config>\n<!-- </connections_credentials> -->\n"},
+			want:         added,
+			wantContains: "<config><user>app</user>    <connections_credentials>\n",
+		},
+		{
+			name:         "xml: an empty self-closing section is opened, not doubled",
+			args:         args{file: "config.xml", raw: "<config>\n    <connections_credentials/>\n</config>\n"},
+			want:         added,
+			wantContains: "<config>\n    <connections_credentials>\n        <connection>",
+		},
+		{
+			name:    "yaml with a second document is left alone",
+			args:    args{file: "config.yaml", raw: "user: app\n---\nother: doc\n"},
 			wantErr: true,
 		},
 		{
@@ -212,18 +258,21 @@ func Test_sqlConfigMerged(t *testing.T) {
 		args         args
 		want         []importer.Section
 		wantContains string
+		wantCurrent  string
 	}{
 		{
-			name:         "a new file gets its version and the three lists",
+			name:         "a new file gets its version, the three lists and the first context as current",
 			args:         args{sections: []importer.Section{orders, anonymous}},
 			want:         []importer.Section{orders, anonymous},
 			wantContains: "version: v1\nendpoints:\n  - name: orders\n    endpoint:\n      address: sql.internal\n      port: 1433\n",
+			wantCurrent:  "orders",
 		},
 		{
-			name:         "contexts are added to the ones there, comments and other keys kept",
+			name:         "contexts are added to the ones there, comments, other keys and the current context kept",
 			args:         args{raw: existing, sections: []importer.Section{orders}},
 			want:         []importer.Section{dev, orders},
 			wantContains: "# mine\nversion: v1\n",
+			wantCurrent:  "dev",
 		},
 	}
 	for _, tt := range tests {
@@ -234,6 +283,7 @@ func Test_sqlConfigMerged(t *testing.T) {
 			must.NoError(err)
 			is.Contains(string(merged), tt.wantContains)
 			is.Contains(string(merged), "authentication-type: basic\n")
+			is.Contains(string(merged), "currentcontext: "+tt.wantCurrent+"\n")
 
 			path := filepath.Join(t.TempDir(), "sqlconfig")
 			must.NoError(os.WriteFile(path, merged, 0o600))
