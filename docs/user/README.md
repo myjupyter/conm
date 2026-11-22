@@ -5,7 +5,7 @@ use Postgres; every other database works the same way under its own name.
 
 The pages say what to do, not which key does it. Every screen lists its keys: press `?` for the
 full list of the screen you are on, and `?` again to close it. Keys can be changed in the
-[settings](additional-screens.md#overriding-keybindings).
+[settings](settings.md#overriding-keybindings).
 
 ![Opening the key list in the connections table and in a form](../demo/help.gif)
 
@@ -45,15 +45,14 @@ full list of the screen you are on, and `?` again to close it. Keys can be chang
 
 ## Customising
 
-8. [Additional screens](additional-screens.md): settings and the info screen
-   - [Switching clients](additional-screens.md#switching-clients)
-   - [Overriding keybindings](additional-screens.md#overriding-keybindings)
-   - [Appearance](additional-screens.md#appearance)
-   - [Colours](additional-screens.md#colours)
-   - [Gradients](additional-screens.md#gradients)
-   - [Changing one element](additional-screens.md#changing-one-element)
-   - [Table](additional-screens.md#table)
-   - [Info screen](additional-screens.md#info-screen)
+8. [Settings](settings.md): clients, keybindings, appearance and the table
+   - [Switching clients](settings.md#switching-clients)
+   - [Overriding keybindings](settings.md#overriding-keybindings)
+   - [Appearance](settings.md#appearance)
+   - [Colours](settings.md#colours)
+   - [Gradients](settings.md#gradients)
+   - [Changing one element](settings.md#changing-one-element)
+   - [Table](settings.md#table)
 9. [Make conm yours](customisation.md): from the default look to a fully customised one, step
    by step
    - [1. The default](customisation.md#1-the-default)
@@ -63,8 +62,10 @@ full list of the screen you are on, and `?` again to close it. Keys can be chang
    - [5. Text: every role its own colour](customisation.md#5-text-every-role-its-own-colour)
    - [6. Table: the columns you need](customisation.md#6-table-the-columns-you-need)
    - [The whole setup](customisation.md#the-whole-setup)
-10. [Commands](commands.md): every command at a glance, and `conm doctor`
-   - [Doctor](commands.md#doctor)
+10. [Additional screens](additional-screens.md): the info screen
+    - [Info screen](additional-screens.md#info-screen)
+11. [Commands](commands.md): every command at a glance
+    - [Doctor](commands.md#doctor)
 
 ---
 

@@ -5,10 +5,10 @@ symbols, every colour — gradients included — how text is drawn, and which co
 connections table shows for each type. This page takes one setup from the default to a fully
 customised one, a layer at a time, so you can stop wherever you like.
 
-Every change is made on the **appearance** tab of the [settings screen](additional-screens.md#settings)
+Every change is made on the **appearance** tab of the [settings screen](settings.md)
 and takes effect at once. Each step below also shows what it adds to `conm.toml`, if you would
 rather edit the file; steps add to each other, so the last one is the whole setup. The
-[appearance reference](additional-screens.md#appearance) lists every option.
+[appearance reference](settings.md#appearance) lists every option.
 
 ## 1. The default
 
@@ -166,4 +166,4 @@ To go back, reset a single element to its preset on the settings screen, or dele
 
 ---
 
-[← Additional screens](additional-screens.md) · [Contents](README.md) · [Commands →](commands.md)
+[← Settings](settings.md) · [Contents](README.md) · [Additional screens →](additional-screens.md)

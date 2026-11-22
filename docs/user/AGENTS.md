@@ -14,9 +14,10 @@ For people who use conm and have never seen its source. `README.md` is the entry
 | `secrets.md` | the secrets screen, keyring references, secrets per workspace |
 | `ssh-transport.md` | reaching a database through an SSH transport |
 | `workspaces.md` | separate sets of connections and secrets |
-| `additional-screens.md` | settings (clients, keybindings, appearance, table) and the info screen |
+| `settings.md` | the settings screen: clients, keybindings, appearance, the table per type |
 | `customisation.md` | a walk from the default look to a fully customised one, with screenshots |
-| `commands.md` | every shell command in short, and `conm doctor` |
+| `additional-screens.md` | the info screen |
+| `commands.md` | every shell command in short, `conm doctor` included |
 
 ## When a feature lands
 
