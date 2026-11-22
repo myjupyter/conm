@@ -1,0 +1,19 @@
+# The YAML twin of config.xml.
+connections_credentials:
+  connection:
+    # Password in the file: it goes to the keyring on import.
+    - name: local
+      hostname: localhost
+      port: 9000
+      user: default
+      password: ch-s3cret
+      database: default
+    # No hostname: the name is the host. No user and no database: the client's own, "default".
+    - name: analytics.internal
+      secure: 1
+      history_file: ~/.analytics_history
+    # Turns certificate checks off: cannot be imported.
+    - name: cloud
+      hostname: db.example.com
+      secure: 1
+      accept-invalid-certificate: true

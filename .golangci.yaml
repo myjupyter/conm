@@ -237,9 +237,9 @@ linters:
             - "**/cmd/**"
           deny:
             - pkg: github.com/myjupyter/conm/internal/network
-              desc: cmd talks to config, ui, ui/spec, parser/params and importer only
+              desc: cmd talks to config, ui, ui/spec, parser/params, importer and exporter only
             - pkg: github.com/myjupyter/conm/internal/repository
-              desc: cmd talks to config, ui, ui/spec, parser/params and importer only
+              desc: cmd talks to config, ui, ui/spec, parser/params, importer and exporter only
 
   exclusions:
     generated: lax

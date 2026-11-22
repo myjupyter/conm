@@ -70,7 +70,3 @@ func useWorkspaceCmd() *cobra.Command {
 		},
 	}
 }
-
-func init() {
-	rootCmd.AddCommand(workspaceCmd())
-}

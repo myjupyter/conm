@@ -154,3 +154,56 @@ func TestRead_ssh(t *testing.T) {
 		})
 	}
 }
+
+func TestReadSSHConfig(t *testing.T) {
+	type args struct {
+		content string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []Section
+	}{
+		{
+			name: "an empty file still has the block of options given before any Host",
+			want: []Section{{Name: "*"}},
+		},
+		{
+			name: "options before the first Host apply to every host",
+			args: args{content: "User early\nHost one\n  Port 2222\n"},
+			want: []Section{
+				{Name: "*", Params: []Param{{Key: "User", Value: "early"}}},
+				{Name: "one", Params: []Param{{Key: "Port", Value: "2222"}}},
+			},
+		},
+		{
+			name: "a Host line keeps all its patterns, a keyword is cut at a space, a tab or an equals sign",
+			args: args{content: "# comment\nHost one *.internal !two\n  User ops\n\tPort\t2222\n  HostName=one.example.com\n  IdentityFile = \"~/.ssh/my key\"\n"},
+			want: []Section{
+				{Name: "*"},
+				{Name: "one *.internal !two", Params: []Param{
+					{Key: "User", Value: "ops"},
+					{Key: "Port", Value: "2222"},
+					{Key: "HostName", Value: "one.example.com"},
+					{Key: "IdentityFile", Value: "~/.ssh/my key"},
+				}},
+			},
+		},
+		{
+			name: "the options of a Match block are dropped until the next Host",
+			args: args{content: "Host one\n  User ops\nMatch host one\n  User matched\nhost two\n  User dev\n"},
+			want: []Section{
+				{Name: "*"},
+				{Name: "one", Params: []Param{{Key: "User", Value: "ops"}}},
+				{Name: "two", Params: []Param{{Key: "User", Value: "dev"}}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ReadSSHConfig(writeTemp(t, tt.args.content))
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

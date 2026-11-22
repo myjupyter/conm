@@ -19,11 +19,11 @@ type source struct {
 }
 
 var sources = map[config.ConnType]source{
-	config.PostgresConnType:   {path: config.PGServicePath, read: readPostgres},
-	config.MySQLConnType:      {path: config.MySQLOptionPath, read: readMySQL},
-	config.ClickHouseConnType: {path: config.ClickHouseClientPath, read: readClickHouse},
-	config.MSSQLConnType:      {path: config.SQLConfigPath, read: readMSSQL},
-	config.SSHConnType:        {path: config.SSHConfigPath, read: readSSH},
+	config.PostgresConnType:   {path: PGServicePath, read: readPostgres},
+	config.MySQLConnType:      {path: MySQLOptionPath, read: readMySQL},
+	config.ClickHouseConnType: {path: ClickHouseClientPath, read: readClickHouse},
+	config.MSSQLConnType:      {path: SQLConfigPath, read: readMSSQL},
+	config.SSHConnType:        {path: SSHConfigPath, read: readSSH},
 }
 
 func Supported(t config.ConnType) bool {
@@ -44,11 +44,21 @@ func Read(t config.ConnType, path string) ([]Entry, error) {
 	return src.read(path)
 }
 
-func values(params []config.ForeignParam) map[string]string {
+func Values(params []Param) map[string]string {
 	found := make(map[string]string, len(params))
 	for _, param := range params {
 		found[param.Key] = param.Value
 	}
 
 	return found
+}
+
+type Section struct {
+	Name   string
+	Params []Param
+}
+
+type Param struct {
+	Key   string
+	Value string
 }

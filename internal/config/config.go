@@ -11,6 +11,7 @@ import (
 
 const (
 	permMode       = 0o600
+	foreignDirMode = 0o700
 	maxSymlinkHops = 255
 )
 
@@ -204,4 +205,12 @@ func writeAndClose(f *os.File, data []byte) error {
 	}
 
 	return errors.Join(err, f.Close())
+}
+
+func WriteForeign(path string, data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), foreignDirMode); err != nil {
+		return err
+	}
+
+	return writeFileAtomic(path, data)
 }

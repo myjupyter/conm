@@ -74,7 +74,9 @@ type Workspaces interface {
 ```
 
 - `Session` is one open workspace: the connection repositories (`Connections()` /
-  `ConnectionsOf(t)`), `Keyring` and `Transports`. Built by `NewSession(conm)`, closed with
+  `ConnectionsOf(t)`), `Keyring` and `Transports`. `Password(ctx, conn)` resolves a
+  connection's secret reference to its material for `conm <type> export --with-passwords`;
+  a `filepath:` reference is a path, not material, and resolves to nothing. Built by `NewSession(conm)`, closed with
   `Close()`.
 - `Connections` is not generic: `Kind()` says which `config.ConnType` every entry has — what
   `ConfigAt` asserts to — and `Add`/`Edit` reject a foreign type.

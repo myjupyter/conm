@@ -81,6 +81,39 @@ A password found in the file goes to the system [keyring](secrets.md), not into 
 and a connection whose password cannot be stored there is not imported.
 `conm <database> import --help` lists the other options, such as another file to read.
 
+## Export to a client's config file
+
+The way back: write conm's connections into the client's own file, for the client itself or
+for a teammate without conm.
+
+```sh
+conm postgres export                  # every Postgres connection
+conm postgres export orders billing   # only these
+conm postgres export --show           # print what would happen, change nothing
+conm postgres export --path ./pg_service.conf --with-passwords
+```
+
+The entries are added to the file, which is created if it is not there. Nothing already in
+it is replaced: a connection whose name the file already has is `✗`, and then nothing is
+exported unless you add `--skip-errors`. The marks are the ones import prints.
+
+| Type | Written as | Left out |
+|---|---|---|
+| `postgres` | a service in `~/.pg_service.conf`; use it with `psql service=<name>` | the transport |
+| `mysql` | `[client_<name>]` and `[mysql_<name>]` in `~/.my.cnf`; use it with `mysql --defaults-group-suffix=_<name>` | the transport |
+| `clickhouse` | a `connections_credentials` entry in your own `config.xml` or `config.yaml` — `~/.config/clickhouse/` or `~/.clickhouse-client/`, never one in the current directory or `/etc`; use it with `clickhouse client --connection <name>` | the transport |
+| `mssql` | a context in `~/.sqlcmd/sqlconfig`, the current one if the file had none; select another with `sqlcmd config use-context <name>` | the database, the encryption settings, a password without a user, the transport |
+| `ssh` | a `Host` block at the top of `~/.ssh/config`, so neither a `Host *` nor an option above it can override it (what was global stays global, under a `Host *`); use it with `ssh <name>` | a password, and a key that is not a file |
+
+Passwords stay in conm. `--with-passwords` writes them into the file **in plain text**
+(base64 in `sqlconfig`, which is not encryption); an SSH config cannot hold one. The file is
+left readable by you alone.
+
+A name can be exported when it is made of letters, digits and `_ . @ -`. A password with a
+line break cannot go into `~/.pg_service.conf`; that connection is `✗`. Comments in the
+file are kept; a YAML file (`sqlconfig`, a ClickHouse `config.yaml`) is re-indented, and one
+holding more than one `---` document is not changed.
+
 ---
 
 [← First run](first-run.md) · [Contents](README.md) · [Edit or remove a connection →](edit-connection.md)

@@ -1,0 +1,35 @@
+# Example sqlcmd config for trying out `conm mssql import`:
+#
+#   conm mssql import --path test/e2e/testdata/mssql/sqlconfig --show
+#
+# A context is a connection: an endpoint plus a user. The password is base64, as sqlcmd stores it.
+version: v1
+endpoints:
+  - endpoint:
+      address: localhost
+      port: 1433
+    name: local
+  - endpoint:
+      address: reports.internal
+      port: 1444
+    name: reports
+contexts:
+  - context:
+      endpoint: local
+      user: sa
+    name: local
+  - context:
+      endpoint: reports
+    name: reports
+  - context:
+      endpoint: gone
+      user: sa
+    name: orphan
+currentcontext: local
+users:
+  - name: sa
+    authentication-type: basic
+    basic-auth:
+      username: sa
+      password-encryption: none
+      password: bXMtczNjcmV0

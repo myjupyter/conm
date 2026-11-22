@@ -7,7 +7,7 @@ from shared primitives, reach entities only through `ui/view`, and take their fo
 `ui/spec`.
 
 May import (internal): `ui/view`, `ui/spec`, `repository`, `importer`, `config`, `network`, `cli`,
-`secret`, `transport`, `utils/keys`.
+`secret`, `transport`, `utils/keys`, `exporter`.
 
 ## Files
 
@@ -33,6 +33,7 @@ A screen is split `<name>.go` (model, `Update`) / `<name>_view.go` (render) /
 | `settings*.go`, `settings_keybind*.go` | settings: the client per type, keybinding overrides |
 | `init_table*.go` | the type picker: before any connection exists, and when adding one of another type |
 | `import.go` | `ImportConnections`, `RenderImport` — saves `importer.Entry`s for `conm <type> import` and prints what became of each |
+| `export.go` | `ExportConnections` — hands saved connections to `exporter` for `conm <type> export` and reports what became of each |
 | `doctor.go` | `Doctor` — renders `repository.CheckClients`/`CheckFiles` for `conm doctor` |
 
 ## Main entities
@@ -82,6 +83,21 @@ repository, not through `ui/view`, and opens a screen only in `ImportInteractive
   `doctor` prints a check: `kindOK` imported, `kindErr` refused, `kindWarn` already there,
   `gImportNew` in `cPostgres` importable but not imported. The DSN is
   `ConnectionString("")`, so it never carries the password.
+
+## Export — `export.go`
+
+`ExportConnections` is a shell entry point like `ImportConnections` and opens no screen. It
+picks the connections (all, or the named ones — an unknown name fails the run), resolves
+their passwords through `repository.Session.Password` only under
+`ExportOptions.WithPasswords` and for a type `exporter.WritesPasswords` — never SSH, so no
+keychain is asked for a secret that would not be written — and lets `exporter.Plan` and
+`exporter.Write` do the rest.
+
+- **It reports through `ImportResult` and `RenderImport`**, with the same marks:
+  `ImportNew` exportable but not written, `ImportDone` written, `ImportFailed` refused.
+  `ImportPresent` does not occur: an entry the file already has is a refusal.
+- A refusal writes nothing unless `SkipErrors`; `Show` stops after the plan. A password that
+  cannot be resolved is that connection's refusal, never an export without it.
 
 ## Shared primitives — reuse, never re-implement
 

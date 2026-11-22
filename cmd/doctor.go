@@ -7,8 +7,8 @@ import (
 	"github.com/myjupyter/conm/internal/ui"
 )
 
-func init() {
-	rootCmd.AddCommand(&cobra.Command{
+func doctorCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:          "doctor",
 		Short:        "Check the installed clients and the state of the config files",
 		Args:         cobra.NoArgs,
@@ -18,5 +18,5 @@ func init() {
 
 			return ui.Doctor(cmd.Context(), cmd.OutOrStdout(), cmd.Root().Version, conm, err)
 		},
-	})
+	}
 }

@@ -2,8 +2,11 @@ package importer
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/adrg/xdg"
 
 	"github.com/myjupyter/conm/internal/config"
 	"github.com/myjupyter/conm/internal/parser/params"
@@ -17,14 +20,20 @@ const (
 
 var mysqlSharedGroups = []string{"client-server", "client-mariadb"}
 
+const mysqlLoosePrefix = "loose-"
+
+var mysqlValueUnescaper = strings.NewReplacer(
+	`\\`, `\`, `\"`, `"`, `\'`, `'`, `\n`, "\n", `\r`, "\r", `\t`, "\t", `\b`, "\b", `\s`, " ",
+)
+
 func readMySQL(path string) ([]Entry, error) {
-	groups, err := config.ReadINI(path)
+	groups, err := ReadINI(path)
 	if err != nil {
 		return nil, err
 	}
 
-	options := func(names ...string) []config.ForeignParam {
-		var found []config.ForeignParam
+	options := func(names ...string) []Param {
+		var found []Param
 		for _, group := range groups {
 			if slices.Contains(names, group.Name) {
 				found = append(found, group.Params...)
@@ -39,8 +48,11 @@ func readMySQL(path string) ([]Entry, error) {
 	var (
 		entries []Entry
 		seen    []string
-		names   = []string{mysqlClientGroup}
+		names   []string
 	)
+	if len(base) > 0 {
+		names = append(names, mysqlClientGroup)
+	}
 	for _, group := range groups {
 		suffix, ok := strings.CutPrefix(group.Name, mysqlClientGroup)
 		if !ok || suffix == "" || slices.Contains(mysqlSharedGroups, group.Name) || slices.Contains(seen, suffix) {
@@ -58,14 +70,14 @@ func readMySQL(path string) ([]Entry, error) {
 		entries = append(entries, mysqlEntry(name, slices.Concat(base, own)))
 	}
 
-	if len(base) > 0 && (len(entries) == 0 || values(base)[mysqlHostOption] != "") {
+	if len(base) > 0 && (len(entries) == 0 || Values(base)[mysqlHostOption] != "") {
 		entries = slices.Insert(entries, 0, mysqlEntry(mysqlClientGroup, base))
 	}
 
 	return entries, nil
 }
 
-func mysqlEntry(name string, options []config.ForeignParam) Entry {
+func mysqlEntry(name string, options []Param) Entry {
 	entry := Entry{Name: name}
 
 	res, err := params.ParseOptions(config.MySQLConnType, mysqlArgs(options))
@@ -87,7 +99,7 @@ func mysqlEntry(name string, options []config.ForeignParam) Entry {
 	return entry
 }
 
-func mysqlArgs(options []config.ForeignParam) []string {
+func mysqlArgs(options []Param) []string {
 	var (
 		args  []string
 		index = map[string]int{}
@@ -98,8 +110,8 @@ func mysqlArgs(options []config.ForeignParam) []string {
 			continue
 		}
 
-		name := "--" + strings.ReplaceAll(option.Key, "_", "-")
-		arg := name + "=" + unquoted(option.Value)
+		name := "--" + strings.TrimPrefix(strings.ReplaceAll(option.Key, "_", "-"), mysqlLoosePrefix)
+		arg := name + "=" + mysqlValueUnescaper.Replace(unquoted(option.Value))
 
 		if i, repeated := index[name]; repeated {
 			args[i] = arg
@@ -122,4 +134,10 @@ func unquoted(value string) string {
 	}
 
 	return value
+}
+
+const mysqlOptionFileName = ".my.cnf"
+
+func MySQLOptionPath() string {
+	return filepath.Join(xdg.Home, mysqlOptionFileName)
 }
