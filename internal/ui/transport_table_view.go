@@ -92,7 +92,7 @@ func (m transportModel) kindTabsLine(n int) string {
 	label := fmt.Sprintf(" %s %d ", m.transports.Active(), n)
 	return frameLine(m.inner(), []span{
 		{text: " ", fg: cDim},
-		{text: label, fg: cInvFg, bg: cAccent, style: tTab},
+		{text: label, fg: cInvFg, bg: tabBg(cAccent), style: tTab},
 	}, nil)
 }
 

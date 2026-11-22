@@ -3,9 +3,12 @@ package ui
 import (
 	"image/color"
 	"maps"
+	"os"
 	"strings"
+	"sync"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/rivo/uniseg"
 
@@ -29,8 +32,9 @@ var (
 	cInput  color.Color
 
 	baseFg      = lipgloss.Color("#ddd6c8")
+	baseHeadBg  = lipgloss.Color("#1a1912")
 	baseInput   = lipgloss.Color("#c4bcac")
-	cHeadBg     = lipgloss.Color("#1a1912")
+	cHeadBg     color.Color
 	cRail       = lipgloss.Color("#33302a")
 	cPairBg     = lipgloss.Color("#151a13")
 	cPong       = lipgloss.Color("#b9cdbd")
@@ -79,6 +83,12 @@ var borderVars = map[string]*string{
 var glyphCell int
 
 var (
+	cSubheadBg      color.Color
+	subheadStops    []color.Color
+	tabBackground   color.Color
+	tabStops        []color.Color
+	headStops       []color.Color
+	accentStops     []color.Color
 	gradientsOn     bool
 	borderGradients map[string][]color.Color
 	borderColors    map[string]color.Color
@@ -86,11 +96,11 @@ var (
 )
 
 var (
-	tTitle, tTab, tHeading, tSelection, tKey, tValue, tNote textStyle
+	tTitle, tTab, tHeading, tSubheading, tSelection, tKey, tValue, tNote textStyle
 )
 
 var textVars = map[string]*textStyle{
-	roleTitle: &tTitle, "tab": &tTab, roleHeading: &tHeading, "selection": &tSelection,
+	roleTitle: &tTitle, "tab": &tTab, roleHeading: &tHeading, "subheading": &tSubheading, "selection": &tSelection,
 	"key": &tKey, "value": &tValue, "note": &tNote,
 }
 
@@ -208,10 +218,10 @@ func styles(values ...string) map[string]string {
 }
 
 var textPresets = map[string]map[string]string{
-	defaultText:      styles("bold", "bold", "bold", "bold", "bold", "bold", config.PlainText),
-	config.PlainText: styles(config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText),
-	"emphasis":       styles("bold+underline", "bold", "bold+underline", "bold", "bold", "bold", "italic"),
-	colorSoft:        styles("bold", config.PlainText, "bold", config.PlainText, config.PlainText, config.PlainText, "italic+faint"),
+	defaultText:      styles("bold", "bold", "bold", "bold", "bold", "bold", "bold", config.PlainText),
+	config.PlainText: styles(config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText),
+	"emphasis":       styles("bold+underline", "bold", "bold+underline", "bold", "bold", "bold", "bold", "italic"),
+	colorSoft:        styles("bold", config.PlainText, "bold", "bold", config.PlainText, config.PlainText, config.PlainText, "italic+faint"),
 }
 
 func colors(elements []string, value string, except map[string]string) map[string]string {
@@ -283,13 +293,23 @@ var accentColors = map[string]color.Color{
 }
 
 func accentColor(value string) color.Color {
-	if config.IsHexColor(value) {
-		return lipgloss.Color(value)
-	}
-	if c, ok := accentColors[value]; ok {
-		return c
+	if stops := accentStopsOf(value); len(stops) > 0 {
+		return stops[0]
 	}
 	return accentColors[defaultAccent]
+}
+
+func accentStopsOf(value string) []color.Color {
+	var stops []color.Color
+	for stop := range strings.SplitSeq(value, config.GradientSeparator) {
+		switch {
+		case config.IsHexColor(stop):
+			stops = append(stops, lipgloss.Color(stop))
+		case accentColors[stop] != nil:
+			stops = append(stops, accentColors[stop])
+		}
+	}
+	return stops
 }
 
 func borderLocked(a config.AppearanceSettings) bool {
@@ -331,6 +351,17 @@ func colorStops(value string) []color.Color {
 		}
 	}
 	return stops
+}
+
+func gradientOf(value string) []color.Color {
+	if stops := colorStops(value); len(stops) > 1 && gradientsOn {
+		return stops
+	}
+	return nil
+}
+
+func tabBg(contextual color.Color) color.Color {
+	return colorOr(tabBackground, contextual)
 }
 
 func colorOr(c, fallback color.Color) color.Color {
@@ -395,6 +426,11 @@ func init() {
 
 func applyAppearance(a config.AppearanceSettings) {
 	cAccent = accentColor(a.Accent)
+	accentStops = nil
+	gradientsOn = supportsTrueColor()
+	if stops := accentStopsOf(a.Accent); len(stops) > 1 && gradientsOn {
+		accentStops = stops
+	}
 	for element, value := range borderRunes(a) {
 		*borderVars[element] = value
 	}
@@ -403,9 +439,13 @@ func applyAppearance(a config.AppearanceSettings) {
 		*glyphVars[element] = value
 		glyphCell = max(glyphCell, ansi.StringWidth(value))
 	}
-	gradientsOn = a.Gradients
 	textColors := textColorNames(a)
 	cFg = colorOr(firstStop(textColors["body"]), baseFg)
+	backgrounds := a.TextBackgrounds
+	tabBackground = firstStop(backgrounds["tab"])
+	cHeadBg = colorOr(firstStop(backgrounds["heading"]), baseHeadBg)
+	tabStops, headStops = gradientOf(backgrounds["tab"]), gradientOf(backgrounds["heading"])
+	cSubheadBg, subheadStops = firstStop(backgrounds["subheading"]), gradientOf(backgrounds["subheading"])
 	cInput = colorOr(firstStop(textColors["input"]), baseInput)
 	for element, value := range textStyles(a) {
 		*textVars[element] = roleStyle(value, textColors[element])
@@ -480,6 +520,66 @@ func graphemes(text string) []string {
 		cells = append(cells, g.Str())
 	}
 	return cells
+}
+
+var supportsTrueColor = sync.OnceValue(func() bool {
+	return colorprofile.Detect(os.Stdout, os.Environ()) == colorprofile.TrueColor
+})
+
+func sameColor(a, b color.Color) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	ar, ag, ab, aa := a.RGBA()
+	br, bg, bb, ba := b.RGBA()
+	return ar == br && ag == bg && ab == bb && aa == ba
+}
+
+func backgroundStops(c color.Color) []color.Color {
+	switch {
+	case c == nil:
+		return nil
+	case len(tabStops) > 1 && sameColor(c, tabBackground):
+		return tabStops
+	case len(headStops) > 1 && sameColor(c, cHeadBg):
+		return headStops
+	case len(subheadStops) > 1 && sameColor(c, cSubheadBg):
+		return subheadStops
+	case len(accentStops) > 1 && sameColor(c, cAccent):
+		return accentStops
+	}
+	return nil
+}
+
+func backgroundGradients(spans []span, lineBg color.Color, w int) []span {
+	lineStops := backgroundStops(lineBg)
+	var line []color.Color
+	if lineStops != nil {
+		line = lipgloss.Blend1D(max(w, 2), lineStops...)
+	}
+	out := make([]span, 0, len(spans))
+	col := 0
+	for _, s := range spans {
+		width := s.width()
+		stops := backgroundStops(s.bg)
+		if s.raw != "" || stops == nil || width == 0 {
+			out = append(out, s)
+			col += width
+			continue
+		}
+		own, at := line, col
+		if line == nil || !sameColor(s.bg, lineBg) {
+			own, at = lipgloss.Blend1D(max(width, 2), stops...), 0
+		}
+		for _, cell := range graphemes(s.text) {
+			c := s
+			c.text, c.bg = cell, own[min(at, len(own)-1)]
+			out = append(out, c)
+			at += ansi.StringWidth(cell)
+		}
+		col += width
+	}
+	return out
 }
 
 func sideGradients(lines []string) []string {

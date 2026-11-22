@@ -122,6 +122,18 @@ var (
 		textColorNames, config.IsColorOrGradient, nil)
 )
 
+var textBackgroundGroup = colorGroup([]string{defaultPalette}, textBackgroundPresets,
+	func(config.AppearanceSettings) string { return defaultPalette },
+	func(a *config.AppearanceSettings) *map[string]string { return &a.TextBackgrounds },
+	func(a config.AppearanceSettings) map[string]string {
+		return resolveRunes(textBackgroundPresets, defaultPalette, defaultPalette, a.TextBackgrounds)
+	},
+	config.IsColorOrGradient, nil)
+
+var textBackgroundPresets = map[string]map[string]string{
+	defaultPalette: colors(config.TextBackgroundElements, config.AutoColor, nil),
+}
+
 func (g elementGroup) variants(element string) []string {
 	if g.choices != nil {
 		return g.choices
@@ -144,18 +156,20 @@ type appearanceRow struct {
 
 	options []string
 	field   func(*config.AppearanceSettings) *string
-	flag    func(*config.AppearanceSettings) *bool
 	preview func(config.AppearanceSettings) []span
 
 	group   *elementGroup
 	element string
 }
 
+const flatNote = "drawn flat: this terminal has no 24-bit colour"
+
+var accentGradientChoices = []string{"teal>pink", "amber>pink", "blue>purple", "lime>teal", "orange>red"}
+
 const (
-	paletteLabel = "palette"
-	colorLabel   = "colour"
-	flagOff      = "off"
-	flagOn       = "on"
+	paletteLabel    = "palette"
+	colorLabel      = "colour"
+	backgroundLabel = "background"
 )
 
 var appearanceRows = buildAppearanceRows()
@@ -165,22 +179,10 @@ func buildAppearanceRows() []appearanceRow {
 		{
 			section: colorLabel,
 			label:   colorAccent,
-			input:   inputHex,
-			options: config.AccentColors,
+			input:   inputColor,
+			options: append(slices.Clone(config.AccentColors), accentGradientChoices...),
 			field:   func(a *config.AppearanceSettings) *string { return &a.Accent },
-			preview: func(a config.AppearanceSettings) []span { return []span{{text: swatch, bg: accentColor(a.Accent)}} },
-		},
-		{
-			section: colorLabel,
-			label:   "gradients",
-			options: []string{flagOff, flagOn},
-			flag:    func(a *config.AppearanceSettings) *bool { return &a.Gradients },
-			preview: func(a config.AppearanceSettings) []span {
-				if !a.Gradients {
-					return []span{{text: "every gradient draws in its first colour", fg: cMuted}}
-				}
-				return gradientSwatch(colorStops("teal>blue>purple>pink"))
-			},
+			preview: func(a config.AppearanceSettings) []span { return accentSwatch(a.Accent) },
 		},
 		{
 			section: "text",
@@ -192,7 +194,9 @@ func buildAppearanceRows() []appearanceRow {
 		},
 		paletteRow("text", config.TextPalettes, func(a *config.AppearanceSettings) *string { return &a.TextColor }, textSample),
 	}
-	rows = append(rows, elementRows("text", "style", &textGroup, config.TextElements, &textColorGroup, config.TextColorElements)...)
+	rows = append(rows, elementRows("text", "style", &textGroup, config.TextElements,
+		extraRows{colorLabel, &textColorGroup, config.TextColorElements},
+		extraRows{backgroundLabel, &textBackgroundGroup, config.TextBackgroundElements})...)
 	rows = append(rows,
 		appearanceRow{
 			section: "border",
@@ -204,7 +208,8 @@ func buildAppearanceRows() []appearanceRow {
 		},
 		paletteRow("border", config.BorderPalettes, func(a *config.AppearanceSettings) *string { return &a.BorderColor }, borderSample),
 	)
-	rows = append(rows, elementRows("border", "character", &borderGroup, config.BorderElements, &borderColorGroup, config.BorderElements)...)
+	rows = append(rows, elementRows("border", "character", &borderGroup, config.BorderElements,
+		extraRows{colorLabel, &borderColorGroup, config.BorderElements})...)
 	rows = append(rows,
 		appearanceRow{
 			section: "glyphs",
@@ -216,7 +221,8 @@ func buildAppearanceRows() []appearanceRow {
 		},
 		paletteRow("glyphs", config.GlyphPalettes, func(a *config.AppearanceSettings) *string { return &a.GlyphColor }, glyphSample),
 	)
-	return append(rows, elementRows("glyphs", "glyph", &glyphGroup, config.GlyphElements, &glyphColorGroup, config.GlyphColorElements)...)
+	return append(rows, elementRows("glyphs", "glyph", &glyphGroup, config.GlyphElements,
+		extraRows{colorLabel, &glyphColorGroup, config.GlyphColorElements})...)
 }
 
 func paletteRow(section string, options []string, field func(*config.AppearanceSettings) *string, preview func(config.AppearanceSettings) []span) appearanceRow {
@@ -281,39 +287,56 @@ func resolvedColors(names map[string]string, auto color.Color) map[string]color.
 	return colors
 }
 
-func elementRows(section, valueLabel string, group *elementGroup, elements []string, colors *elementGroup, colored []string) []appearanceRow {
-	rows := make([]appearanceRow, 0, 2*len(elements))
-	for _, element := range elements {
+type extraRows struct {
+	label    string
+	group    *elementGroup
+	elements []string
+}
+
+func elementRows(section, valueLabel string, group *elementGroup, elements []string, extras ...extraRows) []appearanceRow {
+	var rows []appearanceRow
+	add := func(element string, withValue bool) {
 		label := strings.ReplaceAll(element, "_", " ")
-		rows = append(rows, appearanceRow{
-			section: section,
-			subhead: label,
-			label:   label,
-			display: "  " + valueLabel,
-			input:   group.input,
-			group:   group,
-			element: element,
-		})
-		if slices.Contains(colored, element) {
-			rows = append(rows, colorRow(section, label, colors, element))
+		if withValue {
+			rows = append(rows, appearanceRow{
+				section: section,
+				subhead: label,
+				label:   label,
+				display: "  " + valueLabel,
+				input:   group.input,
+				group:   group,
+				element: element,
+			})
+		}
+		for _, extra := range extras {
+			if slices.Contains(extra.elements, element) {
+				rows = append(rows, extraRow(section, label, extra, element))
+			}
 		}
 	}
-	for _, element := range colored {
-		if !slices.Contains(elements, element) {
-			rows = append(rows, colorRow(section, strings.ReplaceAll(element, "_", " "), colors, element))
+	for _, element := range elements {
+		add(element, true)
+	}
+	seen := slices.Clone(elements)
+	for _, extra := range extras {
+		for _, element := range extra.elements {
+			if !slices.Contains(seen, element) {
+				seen = append(seen, element)
+				add(element, false)
+			}
 		}
 	}
 	return rows
 }
 
-func colorRow(section, label string, colors *elementGroup, element string) appearanceRow {
+func extraRow(section, label string, extra extraRows, element string) appearanceRow {
 	return appearanceRow{
 		section: section,
 		subhead: label,
-		label:   label + " " + colorLabel,
-		display: "  " + colorLabel,
-		input:   colors.input,
-		group:   colors,
+		label:   label + " " + extra.label,
+		display: "  " + extra.label,
+		input:   extra.group.input,
+		group:   extra.group,
 		element: element,
 	}
 }
@@ -323,12 +346,6 @@ func (r appearanceRow) name() string {
 }
 
 func (r appearanceRow) value(a config.AppearanceSettings) string {
-	if r.flag != nil {
-		if *r.flag(&a) {
-			return flagOn
-		}
-		return flagOff
-	}
 	if r.element != "" {
 		return r.group.resolve(a)[r.element]
 	}
@@ -356,10 +373,6 @@ func (r appearanceRow) overridden(a config.AppearanceSettings) bool {
 }
 
 func (r appearanceRow) set(a *config.AppearanceSettings, value string) {
-	if r.flag != nil {
-		*r.flag(a) = value == flagOn
-		return
-	}
 	if r.element == "" {
 		*r.field(a) = value
 		return
@@ -378,7 +391,7 @@ func (r appearanceRow) set(a *config.AppearanceSettings, value string) {
 
 func (r appearanceRow) accepts(draft string) bool {
 	if r.group == nil {
-		return config.IsHexColor(draft)
+		return config.IsAccent(draft)
 	}
 	return r.group.accepts(draft)
 }
@@ -485,11 +498,11 @@ func (m settingsModel) startAppearanceInput() settingsModel {
 	}
 
 	if row.input == inputColor {
-		if value := row.value(m.conm.Appearance); value != config.AutoColor {
+		if value := row.value(m.conm.Appearance); config.IsHexColor(value) || strings.Contains(value, config.GradientSeparator) {
 			m.appear.draft = value
 		}
 		hint := "type a colour name or #rrggbb"
-		if row.group.accepts("teal>pink") {
+		if row.accepts("teal>pink") {
 			hint += ", or a gradient like teal>pink"
 		}
 		m.setSettingsStatus(hint, kindIdle)
@@ -566,7 +579,11 @@ func (m settingsModel) setAppearance(row appearanceRow, value string) tea.Cmd {
 	next := m.conm.Appearance.Clone()
 	row.set(&next, value)
 
-	return m.saveAppearanceCmd(next, row.name()+" → "+value)
+	status := row.name() + " → " + value
+	if strings.Contains(value, config.GradientSeparator) && !gradientsOn {
+		status += " · " + flatNote
+	}
+	return m.saveAppearanceCmd(next, status)
 }
 
 func lockedStatus(row appearanceRow) string {
@@ -655,6 +672,8 @@ func (m settingsModel) appearanceLine(row appearanceRow, on bool) string {
 		switch {
 		case row.input == inputHex && config.IsHexColor(m.appear.draft):
 			preview = []span{{text: swatch, bg: lipgloss.Color(m.appear.draft)}}
+		case row.input == inputColor && row.group == nil && row.accepts(m.appear.draft):
+			preview = accentSwatch(m.appear.draft)
 		case row.input == inputColor && row.accepts(m.appear.draft):
 			preview = colorSwatch(row.group, m.appear.draft)
 		}
@@ -703,13 +722,26 @@ func colorSwatch(g *elementGroup, name string) []span {
 	case len(stops) > 1 && gradientsOn:
 		return append(gradientSwatch(stops), span{text: " "})
 	case len(stops) > 1:
-		return []span{{text: swatch, bg: stops[0]}, {text: " flat while gradients are off ", fg: cMuted}}
+		return []span{{text: swatch, bg: stops[0]}, {text: " " + flatNote + " ", fg: cMuted}}
 	case len(stops) == 1:
 		return []span{{text: swatch, bg: stops[0]}, {text: " "}}
 	case g.auto != nil:
 		return []span{{text: swatch, bg: g.auto}, {text: " "}}
 	}
 	return []span{{text: "set by the screen ", fg: cMuted}}
+}
+
+func accentSwatch(value string) []span {
+	stops := accentStopsOf(value)
+	switch {
+	case len(stops) > 1 && gradientsOn:
+		return gradientSwatch(stops)
+	case len(stops) > 1:
+		return []span{{text: swatch, bg: stops[0]}, {text: " " + flatNote, fg: cMuted}}
+	case len(stops) == 1:
+		return []span{{text: swatch, bg: stops[0]}}
+	}
+	return nil
 }
 
 func gradientSwatch(stops []color.Color) []span {

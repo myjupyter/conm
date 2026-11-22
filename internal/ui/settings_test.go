@@ -157,7 +157,7 @@ func TestSettingsModel_cycleAppearance(t *testing.T) {
 			current: plainAppearance,
 			row:     "colour accent",
 			step:    -1,
-			want:    withAppearance(func(a *config.AppearanceSettings) { a.Accent = "amber" }),
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.Accent = "orange>red" }),
 		},
 		{
 			name:    "glyph set wraps forward",
@@ -250,27 +250,27 @@ func TestSettingsModel_appearanceInput(t *testing.T) {
 		wantEdit bool
 	}{
 		{
-			name:  "a full hex colour is saved",
+			name:  "a hex accent is saved",
 			row:   "colour accent",
-			typed: []string{"ff", "88", "00"},
+			typed: []string{"#FF", "88", "00"},
 			want:  withAppearance(func(a *config.AppearanceSettings) { a.Accent = "#ff8800" }),
 		},
 		{
-			name:  "non-hex characters are dropped",
+			name:  "an accent gradient is saved",
 			row:   "colour accent",
-			typed: []string{"zz12", "34 5", "6"},
-			want:  withAppearance(func(a *config.AppearanceSettings) { a.Accent = "#123456" }),
+			typed: []string{"Teal > ", "#FF00AA>pink"},
+			want:  withAppearance(func(a *config.AppearanceSettings) { a.Accent = "teal>#ff00aa>pink" }),
 		},
 		{
-			name:  "hex input stops at seven characters",
-			row:   "colour accent",
-			typed: []string{"abcdef99"},
-			want:  withAppearance(func(a *config.AppearanceSettings) { a.Accent = "#abcdef" }),
-		},
-		{
-			name:     "a short hex colour keeps the input open",
+			name:     "a short hex accent keeps the input open",
 			row:      "colour accent",
-			typed:    []string{"abc"},
+			typed:    []string{"#abc"},
+			wantEdit: true,
+		},
+		{
+			name:     "an accent through a colour name keeps the input open",
+			row:      "colour accent",
+			typed:    []string{"fg>pink"},
 			wantEdit: true,
 		},
 		{
@@ -528,11 +528,11 @@ func TestSettingsModel_colorRows(t *testing.T) {
 			want: withAppearance(func(a *config.AppearanceSettings) { a.GlyphColors = map[string]string{"caret": "#ff0088"} }),
 		},
 		{
-			name:    "gradients switch on",
-			current: plainAppearance,
-			row:     "colour gradients",
+			name:    "the accent cycles into the gradient choices",
+			current: withAppearance(func(a *config.AppearanceSettings) { a.Accent = "amber" }),
+			row:     "colour accent",
 			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
-			want:    withAppearance(func(a *config.AppearanceSettings) { a.Gradients = true }),
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.Accent = "teal>pink" }),
 		},
 		{
 			name:    "a border gradient is typed",
@@ -555,6 +555,26 @@ func TestSettingsModel_colorRows(t *testing.T) {
 				return m.saveAppearanceDraft()
 			},
 			want: withAppearance(func(a *config.AppearanceSettings) { a.TextColors = map[string]string{"title": "#ff8800>accent"} }),
+		},
+		{
+			name:    "the tab background steps off auto",
+			current: plainAppearance,
+			row:     "text tab background",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.TextBackgrounds = map[string]string{"tab": "accent"} }),
+		},
+		{
+			name:    "a heading background gradient is typed",
+			current: plainAppearance,
+			row:     "text heading background",
+			act: func(m settingsModel) (tea.Model, tea.Cmd) {
+				m = m.startAppearanceInput()
+				m = m.typeAppearance("#202020>#3a2a40")
+				return m.saveAppearanceDraft()
+			},
+			want: withAppearance(func(a *config.AppearanceSettings) {
+				a.TextBackgrounds = map[string]string{"heading": "#202020>#3a2a40"}
+			}),
 		},
 		{
 			name:    "the input colour steps off auto",
@@ -620,6 +640,9 @@ func TestSettingsModel_appearanceSubheads(t *testing.T) {
 		rows    []string
 	}{
 		{subhead: "TITLE", rows: []string{"style", "colour"}},
+		{subhead: "TAB", rows: []string{"style", "colour", "background"}},
+		{subhead: "HEADING", rows: []string{"style", "colour", "background"}},
+		{subhead: "SUBHEADING", rows: []string{"style", "colour", "background"}},
 		{subhead: "TOP LEFT", rows: []string{"character", "colour"}},
 		{subhead: "STATUS OK", rows: []string{"glyph", "colour"}},
 		{subhead: "ELLIPSIS", rows: []string{"glyph"}},
@@ -661,4 +684,28 @@ func TestSettingsModel_glyphColourRefusesGradient(t *testing.T) {
 	require.True(t, ok)
 	assert.True(t, got.appear.editing)
 	assert.Equal(t, kindWarn, got.statusKind)
+}
+
+func TestSettingsModel_flatGradientHint(t *testing.T) {
+	tests := []struct {
+		name      string
+		trueColor bool
+		wantHint  bool
+	}{
+		{name: "no 24-bit colour", wantHint: true},
+		{name: "24-bit colour", trueColor: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			current := withAppearance(func(a *config.AppearanceSettings) { a.Accent = "amber" })
+			withTrueColor(t, tt.trueColor, current)
+			m := newAppearanceFixture(t, current, "colour accent")
+
+			_, cmd := m.cycleAppearance(1)
+			require.NotNil(t, cmd)
+			msg, ok := cmd().(settingsSavedMsg)
+			require.True(t, ok)
+			assert.Equal(t, tt.wantHint, strings.Contains(msg.status, flatNote))
+		})
+	}
 }

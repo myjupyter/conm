@@ -151,7 +151,7 @@ func keyhintTable(w int, groups []keyhintGroup) []string {
 		}
 		lines = append(lines, frameLine(w, []span{
 			{text: "  ", fg: cDim},
-			{text: strings.ToUpper(g.title), fg: cSoft, style: tHeading},
+			{text: strings.ToUpper(g.title), fg: cSoft, style: tSubheading},
 		}, nil))
 		lines = append(lines, keyhintRowLines(w, g.binds, keyW)...)
 	}

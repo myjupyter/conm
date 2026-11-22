@@ -40,9 +40,10 @@ var (
 		"input_cursor", "input_mask", "empty", "ellipsis", "hint_arrow", "scroll_up", "scroll_down",
 		"select_prev", "select_next",
 	}
-	TextElements      = []string{"title", "tab", "heading", "selection", "key", "value", "note"}
-	TextColorElements = append(slices.Clone(TextElements), "body", "input")
-	TextAttributes    = []string{"bold", "italic", "underline", "faint"}
+	TextElements           = []string{"title", "tab", "heading", "subheading", "selection", "key", "value", "note"}
+	TextColorElements      = append(slices.Clone(TextElements), "body", "input")
+	TextBackgroundElements = []string{"tab", "heading", "subheading"}
+	TextAttributes         = []string{"bold", "italic", "underline", "faint"}
 
 	BorderPalettes     = []string{DefaultPreset, AccentColor, "soft", "bright", "duotone", "sunset", "ocean"}
 	GlyphPalettes      = []string{DefaultPreset, AccentColor, "bright", "muted"}
@@ -58,7 +59,6 @@ var (
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 type AppearanceSettings struct {
-	Gradients   bool              `toml:"gradients"`
 	Border      string            `toml:"border"`
 	BorderRunes map[string]string `toml:"border_runes,omitempty"`
 	Accent      string            `toml:"accent"`
@@ -73,6 +73,8 @@ type AppearanceSettings struct {
 	GlyphColors  map[string]string `toml:"glyph_colors,omitempty"`
 	TextColor    string            `toml:"text_color"`
 	TextColors   map[string]string `toml:"text_colors,omitempty"`
+
+	TextBackgrounds map[string]string `toml:"text_backgrounds,omitempty"`
 }
 
 func IsColor(value string) bool {
@@ -86,6 +88,16 @@ func IsGradient(value string) bool {
 	}
 	for _, stop := range stops {
 		if stop == AutoColor || !IsColor(stop) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsAccent(value string) bool {
+	stops := strings.SplitSeq(value, GradientSeparator)
+	for stop := range stops {
+		if !slices.Contains(AccentColors, stop) && !IsHexColor(stop) {
 			return false
 		}
 	}
@@ -129,6 +141,7 @@ func (a AppearanceSettings) Clone() AppearanceSettings {
 	a.BorderColors = maps.Clone(a.BorderColors)
 	a.GlyphColors = maps.Clone(a.GlyphColors)
 	a.TextColors = maps.Clone(a.TextColors)
+	a.TextBackgrounds = maps.Clone(a.TextBackgrounds)
 	return a
 }
 
@@ -149,6 +162,7 @@ var (
 	borderColorOverrides = overrideKind{"border colour", BorderElements, IsColorOrGradient, gradientProblem}
 	glyphColorOverrides  = overrideKind{"glyph colour", GlyphColorElements, IsColor, colorProblem}
 	textColorOverrides   = overrideKind{"text colour", TextColorElements, IsColorOrGradient, gradientProblem}
+	textBackgroundKind   = overrideKind{"text background", TextBackgroundElements, IsColorOrGradient, gradientProblem}
 )
 
 func (a AppearanceSettings) Validate() error {
@@ -156,8 +170,8 @@ func (a AppearanceSettings) Validate() error {
 	if !slices.Contains(BorderStyles, a.Border) {
 		errs = append(errs, fmt.Errorf("unknown border %q", a.Border))
 	}
-	if !slices.Contains(AccentColors, a.Accent) && !IsHexColor(a.Accent) {
-		errs = append(errs, fmt.Errorf("accent %q is neither a preset nor a #rrggbb colour", a.Accent))
+	if !IsAccent(a.Accent) {
+		errs = append(errs, fmt.Errorf("accent %q is neither a preset, a #rrggbb colour nor a gradient of them", a.Accent))
 	}
 	if !slices.Contains(GlyphSets, a.Glyphs) {
 		errs = append(errs, fmt.Errorf("unknown glyph set %q", a.Glyphs))
@@ -180,6 +194,7 @@ func (a AppearanceSettings) Validate() error {
 	errs = append(errs, borderColorOverrides.validate(a.BorderColors)...)
 	errs = append(errs, glyphColorOverrides.validate(a.GlyphColors)...)
 	errs = append(errs, textColorOverrides.validate(a.TextColors)...)
+	errs = append(errs, textBackgroundKind.validate(a.TextBackgrounds)...)
 	return errors.Join(errs...)
 }
 
@@ -208,8 +223,8 @@ func (k overrideKind) keepValid(overrides map[string]string) map[string]string {
 
 func (a *AppearanceSettings) fillDefaults() {
 	a.Border = knownOr(a.Border, BorderStyles)
-	if !IsHexColor(a.Accent) {
-		a.Accent = knownOr(a.Accent, AccentColors)
+	if !IsAccent(a.Accent) {
+		a.Accent = AccentColors[0]
 	}
 	a.Glyphs = knownOr(a.Glyphs, GlyphSets)
 	a.Text = knownOr(a.Text, TextStyles)
@@ -222,6 +237,7 @@ func (a *AppearanceSettings) fillDefaults() {
 	a.GlyphColors = glyphColorOverrides.keepValid(a.GlyphColors)
 	a.TextColor = knownOr(a.TextColor, TextPalettes)
 	a.TextColors = textColorOverrides.keepValid(a.TextColors)
+	a.TextBackgrounds = textBackgroundKind.keepValid(a.TextBackgrounds)
 }
 
 func knownOr(value string, options []string) string {

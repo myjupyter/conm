@@ -151,8 +151,11 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     - No glyph palette touches the status icons, `dot_fail` or `field_bad` (`theme_test.go`
       checks it); an explicit per-element colour does.
   - **Gradients.** `colorStops` splits a colour value on `>`; `firstStop` is what a flat
-    consumer draws. Only with `gradientsOn` (`config.AppearanceSettings.Gradients`) does a
-    value with more stops reach `borderGradients` or `textStyle.stops`.
+    consumer draws. Only with `gradientsOn` does a value with more stops reach
+    `borderGradients` or `textStyle.stops`: it is `supportsTrueColor()`, which asks
+    `colorprofile.Detect` once per run whether the terminal has 24-bit colour. Without it a
+    gradient draws in its first stop and the settings screen says so (`flatNote`). Tests swap
+    `supportsTrueColor` for a stub (`withTrueColor`) and restore it.
     - `edgeAt(element, runes, from, total)` colours a horizontal piece by its column in a line
       `total` wide, so `frameTop`'s three pieces — the lead before the title, the fill, the
       tail after the note — form one gradient; `edge` is the one-piece case.
@@ -161,8 +164,21 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
       the colour of that row. A line that does not start with the left side (corners, rules)
       is left alone.
     - `span.render` draws a role with `stops` one grapheme at a time (`gradientText`).
+    - **Tab, heading and subheading backgrounds.** `cHeadBg` is set from
+      `text_backgrounds.heading` (`baseHeadBg` when `auto`), `cSubheadBg` from
+      `text_backgrounds.subheading` (nil, no band, when `auto`); every active tab takes `tabBg(contextual)` — the override, or
+      what the screen used before: the accent, or `typeColor` on the connections table.
+    - **The accent** resolves through `accentStopsOf`; `cAccent` is always its first stop, so
+      every foreground use stays flat. With `gradientsOn`, `accentStops` holds the rest, and
+      `frameLine` runs `backgroundGradients`: a span whose background has stops
+      (`backgroundStops`: the tab override, the heading band, the accent) is split into cells
+      and given the colour of its column — across the whole line when the line's own background
+      is that colour (a highlighted row, a heading band), across the span alone otherwise (a tab).
+      `sameColor` compares by RGBA, never with `==` on `color.Color`.
   - **Text styles are roles, not bold flags.** `span.style` takes one of `tTitle`, `tTab`,
-    `tHeading`, `tSelection` (with `styleIf` for "only when on"), `tKey`, `tValue`, `tNote`;
+    `tHeading`, `tSubheading`, `tSelection` (with `styleIf` for "only when on"), `tKey`,
+    `tValue`, `tNote`. `tSubheading` is `frameSubhead` and the group titles of the expanded key
+    table, kept apart from `tHeading`, the section band;
     `span.render` adds bold, italic, underline and faint from it. `span.bold` is left for what
     stays bold whatever the style — the error tags, PONG, the picker's state — the same rule as
     the fixed state colours.
@@ -425,6 +441,9 @@ through `formLoop`:
     `borderColorGroup` / `glyphColorGroup` / `textColorGroup` (`colorGroup`): it cycles
     `config.ColorNames`, types hex, resets, and shows a swatch — or "set by the screen" for an
     `auto` with no fixed colour (`elementGroup.auto`).
+  - `elementRows` takes the value group and any number of `extraRows` — colour, background —
+    each listing the elements it covers; an element only an extra covers (`body`, `input`) gets
+    its heading with only those rows.
   - **Every element has its own heading.** An element's value and colour rows share
     `appearanceRow.subhead`; `appearanceLines` draws a one-line `frameSubhead` when it changes
     (or at the top of the window), after a blank line unless a section heading is right above, with a "changed" note while the element differs from the

@@ -155,6 +155,7 @@ func frameLine(w int, spans []span, bg color.Color) string {
 	if used := spansWidth(spans); used < w {
 		spans = append(spans, span{text: strings.Repeat(" ", w-used), bg: bg})
 	}
+	spans = backgroundGradients(spans, bg, w)
 
 	var b strings.Builder
 	b.WriteString(edge("left", gLineLeft))
@@ -183,13 +184,13 @@ func frameHead(w int, title, note string) []string {
 
 func frameSubhead(w int, title, note string) string {
 	spans := []span{
-		{text: "  "},
-		{text: strings.ToUpper(title), fg: cSoft, style: tHeading},
+		{text: "  ", bg: cSubheadBg},
+		{text: strings.ToUpper(title), fg: cSoft, bg: cSubheadBg, style: tSubheading},
 	}
 	if note != "" {
-		spans = append(spans, span{text: "  " + note, fg: cFaint, style: tNote})
+		spans = append(spans, span{text: "  " + note, fg: cFaint, bg: cSubheadBg, style: tNote})
 	}
-	return frameLine(w, spans, nil)
+	return frameLine(w, spans, cSubheadBg)
 }
 
 func frameTabs(w int, titles []string, active int, note string) string {
@@ -199,7 +200,7 @@ func frameTabs(w int, titles []string, active int, note string) string {
 	for i, title := range titles {
 		s := span{text: " " + title + " ", fg: cDim}
 		if i == active {
-			s = span{text: s.text, fg: cInvFg, bg: cAccent, style: tTab}
+			s = span{text: s.text, fg: cInvFg, bg: tabBg(cAccent), style: tTab}
 		}
 		spans = append(spans, s, span{text: " ", fg: cDim})
 		used += s.width() + 1

@@ -55,9 +55,9 @@ connect = ['enter', 'o']
 The appearance page changes the look of every screen at once, as soon as you pick a value.
 It has four sections:
 - **colour**: the **accent** — the colour of the highlighted row and the active tab, `green`,
-  `lime`, `teal`, `blue`, `purple`, `pink`, `red`, `orange` or `amber`, or your own colour: edit
-  the row and type it as `#rrggbb` — and the **gradients** switch (below). Status colours stay as
-  they are: a success is always green, a warning amber, a failure red;
+  `lime`, `teal`, `blue`, `purple`, `pink`, `red`, `orange` or `amber`, your own `#rrggbb`, or a
+  gradient of them like `teal>pink` (below). Status colours stay as they are: a success is always
+  green, a warning amber, a failure red;
 - **text**: how text is drawn in your terminal's font — `default` (titles, tabs, headings,
   the selection, keys and values in bold), `plain` (nothing bold), `emphasis` (underlined
   titles and headings, italic notes) or `soft` (bold titles and headings only, faint italic
@@ -102,26 +102,37 @@ the scroll arrows sit inside text and keep the text's colour, so they have no co
 
 #### Gradients
 
-Gradients are off until you switch them on in the colour section. A border or text colour can
-then be a gradient: colours joined by `>`, like `teal>pink` or `#ff8800>accent>#ff0088`. The
-top, bottom and the rules between sections run from left to right across the screen, the left
-and right sides from top to bottom, and a text role across its characters. The `sunset` and
-`ocean` palettes, for the border and for text, are made of gradients. With the switch off,
-every gradient is drawn in its first colour, so you can keep them in your settings and turn
-them on when you like. Glyph colours and the accent are always one colour.
+A border or text colour can be a gradient: colours joined by `>`, like `teal>pink` or
+`#ff8800>accent>#ff0088`. The top, bottom and the rules between sections run from left to right
+across the screen, the left and right sides from top to bottom, and a text role across its
+characters. The `sunset` and `ocean` palettes, for the border and for text, are made of
+gradients. Glyph colours are always one colour.
 
-Gradients need a terminal with 24-bit colour, which most current terminals have. In a terminal
-with 256 colours they show steps, and with 16 colours they fall apart into a few blocks — leave
-the switch off there.
+A tab or heading background can be a gradient as well: a heading's band runs across the line,
+a tab across the tab.
+
+The accent can be a gradient too — step past the single colours to a few ready ones like
+`teal>pink`, or type your own: the highlighted row then runs from the first colour to the last
+across its width, and the active tab across the tab. Where the accent colours a line or a
+letter — the caret, a key, the workspace name — it uses the first colour. The text on the
+highlighted row stays dark, so pick light colours for an accent gradient.
+
+Gradients need a terminal with 24-bit colour, which most current terminals have. conm checks
+what your terminal supports when it starts; without 24-bit colour every gradient is drawn in its
+first colour, and the settings screen says so when you pick one.
 
 #### Changing one element
 
 Under the text style, the border style and the glyph set, every element has its own row (and,
 as above, a colour row under it):
-- **text**: title, tab, heading, selection, key, value, note — each `plain` or a mix of
+- **text**: title, tab, heading, subheading, selection, key, value, note — each `plain` or a mix of
   `bold`, `italic`, `underline` and `faint` joined by `+`, like `bold+italic` — and, with a
   colour only, **body** (ordinary text: table cells, values, messages) and **input** (what you
-  type into a field or the search);
+  type into a field or the search). The **tab**, the **heading** and the **subheading** also
+  have a **background**: the colour behind the active tab (by default the accent, or the type's
+  colour on the connections table), behind a section heading's band, and behind a subheading —
+  the one-line headings of this page and the group titles of the key help, which have no band
+  by default;
 - **border**: each corner, the joins at either end of a rule, and the top, bottom, left and
   right lines and the rule between sections — a border can be different on every side;
 - **glyphs**: each status icon, the cursor, the markers, the `<` `>` arrows of a selector.
@@ -134,7 +145,6 @@ and they are kept when you pick another preset.
 
 ```toml
 [conm.appearance]
-gradients = true
 border = 'rounded'
 accent = '#ff8800'
 glyphs = 'emoji'
@@ -163,6 +173,10 @@ caret = 'pink'
 [conm.appearance.text_colors]
 note = 'dim'
 input = '#e8e2d4'
+
+[conm.appearance.text_backgrounds]
+tab = 'pink'
+heading = '#202020>#3a2a40'
 ```
 
 A name conm does not know falls back to the first one in its list; a value that does not fit

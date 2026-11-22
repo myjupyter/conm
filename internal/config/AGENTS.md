@@ -170,13 +170,15 @@ repository and no tab on the secrets screen:
   `GlyphPalettes`, `TextPalettes`) and `[conm.appearance.border_colors]` /
   `[conm.appearance.glyph_colors]` / `[conm.appearance.text_colors]` override one element
   (text colours cover `TextColorElements`: the styled roles plus `body` and `input`, which
-  have a colour and no style):
+  have a colour and no style). `[conm.appearance.text_backgrounds]` sets the background of
+  the `TextBackgroundElements` — `tab` and `heading` — with no palette:
   a colour is `auto`, a name from `ColorNames` or `#rrggbb` (`IsColor`). Glyph colours exist
   only for `GlyphColorElements` — the glyphs drawn on their own, not inside text.
-- `gradients` switches gradients on. A border or text colour may be a gradient — two or more
+- A border or text colour may be a gradient — two or more
   colours joined by `GradientSeparator` (`>`), none of them `auto` (`IsGradient`,
-  `IsColorOrGradient`); glyph colours and the accent stay flat. The value is stored whatever
-  the switch says; the switch only decides how `ui` draws it.
+  `IsColorOrGradient`); glyph colours stay flat. The accent may be a gradient of accent
+  presets and `#rrggbb` only (`IsAccent`) — no colour names, since `accent` would name itself.
+  Whether a gradient is drawn as one is `ui`'s decision, made from the terminal.
 - What an override may hold: a border rune is one grapheme one column wide (`IsBorderRune`);
   a glyph is one grapheme one or two columns wide (`IsGlyph`), so an emoji with a modifier
   counts as one — grapheme counting is `rivo/uniseg`; a text style is `plain` or distinct

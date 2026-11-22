@@ -227,20 +227,23 @@ func TestApplyAppearanceColoursTextRoles(t *testing.T) {
 	is.True(tTitle.bold)
 }
 
-func withGradients(t *testing.T, a config.AppearanceSettings) {
+func withTrueColor(t *testing.T, on bool, a config.AppearanceSettings) {
 	t.Helper()
+	detected := supportsTrueColor
 	t.Cleanup(func() {
+		supportsTrueColor = detected
 		applyAppearance(config.AppearanceSettings{
 			Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
 			BorderColor: "default", GlyphColor: "default", TextColor: "default",
 		})
 	})
+	supportsTrueColor = func() bool { return on }
 	applyAppearance(a)
 }
 
-func gradientLook(on bool) config.AppearanceSettings {
+func gradientLook() config.AppearanceSettings {
 	return config.AppearanceSettings{
-		Gradients: on, Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
+		Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
 		BorderColor: "default", GlyphColor: "default", TextColor: "default",
 		BorderColors: map[string]string{"top": "#ff0000>#0000ff", "left": "#ff0000>#0000ff"},
 		TextColors:   map[string]string{"title": "#ff0000>#0000ff"},
@@ -257,18 +260,18 @@ func distinctSGR(rendered string) int {
 	return len(seen)
 }
 
-func TestGradientsFollowTheSwitch(t *testing.T) {
+func TestGradientsFollowTheTerminal(t *testing.T) {
 	tests := []struct {
 		name     string
 		on       bool
 		wantMany bool
 	}{
-		{name: "off draws the first stop", on: false},
-		{name: "on spreads the stops", on: true, wantMany: true},
+		{name: "no 24-bit colour draws the first stop", on: false},
+		{name: "24-bit colour spreads the stops", on: true, wantMany: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			withGradients(t, gradientLook(tt.on))
+			withTrueColor(t, tt.on, gradientLook())
 
 			top := edge("top", strings.Repeat(gLineTop, 10))
 			title := span{text: "connections", style: tTitle}.render()
@@ -285,7 +288,7 @@ func TestGradientsFollowTheSwitch(t *testing.T) {
 }
 
 func TestSideGradientsRepaintOnlyTheSides(t *testing.T) {
-	withGradients(t, gradientLook(true))
+	withTrueColor(t, true, gradientLook())
 
 	lines := []string{frameTop(10, "x", ""), frameLine(10, nil, nil), frameLine(10, nil, nil), frameBottom(10)}
 	got := sideGradients(lines)
@@ -323,12 +326,160 @@ func TestBodyAndInputColours(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			look := gradientLook(true)
+			look := gradientLook()
 			look.BorderColors, look.TextColors = nil, tt.colors
-			withGradients(t, look)
+			withTrueColor(t, true, look)
 
 			assert.Equal(t, tt.wantBody, cFg)
 			assert.Equal(t, tt.wantInput, cInput)
+		})
+	}
+}
+
+func distinctBackgrounds(rendered string) int {
+	seen := map[string]bool{}
+	for part := range strings.SplitSeq(rendered, "\x1b[") {
+		if code, _, ok := strings.Cut(part, "m"); ok {
+			if _, bg, found := strings.Cut(code, "48;2;"); found {
+				seen[bg] = true
+			}
+		}
+	}
+	return len(seen)
+}
+
+func TestAccentGradient(t *testing.T) {
+	tests := []struct {
+		name     string
+		on       bool
+		wantMany bool
+	}{
+		{name: "no 24-bit colour keeps one background", on: false},
+		{name: "24-bit colour spreads the background", on: true, wantMany: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			look := gradientLook()
+			look.BorderColors, look.TextColors, look.Accent = nil, nil, "teal>pink"
+			withTrueColor(t, tt.on, look)
+
+			row := frameLine(30, []span{{text: " selected row", fg: cInvFg, bg: cAccent}}, cAccent)
+			tabs := frameTabs(30, []string{"one", "two"}, 0, "")
+
+			is := assert.New(t)
+			is.Equal(accentColors["teal"], cAccent)
+			if tt.wantMany {
+				is.Greater(distinctBackgrounds(row), 10)
+				is.Greater(distinctBackgrounds(tabs), 2)
+			} else {
+				is.Equal(1, distinctBackgrounds(row))
+				is.Equal(1, distinctBackgrounds(tabs))
+			}
+			is.Equal(32, ansi.StringWidth(ansi.Strip(row)))
+		})
+	}
+}
+
+func TestTabAndHeadingBackgrounds(t *testing.T) {
+	tests := []struct {
+		name           string
+		backgrounds    map[string]string
+		trueColor      bool
+		wantTab        color.Color
+		wantHead       color.Color
+		wantHeadColors int
+	}{
+		{name: "auto keeps today's colours", wantTab: accentColors["green"], wantHead: baseHeadBg, wantHeadColors: 1},
+		{
+			name:           "flat overrides",
+			backgrounds:    map[string]string{"tab": "pink", "heading": "#202020"},
+			wantTab:        accentColors["pink"],
+			wantHead:       lipgloss.Color("#202020"),
+			wantHeadColors: 1,
+		},
+		{
+			name:           "a heading gradient spreads across the band",
+			backgrounds:    map[string]string{"heading": "#202020>#604080"},
+			trueColor:      true,
+			wantTab:        accentColors["green"],
+			wantHead:       lipgloss.Color("#202020"),
+			wantHeadColors: 10,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			look := gradientLook()
+			look.BorderColors, look.TextColors, look.TextBackgrounds = nil, nil, tt.backgrounds
+			withTrueColor(t, tt.trueColor, look)
+
+			is := assert.New(t)
+			is.Equal(tt.wantTab, tabBg(cAccent))
+			is.Equal(tt.wantHead, cHeadBg)
+			band := frameHead(30, "section", "")[1]
+			if tt.wantHeadColors > 1 {
+				is.Greater(distinctBackgrounds(band), tt.wantHeadColors)
+				return
+			}
+			is.Equal(1, distinctBackgrounds(band))
+		})
+	}
+}
+
+func TestTabBackgroundOverridesTypeColour(t *testing.T) {
+	look := gradientLook()
+	look.BorderColors, look.TextColors = nil, nil
+	look.TextBackgrounds = map[string]string{"tab": "#123456"}
+	withTrueColor(t, false, look)
+
+	assert.Equal(t, lipgloss.Color("#123456"), tabBg(typeColor(config.PostgresConnType)))
+}
+
+func TestSubheadingRole(t *testing.T) {
+	tests := []struct {
+		name            string
+		styles          map[string]string
+		colors          map[string]string
+		backgrounds     map[string]string
+		trueColor       bool
+		wantBackgrounds int
+		wantBold        bool
+	}{
+		{name: "default is bold with no band", wantBold: true},
+		{
+			name:            "style, colour and background are its own",
+			styles:          map[string]string{"subheading": "italic"},
+			colors:          map[string]string{"subheading": "pink"},
+			backgrounds:     map[string]string{"subheading": "#202020"},
+			wantBackgrounds: 1,
+		},
+		{
+			name:            "a background gradient spreads across the line",
+			backgrounds:     map[string]string{"subheading": "#202020>#604080"},
+			trueColor:       true,
+			wantBackgrounds: 10,
+			wantBold:        true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			look := gradientLook()
+			look.BorderColors, look.TextStyle, look.TextColors, look.TextBackgrounds = nil, tt.styles, tt.colors, tt.backgrounds
+			withTrueColor(t, tt.trueColor, look)
+
+			is := assert.New(t)
+			is.Equal(tt.wantBold, tSubheading.bold)
+			is.Equal(textStyle{bold: true}, textStyle{bold: tHeading.bold}, "the heading keeps its own style")
+			line := frameSubhead(30, "top left", "")
+			switch {
+			case tt.wantBackgrounds > 1:
+				is.Greater(distinctBackgrounds(line), tt.wantBackgrounds)
+			default:
+				is.Equal(tt.wantBackgrounds, distinctBackgrounds(line))
+			}
+			if tt.colors != nil {
+				is.Equal(accentColors["pink"], tSubheading.fg)
+				is.Nil(tHeading.fg)
+			}
 		})
 	}
 }

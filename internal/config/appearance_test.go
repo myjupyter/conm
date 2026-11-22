@@ -67,12 +67,14 @@ func TestReadConm_appearance(t *testing.T) {
 			args: args{toml: "[conm.appearance]\nborder_color = \"duotone\"\nglyph_color = \"muted\"\n" +
 				"[conm.appearance.border_colors]\ntop = \"#ff0000\"\nleft = \"teal\"\nmiddle = \"red\"\n" +
 				"[conm.appearance.glyph_colors]\ncaret = \"accent\"\nstatus_ok = \"neon\"\nellipsis = \"red\"\n" +
-				"[conm.appearance.text_colors]\nnote = \"dim\"\nshadow = \"red\"\ntitle = \"teal>pink\"\n"},
+				"[conm.appearance.text_colors]\nnote = \"dim\"\nshadow = \"red\"\ntitle = \"teal>pink\"\n" +
+				"[conm.appearance.text_backgrounds]\ntab = \"pink\"\nheading = \"#202020>#303030\"\nnote = \"red\"\n"},
 			want: defaultAppearance(func(a *AppearanceSettings) {
 				a.BorderColor, a.GlyphColor = "duotone", "muted"
 				a.BorderColors = map[string]string{"top": "#ff0000", "left": "teal"}
 				a.GlyphColors = map[string]string{"caret": "accent"}
 				a.TextColors = map[string]string{"note": "dim", "title": "teal>pink"}
+				a.TextBackgrounds = map[string]string{"tab": "pink", "heading": "#202020>#303030"}
 			}),
 		},
 		{
@@ -119,10 +121,12 @@ func TestAppearanceSettings_Validate(t *testing.T) {
 			a.GlyphColors = map[string]string{"caret": "auto", "status_ok": "pink"}
 		}},
 		{name: "gradients", override: func(a *AppearanceSettings) {
-			a.Gradients, a.BorderColor, a.TextColor = true, "sunset", "ocean"
+			a.BorderColor, a.TextColor = "sunset", "ocean"
 			a.BorderColors = map[string]string{"top": "teal>pink", "left": "#ff0000>#00ff00>blue"}
 			a.TextColors = map[string]string{"title": "accent>pink"}
 		}},
+		{name: "accent gradient", override: func(a *AppearanceSettings) { a.Accent = "teal>#ff00aa>pink" }},
+		{name: "accent gradient through a name", override: func(a *AppearanceSettings) { a.Accent = "accent>pink" }, wantErr: true},
 		{name: "gradient on a glyph", override: func(a *AppearanceSettings) { a.GlyphColors = map[string]string{"caret": "teal>pink"} }, wantErr: true},
 		{name: "one-stop gradient", override: func(a *AppearanceSettings) { a.BorderColors = map[string]string{"top": "teal>"} }, wantErr: true},
 		{name: "auto in a gradient", override: func(a *AppearanceSettings) { a.BorderColors = map[string]string{"top": "auto>pink"} }, wantErr: true},
@@ -130,6 +134,10 @@ func TestAppearanceSettings_Validate(t *testing.T) {
 			a.TextColor = "accent"
 			a.TextColors = map[string]string{"title": "#abcdef", "note": "soft"}
 		}},
+		{name: "text backgrounds", override: func(a *AppearanceSettings) {
+			a.TextBackgrounds = map[string]string{"tab": "teal>pink", "heading": "#111111"}
+		}},
+		{name: "background for a role without one", override: func(a *AppearanceSettings) { a.TextBackgrounds = map[string]string{"note": "red"} }, wantErr: true},
 		{name: "unknown text palette", override: func(a *AppearanceSettings) { a.TextColor = "neon" }, wantErr: true},
 		{name: "bad text colour", override: func(a *AppearanceSettings) { a.TextColors = map[string]string{"note": "dark"} }, wantErr: true},
 		{name: "unknown border palette", override: func(a *AppearanceSettings) { a.BorderColor = "neon" }, wantErr: true},

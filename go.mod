@@ -8,6 +8,7 @@ require (
 	charm.land/lipgloss/v2 v2.1.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0
 	github.com/adrg/xdg v0.5.3
+	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/jackc/pgx/v5 v5.13.0
@@ -27,7 +28,6 @@ require (
 	github.com/ClickHouse/ch-go v0.75.0 // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20261008173134-6b8d4baf91b4 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect

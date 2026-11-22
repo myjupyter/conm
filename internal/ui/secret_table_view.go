@@ -97,7 +97,7 @@ func (m secretModel) storeTabsLine(n int) string {
 	label := fmt.Sprintf(" %s %d ", m.secrets.Active(), n)
 	return frameLine(m.inner(), []span{
 		{text: " ", fg: cDim},
-		{text: label, fg: cInvFg, bg: cAccent, style: tTab},
+		{text: label, fg: cInvFg, bg: tabBg(cAccent), style: tTab},
 		{text: "  ", fg: cDim},
 		{text: "tab to switch store", fg: cFaint},
 	}, nil)

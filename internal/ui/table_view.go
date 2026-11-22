@@ -105,7 +105,7 @@ func (m Model) tabsLine() string {
 	for _, kind := range m.conns.Kinds() {
 		label := fmt.Sprintf(" %s %d ", kind, m.conns.CountOf(kind))
 		if kind == m.conns.Active() {
-			spans = append(spans, span{text: label, fg: cInvFg, bg: typeColor(kind), style: tTab})
+			spans = append(spans, span{text: label, fg: cInvFg, bg: tabBg(typeColor(kind)), style: tTab})
 		} else {
 			spans = append(spans, span{text: label, fg: typeColor(kind)})
 		}
