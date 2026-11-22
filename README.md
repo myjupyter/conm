@@ -35,8 +35,8 @@ every time — conm resolves it and hands it to the client for you.
 - **Private networks:** tunnel to a database through an SSH host.
 - **Workspaces:** keep each project or environment to itself.
 - **Links:** keep dashboards, docs and runbooks next to the connection they belong to.
-- **Your look:** borders, glyphs, colours and gradients, text styles and the table's columns —
-  [make conm yours](docs/user/customisation.md).
+- **Your look:** borders, glyphs, colours and gradients, text styles and the table's columns,
+  all set from the [settings screen](docs/user/settings.md#appearance).
 
 ## Inspiration
 

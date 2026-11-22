@@ -1,8 +1,8 @@
 # Settings
 
 Open it from the connections table. Tabs: **client**, **keybind** and **appearance**, which has
-its own tabs — accent, text, glyphs, borders and table. Changes are saved at once to
-`conm.toml` and shared by all [workspaces](workspaces.md).
+its own tabs — accent, text, glyphs, borders and table. Changes are saved at once and shared by
+all [workspaces](workspaces.md).
 
 ## Switching clients
 
@@ -11,12 +11,6 @@ one — for Postgres `psql`, then `pgcli`, then `usql`.
 
 ![Switching Postgres from psql to pgcli](../demo/settings-client.gif)
 
-```toml
-[[conm.connection]]
-type = 'postgres'
-cli = 'pgcli'
-```
-
 ## Overriding keybindings
 
 Add, change, remove or reset the keys of any action; a key can also be a sequence of two. A key
@@ -24,15 +18,11 @@ cannot do two things on one screen, and navigation, confirm and cancel keep thei
 
 ![Adding o as a second key to open a session](../demo/settings-keybind.gif)
 
-```toml
-[conm.keybinding.connection]
-connect = ['enter', 'o']
-```
-
 ## Appearance
 
-Every change applies to all screens at once. For a guided tour, see
-[Make conm yours](customisation.md).
+Every change applies to all screens at once.
+
+![Changing the accent, the glyphs and the border](../demo/settings-appearance.gif)
 
 | Tab | Presets |
 |---|---|
@@ -60,35 +50,11 @@ Every text role, border piece and glyph can be changed on its own — its style 
 its colour; the tab, heading and subheading also have a background. Reset an element to go back
 to the preset.
 
-```toml
-[conm.appearance]
-border = 'rounded'
-accent = 'blue>pink'
-glyphs = 'geometric'
-border_color = 'ocean'
-
-[conm.appearance.glyph_runes]
-caret = '»'
-
-[conm.appearance.text_colors]
-title = 'pink'
-
-[conm.appearance.text_backgrounds]
-heading = 'teal>blue'
-```
-
 ## Table
 
 For each connection type: its **colour** — its own, `tab`, or any colour — and its **columns**:
 tick to show, move to reorder. NAME is always shown; TAGS is hidden until you tick it.
 
-```toml
-[[conm.connection]]
-type = 'postgres'
-columns = ['name', 'host', 'username', 'tags', 'ping']
-color = 'tab'
-```
-
 ---
 
-[← Workspaces](workspaces.md) · [Contents](README.md) · [Make conm yours →](customisation.md)
+[← Workspaces](workspaces.md) · [Contents](README.md) · [Additional screens →](additional-screens.md)

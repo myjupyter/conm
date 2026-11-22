@@ -10,4 +10,4 @@ Everything about the connection under the cursor, without opening the edit form:
 
 ---
 
-[← Make conm yours](customisation.md) · [Contents](README.md) · [Commands →](commands.md)
+[← Settings](settings.md) · [Contents](README.md) · [Commands →](commands.md)
