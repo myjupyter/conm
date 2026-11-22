@@ -2,8 +2,9 @@
 
 ## Settings
 
-The settings screen is opened from the connections table and has three pages: which client each
-database opens, which keys do what, and how conm looks. A change is saved as soon as you make it. Settings are
+The settings screen is opened from the connections table and has four pages: which client each
+database opens, which keys do what, how conm looks, and how the connections table looks for each
+type. A change is saved as soon as you make it. Settings are
 shared by all [workspaces](workspaces.md), and live in `conm.toml`.
 
 ### Switching clients
@@ -127,8 +128,8 @@ Under the text style, the border style and the glyph set, every element has its 
 as above, a colour row under it):
 - **text**: title, tab, heading, subheading, selection, key, value, note — each `plain` or a mix of
   `bold`, `italic`, `underline` and `faint` joined by `+`, like `bold+italic` — and, with a
-  colour only, **body** (ordinary text: table cells, values, messages) and **input** (what you
-  type into a field or the search). The **tab**, the **heading** and the **subheading** also
+  colour only, **body** (ordinary text: table cells, values, messages) **input** (what you
+  type into a field or the search) and **column** (the column names over the connections table). The **tab**, the **heading** and the **subheading** also
   have a **background**: the colour behind the active tab (by default the accent, or the type's
   colour on the connections table), behind a section heading's band, and behind a subheading —
   the one-line headings of this page and the group titles of the key help, which have no band
@@ -181,6 +182,33 @@ heading = '#202020>#3a2a40'
 
 A name conm does not know falls back to the first one in its list; a value that does not fit
 its element is ignored.
+
+### Table
+
+The table page has a section for every connection type, with what that type's tab of the
+connections table shows.
+
+- **colour**: the type's colour — the tab of the connections table, the badge of its forms, its
+  dot on the info screen and in the type picker. A type name — `postgres`, `mysql`, `redis`, … —
+  takes that type's colour (Postgres blue, MySQL orange, …; each type starts with its own), `tab` follows the tab colour (the accent, or the tab background you
+  set on the appearance page), or pick a colour name or type your own `#rrggbb`.
+- **columns**: every column of the table, each with a checkbox and its position. Tick or untick
+  it to show or hide the column, and move a shown column earlier or later. The rows are listed
+  in the table's order, hidden columns last. NAME can be moved but not hidden; SSH has no
+  DBNAME. TAGS, the connection's tags, is hidden until you tick it. The room a hidden column
+  leaves goes to HOST — or to NAME when HOST is hidden too — and a shown TAGS takes its room
+  from there. Resetting a column row puts the type's columns back in the default order.
+
+The section heading shows the columns in their order. Both settings are stored on the type's
+row:
+
+```toml
+[[conm.connection]]
+type = 'postgres'
+cli = 'pgcli'
+columns = ['name', 'host', 'username', 'ping']
+color = 'tab'
+```
 
 ## Info screen
 

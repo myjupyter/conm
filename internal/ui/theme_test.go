@@ -305,23 +305,26 @@ func TestSideGradientsRepaintOnlyTheSides(t *testing.T) {
 
 func TestBodyAndInputColours(t *testing.T) {
 	tests := []struct {
-		name      string
-		colors    map[string]string
-		wantBody  color.Color
-		wantInput color.Color
+		name       string
+		colors     map[string]string
+		wantBody   color.Color
+		wantInput  color.Color
+		wantColumn color.Color
 	}{
-		{name: "auto keeps the base colours", wantBody: baseFg, wantInput: baseInput},
+		{name: "auto keeps the base colours", wantBody: baseFg, wantInput: baseInput, wantColumn: cDim},
 		{
-			name:      "overrides replace them",
-			colors:    map[string]string{"body": "#112233", "input": "teal"},
-			wantBody:  lipgloss.Color("#112233"),
-			wantInput: accentColors["teal"],
+			name:       "overrides replace them",
+			colors:     map[string]string{"body": "#112233", "input": "teal", "column": "pink"},
+			wantBody:   lipgloss.Color("#112233"),
+			wantInput:  accentColors["teal"],
+			wantColumn: accentColors["pink"],
 		},
 		{
-			name:      "a gradient draws its first stop",
-			colors:    map[string]string{"body": "#ff0000>#0000ff"},
-			wantBody:  lipgloss.Color("#ff0000"),
-			wantInput: baseInput,
+			name:       "a gradient draws its first stop",
+			colors:     map[string]string{"body": "#ff0000>#0000ff"},
+			wantBody:   lipgloss.Color("#ff0000"),
+			wantInput:  baseInput,
+			wantColumn: cDim,
 		},
 	}
 	for _, tt := range tests {
@@ -332,6 +335,7 @@ func TestBodyAndInputColours(t *testing.T) {
 
 			assert.Equal(t, tt.wantBody, cFg)
 			assert.Equal(t, tt.wantInput, cInput)
+			assert.Equal(t, tt.wantColumn, cColumn)
 		})
 	}
 }

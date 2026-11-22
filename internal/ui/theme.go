@@ -30,6 +30,7 @@ var (
 	cInvFg  = lipgloss.Color("#0f0f0d")
 	cValue  = lipgloss.Color("#c4bcac")
 	cInput  color.Color
+	cColumn color.Color
 
 	baseFg      = lipgloss.Color("#ddd6c8")
 	baseHeadBg  = lipgloss.Color("#1a1912")
@@ -447,6 +448,7 @@ func applyAppearance(a config.AppearanceSettings) {
 	tabStops, headStops = gradientOf(backgrounds["tab"]), gradientOf(backgrounds["heading"])
 	cSubheadBg, subheadStops = firstStop(backgrounds["subheading"]), gradientOf(backgrounds["subheading"])
 	cInput = colorOr(firstStop(textColors["input"]), baseInput)
+	cColumn = colorOr(firstStop(textColors["column"]), cDim)
 	for element, value := range textStyles(a) {
 		*textVars[element] = roleStyle(value, textColors[element])
 	}
@@ -661,12 +663,38 @@ func styleIf(on bool, t textStyle) textStyle {
 	return textStyle{}
 }
 
+var typeSettings = map[config.ConnType]config.ConnectionSettings{}
+
 func applyConm(c config.Conm) {
 	keyMap = newKeymap(c.Keybindings)
 	applyAppearance(c.Appearance)
+	typeSettings = make(map[config.ConnType]config.ConnectionSettings, len(c.Connections))
+	for _, s := range c.Connections {
+		typeSettings[s.Type] = s
+	}
+}
+
+func settingsOf(t config.ConnType) config.ConnectionSettings {
+	if s, ok := typeSettings[t]; ok {
+		return s
+	}
+	return config.ConnectionSettings{Type: t}
 }
 
 func typeColor(t config.ConnType) color.Color {
+	value := settingsOf(t).TypeColor()
+	if named, err := config.ParseConnType(value); err == nil {
+		return builtinTypeColor(named)
+	}
+	switch value {
+	case config.TabColor:
+		return colorOr(tabBackground, cAccent)
+	default:
+		return colorOr(namedColor(value), builtinTypeColor(t))
+	}
+}
+
+func builtinTypeColor(t config.ConnType) color.Color {
 	switch t {
 	case config.PostgresConnType:
 		return cPostgres

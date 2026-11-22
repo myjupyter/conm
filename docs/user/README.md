@@ -52,6 +52,7 @@ full list of the screen you are on, and `?` again to close it. Keys can be chang
    - [Colours](additional-screens.md#colours)
    - [Gradients](additional-screens.md#gradients)
    - [Changing one element](additional-screens.md#changing-one-element)
+   - [Table](additional-screens.md#table)
    - [Info screen](additional-screens.md#info-screen)
 9. [Commands](commands.md): every command at a glance, and `conm doctor`
    - [Doctor](commands.md#doctor)

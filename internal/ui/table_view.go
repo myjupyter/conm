@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,7 @@ const (
 	wPort = 6
 	wDB   = 15
 	wPing = 9
+	wTags = 16
 )
 
 func (m Model) View() tea.View {
@@ -114,31 +116,55 @@ func (m Model) tabsLine() string {
 	return frameLine(m.inner(), spans, nil)
 }
 
-func (m Model) hasDatabaseColumn() bool {
-	return m.conns.Active().Kind() == config.DatabaseConnKind
+var (
+	columnWidths = map[string]int{
+		config.NameColumn: wName, config.UsernameColumn: wUser, config.HostColumn: wHost, config.PortColumn: wPort, config.DatabaseColumn: wDB, config.PingColumn: wPing, config.TagsColumn: wTags,
+	}
+	columnTitles = map[string]string{
+		config.NameColumn: "NAME", config.UsernameColumn: "USERNAME", config.HostColumn: "HOST", config.PortColumn: "PORT", config.DatabaseColumn: "DBNAME", config.PingColumn: "PING", config.TagsColumn: "TAGS",
+	}
+	rightAligned = []string{config.PortColumn, config.PingColumn}
+)
+
+func (m Model) columns() []string {
+	return settingsOf(m.conns.Active()).VisibleColumns()
 }
 
-func (m Model) hostWidth() int {
-	host := wHost + m.size.extra(tableInner)
-	if m.hasDatabaseColumn() {
-		return host
+func (m Model) columnWidth(column string) int {
+	return layoutWidth(m.columns(), column, m.size.extra(tableInner))
+}
+
+func layoutWidth(columns []string, column string, extra int) int {
+	flexible := config.HostColumn
+	if !slices.Contains(columns, flexible) {
+		flexible = config.NameColumn
 	}
-	return host + 1 + wDB
+	if column != flexible {
+		return columnWidths[column]
+	}
+	width := extra - 1
+	for _, c := range config.DefaultColumns {
+		width += columnWidths[c] + 1
+	}
+	for _, c := range columns {
+		if c != flexible {
+			width -= columnWidths[c] + 1
+		}
+	}
+	return width
+}
+
+func (m Model) columnSpan(column, text string, fg, bg color.Color) span {
+	return span{text: " " + truncPad(text, m.columnWidth(column), slices.Contains(rightAligned, column)), fg: fg, bg: bg}
 }
 
 func (m Model) headerLine() string {
-	spans := []span{
-		{text: blankCell() + blankCell(), fg: cDim},
-		{text: " " + truncPad("NAME", wName, false), fg: cDim},
-		{text: " " + truncPad("USERNAME", wUser, false), fg: cDim},
-		{text: " " + truncPad("HOST", m.hostWidth(), false), fg: cDim},
-		{text: " " + truncPad("PORT", wPort, true), fg: cDim},
+	columns := m.columns()
+	spans := make([]span, 0, 1+len(columns))
+	spans = append(spans, span{text: blankCell() + blankCell(), fg: cDim})
+	for _, column := range columns {
+		spans = append(spans, m.columnSpan(column, columnTitles[column], cColumn, nil))
 	}
-	if m.hasDatabaseColumn() {
-		spans = append(spans, span{text: " " + truncPad("DBNAME", wDB, false), fg: cDim})
-	}
-	spans = append(spans, span{text: " " + truncPad("PING", wPing, true), fg: cDim})
-
 	return frameLine(m.inner(), spans, nil)
 }
 
@@ -155,7 +181,7 @@ func (m Model) rowLine(i int) string {
 	var bg, fg, soft, markC color.Color
 	switch {
 	case sel:
-		bg, fg, soft, markC = cAccent, cInvFg, cInvFg, cInvFg
+		bg, fg, soft, markC = typeColor(m.conns.Active()), cInvFg, cInvFg, cInvFg
 	case failed:
 		fg, soft, markC = cDead, cSoft, cRed
 	case alive:
@@ -175,19 +201,29 @@ func (m Model) rowLine(i int) string {
 	spans := []span{
 		{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
 		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
-		{text: " " + truncPad(cfg.Meta().Name, wName, false), fg: fg, bg: bg},
-		{text: " " + truncPad(cfg.Username(), wUser, false), fg: soft, bg: bg},
-		{text: " " + truncPad(cfg.Host(), m.hostWidth(), false), fg: fg, bg: bg},
-		{text: " " + truncPad(strconv.Itoa(cfg.Port()), wPort, true), fg: soft, bg: bg},
 	}
-	if m.hasDatabaseColumn() {
-		database := ""
-		if db, ok := cfg.(config.DBConnection); ok {
-			database = db.Database()
+	for _, column := range m.columns() {
+		switch column {
+		case config.NameColumn:
+			spans = append(spans, m.columnSpan(column, cfg.Meta().Name, fg, bg))
+		case config.UsernameColumn:
+			spans = append(spans, m.columnSpan(column, cfg.Username(), soft, bg))
+		case config.HostColumn:
+			spans = append(spans, m.columnSpan(column, cfg.Host(), fg, bg))
+		case config.PortColumn:
+			spans = append(spans, m.columnSpan(column, strconv.Itoa(cfg.Port()), soft, bg))
+		case config.DatabaseColumn:
+			database := ""
+			if db, ok := cfg.(config.DBConnection); ok {
+				database = db.Database()
+			}
+			spans = append(spans, m.columnSpan(column, database, fg, bg))
+		case config.PingColumn:
+			spans = append(spans, m.pingSpan(i, bg, sel))
+		case config.TagsColumn:
+			spans = append(spans, m.columnSpan(column, strings.Join(cfg.Meta().Tags, ","), soft, bg))
 		}
-		spans = append(spans, span{text: " " + truncPad(database, wDB, false), fg: fg, bg: bg})
 	}
-	spans = append(spans, m.pingSpan(i, bg, sel))
 
 	return frameLine(m.inner(), spans, bg)
 }

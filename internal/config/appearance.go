@@ -41,7 +41,7 @@ var (
 		"select_prev", "select_next",
 	}
 	TextElements           = []string{"title", "tab", "heading", "subheading", "selection", "key", "value", "note"}
-	TextColorElements      = append(slices.Clone(TextElements), "body", "input")
+	TextColorElements      = append(slices.Clone(TextElements), "body", "input", "column")
 	TextBackgroundElements = []string{"tab", "heading", "subheading"}
 	TextAttributes         = []string{"bold", "italic", "underline", "faint"}
 

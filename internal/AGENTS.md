@@ -88,7 +88,7 @@ Hard rules — the ones that cross modules. Each module's own rules are in its f
     add form from there.
 - **No layer above `repository` names a connection type in its control flow.** A session
   hands out repositories by `config.ConnType`, never through a per-type field. Two
-  exceptions: `typeColor` in `ui/theme.go`, one colour per type; and `config.SSHConnType`
+  exceptions: `builtinTypeColor` in `ui/theme.go`, one default colour per type; and `config.SSHConnType`
   where the form and the transports screen list the SSH connections a transport can go
   through (`ui/form_commands.go`, `ui/transport_table.go`, `ui/transport_table_commands.go`).
 - **Every typed refusal lives in its layer's error file** — `repository/errors.go`,
@@ -119,8 +119,8 @@ Hard rules — the ones that cross modules. Each module's own rules are in its f
 
 - **New connection type** — follow the `add-new-database-type` skill
   (`.claude/skills/add-new-database-type/`), which owns the fit check, the order of work and
-  every registration table. Nothing in `internal/ui` changes except the type's colour in
-  `typeColor` (`ui/theme.go`). **A change that moves one of those seams is not finished until
+  every registration table. Nothing in `internal/ui` changes except the type's default colour in
+  `builtinTypeColor` (`ui/theme.go`). **A change that moves one of those seams is not finished until
   the skill says so too.**
 - **New client for an existing type** — `internal/cli/AGENTS.md`.
 - **New secret store** — a `secret.Provider` registered in `secret.DefaultFor`, a

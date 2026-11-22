@@ -17,9 +17,10 @@ const (
 	settingsClientTab = iota
 	settingsKeybindTab
 	settingsAppearanceTab
+	settingsTableTab
 )
 
-var settingsTabTitles = []string{"client", "keybind", "appearance"}
+var settingsTabTitles = []string{"client", "keybind", "appearance", "table"}
 
 type settingsModel struct {
 	size screenSize
@@ -36,6 +37,7 @@ type settingsModel struct {
 
 	binds  bindsTab
 	appear appearanceTab
+	table  tableTab
 
 	status     string
 	statusKind statusKind
@@ -64,6 +66,7 @@ func newSettingsModel(conm config.Conm) settingsModel {
 	m.window.Resize(settingsSectionWindow)
 	m.binds.window.Resize(bindsWindow)
 	m.appear.window.Resize(appearanceWindow)
+	m.table.window.Resize(tableSettingsWindow)
 
 	for _, db := range conm.Connections {
 		m.clients[db.Type] = cli.Detect(db.Type)
@@ -86,6 +89,8 @@ func (m settingsModel) followCursor() settingsModel {
 		m.size.fit(&m.binds.window, chrome, m.binds.cursor, len(m.bindings()), func() int { return len(m.bindsLines()) })
 	case settingsAppearanceTab:
 		m.size.fit(&m.appear.window, chrome, m.appear.cursor, len(appearanceRows), func() int { return len(m.appearanceLines()) })
+	case settingsTableTab:
+		m.size.fit(&m.table.window, chrome, m.table.cursor, len(m.tableRows()), func() int { return len(m.tableLines()) })
 	case settingsClientTab:
 		m.size.fit(&m.window, chrome, m.cursor, len(m.conm.Connections), func() int { return len(m.clientLines()) })
 	}
@@ -98,11 +103,17 @@ func (m settingsModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.appear.editing {
 			return m.handleAppearanceInput(msg)
 		}
+		if m.table.editing {
+			return m.handleTableInput(msg)
+		}
 		return m.handleSettingsKey(msg.String())
 
 	case tea.PasteMsg:
 		if m.appear.editing {
 			m = m.typeAppearance(msg.Content)
+		}
+		if m.table.editing {
+			m = m.typeTableColor(msg.Content)
 		}
 
 	case bindCaptureExpiredMsg:
@@ -135,6 +146,8 @@ func (m settingsModel) handleSettingsKey(key string) (tea.Model, tea.Cmd) {
 		model, cmd, handled = m.handleBindsKey(key)
 	case settingsAppearanceTab:
 		model, cmd, handled = m.handleAppearanceKey(key)
+	case settingsTableTab:
+		model, cmd, handled = m.handleTableKey(key)
 	}
 	if handled {
 		return model, cmd

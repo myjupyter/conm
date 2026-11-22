@@ -383,7 +383,7 @@ func (m settingsModel) keyhints() []keyhintGroup {
 			{"any key", "bind it"},
 			{keyMap.Cancel.hint, keyhintCancel},
 		}}}
-	case m.appear.editing:
+	case m.appear.editing || m.table.editing:
 		return []keyhintGroup{{title: "typing", binds: []keybind{
 			{keyMap.Confirm.hint, "use the value"},
 			{keyMap.Cancel.hint, keyhintCancel},
@@ -402,6 +402,14 @@ func (m settingsModel) keyhints() []keyhintGroup {
 	}
 	action := []keybind{{keyMap.Cycle.hint, "change the client"}}
 	switch m.tab {
+	case settingsTableTab:
+		nav[0].label = "move between rows"
+		action = []keybind{
+			{keyMap.Cycle.hint, "change the colour or move the column"},
+			{keyMap.Confirm.hint, "show or hide the column"},
+			{keyMap.Settings.EditValue.hint, "type a colour"},
+			{keyMap.Settings.Reset.hint, "back to the default"},
+		}
 	case settingsAppearanceTab:
 		nav[0].label = "move between options"
 		action = []keybind{

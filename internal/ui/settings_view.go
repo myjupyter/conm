@@ -38,6 +38,8 @@ func (m settingsModel) render() string {
 		body = m.bindsLines()
 	case settingsAppearanceTab:
 		body = m.appearanceLines()
+	case settingsTableTab:
+		body = m.tableLines()
 	default:
 		body = m.clientLines()
 	}
@@ -55,6 +57,8 @@ func (m settingsModel) tabWindow() (view.Scroll, int, int) {
 		return m.binds.window, m.binds.cursor, len(m.bindings())
 	case settingsAppearanceTab:
 		return m.appear.window, m.appear.cursor, len(appearanceRows)
+	case settingsTableTab:
+		return m.table.window, m.table.cursor, len(m.tableRows())
 	}
 	return m.window, m.cursor, len(m.conm.Connections)
 }

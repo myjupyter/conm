@@ -30,7 +30,7 @@ A screen is split `<name>.go` (model, `Update`) / `<name>_view.go` (render) /
 | `secret_table*.go`, `secret_form_commands.go` | the secrets screen and its form |
 | `transport_table*.go`, `transport_form*.go` | the transports screen and its form |
 | `workspace_table*.go`, `workspace_form_commands.go` | the workspaces screen and its form |
-| `settings*.go`, `settings_keybind*.go`, `settings_appearance.go` | settings: the client per type, keybinding overrides, appearance |
+| `settings*.go`, `settings_keybind*.go`, `settings_appearance.go`, `settings_table*.go` | settings: the client per type, keybinding overrides, appearance, the table per type |
 | `init_table*.go` | the type picker: before any connection exists, and when adding one of another type |
 | `import.go` | `ImportConnections`, `RenderImport` — saves `importer.Entry`s for `conm <type> import` and prints what became of each |
 | `export.go` | `ExportConnections` — hands saved connections to `exporter` for `conm <type> export` and reports what became of each |
@@ -135,9 +135,9 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     and `glyphColors` (only the elements not on `auto`). `textPalettes` / `textColorNames` do
     the same for the text roles: the colour lands in `textStyle.fg`, which `span.render`
     prefers over the span's own `fg`, so a role keeps its colour and its style together.
-    `body` and `input` have no style: their colour replaces `cFg` (ordinary text) and `cInput`
-    (a form field's value, the search query) in `applyAppearance`, from `baseFg` /
-    `baseInput` when `auto`, so every screen that draws in those colours follows. A gradient
+    `body`, `input` and `column` have no style: their colour replaces `cFg` (ordinary text),
+    `cInput` (a form field's value, the search query) and `cColumn` (the connections table's
+    column names) in `applyAppearance`, from `baseFg` / `baseInput` / `cDim` when `auto`, so every screen that draws in those colours follows. A gradient
     there is drawn in its first stop. They get a colour row only (`elementRows` adds the
     colour-only elements of `colored` after the others).
     - Every frame piece is painted with `edge(element, runes)`; `frameTop` draws the last
@@ -200,7 +200,9 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     its kind; `TestSettingsRenderStaysAligned` renders the settings tabs with `emoji`,
     `block`, `hidden` and `ascii` and checks every line has one width and every selector
     starts in one column.
-  - `applyConm` sets both `keyMap` and the appearance; every entry point that draws calls it
+  - `applyConm` sets `keyMap`, the appearance and `typeSettings` (each type's row, for its
+    columns and colour); `typeColor` reads the row's `color` — a type name is that type's `builtinTypeColor`,
+    `tab` the tab background or the accent, anything else that colour; every entry point that draws calls it
     (or `applyAppearance`, for `doctor` and `export`) before its first line.
 - **`ui/form_loop.go` — running a form to completion.** `formStatus` (message plus
   `statusKind`), `formResult[T]` (what one run produced, plus its raw values) and
@@ -268,10 +270,14 @@ used. The arrows in a key hint (`↑/k`, `←/→`) spell a key and come from `k
 
 ## The connections table's columns
 
-Columns follow the *kind* of the active `ConnType` (`ConnType.Kind()`), never a named type:
-a database tab shows `NAME · USERNAME · HOST · PORT · DBNAME · PING`, any other kind (ssh)
-drops `DBNAME` and widens `HOST`. Only `hasDatabaseColumn`/`hostWidth` in `table_view.go`
-decide it; `tableInner` never changes.
+Columns are data, never a named type in control flow: `settingsOf(active).VisibleColumns()` —
+the type's `columns` from `conm.toml`, or the defaults `ConnType.DefaultColumns()` gives, which are
+`NAME · USERNAME · HOST · PORT · DBNAME · PING` for a database kind and the same without DBNAME
+for any other (ssh); TAGS is offered but off until listed. `headerLine` and `rowLine` walk that
+list in order; `layoutWidth` gives every column its fixed width and the flexible one — HOST, or
+NAME when HOST is hidden — what the default columns' widths leave after the other shown columns,
+so a row always fills `tableInner` exactly.
+`TestLayoutWidthKeepsTheRowWidth` checks it.
 
 ## The three/four-file screen split
 
@@ -442,7 +448,7 @@ through `formLoop`:
     `config.ColorNames`, types hex, resets, and shows a swatch — or "set by the screen" for an
     `auto` with no fixed colour (`elementGroup.auto`).
   - `elementRows` takes the value group and any number of `extraRows` — colour, background —
-    each listing the elements it covers; an element only an extra covers (`body`, `input`) gets
+    each listing the elements it covers; an element only an extra covers (`body`, `input`, `column`) gets
     its heading with only those rows.
   - **Every element has its own heading.** An element's value and colour rows share
     `appearanceRow.subhead`; `appearanceLines` draws a one-line `frameSubhead` when it changes
@@ -465,6 +471,13 @@ through `formLoop`:
   - While the glyphs are `ascii`, every border row is `locked` and refuses to change.
   - A change copies the settings (`AppearanceSettings.Clone`) before it touches the
     override maps, so the screen's own `conm` is never mutated before the write succeeds.
+
+- **Table.** One section per type over its `config.ConnectionSettings` row: a `colour` row
+  (`typeColorChoices`: the type names, `tab`, the colour names; choosing the own type stores empty; typed with `EditValue`) and a checkbox
+  row per column of `ConnType.Columns()`, listed shown-first in table order (`orderedColumns`).
+  `Confirm` shows or hides a column (NAME is refused), `Cycle` swaps a shown column with its
+  neighbour, `Reset` clears the colour or the order; the cursor follows the column it moved
+  (`tableCursorFor`). `saveTableCmd` checks `ValidateTable` before it writes.
 
 Every write goes through `config.CreateConm` at once; there is no "save" step. The screen
 reports only whether anything changed, and the connections table answers a change with a
