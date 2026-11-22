@@ -83,7 +83,25 @@ var glyphSets = map[string]glyphRunes{
 		fieldBad: "✗", inputCursor: "█", inputMask: "•",
 		empty: "—", ellipsis: "…", hintArrow: "→", scrollUp: "↑", scrollDown: "↓",
 	},
-	"ascii": {
+	"heavy": {
+		statusIdle: "›", statusOK: "✔", statusPending: "◑", statusWarn: "!", statusErr: "✘",
+		importNew: "◌", caret: "➜", dotOn: "◉", dotOff: "◎", dotFail: "✘",
+		fieldBad: "✘", inputCursor: "▌", inputMask: "●",
+		empty: "–", ellipsis: "…", hintArrow: "➜", scrollUp: "▲", scrollDown: "▼",
+	},
+	"geometric": {
+		statusIdle: "▹", statusOK: "◆", statusPending: "◈", statusWarn: "▲", statusErr: "■",
+		importNew: "◇", caret: "▶", dotOn: "◆", dotOff: "◇", dotFail: "■",
+		fieldBad: "■", inputCursor: "█", inputMask: "▪",
+		empty: "—", ellipsis: "…", hintArrow: "▸", scrollUp: "▴", scrollDown: "▾",
+	},
+	"nerd": {
+		statusIdle: "\uf105", statusOK: "\uf00c", statusPending: "\uf110", statusWarn: "\uf071", statusErr: "\uf00d",
+		importNew: "\uf10c", caret: "\uf054", dotOn: "\uf111", dotOff: "\uf10c", dotFail: "\uf057",
+		fieldBad: "\uf00d", inputCursor: "█", inputMask: "•",
+		empty: "—", ellipsis: "…", hintArrow: "\uf061", scrollUp: "\uf062", scrollDown: "\uf063",
+	},
+	config.ASCIIGlyphs: {
 		statusIdle: ">", statusOK: "+", statusPending: "~", statusWarn: "!", statusErr: "x",
 		importNew: "o", caret: ">", dotOn: "*", dotOff: "o", dotFail: "x",
 		fieldBad: "x", inputCursor: "_", inputMask: "*",
@@ -92,10 +110,35 @@ var glyphSets = map[string]glyphRunes{
 }
 
 var accentColors = map[string]color.Color{
-	"green": lipgloss.Color("#63d18a"),
-	"amber": lipgloss.Color("#eebb58"),
-	"blue":  lipgloss.Color("#55bef0"),
-	"pink":  lipgloss.Color("#ec86cc"),
+	"green":  lipgloss.Color("#63d18a"),
+	"lime":   lipgloss.Color("#b6df62"),
+	"teal":   lipgloss.Color("#55cec0"),
+	"blue":   lipgloss.Color("#55bef0"),
+	"purple": lipgloss.Color("#b995f6"),
+	"pink":   lipgloss.Color("#ec86cc"),
+	"red":    lipgloss.Color("#f47b74"),
+	"orange": lipgloss.Color("#fb9d59"),
+	"amber":  lipgloss.Color("#eebb58"),
+}
+
+func accentColor(value string) color.Color {
+	if config.IsHexColor(value) {
+		return lipgloss.Color(value)
+	}
+	if c, ok := accentColors[value]; ok {
+		return c
+	}
+	return accentColors["green"]
+}
+
+func boxFor(a config.AppearanceSettings) boxRunes {
+	if a.Glyphs == config.ASCIIGlyphs {
+		return asciiBox
+	}
+	if box, ok := borderStyles[a.Border]; ok {
+		return box
+	}
+	return borderStyles["single"]
 }
 
 func init() {
@@ -103,23 +146,13 @@ func init() {
 }
 
 func applyAppearance(a config.AppearanceSettings) {
-	box, ok := borderStyles[a.Border]
-	if !ok {
-		box = borderStyles["single"]
-	}
+	box := boxFor(a)
 	glyphs, ok := glyphSets[a.Glyphs]
 	if !ok {
 		glyphs = glyphSets["unicode"]
 	}
-	if a.Glyphs == "ascii" {
-		box = asciiBox
-	}
-	accent, ok := accentColors[a.Accent]
-	if !ok {
-		accent = accentColors["green"]
-	}
 
-	cAccent = accent
+	cAccent = accentColor(a.Accent)
 	gCornerTL, gCornerTR, gCornerBL, gCornerBR = box.cornerTL, box.cornerTR, box.cornerBL, box.cornerBR
 	gTeeL, gTeeR, gLineH, gLineV = box.teeL, box.teeR, box.lineH, box.lineV
 	gStatusIdle, gStatusOK, gStatusPending = glyphs.statusIdle, glyphs.statusOK, glyphs.statusPending

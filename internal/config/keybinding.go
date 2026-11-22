@@ -124,6 +124,7 @@ type SettingsKeybindings struct {
 	ChangeKey []string `toml:"change_key"`
 	RemoveKey []string `toml:"remove_key"`
 	Reset     []string `toml:"reset"`
+	EditValue []string `toml:"edit_value"`
 }
 
 type PromptKeybindings struct {
@@ -201,6 +202,7 @@ func DefaultKeybindings() KeybindingSettings {
 			ChangeKey: []string{"e"},
 			RemoveKey: []string{"d"},
 			Reset:     []string{"r"},
+			EditValue: []string{"i"},
 		},
 		Prompt: PromptKeybindings{
 			Yes: []string{"y"},
@@ -289,6 +291,7 @@ func (k *KeybindingSettings) fields() []keybindingField {
 		{settingsGroup, "change_key", &k.Settings.ChangeKey, unrestrictedKeys},
 		{settingsGroup, "remove_key", &k.Settings.RemoveKey, unrestrictedKeys},
 		{settingsGroup, "reset", &k.Settings.Reset, unrestrictedKeys},
+		{settingsGroup, "edit_value", &k.Settings.EditValue, unrestrictedKeys},
 
 		{promptGroup, "yes", &k.Prompt.Yes, unrestrictedKeys},
 		{promptGroup, "no", &k.Prompt.No, unrestrictedKeys},

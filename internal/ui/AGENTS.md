@@ -120,8 +120,10 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
   literal rune or `lipgloss.Color`, so a restyle never touches drawing code.
   - The glyphs and `cAccent` are variables set by `applyAppearance` from
     `config.AppearanceSettings`: `borderStyles` and `glyphSets` hold the runes per name,
-    `accentColors` the colour. The `ascii` glyph set also replaces the border. Every
-    replacement is one cell wide, as the width arithmetic in `frame.go` assumes.
+    `accentColors` the presets and `accentColor` also takes a `#rrggbb` value. `boxFor` is
+    the one place that decides the frame: the `ascii` glyph set replaces the border. Every
+    rune is one cell wide, as the width arithmetic in `frame.go` assumes —
+    `theme_test.go` checks it, and that every `config` name has an entry.
   - `applyConm` sets both `keyMap` and the appearance; every entry point that draws calls it
     (or `applyAppearance`, for `doctor` and `export`) before its first line.
 - **`ui/form_loop.go` — running a form to completion.** `formStatus` (message plus
@@ -355,6 +357,11 @@ through `formLoop`:
 - **Appearance.** One row per `appearanceRows` entry — border, accent, glyphs — each a
   select box over its `config` name list with a preview beside it. `Cycle` writes the next
   name; the saved message runs `applyConm`, so the screen redraws in the new look at once.
+  - A row with `lockedBy` refuses to cycle and says why: the border while the glyphs are
+    `ascii`, since `boxFor` ignores it then.
+  - A `typed` row (accent) opens a hex input on `keyMap.Settings.EditValue`: only `#` and hex digits are kept,
+    up to seven; `Confirm` saves a full `#rrggbb`, `Cancel` drops it. A value outside the
+    presets shows `custom` in the box.
 
 Every write goes through `config.CreateConm` at once; there is no "save" step. The screen
 reports only whether anything changed, and the connections table answers a change with a

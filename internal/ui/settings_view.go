@@ -54,7 +54,7 @@ func (m settingsModel) tabWindow() (view.Scroll, int, int) {
 	case settingsKeybindTab:
 		return m.binds.window, m.binds.cursor, len(m.bindings())
 	case settingsAppearanceTab:
-		return view.Scroll{}, m.appearCursor, len(appearanceRows)
+		return view.Scroll{}, m.appear.cursor, len(appearanceRows)
 	}
 	return m.window, m.cursor, len(m.conm.Connections)
 }

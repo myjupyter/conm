@@ -116,7 +116,7 @@ func TestSettingsModel_cycleAppearance(t *testing.T) {
 			current: config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode"},
 			row:     1,
 			step:    -1,
-			want:    config.AppearanceSettings{Border: "single", Accent: "pink", Glyphs: "unicode"},
+			want:    config.AppearanceSettings{Border: "single", Accent: "amber", Glyphs: "unicode"},
 		},
 		{
 			name:    "glyphs wrap forward",
@@ -131,14 +131,73 @@ func TestSettingsModel_cycleAppearance(t *testing.T) {
 			var saved config.Conm
 			m := newSettingsFixture(cli.Psql)
 			m.conm.Appearance = tt.current
-			m.appearCursor = tt.row
+			m.appear.cursor = tt.row
 			m.save = func(c config.Conm) error { saved = c; return nil }
 
-			msg, ok := m.cycleAppearance(tt.step)().(settingsSavedMsg)
+			_, cmd := m.cycleAppearance(tt.step)
+			require.NotNil(t, cmd)
+			msg, ok := cmd().(settingsSavedMsg)
 			require.True(t, ok)
 			require.NoError(t, msg.err)
 			assert.Equal(t, tt.want, msg.conm.Appearance)
 			assert.Equal(t, tt.want, saved.Appearance)
+		})
+	}
+}
+
+func TestSettingsModel_cycleAppearanceLockedBorder(t *testing.T) {
+	m := newSettingsFixture(cli.Psql)
+	m.conm.Appearance = config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: config.ASCIIGlyphs}
+	m.save = func(config.Conm) error { return nil }
+
+	model, cmd := m.cycleAppearance(1)
+	assert.Nil(t, cmd)
+	got, ok := model.(settingsModel)
+	require.True(t, ok)
+	assert.Equal(t, kindWarn, got.statusKind)
+}
+
+func TestSettingsModel_hexAccent(t *testing.T) {
+	tests := []struct {
+		name      string
+		typed     []string
+		wantSaved string
+		wantEdit  bool
+	}{
+		{name: "a full colour is saved", typed: []string{"ff", "88", "00"}, wantSaved: "#ff8800"},
+		{name: "non-hex characters are dropped", typed: []string{"zz12", "34 5", "6"}, wantSaved: "#123456"},
+		{name: "input stops at seven characters", typed: []string{"abcdef99"}, wantSaved: "#abcdef"},
+		{name: "a short colour keeps the input open", typed: []string{"abc"}, wantEdit: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newSettingsFixture(cli.Psql)
+			m.conm.Appearance = config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode"}
+			m.save = func(config.Conm) error { return nil }
+			m.appear.cursor = 1
+
+			model, _, handled := m.handleAppearanceKey(keyMap.Settings.EditValue.keys[0])
+			require.True(t, handled)
+			m, ok := model.(settingsModel)
+			require.True(t, ok)
+			require.True(t, m.appear.editing)
+			for _, text := range tt.typed {
+				m = m.typeHex(text)
+			}
+
+			model, cmd := m.saveHexDraft()
+			m, ok = model.(settingsModel)
+			require.True(t, ok)
+			assert.Equal(t, tt.wantEdit, m.appear.editing)
+			if tt.wantEdit {
+				assert.Nil(t, cmd)
+				return
+			}
+			require.NotNil(t, cmd)
+			msg, ok := cmd().(settingsSavedMsg)
+			require.True(t, ok)
+			require.NoError(t, msg.err)
+			assert.Equal(t, tt.wantSaved, msg.conm.Appearance.Accent)
 		})
 	}
 }

@@ -61,6 +61,9 @@ func (m settingsModel) saveAppearanceCmd(a config.AppearanceSettings, status str
 	next.Appearance = a
 
 	return func() tea.Msg {
+		if err := a.Validate(); err != nil {
+			return settingsSavedMsg{err: err}
+		}
 		return settingsSavedMsg{conm: next, status: status, err: save(next)}
 	}
 }

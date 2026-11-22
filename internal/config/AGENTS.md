@@ -162,8 +162,10 @@ repository and no tab on the secrets screen:
   `ConnTypes`, in that order, whatever the file holds. Every layer above may take "a row for
   every known type" for granted, and the tab order is this package's to decide. A type the
   file does not mention gets a row with no client.
-- `[conm.appearance]` holds names only — `border`, `accent`, `glyphs`. `Conm.complete`
-  replaces a missing or unknown name with the first entry of its list, so every layer above
-  gets a value it knows; what a name looks like is `ui/theme.go`'s to decide.
+- `[conm.appearance]` holds names — `border`, `accent`, `glyphs` — and `accent` may instead
+  be a `#rrggbb` colour (`IsHexColor`). `Conm.complete` replaces a missing or unknown value
+  with the first entry of its list, so every layer above gets a value it knows;
+  `AppearanceSettings.Validate` refuses one at the write point. What a name looks like is
+  `ui/theme.go`'s to decide.
 - `ConnType.Kind()` says which `ConnKind` (`database`, `ssh`) a type belongs to; it is
   derived, never stored.

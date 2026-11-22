@@ -381,6 +381,11 @@ func (m settingsModel) keyhints() []keyhintGroup {
 			{"any key", "bind it"},
 			{keyMap.Cancel.hint, keyhintCancel},
 		}}}
+	case m.appear.editing:
+		return []keyhintGroup{{title: "hex colour", binds: []keybind{
+			{keyMap.Confirm.hint, "use the colour"},
+			{keyMap.Cancel.hint, keyhintCancel},
+		}}}
 	case m.binds.confirm:
 		return []keyhintGroup{{title: "confirm", binds: []keybind{
 			{keyMap.Prompt.Yes.hint, "reset to default"},
@@ -397,7 +402,10 @@ func (m settingsModel) keyhints() []keyhintGroup {
 	switch m.tab {
 	case settingsAppearanceTab:
 		nav[0].label = "move between options"
-		action = []keybind{{keyMap.Cycle.hint, "change the value"}}
+		action = []keybind{
+			{keyMap.Cycle.hint, "change the value"},
+			{keyMap.Settings.EditValue.hint, "type a hex accent"},
+		}
 	case settingsKeybindTab:
 		nav[0].label = "move between actions"
 		action = []keybind{

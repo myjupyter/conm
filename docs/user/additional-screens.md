@@ -55,15 +55,18 @@ connect = ['enter', 'o']
 The appearance page changes the look of every screen at once, as soon as you pick a value:
 - **border**: the frame around each screen — `single` `┌──┐`, `rounded` `╭──╮`, `double` `╔══╗`
   or `heavy` `┏━━┓`;
-- **accent**: the colour of the highlighted row and the active tab — `green`, `amber`, `blue` or
-  `pink`;
-- **glyphs**: `unicode`, or `ascii` for a terminal or font that draws symbols like `❯ ✓ ◐` as
-  boxes. `ascii` also draws the frame with `+ - |`, whatever the border.
+- **accent**: the colour of the highlighted row and the active tab — `green`, `lime`, `teal`,
+  `blue`, `purple`, `pink`, `red`, `orange` or `amber`, or your own colour: edit the accent row
+  and type it as `#rrggbb`;
+- **glyphs**: the symbols for status, cursor and markers — `unicode`, `heavy` (`➜ ✔ ✘`),
+  `geometric` (`▶ ◆ ■`), `nerd` (icons from a [Nerd Font](https://www.nerdfonts.com), which
+  your terminal must use) or `ascii`, for a terminal or font that draws symbols like `❯ ✓ ◐` as
+  boxes. `ascii` draws the frame with `+ - |` too, so the border is locked while it is on.
 
 ```toml
 [conm.appearance]
 border = 'rounded'
-accent = 'blue'
+accent = '#ff8800'
 glyphs = 'unicode'
 ```
 

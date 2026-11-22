@@ -34,8 +34,8 @@ type settingsModel struct {
 	window  view.Scroll
 	changed bool
 
-	binds        bindsTab
-	appearCursor int
+	binds  bindsTab
+	appear appearanceTab
 
 	status     string
 	statusKind statusKind
@@ -92,7 +92,15 @@ func (m settingsModel) followCursor() settingsModel {
 func (m settingsModel) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
+		if m.appear.editing {
+			return m.handleHexKey(msg)
+		}
 		return m.handleSettingsKey(msg.String())
+
+	case tea.PasteMsg:
+		if m.appear.editing {
+			m = m.typeHex(msg.Content)
+		}
 
 	case bindCaptureExpiredMsg:
 		return m.captureExpired(msg)

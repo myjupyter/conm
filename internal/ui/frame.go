@@ -398,6 +398,7 @@ func frameErrKV(w int, label, value string, valColor color.Color) string {
 type selectBox struct {
 	value  string
 	at, n  int
+	pos    string
 	active bool
 	bad    bool
 }
@@ -416,7 +417,10 @@ func frameSelectBox(w int, s selectBox, bg color.Color) []span {
 		valFg, posFg = cInvFg, cInvFg
 	}
 
-	pos := fmt.Sprintf("%d/%d", s.at, s.n)
+	pos := s.pos
+	if pos == "" {
+		pos = fmt.Sprintf("%d/%d", s.at, s.n)
+	}
 	mid := max(w-8-len([]rune(pos)), 0)
 	value := truncPad(s.value, min(len([]rune(s.value)), mid), false)
 	left := (mid - len([]rune(value))) / 2
