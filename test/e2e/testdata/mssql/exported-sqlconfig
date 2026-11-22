@@ -1,0 +1,17 @@
+version: v1
+endpoints:
+  - name: local
+    endpoint:
+      address: localhost
+      port: 1433
+contexts:
+  - name: local
+    context:
+      endpoint: local
+      user: local
+users:
+  - name: local
+    authentication-type: basic
+    basic-auth:
+      username: sa
+currentcontext: local

@@ -66,10 +66,12 @@ May import (internal): `config`, `secret`, `importer`.
 - `appended` (INI) adds text after what is there and leaves the existing bytes alone.
   Values are written verbatim — quoting is the `sections` function's, which knows what a
   value means.
-- `sshMerged` puts the `Host` blocks **before the first `Host` or `Match` line**, since ssh
-  takes the first value it finds: below a `Host *` the exported options would lose to it.
-  What comes before that line — global options, a top-level `Include` — stays global; a file
-  without blocks gets them at the end.
+- `sshMerged` puts the `Host` blocks **before the first option of the file**, since ssh takes
+  the first value it finds: below a `Host *`, or below a global option, the exported value
+  would lose to it. Leading comments stay above them. When that first option is a global one
+  rather than a `Host` or `Match` line, a `Host *` line follows the exported blocks, so the
+  old global options — a top-level `Include` among them — still apply to every host instead
+  of joining the last exported block. A file of comments only gets them at the end.
 - `clickhouseMerged` follows the content as the reader does (XML starts with `<`); an empty
   file is YAML only by a `.yaml`/`.yml` name. XML is merged as text, so comments and layout
   survive; the place is found with `xml.Decoder` offsets, so a tag inside a comment is not

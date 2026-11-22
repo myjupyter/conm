@@ -22,7 +22,7 @@ func TestRootCommandNamesAndAliasesAreUnique(t *testing.T) {
 	t.Parallel()
 
 	seen := map[string]string{}
-	for _, cmd := range rootCmd.Commands() {
+	for _, cmd := range NewRootCmd().Commands() {
 		for _, name := range append([]string{cmd.Name()}, cmd.Aliases...) {
 			assert.NotContains(t, seen, name, "%s and %s", seen[name], cmd.Name())
 			seen[name] = cmd.Name()

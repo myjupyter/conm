@@ -1,0 +1,19 @@
+<config>
+    <connections_credentials>
+        <connection>
+            <name>local</name>
+            <hostname>localhost</hostname>
+            <port>9000</port>
+            <user>default</user>
+            <database>default</database>
+        </connection>
+        <connection>
+            <name>analytics.internal</name>
+            <hostname>analytics.internal</hostname>
+            <port>9440</port>
+            <user>default</user>
+            <database>default</database>
+            <secure>true</secure>
+        </connection>
+    </connections_credentials>
+</config>

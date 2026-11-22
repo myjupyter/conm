@@ -51,6 +51,7 @@ func quoted(value string) string {
 const (
 	sshHostLine  = "Host"
 	sshMatchLine = "Match"
+	sshAnyHost   = "*"
 	sshIndent    = "    "
 )
 
@@ -68,7 +69,7 @@ func sshHeld(path string) ([]string, error) {
 func sshMerged(_ string, raw []byte, sections []importer.Section) ([]byte, error) {
 	header := func(alias string) string { return sshHostLine + " " + alias }
 
-	at := sshFirstBlock(raw)
+	at, global := sshFirstOption(raw)
 	if at < 0 {
 		return appended(raw, sections, header, sshIndent, " ")
 	}
@@ -78,18 +79,22 @@ func sshMerged(_ string, raw []byte, sections []importer.Section) ([]byte, error
 		return nil, err
 	}
 
-	return slices.Concat(raw[:at], []byte(added+"\n"), raw[at:]), nil
+	added += "\n"
+	if global {
+		added += sshHostLine + " " + sshAnyHost + "\n"
+	}
+
+	return slices.Concat(raw[:at], []byte(added), raw[at:]), nil
 }
 
-func sshFirstBlock(raw []byte) int {
-	at := 0
+func sshFirstOption(raw []byte) (at int, global bool) {
 	for line := range strings.Lines(string(raw)) {
 		keyword, _ := config.SplitSSHOption(line)
-		if strings.EqualFold(keyword, sshHostLine) || strings.EqualFold(keyword, sshMatchLine) {
-			return at
+		if keyword != "" && !strings.HasPrefix(keyword, "#") {
+			return at, !strings.EqualFold(keyword, sshHostLine) && !strings.EqualFold(keyword, sshMatchLine)
 		}
 		at += len(line)
 	}
 
-	return -1
+	return -1, false
 }

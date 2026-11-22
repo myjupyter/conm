@@ -1,0 +1,13 @@
+connections_credentials:
+  connection:
+    - name: local
+      hostname: localhost
+      port: "9000"
+      user: default
+      database: default
+    - name: analytics.internal
+      hostname: analytics.internal
+      port: "9440"
+      user: default
+      database: default
+      secure: "true"

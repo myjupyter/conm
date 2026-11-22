@@ -1,0 +1,32 @@
+# Example ssh config for trying out `conm ssh import`:
+#
+#   conm ssh import --path test/e2e/testdata/ssh/ssh_config --show
+#
+# Every concrete Host is a connection. A pattern such as `Host *` is none, but its options
+# apply to the hosts it matches, the first value found winning, as in ssh itself.
+
+Host bastion
+    HostName bastion.example.com
+    User ops
+    Port 2222
+    IdentityFile ~/.ssh/id_ed25519
+
+Host db web
+    User deploy
+    ProxyJump bastion
+    LocalForward 15432 localhost:5432
+
+Host *.internal
+    User internal
+
+Host build.internal
+    ServerAliveInterval 30
+    StrictHostKeyChecking no
+
+Match host legacy
+    User nobody
+
+Host nouser
+
+Host * !bastion
+    ForwardAgent yes

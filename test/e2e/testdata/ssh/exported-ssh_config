@@ -1,0 +1,28 @@
+Host bastion
+    HostName bastion.example.com
+    Port 2222
+    User ops
+    IdentityFile ~/.ssh/id_ed25519
+
+Host db
+    HostName db
+    Port 22
+    User deploy
+    ProxyJump bastion
+    ForwardAgent yes
+    LocalForward 15432 localhost:5432
+
+Host web
+    HostName web
+    Port 22
+    User deploy
+    ProxyJump bastion
+    ForwardAgent yes
+    LocalForward 15432 localhost:5432
+
+Host build.internal
+    HostName build.internal
+    Port 22
+    User internal
+    ForwardAgent yes
+    ServerAliveInterval 30

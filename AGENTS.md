@@ -39,6 +39,8 @@ make lint       # go vet + golangci-lint run ./...  (config in .golangci.yaml)
 make test       # go vet + go test -race ./...
 ```
 
+`make test` includes the end-to-end tests of `import` and `export` in `test/e2e` — a change
+to either command or to a format they read or write is checked there too (`test/e2e/AGENTS.md`).
 `make fmt` (`go fix` + `golangci-lint fmt`) fixes formatting. The same four targets run on
 `pre-push` through `lefthook.yml`; commit messages follow Conventional Commits and branches
 are `<type>/<lowercase-description>`.

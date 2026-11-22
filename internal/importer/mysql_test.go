@@ -114,6 +114,21 @@ func TestRead_mysql(t *testing.T) {
 			},
 		},
 		{
+			name: "without [client] and [mysql] the name client is free for a suffix",
+			args: args{options: "[client_client]\nhost=one\nuser=u\n[mysql_client]\ndatabase=d\n"},
+			want: []want{
+				{name: "client", conn: config.MySQL{Metadata: config.ConnMeta{Name: "client"}, Hostname: "one", PortNumber: 3306, User: "u", DBName: "d", TLSMode: config.MySQLTLSModePreferred}},
+			},
+		},
+		{
+			name: "with them it is theirs, and the suffix keeps its spelling",
+			args: args{options: "[client]\nhost=base\nuser=u\ndatabase=d\n[client_client]\nhost=one\n"},
+			want: []want{
+				{name: "client", conn: config.MySQL{Metadata: config.ConnMeta{Name: "client"}, Hostname: "base", PortNumber: 3306, User: "u", DBName: "d", TLSMode: config.MySQLTLSModePreferred}},
+				{name: "_client", conn: config.MySQL{Metadata: config.ConnMeta{Name: "_client"}, Hostname: "one", PortNumber: 3306, User: "u", DBName: "d", TLSMode: config.MySQLTLSModePreferred}},
+			},
+		},
+		{
 			name: "a file with server groups only holds no connection",
 			args: args{options: "[mysqld]\nport=3306\n[client-server]\nsocket=/tmp/mysql.sock\n"},
 			want: []want{},

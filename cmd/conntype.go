@@ -57,9 +57,3 @@ func connTypeCmd(t config.ConnType) *cobra.Command {
 
 	return cmd
 }
-
-func init() {
-	for _, t := range config.ConnTypes {
-		rootCmd.AddCommand(connTypeCmd(t))
-	}
-}

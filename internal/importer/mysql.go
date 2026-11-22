@@ -48,8 +48,11 @@ func readMySQL(path string) ([]Entry, error) {
 	var (
 		entries []Entry
 		seen    []string
-		names   = []string{mysqlClientGroup}
+		names   []string
 	)
+	if len(base) > 0 {
+		names = append(names, mysqlClientGroup)
+	}
 	for _, group := range groups {
 		suffix, ok := strings.CutPrefix(group.Name, mysqlClientGroup)
 		if !ok || suffix == "" || slices.Contains(mysqlSharedGroups, group.Name) || slices.Contains(seen, suffix) {

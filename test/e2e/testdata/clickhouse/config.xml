@@ -1,0 +1,28 @@
+<!-- Example client config for trying out `conm clickhouse import`, with the path flag
+     pointing at this file and the show flag to only look. -->
+<config>
+    <connections_credentials>
+        <!-- Password in the file: it goes to the keyring on import. -->
+        <connection>
+            <name>local</name>
+            <hostname>localhost</hostname>
+            <port>9000</port>
+            <user>default</user>
+            <password>ch-s3cret</password>
+            <database>default</database>
+        </connection>
+        <!-- No hostname: the name is the host. No user and no database: the client's own, "default". -->
+        <connection>
+            <name>analytics.internal</name>
+            <secure>1</secure>
+            <history_file>~/.analytics_history</history_file>
+        </connection>
+        <!-- Turns certificate checks off: cannot be imported. -->
+        <connection>
+            <name>cloud</name>
+            <hostname>db.example.com</hostname>
+            <secure>1</secure>
+            <accept-invalid-certificate>true</accept-invalid-certificate>
+        </connection>
+    </connections_credentials>
+</config>

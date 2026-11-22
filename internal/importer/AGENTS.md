@@ -84,7 +84,9 @@ May import (internal): `config`, `parser/params`.
 - Every `[client<suffix>]` group is another one, named after the suffix without its leading
   `_`, `-` or `.` — the connection `mysql --defaults-group-suffix=<suffix>` opens. A suffix
   whose short name is empty or already taken (`[client_a]` beside `[client-a]`) keeps its
-  whole spelling. Its options are those of `[client]` and `[mysql]` followed by
+  whole spelling. The name `client` is taken only when `[client]` or `[mysql]` hold
+  options: `[client_client]`, which export writes for a connection named `client`, is
+  `client` again in a file without them. Its options are those of `[client]` and `[mysql]` followed by
   `[client<suffix>]` and `[mysql<suffix>]`.
 - Suffixes are discovered from `client…` groups only: `[mysqld]` and `[mysqldump]` start with
   `mysql` but are other programs, `[client-server]` and `[client-mariadb]` shared MariaDB

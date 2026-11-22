@@ -67,8 +67,8 @@ func Test_sshMerged(t *testing.T) {
 	}{
 		{
 			name: "before the first Host block, so a pattern below cannot override it",
-			args: args{raw: "Include ~/.ssh/extra\nUser me\n\n  Host *\n  User ops\n"},
-			want: "Include ~/.ssh/extra\nUser me\n\nHost bastion\n    HostName bastion.internal\n    Port 2222\n\n  Host *\n  User ops\n",
+			args: args{raw: "# mine\n\n  Host *\n  User ops\n"},
+			want: "# mine\n\nHost bastion\n    HostName bastion.internal\n    Port 2222\n\n  Host *\n  User ops\n",
 		},
 		{
 			name: "before a Match block too",
@@ -76,9 +76,14 @@ func Test_sshMerged(t *testing.T) {
 			want: "Host bastion\n    HostName bastion.internal\n    Port 2222\n\nmatch host *.internal\n  User ops\n",
 		},
 		{
-			name: "a file without blocks gets it at the end",
-			args: args{raw: "User ops"},
-			want: "User ops\n\nHost bastion\n    HostName bastion.internal\n    Port 2222\n",
+			name: "before the global options, which a Host * keeps global for every other host",
+			args: args{raw: "# mine\nUser me\nInclude ~/.ssh/extra\n\nHost *\n  User ops\n"},
+			want: "# mine\nHost bastion\n    HostName bastion.internal\n    Port 2222\n\nHost *\nUser me\nInclude ~/.ssh/extra\n\nHost *\n  User ops\n",
+		},
+		{
+			name: "a file of comments gets it at the end",
+			args: args{raw: "# nothing yet"},
+			want: "# nothing yet\n\nHost bastion\n    HostName bastion.internal\n    Port 2222\n",
 		},
 	}
 	for _, tt := range tests {
