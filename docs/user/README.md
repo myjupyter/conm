@@ -53,6 +53,9 @@ full list of the screen you are on, and `?` again to close it. Keys can be chang
    - [Gradients](settings.md#gradients)
    - [Changing one element](settings.md#changing-one-element)
    - [Table](settings.md#table)
+
+## Other
+
 9. [Additional screens](additional-screens.md): the info screen
    - [Info screen](additional-screens.md#info-screen)
 10. [Commands](commands.md): every command at a glance
