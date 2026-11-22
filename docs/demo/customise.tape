@@ -16,9 +16,9 @@ Sleep 500ms
 Hide
 Type `cp customise/1-default.toml "$XDG_CONFIG_HOME/conm/conm.toml" && clear && conm`
 Enter
-Sleep 1500ms
+Sleep 2500ms
 Type "p"
-Sleep 1500ms
+Sleep 2500ms
 Type "jp"
 Sleep 2500ms
 Type "jj"
@@ -34,9 +34,9 @@ Sleep 800ms
 Hide
 Type `cp customise/2-shape.toml "$XDG_CONFIG_HOME/conm/conm.toml" && clear && conm`
 Enter
-Sleep 1500ms
+Sleep 2500ms
 Type "p"
-Sleep 1500ms
+Sleep 2500ms
 Type "jp"
 Sleep 2500ms
 Type "jj"
@@ -52,9 +52,9 @@ Sleep 800ms
 Hide
 Type `cp customise/3-accent.toml "$XDG_CONFIG_HOME/conm/conm.toml" && clear && conm`
 Enter
-Sleep 1500ms
+Sleep 2500ms
 Type "p"
-Sleep 1500ms
+Sleep 2500ms
 Type "jp"
 Sleep 2500ms
 Type "jj"
@@ -80,9 +80,9 @@ Sleep 800ms
 Hide
 Type `cp customise/4-palettes.toml "$XDG_CONFIG_HOME/conm/conm.toml" && clear && conm`
 Enter
-Sleep 1500ms
+Sleep 2500ms
 Type "p"
-Sleep 1500ms
+Sleep 2500ms
 Type "jp"
 Sleep 2500ms
 Type "jj"
@@ -98,9 +98,9 @@ Sleep 800ms
 Hide
 Type `cp customise/5-text.toml "$XDG_CONFIG_HOME/conm/conm.toml" && clear && conm`
 Enter
-Sleep 1500ms
+Sleep 2500ms
 Type "p"
-Sleep 1500ms
+Sleep 2500ms
 Type "jp"
 Sleep 2500ms
 Type "jj"
@@ -116,9 +116,9 @@ Sleep 800ms
 Hide
 Type `cp customise/6-table.toml "$XDG_CONFIG_HOME/conm/conm.toml" && clear && conm`
 Enter
-Sleep 1500ms
+Sleep 2500ms
 Type "p"
-Sleep 1500ms
+Sleep 2500ms
 Type "jp"
 Sleep 2500ms
 Type "jj"
