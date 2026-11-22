@@ -16,11 +16,18 @@ const settingsSectionWindow = 3
 const (
 	settingsClientTab = iota
 	settingsKeybindTab
-	settingsAppearanceTab
+	settingsAccentTab
+	settingsTextTab
+	settingsGlyphsTab
+	settingsBordersTab
 	settingsTableTab
+	settingsPages
 )
 
-var settingsTabTitles = []string{"client", "keybind", "appearance", "table"}
+var (
+	settingsTabTitles   = []string{"client", "keybind", "appearance"}
+	appearanceTabTitles = []string{"accent", "text", "glyphs", "borders", "table"}
+)
 
 type settingsModel struct {
 	size screenSize
@@ -30,10 +37,12 @@ type settingsModel struct {
 	versions map[string]string
 	save     func(config.Conm) error
 
-	tab     int
-	cursor  int
-	window  view.Scroll
-	changed bool
+	tab        int
+	nested     bool
+	appearPage int
+	cursor     int
+	window     view.Scroll
+	changed    bool
 
 	binds  bindsTab
 	appear appearanceTab
@@ -87,12 +96,12 @@ func (m settingsModel) followCursor() settingsModel {
 	switch m.tab {
 	case settingsKeybindTab:
 		m.size.fit(&m.binds.window, chrome, m.binds.cursor, len(m.bindings()), func() int { return len(m.bindsLines()) })
-	case settingsAppearanceTab:
-		m.size.fit(&m.appear.window, chrome, m.appear.cursor, len(appearanceRows), func() int { return len(m.appearanceLines()) })
 	case settingsTableTab:
 		m.size.fit(&m.table.window, chrome, m.table.cursor, len(m.tableRows()), func() int { return len(m.tableLines()) })
 	case settingsClientTab:
 		m.size.fit(&m.window, chrome, m.cursor, len(m.conm.Connections), func() int { return len(m.clientLines()) })
+	default:
+		m.size.fit(&m.appear.window, chrome, m.appear.cursor, len(m.pageRows()), func() int { return len(m.appearanceLines()) })
 	}
 	return m
 }
@@ -141,12 +150,16 @@ func (m settingsModel) handleSettingsKey(key string) (tea.Model, tea.Cmd) {
 		cmd     tea.Cmd
 		handled bool
 	)
-	switch m.tab {
-	case settingsKeybindTab:
+	if next, ok := m.toggleNested(key); ok {
+		return next, nil
+	}
+	switch {
+	case m.tab == settingsKeybindTab:
 		model, cmd, handled = m.handleBindsKey(key)
-	case settingsAppearanceTab:
+	case m.topTab() == settingsAccentTab && !m.nested:
+	case m.onAppearancePage():
 		model, cmd, handled = m.handleAppearanceKey(key)
-	case settingsTableTab:
+	case m.tab == settingsTableTab:
 		model, cmd, handled = m.handleTableKey(key)
 	}
 	if handled {
@@ -177,9 +190,37 @@ func (m settingsModel) handleSettingsKey(key string) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m settingsModel) toggleNested(key string) (settingsModel, bool) {
+	if m.topTab() != settingsAccentTab {
+		return m, false
+	}
+	entering := !m.nested && keyMap.Confirm.matches(key)
+	leaving := m.nested && keyMap.Cancel.matches(key)
+	if !entering && !leaving {
+		return m, false
+	}
+	m.nested = entering
+	m.setSettingsStatus(statusReady, kindIdle)
+	return m, true
+}
+
 func (m settingsModel) switchTab(step int) settingsModel {
-	n := len(settingsTabTitles)
-	m.tab = (m.tab + step + n) % n
+	if m.nested {
+		n := settingsPages - settingsAccentTab
+		m.tab = settingsAccentTab + (m.appearanceTab()+step+n)%n
+		m.appear.cursor = 0
+		m.appear.window.Top()
+	} else {
+		n := len(settingsTabTitles)
+		top := (m.topTab() + step + n) % n
+		if m.topTab() == settingsAccentTab {
+			m.appearPage = m.tab
+		}
+		m.tab = top
+		if top == settingsAccentTab {
+			m.tab = max(m.appearPage, settingsAccentTab)
+		}
+	}
 	m.setSettingsStatus(statusReady, kindIdle)
 	return m
 }
@@ -268,4 +309,12 @@ func (m settingsModel) clientInfo(db config.ConnectionSettings) (cli.Info, bool)
 
 func (m *settingsModel) setSettingsStatus(s string, k statusKind) {
 	m.status, m.statusKind = s, k
+}
+
+func (m settingsModel) topTab() int { return min(m.tab, settingsAccentTab) }
+
+func (m settingsModel) appearanceTab() int { return m.tab - settingsAccentTab }
+
+func (m settingsModel) onAppearancePage() bool {
+	return m.tab >= settingsAccentTab && m.tab < settingsTableTab
 }

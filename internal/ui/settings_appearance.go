@@ -174,6 +174,24 @@ const (
 
 var appearanceRows = buildAppearanceRows()
 
+var appearancePages = map[int]string{
+	settingsAccentTab:  colorLabel,
+	settingsTextTab:    "text",
+	settingsGlyphsTab:  "glyphs",
+	settingsBordersTab: "border",
+}
+
+func (m settingsModel) pageRows() []appearanceRow {
+	section := appearancePages[m.tab]
+	var rows []appearanceRow
+	for i := range appearanceRows {
+		if appearanceRows[i].section == section {
+			rows = append(rows, appearanceRows[i])
+		}
+	}
+	return rows
+}
+
 func buildAppearanceRows() []appearanceRow {
 	rows := []appearanceRow{
 		{
@@ -445,11 +463,12 @@ func styleRune(r rune) rune {
 }
 
 func (m settingsModel) appearanceRow() appearanceRow {
-	return appearanceRows[m.appear.cursor]
+	rows := m.pageRows()
+	return rows[min(m.appear.cursor, len(rows)-1)]
 }
 
 func (m settingsModel) handleAppearanceKey(key string) (tea.Model, tea.Cmd, bool) {
-	n := len(appearanceRows)
+	n := len(m.pageRows())
 	row := m.appearanceRow()
 	switch {
 	case keyMap.Down.matches(key):
@@ -591,22 +610,23 @@ func lockedStatus(row appearanceRow) string {
 }
 
 func (m settingsModel) appearanceLines() []string {
-	start, end := m.appear.window.Range(len(appearanceRows))
+	rows := m.pageRows()
+	start, end := m.appear.window.Range(len(rows))
 
 	var lines []string
 	for i := start; i < end; i++ {
-		row := appearanceRows[i]
-		newSection := i == start || row.section != appearanceRows[i-1].section
+		row := rows[i]
+		newSection := i == start || row.section != rows[i-1].section
 		if newSection {
 			lines = append(lines, frameHead(m.inner(), row.section, m.sectionNote(row))...)
 		}
-		if row.subhead != "" && (newSection || row.subhead != appearanceRows[i-1].subhead) {
+		if row.subhead != "" && (newSection || row.subhead != rows[i-1].subhead) {
 			if !newSection {
 				lines = append(lines, frameLine(m.inner(), nil, nil))
 			}
 			lines = append(lines, frameSubhead(m.inner(), row.subhead, m.subheadNote(row)))
 		}
-		lines = append(lines, m.appearanceLine(row, i == m.appear.cursor))
+		lines = append(lines, m.appearanceLine(row, m.nested && i == m.appear.cursor))
 	}
 	return lines
 }

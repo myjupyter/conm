@@ -194,13 +194,20 @@ func frameSubhead(w int, title, note string) string {
 }
 
 func frameTabs(w int, titles []string, active int, note string) string {
+	return frameTabBar(w, titles, active, true, note)
+}
+
+func frameTabBar(w int, titles []string, active int, focused bool, note string) string {
 	spans := make([]span, 0, 3+2*len(titles))
 	spans = append(spans, span{text: " ", fg: cDim})
 	used := 1
 	for i, title := range titles {
 		s := span{text: " " + title + " ", fg: cDim}
-		if i == active {
+		switch {
+		case i == active && focused:
 			s = span{text: s.text, fg: cInvFg, bg: tabBg(cAccent), style: tTab}
+		case i == active:
+			s = span{text: s.text, fg: tabBg(cAccent)}
 		}
 		spans = append(spans, s, span{text: " ", fg: cDim})
 		used += s.width() + 1

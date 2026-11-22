@@ -421,7 +421,18 @@ through `formLoop`:
 
 ## Settings — `settings*.go`, `settings_keybind*.go`, `settings_appearance.go`
 
-`settingsModel` edits `conm.toml` and nothing else, in three tabs.
+`settingsModel` edits `conm.toml` and nothing else, in three tabs: client, keybind and
+appearance, which nests accent, text, glyphs, borders and table. `m.tab` is one flat page
+index over all seven (`settingsPages`); `topTab` and `appearanceTab` pick the active tab of
+each bar. Next/previous section moves between the top tabs until `Confirm` on appearance sets
+`nested` (`toggleNested`); then it moves between the appearance tabs, and `Cancel` clears
+`nested` before `Quit` sees it. Leaving appearance keeps its page in `appearPage` to come back
+to. Only while `nested` do the appearance and table pages take keys and draw their cursor.
+`headLines` draws the second bar (`appearanceTabTitles`) a blank line under the first, only
+on appearance; `frameTabBar` paints the active tab of the unfocused bar in the accent without
+the band. The four style pages each show one
+section of `appearanceRows` (`appearancePages`, `pageRows`), and `m.appear.cursor` indexes that
+page's rows, reset to the top on every page switch.
 
 - **Clients.** One row per connection type with the clients `cli.Detect` found and their
   versions, probed in the background on `Init`. `Cycle` moves to the next *installed* client

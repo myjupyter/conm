@@ -410,7 +410,7 @@ func (m settingsModel) keyhints() []keyhintGroup {
 			{keyMap.Settings.EditValue.hint, "type a colour"},
 			{keyMap.Settings.Reset.hint, "back to the default"},
 		}
-	case settingsAppearanceTab:
+	case settingsAccentTab, settingsTextTab, settingsGlyphsTab, settingsBordersTab:
 		nav[0].label = "move between options"
 		action = []keybind{
 			{keyMap.Cycle.hint, "change the value"},
@@ -426,6 +426,13 @@ func (m settingsModel) keyhints() []keyhintGroup {
 			{keyMap.Settings.RemoveKey.hint, "remove the key"},
 			{keyMap.Settings.Reset.hint, "reset to default"},
 		}
+	}
+	switch {
+	case m.topTab() == settingsAccentTab && !m.nested:
+		nav = nav[1:]
+		action = []keybind{{keyMap.Confirm.hint, "open the appearance tabs"}}
+	case m.topTab() == settingsAccentTab:
+		nav = append(nav, keybind{keyMap.Cancel.hint, "back to the top tabs"})
 	}
 
 	return []keyhintGroup{

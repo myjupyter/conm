@@ -26,7 +26,7 @@ func (m settingsModel) tableLines() []string {
 			}
 			lines = append(lines, frameSubhead(m.inner(), "columns", ""))
 		}
-		lines = append(lines, m.tableLine(row, i == m.table.cursor))
+		lines = append(lines, m.tableLine(row, m.nested && i == m.table.cursor))
 	}
 	return lines
 }

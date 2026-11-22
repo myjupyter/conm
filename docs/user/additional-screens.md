@@ -2,9 +2,13 @@
 
 ## Settings
 
-The settings screen is opened from the connections table and has four pages: which client each
-database opens, which keys do what, how conm looks, and how the connections table looks for each
-type. A change is saved as soon as you make it. Settings are
+The settings screen is opened from the connections table and has three tabs: **client** (which
+client each database opens), **keybind** (which keys do what) and **appearance** (how conm
+looks). Appearance has tabs of its own, shown in a second row: **accent**, **text**, **glyphs**,
+**borders** and **table** (how the connections table looks for each type). Next and previous
+page move between the top tabs; on appearance, confirm steps into its tabs, next and previous
+page then move between those, and cancel steps back out. Appearance reopens on the tab you
+left. A change is saved as soon as you make it. Settings are
 shared by all [workspaces](workspaces.md), and live in `conm.toml`.
 
 ### Switching clients
@@ -53,8 +57,8 @@ connect = ['enter', 'o']
 
 ### Appearance
 
-The appearance page changes the look of every screen at once, as soon as you pick a value.
-It has four sections:
+The appearance tab changes the look of every screen at once, as soon as you pick a value.
+Its first four tabs are one section each:
 - **colour**: the **accent** — the colour of the highlighted row and the active tab, `green`,
   `lime`, `teal`, `blue`, `purple`, `pink`, `red`, `orange` or `amber`, your own `#rrggbb`, or a
   gradient of them like `teal>pink` (below). Status colours stay as they are: a success is always
@@ -185,7 +189,7 @@ its element is ignored.
 
 ### Table
 
-The table page has a section for every connection type, with what that type's tab of the
+The table tab of appearance has a section for every connection type, with what that type's tab of the
 connections table shows.
 
 - **colour**: the type's colour — the tab of the connections table, the badge of its forms, its

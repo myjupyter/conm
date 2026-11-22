@@ -2,6 +2,7 @@ package ui
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -113,7 +114,13 @@ func newAppearanceFixture(t *testing.T, a config.AppearanceSettings, row string)
 	m := newSettingsFixture(cli.Psql)
 	m.conm.Appearance = a
 	m.save = func(config.Conm) error { return nil }
-	m.appear.cursor = appearanceRowAt(t, row)
+	section := appearanceRows[appearanceRowAt(t, row)].section
+	for page, name := range appearancePages {
+		if name == section {
+			m.tab = page
+		}
+	}
+	m.appear.cursor = slices.IndexFunc(m.pageRows(), func(r appearanceRow) bool { return r.name() == row })
 	return m
 }
 
@@ -443,8 +450,8 @@ func TestSettingsRenderStaysAligned(t *testing.T) {
 	t.Cleanup(func() { applyAppearance(plainAppearance) })
 
 	for _, look := range looks {
-		for tab := range settingsTabTitles {
-			t.Run(look.Glyphs+"/"+look.Border+"/"+settingsTabTitles[tab], func(t *testing.T) {
+		for tab := range settingsPages {
+			t.Run(look.Glyphs+"/"+look.Border+"/"+strconv.Itoa(tab), func(t *testing.T) {
 				applyAppearance(look)
 				m := newSettingsFixture(cli.Psql)
 				m.conm.Appearance = look
@@ -636,29 +643,30 @@ func TestAppearanceRowsHaveColourRows(t *testing.T) {
 
 func TestSettingsModel_appearanceSubheads(t *testing.T) {
 	tests := []struct {
+		page    string
 		subhead string
 		rows    []string
 	}{
-		{subhead: "TITLE", rows: []string{"style", "colour"}},
-		{subhead: "TAB", rows: []string{"style", "colour", "background"}},
-		{subhead: "HEADING", rows: []string{"style", "colour", "background"}},
-		{subhead: "SUBHEADING", rows: []string{"style", "colour", "background"}},
-		{subhead: "TOP LEFT", rows: []string{"character", "colour"}},
-		{subhead: "STATUS OK", rows: []string{"glyph", "colour"}},
-		{subhead: "ELLIPSIS", rows: []string{"glyph"}},
-		{subhead: "BODY", rows: []string{"colour"}},
-		{subhead: "INPUT", rows: []string{"colour"}},
+		{page: "text style", subhead: "TITLE", rows: []string{"style", "colour"}},
+		{page: "text style", subhead: "TAB", rows: []string{"style", "colour", "background"}},
+		{page: "text style", subhead: "HEADING", rows: []string{"style", "colour", "background"}},
+		{page: "text style", subhead: "SUBHEADING", rows: []string{"style", "colour", "background"}},
+		{page: "border style", subhead: "TOP LEFT", rows: []string{"character", "colour"}},
+		{page: "glyphs set", subhead: "STATUS OK", rows: []string{"glyph", "colour"}},
+		{page: "glyphs set", subhead: "ELLIPSIS", rows: []string{"glyph"}},
+		{page: "text style", subhead: "BODY", rows: []string{"colour"}},
+		{page: "text style", subhead: "INPUT", rows: []string{"colour"}},
 	}
-	m := newAppearanceFixture(t, plainAppearance, "colour accent")
-	m.size.observe(tea.WindowSizeMsg{Width: 110, Height: 40})
-	lines := m.appearanceLines()
-	plain := make([]string, len(lines))
-	for i, line := range lines {
-		plain[i] = strings.TrimSpace(strings.Trim(ansi.Strip(line), gLineLeft+gLineRight))
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.subhead, func(t *testing.T) {
+			m := newAppearanceFixture(t, plainAppearance, tt.page)
+			m.size.observe(tea.WindowSizeMsg{Width: 110, Height: 40})
+			lines := m.appearanceLines()
+			plain := make([]string, len(lines))
+			for i, line := range lines {
+				plain[i] = strings.TrimSpace(strings.Trim(ansi.Strip(line), gLineLeft+gLineRight))
+			}
+
 			at := slices.Index(plain, tt.subhead)
 			require.GreaterOrEqual(t, at, 0)
 			assert.Equal(t, 1, strings.Count(strings.Join(plain, "\n"), "\n"+tt.subhead+"\n"))
@@ -706,6 +714,39 @@ func TestSettingsModel_flatGradientHint(t *testing.T) {
 			msg, ok := cmd().(settingsSavedMsg)
 			require.True(t, ok)
 			assert.Equal(t, tt.wantHint, strings.Contains(msg.status, flatNote))
+		})
+	}
+}
+
+func TestSettingsModel_nestedTabs(t *testing.T) {
+	tests := []struct {
+		name       string
+		keys       []string
+		wantTab    int
+		wantNested bool
+	}{
+		{name: "tab walks the top tabs", keys: []string{"tab", "tab"}, wantTab: settingsAccentTab},
+		{name: "tab past appearance wraps to client", keys: []string{"tab", "tab", "tab"}, wantTab: settingsClientTab},
+		{name: "enter opens the appearance tabs", keys: []string{"tab", "tab", "enter"}, wantTab: settingsAccentTab, wantNested: true},
+		{name: "tab inside walks the appearance tabs", keys: []string{"tab", "tab", "enter", "tab", "tab"}, wantTab: settingsGlyphsTab, wantNested: true},
+		{name: "shift+tab inside wraps to table", keys: []string{"tab", "tab", "enter", "shift+tab"}, wantTab: settingsTableTab, wantNested: true},
+		{name: "esc goes back to the top tabs", keys: []string{"tab", "tab", "enter", "tab", "esc"}, wantTab: settingsTextTab},
+		{name: "appearance remembers its tab", keys: []string{"tab", "tab", "enter", "tab", "esc", "tab", "shift+tab"}, wantTab: settingsTextTab},
+		{name: "enter elsewhere does not nest", keys: []string{"enter"}, wantTab: settingsClientTab},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newSettingsFixture(cli.Psql)
+			for _, key := range tt.keys {
+				model, _ := m.handleSettingsKey(key)
+				next, ok := model.(settingsModel)
+				require.True(t, ok)
+				m = next
+			}
+
+			is := assert.New(t)
+			is.Equal(tt.wantTab, m.tab)
+			is.Equal(tt.wantNested, m.nested)
 		})
 	}
 }

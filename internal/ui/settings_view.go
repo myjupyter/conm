@@ -36,12 +36,12 @@ func (m settingsModel) render() string {
 	switch m.tab {
 	case settingsKeybindTab:
 		body = m.bindsLines()
-	case settingsAppearanceTab:
-		body = m.appearanceLines()
+	case settingsClientTab:
+		body = m.clientLines()
 	case settingsTableTab:
 		body = m.tableLines()
 	default:
-		body = m.clientLines()
+		body = m.appearanceLines()
 	}
 	lines := append(m.headLines(), m.size.keepEnd(body, m.chrome())...)
 	return m.size.join(append(lines, m.tailLines()...))
@@ -55,19 +55,29 @@ func (m settingsModel) tabWindow() (view.Scroll, int, int) {
 	switch m.tab {
 	case settingsKeybindTab:
 		return m.binds.window, m.binds.cursor, len(m.bindings())
-	case settingsAppearanceTab:
-		return m.appear.window, m.appear.cursor, len(appearanceRows)
+	case settingsClientTab:
+		return m.window, m.cursor, len(m.conm.Connections)
 	case settingsTableTab:
 		return m.table.window, m.table.cursor, len(m.tableRows())
 	}
-	return m.window, m.cursor, len(m.conm.Connections)
+	return m.appear.window, m.appear.cursor, len(m.pageRows())
 }
 
 func (m settingsModel) headLines() []string {
 	window, _, n := m.tabWindow()
+	note := scrollNote(window.Above(), window.Below(n))
+	if m.topTab() != settingsAccentTab {
+		return []string{
+			frameTop(m.inner(), "settings", ""),
+			frameTabs(m.inner(), settingsTabTitles, m.topTab(), note),
+			frameRule(m.inner(), gTeeL, gTeeR),
+		}
+	}
 	return []string{
 		frameTop(m.inner(), "settings", ""),
-		frameTabs(m.inner(), settingsTabTitles, m.tab, scrollNote(window.Above(), window.Below(n))),
+		frameTabBar(m.inner(), settingsTabTitles, m.topTab(), !m.nested, ""),
+		frameLine(m.inner(), nil, nil),
+		frameTabBar(m.inner(), appearanceTabTitles, m.appearanceTab(), m.nested, note),
 		frameRule(m.inner(), gTeeL, gTeeR),
 	}
 }
