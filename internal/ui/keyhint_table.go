@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/myjupyter/conm/internal/ui/spec"
 )
 
@@ -61,7 +63,7 @@ func keyhintPrompt(w int, f keyhintFooter) string {
 			used += s.width()
 		}
 		spans = append(spans,
-			span{text: strings.Repeat(" ", max(w-used-len([]rune(f.pos))-1, 0)), fg: cDim},
+			span{text: strings.Repeat(" ", max(w-used-ansi.StringWidth(f.pos)-1, 0)), fg: cDim},
 			span{text: f.pos + " ", fg: cMuted},
 		)
 	}
@@ -73,9 +75,9 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 	if f.typing {
 		spans = append(spans,
 			span{text: " ", fg: cDim},
-			span{text: keyMap.Confirm.hint, fg: cFg, bold: true},
+			span{text: keyMap.Confirm.hint, fg: cFg, style: tKey},
 			span{text: " keep · ", fg: cDim},
-			span{text: keyMap.Cancel.hint, fg: cFg, bold: true},
+			span{text: keyMap.Cancel.hint, fg: cFg, style: tKey},
 			span{text: " clear", fg: cDim},
 		)
 	} else {
@@ -85,7 +87,7 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 		}
 		spans = append(spans,
 			span{text: " ", fg: cDim},
-			span{text: keyMap.Help.hint, fg: cAccent, bold: true},
+			span{text: keyMap.Help.hint, fg: cAccent, style: tKey},
 			span{text: label, fg: cDim},
 		)
 	}
@@ -96,7 +98,7 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 
 	spans = append(spans,
 		span{text: " · ", fg: cFaint},
-		span{text: keyMap.Search.hint, fg: cAccent, bold: true},
+		span{text: keyMap.Search.hint, fg: cAccent, style: tKey},
 		span{text: " search", fg: cDim},
 	)
 
@@ -106,7 +108,7 @@ func keyhintPromptBinds(f keyhintFooter) []span {
 
 	return append(spans,
 		span{text: " · ", fg: cFaint},
-		span{text: keyMap.Cancel.hint, fg: cAccent, bold: true},
+		span{text: keyMap.Cancel.hint, fg: cAccent, style: tKey},
 		span{text: " clear filter", fg: cDim},
 	)
 }
@@ -138,7 +140,7 @@ func keyhintTable(w int, groups []keyhintGroup) []string {
 	keyW := 0
 	for _, g := range groups {
 		for _, b := range g.binds {
-			keyW = max(keyW, len([]rune(b.key)))
+			keyW = max(keyW, ansi.StringWidth(b.key))
 		}
 	}
 
@@ -149,7 +151,7 @@ func keyhintTable(w int, groups []keyhintGroup) []string {
 		}
 		lines = append(lines, frameLine(w, []span{
 			{text: "  ", fg: cDim},
-			{text: strings.ToUpper(g.title), fg: cSoft, bold: true},
+			{text: strings.ToUpper(g.title), fg: cSoft, style: tSubheading},
 		}, nil))
 		lines = append(lines, keyhintRowLines(w, g.binds, keyW)...)
 	}
@@ -175,7 +177,7 @@ func keyhintRowLines(w int, binds []keybind, keyW int) []string {
 				continue
 			}
 			spans = append(spans,
-				span{text: truncPad(binds[i].key, keyW, true), fg: cFg, bold: true},
+				span{text: truncPad(binds[i].key, keyW, true), fg: cFg, style: tKey},
 				span{text: strings.Repeat(" ", keyhintGap) + truncPad(binds[i].label, labelW, false), fg: cDim},
 			)
 		}
@@ -381,6 +383,11 @@ func (m settingsModel) keyhints() []keyhintGroup {
 			{"any key", "bind it"},
 			{keyMap.Cancel.hint, keyhintCancel},
 		}}}
+	case m.appear.editing || m.table.editing:
+		return []keyhintGroup{{title: "typing", binds: []keybind{
+			{keyMap.Confirm.hint, "use the value"},
+			{keyMap.Cancel.hint, keyhintCancel},
+		}}}
 	case m.binds.confirm:
 		return []keyhintGroup{{title: "confirm", binds: []keybind{
 			{keyMap.Prompt.Yes.hint, "reset to default"},
@@ -394,7 +401,23 @@ func (m settingsModel) keyhints() []keyhintGroup {
 		{keyMap.PrevSection.hint, "previous page"},
 	}
 	action := []keybind{{keyMap.Cycle.hint, "change the client"}}
-	if m.tab == settingsKeybindTab {
+	switch m.tab {
+	case settingsTableTab:
+		nav[0].label = "move between rows"
+		action = []keybind{
+			{keyMap.Cycle.hint, "change the colour or move the column"},
+			{keyMap.Confirm.hint, "show or hide the column"},
+			{keyMap.Settings.EditValue.hint, "type a colour"},
+			{keyMap.Settings.Reset.hint, "back to the default"},
+		}
+	case settingsAccentTab, settingsTextTab, settingsGlyphsTab, settingsBordersTab:
+		nav[0].label = "move between options"
+		action = []keybind{
+			{keyMap.Cycle.hint, "change the value"},
+			{keyMap.Settings.EditValue.hint, "type a value"},
+			{keyMap.Settings.Reset.hint, "back to the preset"},
+		}
+	case settingsKeybindTab:
 		nav[0].label = "move between actions"
 		action = []keybind{
 			{keyMap.Cycle.hint, "pick a key in the list"},
@@ -403,6 +426,13 @@ func (m settingsModel) keyhints() []keyhintGroup {
 			{keyMap.Settings.RemoveKey.hint, "remove the key"},
 			{keyMap.Settings.Reset.hint, "reset to default"},
 		}
+	}
+	switch {
+	case m.topTab() == settingsAccentTab && !m.nested:
+		nav = nav[1:]
+		action = []keybind{{keyMap.Confirm.hint, "open the appearance tabs"}}
+	case m.topTab() == settingsAccentTab:
+		nav = append(nav, keybind{keyMap.Cancel.hint, "back to the top tabs"})
 	}
 
 	return []keyhintGroup{

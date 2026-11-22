@@ -28,10 +28,11 @@ const (
 )
 
 type span struct {
-	text string
-	fg   color.Color
-	bg   color.Color
-	bold bool
+	text  string
+	fg    color.Color
+	bg    color.Color
+	bold  bool
+	style textStyle
 
 	raw string
 }
@@ -40,21 +41,33 @@ func (s span) render() string {
 	if s.raw != "" {
 		return s.raw
 	}
-	st := lipgloss.NewStyle().Foreground(s.fg)
+	fg := s.fg
+	if s.style.fg != nil {
+		fg = s.style.fg
+	}
+	st := lipgloss.NewStyle().Foreground(fg)
 	if s.bg != nil {
 		st = st.Background(s.bg)
 	}
-	if s.bold {
+	if s.bold || s.style.bold {
 		st = st.Bold(true)
+	}
+	if s.style.italic {
+		st = st.Italic(true)
+	}
+	if s.style.underline {
+		st = st.Underline(true)
+	}
+	if s.style.faint {
+		st = st.Faint(true)
+	}
+	if len(s.style.stops) > 1 {
+		return gradientText(s.text, s.style.stops, st)
 	}
 	return st.Render(s.text)
 }
 
 func (s span) width() int { return ansi.StringWidth(s.text) }
-
-func border(s string) string {
-	return lipgloss.NewStyle().Foreground(cBorder).Render(s)
-}
 
 func truncPad(s string, w int, right bool) string {
 	if w <= 0 {
@@ -111,23 +124,29 @@ func fitNote(note string, w int) string {
 
 func frameTop(w int, crumb, right string) string {
 	left := []span{
-		{text: gLineH + " ", fg: cBorder},
-		{text: "conm", fg: cFg, bold: true},
+		{text: gLineTop + " ", raw: edgeAt("top", gLineTop, 0, w) + " "},
+		{text: "conm", fg: cFg, style: tTitle},
 		{text: ":" + config.Workspace(), fg: cAccent},
 		{text: " · " + crumb + " ", fg: cDim},
 	}
 
 	left = clipSpans(left, w)
-	right = fitNote(right, w-spansWidth(left))
+	right = fitNote(right, w-spansWidth(left)-ansi.StringWidth(gLineTop))
 
 	var b strings.Builder
-	b.WriteString(border(gCornerTL))
+	b.WriteString(edge("top_left", gCornerTL))
 	for _, s := range left {
 		b.WriteString(s.render())
 	}
-	b.WriteString(border(strings.Repeat(gLineH, max(w-spansWidth(left)-ansi.StringWidth(right), 0))))
+	tail := ""
+	if right != "" {
+		tail = gLineTop
+	}
+	fill := max(w-spansWidth(left)-ansi.StringWidth(right)-ansi.StringWidth(tail), 0)
+	b.WriteString(edgeAt("top", strings.Repeat(gLineTop, fill), spansWidth(left), w))
 	b.WriteString((span{text: right, fg: cDim}).render())
-	b.WriteString(border(gCornerTR))
+	b.WriteString(edgeAt("top", tail, w-ansi.StringWidth(tail), w))
+	b.WriteString(edge("top_right", gCornerTR))
 	return b.String()
 }
 
@@ -136,23 +155,24 @@ func frameLine(w int, spans []span, bg color.Color) string {
 	if used := spansWidth(spans); used < w {
 		spans = append(spans, span{text: strings.Repeat(" ", w-used), bg: bg})
 	}
+	spans = backgroundGradients(spans, bg, w)
 
 	var b strings.Builder
-	b.WriteString(border(gLineV))
+	b.WriteString(edge("left", gLineLeft))
 	for _, s := range spans {
 		b.WriteString(s.render())
 	}
-	b.WriteString(border(gLineV))
+	b.WriteString(edge("right", gLineRight))
 	return b.String()
 }
 
 func frameHead(w int, title, note string) []string {
 	spans := []span{
 		{text: "  ", bg: cHeadBg},
-		{text: strings.ToUpper(title), fg: cFg, bg: cHeadBg, bold: true},
+		{text: strings.ToUpper(title), fg: cFg, bg: cHeadBg, style: tHeading},
 	}
 	if note != "" {
-		spans = append(spans, span{text: "  " + note, fg: cFaint, bg: cHeadBg})
+		spans = append(spans, span{text: "  " + note, fg: cFaint, bg: cHeadBg, style: tNote})
 	}
 
 	return []string{
@@ -162,14 +182,32 @@ func frameHead(w int, title, note string) []string {
 	}
 }
 
+func frameSubhead(w int, title, note string) string {
+	spans := []span{
+		{text: "  ", bg: cSubheadBg},
+		{text: strings.ToUpper(title), fg: cSoft, bg: cSubheadBg, style: tSubheading},
+	}
+	if note != "" {
+		spans = append(spans, span{text: "  " + note, fg: cFaint, bg: cSubheadBg, style: tNote})
+	}
+	return frameLine(w, spans, cSubheadBg)
+}
+
 func frameTabs(w int, titles []string, active int, note string) string {
+	return frameTabBar(w, titles, active, true, note)
+}
+
+func frameTabBar(w int, titles []string, active int, focused bool, note string) string {
 	spans := make([]span, 0, 3+2*len(titles))
 	spans = append(spans, span{text: " ", fg: cDim})
 	used := 1
 	for i, title := range titles {
 		s := span{text: " " + title + " ", fg: cDim}
-		if i == active {
-			s = span{text: s.text, fg: cInvFg, bg: cAccent, bold: true}
+		switch {
+		case i == active && focused:
+			s = span{text: s.text, fg: cInvFg, bg: tabBg(cAccent), style: tTab}
+		case i == active:
+			s = span{text: s.text, fg: tabBg(cAccent)}
 		}
 		spans = append(spans, s, span{text: " ", fg: cDim})
 		used += s.width() + 1
@@ -177,8 +215,8 @@ func frameTabs(w int, titles []string, active int, note string) string {
 
 	if note != "" {
 		spans = append(spans,
-			span{text: strings.Repeat(" ", max(w-used-len([]rune(note))-1, 0)), fg: cDim},
-			span{text: note + " ", fg: cFaint},
+			span{text: strings.Repeat(" ", max(w-used-ansi.StringWidth(note)-1, 0)), fg: cDim},
+			span{text: note + " ", fg: cFaint, style: tNote},
 		)
 	}
 
@@ -186,21 +224,23 @@ func frameTabs(w int, titles []string, active int, note string) string {
 }
 
 func frameRule(w int, left, right string) string {
-	return border(left) + border(strings.Repeat(gLineH, w)) + border(right)
+	return edge("tee_left", left) + edgeAt("rule", strings.Repeat(gLineH, w), 0, w) + edge("tee_right", right)
 }
 
-func frameBottom(w int) string { return frameRule(w, gCornerBL, gCornerBR) }
+func frameBottom(w int) string {
+	return edge("bottom_left", gCornerBL) + edge("bottom", strings.Repeat(gLineBottom, w)) + edge("bottom_right", gCornerBR)
+}
 
 func frameBadge(w int, label string, labelBg color.Color, title string) string {
 	return frameLine(w, []span{
 		{text: "  ", fg: cDim},
-		{text: " " + label + " ", fg: cInvFg, bg: labelBg, bold: true},
+		{text: " " + label + " ", fg: cInvFg, bg: labelBg, style: tTitle},
 		{text: "  " + title, fg: cFg},
 	}, nil)
 }
 
 func frameStatus(w int, icon string, fg color.Color, text, pos string) string {
-	textW := max(w-4-len([]rune(pos)), 0)
+	textW := max(w-4-ansi.StringWidth(pos), 0)
 	return frameLine(w, []span{
 		{text: " ", fg: cDim},
 		{text: icon, fg: fg},
@@ -212,15 +252,15 @@ func frameStatus(w int, icon string, fg color.Color, text, pos string) string {
 func statusGlyph(k statusKind) (string, color.Color) {
 	switch k {
 	case kindOK:
-		return gStatusOK, cAccent
+		return gStatusOK, tinted("status_ok", cOK)
 	case kindPending:
-		return gStatusPending, cAmber
+		return gStatusPending, tinted("status_pending", cAmber)
 	case kindWarn:
-		return gStatusWarn, cAmber
+		return gStatusWarn, tinted("status_warn", cAmber)
 	case kindErr:
-		return gStatusErr, cRed
+		return gStatusErr, tinted("status_error", cRed)
 	default:
-		return gStatusIdle, cDim
+		return gStatusIdle, tinted("status_idle", cDim)
 	}
 }
 
@@ -245,27 +285,27 @@ func frameKeybar(w int, binds []keybind) []string {
 			sep = ""
 		}
 		seg := b.key + " " + b.label + sep
-		if used+len([]rune(seg)) > w && len(spans) > 1 {
+		if used+ansi.StringWidth(seg) > w && len(spans) > 1 {
 			lines = append(lines, frameLine(w, spans, nil))
 			spans = newLine()
 			used = 1
 		}
 		spans = append(spans,
-			span{text: b.key, fg: cFg, bold: true},
+			span{text: b.key, fg: cFg, style: tKey},
 			span{text: " " + b.label + sep, fg: cDim},
 		)
-		used += len([]rune(seg))
+		used += ansi.StringWidth(seg)
 	}
 	return append(lines, frameLine(w, spans, nil))
 }
 
 func frameSearch(w int, query string, typing bool) string {
-	cursor := " "
+	cursor := strings.Repeat(" ", ansi.StringWidth(gInputCursor))
 	if typing {
 		cursor = gInputCursor
 	}
 
-	room := max(w-3-len([]rune(keyMap.Search.hint)), 0)
+	room := max(w-3-ansi.StringWidth(keyMap.Search.hint), 0)
 	shown := []rune(query)
 	if len(shown) > room {
 		shown = shown[len(shown)-room:]
@@ -273,15 +313,15 @@ func frameSearch(w int, query string, typing bool) string {
 
 	return frameLine(w, []span{
 		{text: "  ", fg: cDim},
-		{text: keyMap.Search.hint, fg: cAccent, bold: true},
-		{text: string(shown), fg: cFg},
-		{text: cursor, fg: cAccent},
+		{text: keyMap.Search.hint, fg: cAccent, style: tKey},
+		{text: string(shown), fg: cInput},
+		{text: cursor, fg: tinted("input_cursor", cAccent)},
 		{text: strings.Repeat(" ", room-len(shown)), fg: cDim},
 	}, nil)
 }
 
 func framePong(w int, text string) string {
-	return frameTagged(w, " PONG ", cAccent, text)
+	return frameTagged(w, " PONG ", cOK, text)
 }
 
 func framePing(w int, text string) string {
@@ -318,21 +358,21 @@ func frameErrPanel(w int, e *connError) []string {
 		if e.hint == "" {
 			break
 		}
-		arrow := gHintArrow + " "
+		arrow := cell(gHintArrow) + " "
 		if i > 0 {
-			arrow = "  "
+			arrow = blankCell() + " "
 		}
 		lines = append(lines, frameLine(w, []span{
 			{text: "  ", fg: cDim},
-			{text: arrow, fg: cAmber},
-			{text: truncPad(row, w-4, false), fg: cHint},
+			{text: arrow, fg: tinted("hint_arrow", cAmber)},
+			{text: truncPad(row, w-2-ansi.StringWidth(arrow), false), fg: cHint},
 		}, nil))
 	}
 	return append(lines, frameLine(w, []span{
 		{text: "  ", fg: cDim},
-		{text: keyMap.Connection.Retry.hint, fg: cFg, bold: true},
+		{text: keyMap.Connection.Retry.hint, fg: cFg, style: tKey},
 		{text: " retry · ", fg: cErrMuted},
-		{text: keyMap.Cancel.hint, fg: cFg, bold: true},
+		{text: keyMap.Cancel.hint, fg: cFg, style: tKey},
 		{text: " dismiss", fg: cErrMuted},
 	}, nil))
 }
@@ -398,37 +438,88 @@ func frameErrKV(w int, label, value string, valColor color.Color) string {
 type selectBox struct {
 	value  string
 	at, n  int
+	pos    string
+	tint   color.Color
 	active bool
 	bad    bool
 }
 
 func frameSelectBox(w int, s selectBox, bg color.Color) []span {
-	borderFg := cBorder
-	switch {
-	case s.bad:
-		borderFg = cRed
-	case s.active:
-		borderFg = cInvFg
-	}
+	edges := edgesFor(s.active, s.bad)
 
 	valFg, posFg := cValue, cMuted
+	if s.tint != nil {
+		valFg = s.tint
+	}
 	if s.active {
 		valFg, posFg = cInvFg, cInvFg
 	}
 
-	pos := fmt.Sprintf("%d/%d", s.at, s.n)
-	mid := max(w-8-len([]rune(pos)), 0)
-	value := truncPad(s.value, min(len([]rune(s.value)), mid), false)
-	left := (mid - len([]rune(value))) / 2
+	pos := s.pos
+	if pos == "" {
+		pos = fmt.Sprintf("%d/%d", s.at, s.n)
+	}
+	prefix, suffix := selectEnds()
+	mid := max(w-ansi.StringWidth(prefix)-ansi.StringWidth(suffix)-1-ansi.StringWidth(pos), 0)
+	value := truncPad(s.value, min(ansi.StringWidth(s.value), mid), false)
+	left := (mid - ansi.StringWidth(value)) / 2
 
 	return []span{
-		{text: gLineV + " " + gSelectPrev + " ", fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: edges.left, bg: bg},
+		{text: strings.TrimPrefix(prefix, gLineLeft), fg: edges.prev, bg: bg},
 		{text: strings.Repeat(" ", left), bg: bg},
-		{text: value, fg: valFg, bg: bg, bold: true},
-		{text: strings.Repeat(" ", mid-left-len([]rune(value))), bg: bg},
+		{text: value, fg: valFg, bg: bg, style: tValue},
+		{text: strings.Repeat(" ", mid-left-ansi.StringWidth(value)), bg: bg},
 		{text: pos + " ", fg: posFg, bg: bg},
-		{text: gSelectNext + " " + gLineV, fg: borderFg, bg: bg},
+		{text: strings.TrimSuffix(suffix, gLineRight), fg: edges.next, bg: bg},
+		{text: gLineRight, fg: edges.right, bg: bg},
 	}
+}
+
+func frameFieldError(w int, err string, bg color.Color) string {
+	prefix := strings.Repeat(" ", 5+formLabelW+1)
+	spans := []span{{text: prefix, fg: cDim, bg: bg}}
+	if err != "" {
+		mark := gFieldBad + " "
+		spans = append(spans,
+			span{text: mark, fg: tinted("field_bad", cRed), bg: bg},
+			span{text: truncPad(err, w-ansi.StringWidth(prefix)-ansi.StringWidth(mark)-2, false), fg: cRed, bg: bg},
+		)
+	}
+	return frameLine(w, spans, bg)
+}
+
+func caretOf(sel bool) string {
+	if sel {
+		return cell(gCaret)
+	}
+	return blankCell()
+}
+
+func markFg(sel bool, element string, markC color.Color) color.Color {
+	if sel {
+		return markC
+	}
+	return tinted(element, markC)
+}
+
+type boxEdges struct {
+	left, right, prev, next color.Color
+}
+
+func edgesFor(active, bad bool) boxEdges {
+	switch {
+	case bad:
+		return boxEdges{cRed, cRed, cRed, cRed}
+	case active:
+		return boxEdges{cInvFg, cInvFg, cInvFg, cInvFg}
+	}
+	left, right := borderColors["left"], borderColors["right"]
+	return boxEdges{left, right, tinted("select_prev", left), tinted("select_next", right)}
+}
+
+func selectEnds() (string, string) {
+	return gLineLeft + " " + gSelectPrev + " ", gSelectNext + " " + gLineRight
 }
 
 const chipMaxW = formBoxW - 8
@@ -439,12 +530,12 @@ type chip struct {
 }
 
 func fitChip(text string, typing bool) string {
-	r := []rune(text)
+	width := ansi.StringWidth(text)
 	switch {
-	case len(r) <= chipMaxW:
+	case width <= chipMaxW:
 		return text
 	case typing:
-		return gEllipsis + string(r[len(r)-chipMaxW+1:])
+		return gEllipsis + ansi.TruncateLeft(text, width-chipMaxW+ansi.StringWidth(gEllipsis), "")
 	default:
 		return truncPad(text, chipMaxW, false)
 	}
@@ -462,7 +553,7 @@ func chipsWindow(chips []chip, w int) (from, to int) {
 	width := func(from, to int) int {
 		n := 0
 		for _, c := range chips[from:to] {
-			n += len([]rune(c.label())) + 1
+			n += ansi.StringWidth(c.label()) + 1
 		}
 		return n
 	}
@@ -505,7 +596,7 @@ func frameChips(w int, chips []chip, active bool, bg color.Color) []span {
 		if j > from {
 			add(span{text: " ", bg: bg})
 		}
-		add(span{text: chips[j].label(), fg: fg, bg: bg, bold: true})
+		add(span{text: chips[j].label(), fg: fg, bg: bg, style: tValue})
 	}
 	if to < len(chips) {
 		add(span{text: " " + gEllipsis, fg: fg, bg: bg})

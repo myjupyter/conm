@@ -22,6 +22,7 @@ type doctorCheck struct {
 }
 
 func Doctor(ctx context.Context, w io.Writer, version string, conm config.Conm, conmErr error) error {
+	applyAppearance(conm.Appearance)
 	sections := []struct {
 		title  string
 		checks []doctorCheck

@@ -32,9 +32,16 @@ func (m settingsModel) inner() int {
 }
 
 func (m settingsModel) render() string {
-	body := m.clientLines()
-	if m.tab == settingsKeybindTab {
+	var body []string
+	switch m.tab {
+	case settingsKeybindTab:
 		body = m.bindsLines()
+	case settingsClientTab:
+		body = m.clientLines()
+	case settingsTableTab:
+		body = m.tableLines()
+	default:
+		body = m.appearanceLines()
 	}
 	lines := append(m.headLines(), m.size.keepEnd(body, m.chrome())...)
 	return m.size.join(append(lines, m.tailLines()...))
@@ -45,17 +52,32 @@ func (m settingsModel) chrome() int {
 }
 
 func (m settingsModel) tabWindow() (view.Scroll, int, int) {
-	if m.tab == settingsKeybindTab {
+	switch m.tab {
+	case settingsKeybindTab:
 		return m.binds.window, m.binds.cursor, len(m.bindings())
+	case settingsClientTab:
+		return m.window, m.cursor, len(m.conm.Connections)
+	case settingsTableTab:
+		return m.table.window, m.table.cursor, len(m.tableRows())
 	}
-	return m.window, m.cursor, len(m.conm.Connections)
+	return m.appear.window, m.appear.cursor, len(m.pageRows())
 }
 
 func (m settingsModel) headLines() []string {
 	window, _, n := m.tabWindow()
+	note := scrollNote(window.Above(), window.Below(n))
+	if m.topTab() != settingsAccentTab {
+		return []string{
+			frameTop(m.inner(), "settings", ""),
+			frameTabs(m.inner(), settingsTabTitles, m.topTab(), note),
+			frameRule(m.inner(), gTeeL, gTeeR),
+		}
+	}
 	return []string{
 		frameTop(m.inner(), "settings", ""),
-		frameTabs(m.inner(), settingsTabTitles, m.tab, scrollNote(window.Above(), window.Below(n))),
+		frameTabBar(m.inner(), settingsTabTitles, m.topTab(), !m.nested, ""),
+		frameLine(m.inner(), nil, nil),
+		frameTabBar(m.inner(), appearanceTabTitles, m.appearanceTab(), m.nested, note),
 		frameRule(m.inner(), gTeeL, gTeeR),
 	}
 }
@@ -155,7 +177,7 @@ func (m settingsModel) supportsSpans(db config.ConnectionSettings) []span {
 			fg = cFg
 		}
 
-		spans = append(spans, span{text: text, fg: fg, bold: c.Name == m.current(db)})
+		spans = append(spans, span{text: text, fg: fg, style: styleIf(c.Name == m.current(db), tValue)})
 	}
 
 	return spans
@@ -186,15 +208,15 @@ func (m settingsModel) settingsLine(label string, value []span, on bool) string 
 
 func (m settingsModel) settingsLabelLine(label string, labelW int, value []span, on bool) string {
 	labelFg, bg := cDim, color.Color(nil)
-	caret := "  "
+	caret := " " + blankCell()
 	if on {
-		labelFg, bg, caret = cInvFg, cAccent, " "+gCaret
+		labelFg, bg, caret = cInvFg, cAccent, " "+cell(gCaret)
 	}
 
 	spans := make([]span, 0, 3+len(value))
 	spans = append(spans,
-		span{text: caret, fg: labelFg, bg: bg, bold: true},
-		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, bold: on},
+		span{text: caret, fg: caretFg(labelFg, bg), bg: bg, style: tSelection},
+		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, style: styleIf(on, tSelection)},
 		span{text: "  ", bg: bg},
 	)
 

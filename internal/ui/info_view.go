@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -68,8 +70,8 @@ func (m infoModel) titleLine() string {
 
 	return frameLine(m.inner(), []span{
 		{text: "  ", fg: cDim},
-		{text: gDotOn + " ", fg: typeColor(kind)},
-		{text: connLabel(cfg), fg: cFg, bold: true},
+		{text: cell(gDotOn) + " ", fg: tinted(elDotOn, typeColor(kind))},
+		{text: connLabel(cfg), fg: cFg, style: tTitle},
 		{text: "  [" + kind.String() + "]", fg: typeColor(kind)},
 	}, nil)
 }
@@ -115,21 +117,21 @@ func infoRowLine(w int, r infoRow, chunk string, first, on bool) string {
 		fg, labelFg, bg = cInvFg, cInvFg, cAccent
 	}
 
-	caret, label := "  ", ""
+	caret, label := " "+blankCell(), ""
 	if first {
 		label = r.label
 		if on {
-			caret = " " + gCaret
+			caret = " " + cell(gCaret)
 		}
 	}
 
 	spans := []span{
-		{text: caret, fg: labelFg, bg: bg, bold: true},
-		{text: truncPad(label, wInfoLbl, false), fg: labelFg, bg: bg, bold: on},
+		{text: caret, fg: caretFg(labelFg, bg), bg: bg, style: tSelection},
+		{text: truncPad(label, wInfoLbl, false), fg: labelFg, bg: bg, style: styleIf(on, tSelection)},
 		{text: "  " + chunk, fg: fg, bg: bg},
 	}
 	if on && first {
-		spans = append(spans, infoHintSpans(w, r, len([]rune(chunk)), bg)...)
+		spans = append(spans, infoHintSpans(w, r, ansi.StringWidth(chunk), bg)...)
 	}
 
 	return frameLine(w, spans, bg)
@@ -141,7 +143,7 @@ func infoHintSpans(w int, r infoRow, valueWidth int, bg color.Color) []span {
 		hint = keyMap.Confirm.hint + " opens · " + hint
 	}
 
-	pad := w - 4 - wInfoLbl - valueWidth - len([]rune(hint)) - 1
+	pad := w - 4 - wInfoLbl - valueWidth - ansi.StringWidth(hint) - 1
 	if pad <= 0 {
 		return nil
 	}

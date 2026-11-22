@@ -74,7 +74,7 @@ func connectionForm(
 }
 
 func RunAddForm(conm config.Conm, t config.ConnType, initial formValues, warnings []string) (bool, error) {
-	keyMap = newKeymap(conm.Keybindings)
+	applyConm(conm)
 
 	ws, repo, ctx, err := openConnectionForm(conm, t)
 	if err != nil {
@@ -97,7 +97,7 @@ func RunAddForm(conm config.Conm, t config.ConnType, initial formValues, warning
 }
 
 func RunEditForm(conm config.Conm, t config.ConnType, name string) (bool, error) {
-	keyMap = newKeymap(conm.Keybindings)
+	applyConm(conm)
 
 	ws, repo, ctx, err := openConnectionForm(conm, t)
 	if err != nil {

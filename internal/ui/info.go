@@ -310,7 +310,7 @@ func specRows(cfg config.Connection, meta bool) []infoRow {
 }
 
 func (m infoModel) clientRows() []infoRow {
-	name, version, path, tone := m.client.Name, m.client.Version, m.client.Path, cAccent
+	name, version, path, tone := m.client.Name, m.client.Version, m.client.Path, cOK
 	switch {
 	case !m.probed:
 		name, version, path, tone = gEllipsis, gEllipsis, gEllipsis, cFaint

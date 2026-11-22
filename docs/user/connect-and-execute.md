@@ -1,7 +1,7 @@
 # Connect and run queries
 
 conm does not talk to the database itself. It opens the client picked for that database in the
-[settings](additional-screens.md#switching-clients) (for Postgres: `psql`, `pgcli` or `usql`) with the host, user, database and password
+[settings](settings.md#switching-clients) (for Postgres: `psql`, `pgcli` or `usql`) with the host, user, database and password
 of the connection already passed in. A connection behind a bastion works the same way once it
 has a [transport](ssh-transport.md).
 

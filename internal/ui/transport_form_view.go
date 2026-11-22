@@ -85,9 +85,9 @@ func (m transportFormModel) transportFieldRow(at int) string {
 		bg = cAccent
 	}
 
-	caret := caretBlank
+	caret := caretBlank()
 	if active {
-		caret = " " + gCaret + " "
+		caret = " " + cell(gCaret) + " "
 	}
 	gutter, gc := m.transportGutter(i, active)
 
@@ -103,9 +103,9 @@ func (m transportFormModel) transportFieldRow(at int) string {
 	box := m.transportInputBox(i, active, bg)
 	spans := make([]span, 0, 3+len(box))
 	spans = append(spans,
-		span{text: caret, fg: caretColor(active), bg: bg, bold: true},
-		span{text: gutter + " ", fg: gc, bg: bg},
-		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
+		span{text: caret, fg: caretColor(active, bg), bg: bg, style: tSelection},
+		span{text: cell(gutter) + " ", fg: gc, bg: bg},
+		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, style: styleIf(active, tSelection)},
 	)
 	spans = append(spans, box...)
 	return frameLine(m.size.formInner(), spans, bg)
@@ -114,16 +114,10 @@ func (m transportFormModel) transportFieldRow(at int) string {
 func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color) []span {
 	f := m.spec.Fields[i]
 
-	borderFg := cBorder
-	if active {
-		borderFg = cInvFg
-	}
-	if m.attempted && m.fieldError(i) != "" {
-		borderFg = cRed
-	}
+	edges := edgesFor(active, m.attempted && m.fieldError(i) != "")
 
 	if isSelect(f) {
-		return selectSpans(m.size.formBox(), m.vals[f.Key], m.options(f), m.isMissing(f), active, borderFg, bg)
+		return selectSpans(m.size.formBox(), m.vals[f.Key], m.options(f), m.isMissing(f), active, edges, bg)
 	}
 
 	disp, ghost := m.vals[f.Key], false
@@ -133,7 +127,7 @@ func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color
 	if active && m.insert {
 		disp += gInputCursor
 	}
-	valFg := cValue
+	valFg := cInput
 	if ghost {
 		valFg = cFaint
 	}
@@ -141,9 +135,9 @@ func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color
 		valFg = cInvFg
 	}
 	return []span{
-		{text: gLineV, fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: edges.left, bg: bg},
 		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
-		{text: gLineV, fg: borderFg, bg: bg},
+		{text: gLineRight, fg: edges.right, bg: bg},
 	}
 }
 
@@ -167,11 +161,11 @@ func (m transportFormModel) transportGutter(i int, active bool) (string, color.C
 	var c color.Color
 	switch {
 	case m.attempted && m.fieldError(i) != "":
-		g, c = gFieldBad, cRed
+		g, c = gFieldBad, tinted("field_bad", cRed)
 	case m.vals[f.Key] != "" || f.DefaultValue != "":
-		g, c = gDotOn, cAccent
+		g, c = gDotOn, tinted(elDotOn, cOK)
 	default:
-		g, c = gDotOff, cFaint
+		g, c = gDotOff, tinted(elDotOff, cFaint)
 	}
 	if active {
 		c = cInvFg
@@ -180,15 +174,8 @@ func (m transportFormModel) transportGutter(i int, active bool) (string, color.C
 }
 
 func (m transportFormModel) transportMessageRow(i int) string {
-	text := ""
-	if m.attempted {
-		if e := m.fieldError(i); e != "" {
-			text = gFieldBad + " " + e
-		}
+	if !m.attempted {
+		return frameFieldError(m.size.formInner(), "", nil)
 	}
-	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return frameLine(m.size.formInner(), []span{
-		{text: prefix, fg: cDim},
-		{text: truncPad(text, m.size.formInner()-len([]rune(prefix))-2, false), fg: cRed},
-	}, nil)
+	return frameFieldError(m.size.formInner(), m.fieldError(i), nil)
 }

@@ -152,6 +152,7 @@ type settingsKeys struct {
 	ChangeKey binding
 	RemoveKey binding
 	Reset     binding
+	EditValue binding
 }
 
 type promptKeys struct {
@@ -246,6 +247,7 @@ func newKeymap(s config.KeybindingSettings) keymap {
 			ChangeKey: newBinding(s.Settings.ChangeKey...),
 			RemoveKey: newBinding(s.Settings.RemoveKey...),
 			Reset:     newBinding(s.Settings.Reset...),
+			EditValue: newBinding(s.Settings.EditValue...),
 		},
 		Prompt: promptKeys{
 			Yes: newBinding(s.Prompt.Yes...),

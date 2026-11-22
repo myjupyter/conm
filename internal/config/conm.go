@@ -29,11 +29,14 @@ const (
 type Conm struct {
 	Connections []ConnectionSettings `toml:"connection"`
 	Keybindings KeybindingSettings   `toml:"keybinding"`
+	Appearance  AppearanceSettings   `toml:"appearance"`
 }
 
 type ConnectionSettings struct {
-	Type ConnType `toml:"type"`
-	CLI  string   `toml:"cli"`
+	Type    ConnType `toml:"type"`
+	CLI     string   `toml:"cli"`
+	Columns []string `toml:"columns,omitempty"`
+	Color   string   `toml:"color,omitempty"`
 }
 
 func CreateConm(conf Conm) error {
@@ -186,7 +189,11 @@ func (w *ConmConfigWrapper) Marshal() ([]byte, error) {
 
 func (c *Conm) complete() {
 	c.Connections = withKnownTypes(c.Connections)
+	for i := range c.Connections {
+		c.Connections[i].completeTable()
+	}
 	c.Keybindings.fillDefaults()
+	c.Appearance.fillDefaults()
 }
 
 func withKnownTypes(stored []ConnectionSettings) []ConnectionSettings {

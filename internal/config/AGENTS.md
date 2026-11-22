@@ -17,7 +17,9 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `distinct.go` | `Distinct` and `identity(...)`, the uniqueness key a record builds for itself |
 | `meta.go` | `ConnMeta`, `WebLink` and their validators, `ValidateConnectionName`, `ValidateTags` |
 | `conm.go` | `Conm`, `ConnectionSettings`, `ConnType`, `ConnKind`, `ReadConm`/`CreateConm`, `withKnownTypes` |
+| `table.go` | the table settings on `ConnectionSettings`: `TableColumns`, `DefaultColumns`, `ConnType.Columns`, `ConnType.DefaultColumns`, `VisibleColumns`, `TypeColor`, `ValidateTable` |
 | `keybinding.go` | `KeybindingSettings` — the keybinding overrides stored in `conm.toml` |
+| `appearance.go` | `AppearanceSettings` — border, accent, glyph set, text style and the border and glyph colour palettes, plus per-element overrides; `BorderStyles`, `AccentColors`, `GlyphSets`, `TextStyles` list the preset names, `BorderElements`, `GlyphElements`, `TextElements` the overridable elements |
 | `postgres.go`, `mysql.go`, `mssql.go`, `clickhouse.go`, `redis.go`, `mongodb.go`, `ssh.go` | one connection type each: the struct, its `*ConfigWrapper`, its mode constants and validators; `postgres.go` also holds the limits and regexps the types share |
 | `secret.go`, `keyring.go` | `Secret`, `SecretParam`; `Keyring`, the one stored secret record, and its wrapper |
 | `transport.go` | `Transport`, `TransportKind`, its wrapper and validators |
@@ -61,7 +63,7 @@ type Secret interface {
   connection references.
 - `Keyring` — the only `Secret`.
 - `Conm` — `conm.toml`: one `ConnectionSettings` row per connection type plus
-  `KeybindingSettings`.
+  `KeybindingSettings` and `AppearanceSettings`.
 - `Config[W, C]` — the one `File[C]`: a typed TOML file opened by `OpenConfig[W](path)`.
 
 ## Per-type deviations from the shared model
@@ -156,10 +158,43 @@ repository and no tab on the secrets screen:
 ## The settings row — `conm.toml`
 
 - `conm.toml` holds one `[[conm.connection]]` row per connection type —
-  `ConnectionSettings{Type, CLI}`, the type written by name — plus the keybinding overrides.
+  `ConnectionSettings{Type, CLI, Columns, Color}`, the type written by name — plus the
+  keybinding overrides and the appearance.
+- `Columns` is the ordered list of the table columns shown for the type (`TableColumns`;
+  `ConnType.Columns()` drops `database` for a kind without one); nil means the default ones,
+  every column but `tags`, in default order (`DefaultColumns`, `VisibleColumns`). `Color` is a type name (empty means the row's own), `tab` or a colour
+  (`IsTypeColor`; read through `TypeColor()`, which names the own type when empty). `completeTable` drops unknown, repeated and unavailable columns,
+  puts `name` back when missing and clears an unknown colour; `ValidateTable` refuses the same
+  at the write point. The logic lives in `table.go`.
 - `Conm.complete` runs everything read through `withKnownTypes`: one row per type in
   `ConnTypes`, in that order, whatever the file holds. Every layer above may take "a row for
   every known type" for granted, and the tab order is this package's to decide. A type the
   file does not mention gets a row with no client.
+- `[conm.appearance]` holds names — `border`, `accent`, `glyphs`, `text` — and `accent` may
+  instead be a `#rrggbb` colour (`IsHexColor`). `[conm.appearance.border_runes]`,
+  `[conm.appearance.glyph_runes]` and `[conm.appearance.text_style]` map an element name to
+  the value that replaces the preset's; each is omitted when empty.
+- `border_color` / `glyph_color` / `text_color` name a palette (`BorderPalettes`,
+  `GlyphPalettes`, `TextPalettes`) and `[conm.appearance.border_colors]` /
+  `[conm.appearance.glyph_colors]` / `[conm.appearance.text_colors]` override one element
+  (text colours cover `TextColorElements`: the styled roles plus `body`, `input` and `column`, which
+  have a colour and no style). `[conm.appearance.text_backgrounds]` sets the background of
+  the `TextBackgroundElements` — `tab` and `heading` — with no palette:
+  a colour is `auto`, a name from `ColorNames` or `#rrggbb` (`IsColor`). Glyph colours exist
+  only for `GlyphColorElements` — the glyphs drawn on their own, not inside text.
+- A border or text colour may be a gradient — two or more
+  colours joined by `GradientSeparator` (`>`), none of them `auto` (`IsGradient`,
+  `IsColorOrGradient`); glyph colours stay flat. The accent may be a gradient of accent
+  presets and `#rrggbb` only (`IsAccent`) — no colour names, since `accent` would name itself.
+  Whether a gradient is drawn as one is `ui`'s decision, made from the terminal.
+- What an override may hold: a border rune is one grapheme one column wide (`IsBorderRune`);
+  a glyph is one grapheme one or two columns wide (`IsGlyph`), so an emoji with a modifier
+  counts as one — grapheme counting is `rivo/uniseg`; a text style is `plain` or distinct
+  `TextAttributes` joined by `+` (`IsTextStyle`).
+- `Conm.complete` replaces a missing or unknown name with the first entry of its list and
+  drops an override for an unknown element or one that does not fit its kind, so every layer
+  above gets values it can draw;
+  `AppearanceSettings.Validate` refuses the same at the write point. What a name looks like
+  is `ui/theme.go`'s to decide.
 - `ConnType.Kind()` says which `ConnKind` (`database`, `ssh`) a type belongs to; it is
   derived, never stored.

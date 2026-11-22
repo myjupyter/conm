@@ -30,7 +30,7 @@ A screen is split `<name>.go` (model, `Update`) / `<name>_view.go` (render) /
 | `secret_table*.go`, `secret_form_commands.go` | the secrets screen and its form |
 | `transport_table*.go`, `transport_form*.go` | the transports screen and its form |
 | `workspace_table*.go`, `workspace_form_commands.go` | the workspaces screen and its form |
-| `settings*.go`, `settings_keybind*.go` | settings: the client per type, keybinding overrides |
+| `settings*.go`, `settings_keybind*.go`, `settings_appearance.go`, `settings_table*.go` | settings: the client per type, keybinding overrides, appearance, the table per type |
 | `init_table*.go` | the type picker: before any connection exists, and when adding one of another type |
 | `import.go` | `ImportConnections`, `RenderImport` — saves `importer.Entry`s for `conm <type> import` and prints what became of each |
 | `export.go` | `ExportConnections` — hands saved connections to `exporter` for `conm <type> export` and reports what became of each |
@@ -106,7 +106,7 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
 
 - **`ui/frame.go` — the frame blanks.** A screen is one box of fixed inner width, built line
   by line from `span` (a styled run of text), `truncPad`, `border` and the builders
-  `frameTop`, `frameLine`, `frameRule`, `frameBottom`, `frameBadge`, `frameStatus`,
+  `frameTop`, `frameLine`, `frameRule`, `frameBottom`, `frameHead`, `frameSubhead`, `frameBadge`, `frameStatus`,
   `frameKeybar`, `frameSearch`, `framePong`, `frameErrPanel`. Each builder takes the inner
   width `w`, so it serves both the wide table and the narrower forms. Also here: `keybind`,
   `statusKind`/`statusGlyph`, `cursorPos`.
@@ -118,6 +118,94 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
   status icons, row/field markers, input chrome, ellipsis) and `typeColor`. `frame.go`
   decides *how* a line is built, `theme.go` *what it looks like*: a view never uses a
   literal rune or `lipgloss.Color`, so a restyle never touches drawing code.
+  - The glyphs and `cAccent` are variables set by `applyAppearance` from
+    `config.AppearanceSettings`. `borderPresets`, `glyphPresets` and `textPresets` map a
+    preset name to its values keyed by `config.BorderElements` / `GlyphElements` /
+    `TextElements` (built positionally by `frame`/`box`, `glyphs` and `styles`);
+    `borderVars`, `glyphVars` and `textVars` map each element to the variable it sets.
+    `accentColors` holds the presets and `accentColor` also takes a `#rrggbb` value.
+  - **The frame has five lines, not two**: `gLineTop` (`frameTop`), `gLineBottom`
+    (`frameBottom`), `gLineH` (`frameRule`, between sections), `gLineLeft` and `gLineRight`
+    (both sides of `frameLine`, and of every input and select box). A preset with one line
+    per axis is built by `box`; `frame` takes all eleven pieces, as `block` needs.
+  - **Colours of the border and the glyphs.** `borderPalettes` / `glyphPalettes` map a
+    palette to a colour name per element (built by `colors` and `tint`); `borderColorNames` /
+    `glyphColorNames` merge the palette with the user's overrides, and `applyAppearance`
+    resolves them through `namedColor` into `borderColors` (every element, `auto` = `cBorder`)
+    and `glyphColors` (only the elements not on `auto`). `textPalettes` / `textColorNames` do
+    the same for the text roles: the colour lands in `textStyle.fg`, which `span.render`
+    prefers over the span's own `fg`, so a role keeps its colour and its style together.
+    `body`, `input` and `column` have no style: their colour replaces `cFg` (ordinary text),
+    `cInput` (a form field's value, the search query) and `cColumn` (the connections table's
+    column names) in `applyAppearance`, from `baseFg` / `baseInput` / `cDim` when `auto`, so every screen that draws in those colours follows. A gradient
+    there is drawn in its first stop. They get a colour row only (`elementRows` adds the
+    colour-only elements of `colored` after the others).
+    - Every frame piece is painted with `edge(element, runes)`; `frameTop` draws the last
+      `gLineTop` after the note itself, so `topNote` carries no line. An input or select box
+      takes its sides and arrows from `edgesFor(active, bad)`: red when bad, inverse when
+      active, else the frame's `left`/`right` colours and the tinted arrows.
+    - A glyph's colour is `tinted(element, contextual)` at the one place the screen chooses
+      the contextual colour — `statusGlyph`, the gutters, `markFg`, `frameFieldError`, the
+      hint arrow, the search cursor, the import mark. A highlighted row keeps `cInvFg`, except
+      the caret (`caretOf`, `caretFg`), which only ever sits on that row: `caretFg` tints it
+      unless the tint equals the row's background, then keeps the contextual colour.
+    - No glyph palette touches the status icons, `dot_fail` or `field_bad` (`theme_test.go`
+      checks it); an explicit per-element colour does.
+  - **Gradients.** `colorStops` splits a colour value on `>`; `firstStop` is what a flat
+    consumer draws. Only with `gradientsOn` does a value with more stops reach
+    `borderGradients` or `textStyle.stops`: it is `supportsTrueColor()`, which asks
+    `colorprofile.Detect` once per run whether the terminal has 24-bit colour. Without it a
+    gradient draws in its first stop and the settings screen says so (`flatNote`). Tests swap
+    `supportsTrueColor` for a stub (`withTrueColor`) and restore it.
+    - `edgeAt(element, runes, from, total)` colours a horizontal piece by its column in a line
+      `total` wide, so `frameTop`'s three pieces — the lead before the title, the fill, the
+      tail after the note — form one gradient; `edge` is the one-piece case.
+    - The sides are coloured once the screen is assembled: `screenSize.join` runs
+      `sideGradients`, which swaps the exact `flatEdge` prefix and suffix `frameLine` drew for
+      the colour of that row. A line that does not start with the left side (corners, rules)
+      is left alone.
+    - `span.render` draws a role with `stops` one grapheme at a time (`gradientText`).
+    - **Tab, heading and subheading backgrounds.** `cHeadBg` is set from
+      `text_backgrounds.heading` (`baseHeadBg` when `auto`), `cSubheadBg` from
+      `text_backgrounds.subheading` (nil, no band, when `auto`); every active tab takes `tabBg(contextual)` — the override, or
+      what the screen used before: the accent, or `typeColor` on the connections table.
+    - **The accent** resolves through `accentStopsOf`; `cAccent` is always its first stop, so
+      every foreground use stays flat. With `gradientsOn`, `accentStops` holds the rest, and
+      `frameLine` runs `backgroundGradients`: a span whose background has stops
+      (`backgroundStops`: the tab override, the heading band, the accent) is split into cells
+      and given the colour of its column — across the whole line when the line's own background
+      is that colour (a highlighted row, a heading band), across the span alone otherwise (a tab).
+      `sameColor` compares by RGBA, never with `==` on `color.Color`.
+  - **Text styles are roles, not bold flags.** `span.style` takes one of `tTitle`, `tTab`,
+    `tHeading`, `tSubheading`, `tSelection` (with `styleIf` for "only when on"), `tKey`,
+    `tValue`, `tNote`. `tSubheading` is `frameSubhead` and the group titles of the expanded key
+    table, kept apart from `tHeading`, the section band;
+    `span.render` adds bold, italic, underline and faint from it. `span.bold` is left for what
+    stays bold whatever the style — the error tags, PONG, the picker's state — the same rule as
+    the fixed state colours.
+  - **`cAccent` is for highlight only** — the selected row, the active tab, the caret, the
+    key in a hint. A colour that means a state stays fixed whatever the accent: `cOK` for
+    success (the ✓ of a status line and of `doctor`/`import`, PONG, a fast ping, an installed
+    client, a filled form field), beside `cAmber` and `cRed`.
+  - `borderRunes` and `glyphRunes` are the one place a preset and the user's per-element
+    overrides are merged. `borderRunes` ignores both border preset and overrides while the
+    glyphs are `ascii` (`borderLocked`).
+  - **A glyph may be two columns wide** (emoji); a border rune is always one.
+    `applyAppearance` sets `glyphCell` to the widest glyph, and every slot a glyph shares
+    with another glyph or a blank — the caret, a row's mark, a form's gutter dot — is drawn
+    with `cell(g)` / `blankCell()`, padded to that width, so columns stay put whichever glyph
+    is in the slot. Everything else measures with `ansi.StringWidth`, never a rune count:
+    `frameSelectBox` and the form's select box take their ends from `selectEnds`. The table
+    headers leave `blankCell()` twice where a row has caret and mark.
+  - `theme_test.go` checks every preset has every element and that each value is valid for
+    its kind; `TestSettingsRenderStaysAligned` renders the settings tabs with `emoji`,
+    `block`, `hidden` and `ascii` and checks every line has one width and every selector
+    starts in one column.
+  - `applyConm` sets `keyMap`, the appearance and `typeSettings` (each type's row, for its
+    columns and colour); `typeColor` reads the row's `color` — a type name is that type's `builtinTypeColor`,
+    `tab` the tab background or the accent, anything else that colour; every entry point that draws calls it
+    (or `applyAppearance`, for `doctor` and `export`; `applyStoredConm` reads `conm.toml` for the
+    workspace entry points) before its first line.
 - **`ui/form_loop.go` — running a form to completion.** `formStatus` (message plus
   `statusKind`), `formResult[T]` (what one run produced, plus its raw values) and
   `formLoop[T]` (open → save → on failure open again). A screen supplies only `open` and
@@ -184,10 +272,15 @@ used. The arrows in a key hint (`↑/k`, `←/→`) spell a key and come from `k
 
 ## The connections table's columns
 
-Columns follow the *kind* of the active `ConnType` (`ConnType.Kind()`), never a named type:
-a database tab shows `NAME · USERNAME · HOST · PORT · DBNAME · PING`, any other kind (ssh)
-drops `DBNAME` and widens `HOST`. Only `hasDatabaseColumn`/`hostWidth` in `table_view.go`
-decide it; `tableInner` never changes.
+Columns are data, never a named type in control flow: `settingsOf(active).VisibleColumns()` —
+the type's `columns` from `conm.toml`, or the defaults `ConnType.DefaultColumns()` gives, which are
+`NAME · USERNAME · HOST · PORT · DBNAME · PING` for a database kind and the same without DBNAME
+for any other (ssh); TAGS is offered but off until listed. `headerLine` and `rowLine` walk that
+list in order; `layoutWidth` gives every column its fixed width and the flexible one — HOST, or
+NAME when HOST is hidden — what the default columns' widths leave after the other shown columns
+and the caret and mark cells wider than one column (`glyphCell`), so a row always fills
+`tableInner` exactly.
+`TestLayoutWidthKeepsTheRowWidth` and `TestAppearanceRegressions` check it.
 
 ## The three/four-file screen split
 
@@ -329,9 +422,20 @@ through `formLoop`:
   into `Run`. Removing a workspace also removes its secret material; the active one cannot
   be removed (`*ActiveWorkspaceError`).
 
-## Settings — `settings*.go`, `settings_keybind*.go`
+## Settings — `settings*.go`, `settings_keybind*.go`, `settings_appearance.go`
 
-`settingsModel` edits `conm.toml` and nothing else, in two tabs.
+`settingsModel` edits `conm.toml` and nothing else, in three tabs: client, keybind and
+appearance, which nests accent, text, glyphs, borders and table. `m.tab` is one flat page
+index over all seven (`settingsPages`); `topTab` and `appearanceTab` pick the active tab of
+each bar. Next/previous section moves between the top tabs until `Confirm` on appearance sets
+`nested` (`toggleNested`); then it moves between the appearance tabs, and `Cancel` clears
+`nested` before `Quit` sees it. Leaving appearance keeps its page in `appearPage` to come back
+to. Only while `nested` do the appearance and table pages take keys and draw their cursor.
+`headLines` draws the second bar (`appearanceTabTitles`) a blank line under the first, only
+on appearance; `frameTabBar` paints the active tab of the unfocused bar in the accent without
+the band. The four style pages each show one
+section of `appearanceRows` (`appearancePages`, `pageRows`), and `m.appear.cursor` indexes that
+page's rows, reset to the top on every page switch.
 
 - **Clients.** One row per connection type with the clients `cli.Detect` found and their
   versions, probed in the background on `Init`. `Cycle` moves to the next *installed* client
@@ -346,6 +450,48 @@ through `formLoop`:
   - A binding marked `OnlyAppend` keeps its default keys: they can be added to, not replaced
     or removed (`isPinned`).
   - Every change is checked through `KeybindingSettings.Validate` before it is written.
+- **Appearance.** Four sections from `appearanceRows`, scrolled like the keybindings: the
+  accent; the text style and one row per text role; the border style and one row per border
+  element; the glyph set and one row per glyph. An `elementGroup` holds what differs per
+  section: its presets, its overrides, how a value is typed and checked, and for text and
+  colours a fixed list of `choices` in place of the presets' values.
+  - **Colours are rows of their own.** Each section's style row is followed by a `palette`
+    row, and every element by a `colour` row (`elementRows`; a glyph outside
+    `config.GlyphColorElements` gets none). A colour row is an ordinary element row over
+    `borderColorGroup` / `glyphColorGroup` / `textColorGroup` (`colorGroup`): it cycles
+    `config.ColorNames`, types hex, resets, and shows a swatch — or "set by the screen" for an
+    `auto` with no fixed colour (`elementGroup.auto`).
+  - `elementRows` takes the value group and any number of `extraRows` — colour, background —
+    each listing the elements it covers; an element only an extra covers (`body`, `input`, `column`) gets
+    its heading with only those rows.
+  - **Every element has its own heading.** An element's value and colour rows share
+    `appearanceRow.subhead`; `appearanceLines` draws a one-line `frameSubhead` when it changes
+    (or at the top of the window), after a blank line unless a section heading is right above, with a "changed" note while the element differs from the
+    preset. The rows under it draw only `display` — `style`, `character`, `glyph`, `colour`;
+    `label` stays the full name ("border top left colour") the status line and tests use. A colour value is
+    drawn in its own colour (`selectBox.tint`).
+  saved at once; the saved message runs `applyConm`, so the screen redraws in the new look.
+  - A preset row (`options`, `field`) cycles its `config` name list. An element row
+    (`group`, `element`) cycles the distinct runes the presets use for that element
+    (`runeGroup.variants`) and stores the choice as an override — or drops the override when
+    the choice is the current preset's rune, so the file keeps only real differences. Its
+    note names the preset's rune while it is overridden; `keyMap.Settings.Reset` drops it.
+  - `keyMap.Settings.EditValue` opens typed input: the accent keeps `#` and hex digits up
+    to seven and needs a full `#rrggbb`; a border or glyph element keeps the last grapheme
+    typed (so an emoji with a skin tone stays whole) and needs `config.IsBorderRune` /
+    `config.IsGlyph`; a text element keeps lower-case letters and `+` and needs
+    `config.IsTextStyle`. `Confirm` saves, `Cancel` drops the draft; an unfit draft
+    keeps the input open. A value outside the choices shows `custom` in the box.
+  - While the glyphs are `ascii`, every border row is `locked` and refuses to change.
+  - A change copies the settings (`AppearanceSettings.Clone`) before it touches the
+    override maps, so the screen's own `conm` is never mutated before the write succeeds.
+
+- **Table.** One section per type over its `config.ConnectionSettings` row: a `colour` row
+  (`typeColorChoices`: the type names, `tab`, the colour names; choosing the own type stores empty; typed with `EditValue`) and a checkbox
+  row per column of `ConnType.Columns()`, listed shown-first in table order (`orderedColumns`).
+  `Confirm` shows or hides a column (NAME is refused), `Cycle` swaps a shown column with its
+  neighbour, `Reset` clears the colour or the order; the cursor follows the column it moved
+  (`tableCursorFor`). `saveTableCmd` checks `ValidateTable` before it writes.
 
 Every write goes through `config.CreateConm` at once; there is no "save" step. The screen
 reports only whether anything changed, and the connections table answers a change with a

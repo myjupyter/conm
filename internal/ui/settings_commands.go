@@ -56,6 +56,31 @@ func (m settingsModel) saveKeysCmd(path string, keys []string, status string) te
 	}
 }
 
+func (m settingsModel) saveAppearanceCmd(a config.AppearanceSettings, status string) tea.Cmd {
+	next, save := m.conm, m.save
+	next.Appearance = a
+
+	return func() tea.Msg {
+		if err := a.Validate(); err != nil {
+			return settingsSavedMsg{err: err}
+		}
+		return settingsSavedMsg{conm: next, status: status, err: save(next)}
+	}
+}
+
+func (m settingsModel) saveTableCmd(db config.ConnectionSettings, status string) tea.Cmd {
+	next, save := m.conm, m.save
+	next.Connections = slices.Clone(m.conm.Connections)
+
+	return func() tea.Msg {
+		if err := db.ValidateTable(); err != nil {
+			return settingsSavedMsg{err: err}
+		}
+		next.SetConnection(db)
+		return settingsSavedMsg{conm: next, status: status, err: save(next)}
+	}
+}
+
 func runSettings() (bool, error) {
 	conm, err := config.ReadConm(config.ConmPath())
 	if err != nil {

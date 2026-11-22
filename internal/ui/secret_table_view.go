@@ -97,7 +97,7 @@ func (m secretModel) storeTabsLine(n int) string {
 	label := fmt.Sprintf(" %s %d ", m.secrets.Active(), n)
 	return frameLine(m.inner(), []span{
 		{text: " ", fg: cDim},
-		{text: label, fg: cInvFg, bg: cAccent, bold: true},
+		{text: label, fg: cInvFg, bg: tabBg(cAccent), style: tTab},
 		{text: "  ", fg: cDim},
 		{text: "tab to switch store", fg: cFaint},
 	}, nil)
@@ -105,7 +105,7 @@ func (m secretModel) storeTabsLine(n int) string {
 
 func (m secretModel) secretHeaderLine() string {
 	return frameLine(m.inner(), []span{
-		{text: truncPad("", wMark, false), fg: cDim},
+		{text: blankCell() + blankCell(), fg: cDim},
 		{text: " " + truncPad("ID", wSecID, false), fg: cDim},
 		{text: " " + truncPad("LOCATION", wSecLoc, false), fg: cDim},
 		{text: " " + truncPad("USED BY", wSecUsed, false), fg: cDim},
@@ -133,16 +133,12 @@ func (m secretModel) secretRowLine(i int) string {
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
 
-	caret := " "
-	if sel {
-		caret = gCaret
-	}
-	mark := gDotOff
+	mark, markEl := gDotOff, elDotOff
 	switch {
 	case !s.IsValid():
-		mark = gDotFail
+		mark, markEl = gDotFail, elDotFail
 	case used > 0:
-		mark = gDotOn
+		mark, markEl = gDotOn, elDotOn
 	}
 
 	usedText := "unused"
@@ -156,7 +152,8 @@ func (m secretModel) secretRowLine(i int) string {
 	}
 
 	return frameLine(m.inner(), []span{
-		{text: caret + mark, fg: markC, bg: bg},
+		{text: caretOf(sel), fg: caretFg(markC, bg), bg: bg},
+		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
 		{text: " " + truncPad(s.ID(), wSecID, false), fg: fg, bg: bg},
 		{text: " " + truncPad(s.Location(), wSecLoc, false), fg: soft, bg: bg},
 		{text: " " + truncPad(usedText, wSecUsed, false), fg: usedFg, bg: bg},

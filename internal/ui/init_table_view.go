@@ -5,6 +5,8 @@ import (
 	"image/color"
 	"strings"
 
+	"github.com/charmbracelet/x/ansi"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/config"
@@ -82,7 +84,7 @@ func (m initModel) initIntro() string {
 
 func (m initModel) initHeaderLine() string {
 	return frameLine(m.inner(), []span{
-		{text: truncPad("", wMark, false), fg: cDim},
+		{text: blankCell() + blankCell(), fg: cDim},
 		{text: " " + truncPad("DATABASE", wInitType, false), fg: cDim},
 		{text: " " + truncPad("CLIENTS", m.clientWidth(), false), fg: cDim},
 		{text: " " + truncPad("STATE", wInitState, false), fg: cDim},
@@ -103,12 +105,7 @@ func (m initModel) initRowLine(i int) string {
 	case !available:
 		fg, markC, stateC = cDead, cFaint, cDim
 	default:
-		fg, markC, stateC = cFg, typeColor(t), cAccent
-	}
-
-	caret := " "
-	if sel {
-		caret = gCaret
+		fg, markC, stateC = cFg, typeColor(t), cOK
 	}
 
 	state := "available"
@@ -117,9 +114,10 @@ func (m initModel) initRowLine(i int) string {
 	}
 
 	clients := m.clientSpans(t, sel, bg)
-	spans := make([]span, 0, 3+len(clients))
+	spans := make([]span, 0, 4+len(clients))
 	spans = append(spans,
-		span{text: caret + gDotOn, fg: markC, bg: bg},
+		span{text: caretOf(sel), fg: caretFg(markC, bg), bg: bg},
+		span{text: cell(gDotOn), fg: markFg(sel, elDotOn, markC), bg: bg},
 		span{text: " " + truncPad(t.String(), wInitType, false), fg: fg, bg: bg},
 	)
 	spans = append(spans, clients...)
@@ -151,7 +149,7 @@ func (m initModel) clientSpans(t config.ConnType, sel bool, bg color.Color) []sp
 		}
 
 		spans = append(spans, span{text: text, fg: fg, bg: bg})
-		used += len([]rune(text))
+		used += ansi.StringWidth(text)
 	}
 
 	return append(spans, span{text: strings.Repeat(" ", max(m.clientWidth()+1-used, 1)), bg: bg})

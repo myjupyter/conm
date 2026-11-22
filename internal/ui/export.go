@@ -23,6 +23,8 @@ func ExportConnections(
 	names []string,
 	opts ExportOptions,
 ) ([]ImportResult, error) {
+	applyAppearance(conm.Appearance)
+
 	ws, repo, err := openConnections(conm, t)
 	if err != nil {
 		return nil, err

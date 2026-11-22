@@ -11,8 +11,8 @@ conm starts with a single workspace named `default`.
 
 | Separate in every workspace | Shared by all workspaces |
 |---|---|
-| Connections of every database type | [Which client each database opens](additional-screens.md#switching-clients) |
-| [Transports](ssh-transport.md) (SSH tunnels) | [Keybindings](additional-screens.md#overriding-keybindings) |
+| Connections of every database type | [Which client each database opens](settings.md#switching-clients) |
+| [Transports](ssh-transport.md) (SSH tunnels) | [Keybindings](settings.md#overriding-keybindings) |
 | [Secrets](secrets.md): the records and the passwords in the system keyring | |
 
 Each workspace has its own list of secrets, and only those can be picked for its connections.
@@ -65,4 +65,4 @@ Error: no workspace named "nope" · 'conm workspace add nope' creates it
 
 ---
 
-[← Connect through an SSH tunnel](ssh-transport.md) · [Contents](README.md) · [Additional screens →](additional-screens.md)
+[← Connect through an SSH tunnel](ssh-transport.md) · [Contents](README.md) · [Settings →](settings.md)

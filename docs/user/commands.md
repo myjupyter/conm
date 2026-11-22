@@ -47,8 +47,9 @@ See [Workspaces](workspaces.md#from-the-shell).
 
 ## Doctor
 
-`conm doctor` checks that conm is ready to use and prints one line per check, followed by the
-problems it found:
+| Command | What it does |
+|---|---|
+| `conm doctor` | Check that conm is ready to use: `conm.toml`, the clients, the saved connections |
 
 ```
 Doctor summary (conm v0.1.0)
@@ -69,18 +70,9 @@ Connections:
 ! Doctor found issues in 2 categories.
 ```
 
-It checks three things:
-
-- **Conm internal configs**: `conm.toml` can be read and its keybindings are valid.
-- **Clients**: for every database type, the client conm would open is installed, with its
-  version. A type with no client at all is a warning (`!`), since you may not use that database.
-  A [chosen client](additional-screens.md#switching-clients) that is missing or not valid is an
-  error (`✗`).
-- **Connections**: every saved connection and transport in the current workspace can be read and
-  is valid.
-
-It only reports and never changes anything. It exits with status 1 when any check fails with
-`✗`, so it can be used in scripts.
+A missing client is a warning (`!`); a missing [chosen client](settings.md#switching-clients) or
+an invalid connection is an error (`✗`). It never changes anything and exits with status 1 on an
+error, so it works in scripts.
 
 ---
 

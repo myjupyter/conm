@@ -70,7 +70,7 @@ func importGlyph(status ImportStatus) string {
 	case ImportFailed:
 		return styledGlyph(kindErr)
 	default:
-		return lipgloss.NewStyle().Foreground(cPostgres).Render(gImportNew)
+		return lipgloss.NewStyle().Foreground(tinted("import_new", cPostgres)).Render(gImportNew)
 	}
 }
 
@@ -93,7 +93,7 @@ func ImportConnections(
 	entries []importer.Entry,
 	mode ImportMode,
 ) ([]ImportResult, error) {
-	keyMap = newKeymap(conm.Keybindings)
+	applyConm(conm)
 
 	ws, repo, formCtx, err := openConnectionForm(conm, t)
 	if err != nil {

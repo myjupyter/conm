@@ -14,8 +14,9 @@ For people who use conm and have never seen its source. `README.md` is the entry
 | `secrets.md` | the secrets screen, keyring references, secrets per workspace |
 | `ssh-transport.md` | reaching a database through an SSH transport |
 | `workspaces.md` | separate sets of connections and secrets |
-| `additional-screens.md` | settings (clients, keybindings) and the info screen |
-| `commands.md` | every shell command in short, and `conm doctor` |
+| `settings.md` | the settings screen: clients, keybindings, appearance, the table per type |
+| `additional-screens.md` | the info screen |
+| `commands.md` | every shell command in short, `conm doctor` included |
 
 ## When a feature lands
 
@@ -71,4 +72,7 @@ macOS `security`.
   on the first thing worth watching.
 - Embed it under the paragraph it illustrates, with alt text that says what happens:
   `![Adding a secret to the keyring](../demo/secrets-add.gif)`.
+- A tape that shows gradients sets `Env COLORTERM "truecolor"`: VHS's terminal does not announce
+  24-bit colour, and conm would otherwise draw every gradient flat. Wait for a screen with
+  `Wait+Screen` before pressing keys on it, as `settings-appearance.tape` does.
 - A change to a screen's layout re-records every tape that shows that screen.

@@ -8,6 +8,9 @@ import (
 )
 
 func RunAddWorkspaceForm() (bool, error) {
+	if err := applyStoredConm(); err != nil {
+		return false, err
+	}
 	repo, err := repository.NewWorkspaceRepository()
 	if err != nil {
 		return false, err

@@ -5,7 +5,7 @@ use Postgres; every other database works the same way under its own name.
 
 The pages say what to do, not which key does it. Every screen lists its keys: press `?` for the
 full list of the screen you are on, and `?` again to close it. Keys can be changed in the
-[settings](additional-screens.md#overriding-keybindings).
+[settings](settings.md#overriding-keybindings).
 
 ![Opening the key list in the connections table and in a form](../demo/help.gif)
 
@@ -45,12 +45,21 @@ full list of the screen you are on, and `?` again to close it. Keys can be chang
 
 ## Customising
 
-8. [Additional screens](additional-screens.md): settings and the info screen
-   - [Switching clients](additional-screens.md#switching-clients)
-   - [Overriding keybindings](additional-screens.md#overriding-keybindings)
+8. [Settings](settings.md): clients, keybindings, appearance and the table
+   - [Switching clients](settings.md#switching-clients)
+   - [Overriding keybindings](settings.md#overriding-keybindings)
+   - [Appearance](settings.md#appearance)
+   - [Colours](settings.md#colours)
+   - [Gradients](settings.md#gradients)
+   - [Changing one element](settings.md#changing-one-element)
+   - [Table](settings.md#table)
+
+## Other
+
+9. [Additional screens](additional-screens.md): the info screen
    - [Info screen](additional-screens.md#info-screen)
-9. [Commands](commands.md): every command at a glance, and `conm doctor`
-   - [Doctor](commands.md#doctor)
+10. [Commands](commands.md): every command at a glance
+    - [Doctor](commands.md#doctor)
 
 ---
 

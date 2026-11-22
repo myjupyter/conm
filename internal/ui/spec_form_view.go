@@ -79,9 +79,9 @@ func (m specFormModel[T]) fieldRow(i int) string {
 		bg = cAccent
 	}
 
-	caret := caretBlank
+	caret := caretBlank()
 	if active {
-		caret = " " + gCaret + " "
+		caret = " " + cell(gCaret) + " "
 	}
 	gutter, gc := m.gutter(i, active)
 
@@ -97,28 +97,22 @@ func (m specFormModel[T]) fieldRow(i int) string {
 	box := m.inputBox(i, active, bg)
 	spans := make([]span, 0, 3+len(box))
 	spans = append(spans,
-		span{text: caret, fg: caretColor(active), bg: bg, bold: true},
-		span{text: gutter + " ", fg: gc, bg: bg},
-		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, bold: active},
+		span{text: caret, fg: caretColor(active, bg), bg: bg, style: tSelection},
+		span{text: cell(gutter) + " ", fg: gc, bg: bg},
+		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, style: styleIf(active, tSelection)},
 	)
 	spans = append(spans, box...)
 	return frameLine(m.size.formInner(), spans, bg)
 }
 
 func (m specFormModel[T]) inputBox(i int, active bool, bg color.Color) []span {
-	borderFg := cBorder
-	if active {
-		borderFg = cInvFg
-	}
-	if m.attempted && m.fieldError(i) != "" {
-		borderFg = cRed
-	}
+	edges := edgesFor(active, m.attempted && m.fieldError(i) != "")
 
 	disp, ghost := m.display(i, active)
 	if active && m.insert {
 		disp += gInputCursor
 	}
-	valFg := cValue
+	valFg := cInput
 	if ghost {
 		valFg = cFaint
 	}
@@ -126,9 +120,9 @@ func (m specFormModel[T]) inputBox(i int, active bool, bg color.Color) []span {
 		valFg = cInvFg
 	}
 	return []span{
-		{text: gLineV, fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: edges.left, bg: bg},
 		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
-		{text: gLineV, fg: borderFg, bg: bg},
+		{text: gLineRight, fg: edges.right, bg: bg},
 	}
 }
 
@@ -162,11 +156,11 @@ func (m specFormModel[T]) gutter(i int, active bool) (string, color.Color) {
 	var c color.Color
 	switch {
 	case m.attempted && m.fieldError(i) != "":
-		g, c = gFieldBad, cRed
+		g, c = gFieldBad, tinted("field_bad", cRed)
 	case m.vals[f.Key] != "":
-		g, c = gDotOn, cAccent
+		g, c = gDotOn, tinted(elDotOn, cOK)
 	default:
-		g, c = gDotOff, cFaint
+		g, c = gDotOff, tinted(elDotOff, cFaint)
 	}
 	if active {
 		c = cInvFg
@@ -175,17 +169,10 @@ func (m specFormModel[T]) gutter(i int, active bool) (string, color.Color) {
 }
 
 func (m specFormModel[T]) messageRow(i int) string {
-	text := ""
-	if m.attempted {
-		if e := m.fieldError(i); e != "" {
-			text = gFieldBad + " " + e
-		}
+	if !m.attempted {
+		return frameFieldError(m.size.formInner(), "", nil)
 	}
-	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return frameLine(m.size.formInner(), []span{
-		{text: prefix, fg: cDim},
-		{text: truncPad(text, m.size.formInner()-len([]rune(prefix))-2, false), fg: cRed},
-	}, nil)
+	return frameFieldError(m.size.formInner(), m.fieldError(i), nil)
 }
 
 func (m specFormModel[T]) statusLine() string {
