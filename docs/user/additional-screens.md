@@ -234,4 +234,4 @@ to change something.
 
 ---
 
-[← Workspaces](workspaces.md) · [Contents](README.md) · [Commands →](commands.md)
+[← Workspaces](workspaces.md) · [Contents](README.md) · [Make conm yours →](customisation.md)

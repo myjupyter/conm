@@ -1,0 +1,17 @@
+[conm]
+
+[conm.appearance]
+border = 'rounded'
+glyphs = 'geometric'
+accent = 'blue>pink'
+border_color = 'ocean'
+glyph_color = 'accent'
+
+[conm.appearance.glyph_colors]
+caret = 'red'
+dot_on = 'red'
+hint_arrow = 'red'
+import_new = 'red'
+input_cursor = 'red'
+select_next = 'red'
+select_prev = 'red'

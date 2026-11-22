@@ -1,0 +1,52 @@
+[[postgres]]
+host = 'localhost'
+port = 15432
+username = 'demo'
+password = 'demo-secret'
+dbname = 'orders'
+sslmode = 'disable'
+
+[postgres.meta]
+name = 'orders-local'
+description = 'Local orders database'
+tags = ['local', 'demo']
+
+[[postgres]]
+host = 'db.billing.internal'
+port = 5432
+username = 'billing_ro'
+dbname = 'billing'
+
+[postgres.meta]
+name = 'billing-prod'
+tags = ['prod', 'billing']
+
+[[postgres]]
+host = 'replica.analytics.internal'
+port = 5432
+username = 'analyst'
+dbname = 'warehouse'
+
+[postgres.meta]
+name = 'analytics-replica'
+tags = ['prod', 'replica']
+
+[[postgres]]
+host = 'auth.staging.internal'
+port = 5432
+username = 'auth'
+dbname = 'auth'
+
+[postgres.meta]
+name = 'auth-staging'
+tags = ['staging']
+
+[[postgres]]
+host = 'localhost'
+port = 15433
+username = 'dev'
+dbname = 'inventory'
+
+[postgres.meta]
+name = 'inventory-dev'
+tags = ['local']

@@ -1,0 +1,6 @@
+[conm]
+
+[conm.appearance]
+border = 'rounded'
+glyphs = 'geometric'
+accent = 'blue>pink'

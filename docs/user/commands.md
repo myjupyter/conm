@@ -84,4 +84,4 @@ It only reports and never changes anything. It exits with status 1 when any chec
 
 ---
 
-[← Additional screens](additional-screens.md) · [Contents](README.md)
+[← Make conm yours](customisation.md) · [Contents](README.md)

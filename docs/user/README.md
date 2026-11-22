@@ -54,7 +54,16 @@ full list of the screen you are on, and `?` again to close it. Keys can be chang
    - [Changing one element](additional-screens.md#changing-one-element)
    - [Table](additional-screens.md#table)
    - [Info screen](additional-screens.md#info-screen)
-9. [Commands](commands.md): every command at a glance, and `conm doctor`
+9. [Make conm yours](customisation.md): from the default look to a fully customised one, step
+   by step
+   - [1. The default](customisation.md#1-the-default)
+   - [2. Shape: border and glyphs](customisation.md#2-shape-border-and-glyphs)
+   - [3. Accent: a gradient](customisation.md#3-accent-a-gradient)
+   - [4. Colours of the frame and the glyphs](customisation.md#4-colours-of-the-frame-and-the-glyphs)
+   - [5. Text: every role its own colour](customisation.md#5-text-every-role-its-own-colour)
+   - [6. Table: the columns you need](customisation.md#6-table-the-columns-you-need)
+   - [The whole setup](customisation.md#the-whole-setup)
+10. [Commands](commands.md): every command at a glance, and `conm doctor`
    - [Doctor](commands.md#doctor)
 
 ---
