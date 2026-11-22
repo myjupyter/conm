@@ -54,7 +54,19 @@ func (m workspaceModel) removeWorkspaceCmd() tea.Cmd {
 }
 
 func RunWorkspaces() error {
+	if err := applyStoredConm(); err != nil {
+		return err
+	}
 	return WithScreens(runWorkspaces)
+}
+
+func applyStoredConm() error {
+	conm, err := config.ReadConm(config.ConmPath())
+	if err != nil {
+		return err
+	}
+	applyConm(conm)
+	return nil
 }
 
 func runWorkspaces() error {

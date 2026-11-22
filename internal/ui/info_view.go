@@ -126,7 +126,7 @@ func infoRowLine(w int, r infoRow, chunk string, first, on bool) string {
 	}
 
 	spans := []span{
-		{text: caret, fg: tinted("caret", labelFg), bg: bg, style: tSelection},
+		{text: caret, fg: caretFg(labelFg, bg), bg: bg, style: tSelection},
 		{text: truncPad(label, wInfoLbl, false), fg: labelFg, bg: bg, style: styleIf(on, tSelection)},
 		{text: "  " + chunk, fg: fg, bg: bg},
 	}

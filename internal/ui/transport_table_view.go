@@ -151,7 +151,7 @@ func (m transportModel) transportRowLine(i int) string {
 	}
 
 	return frameLine(m.inner(), []span{
-		{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		{text: caretOf(sel), fg: caretFg(markC, bg), bg: bg},
 		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
 		{text: " " + truncPad(t.Name, wTrName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(t.Kind, wTrKind, false), fg: soft, bg: bg},

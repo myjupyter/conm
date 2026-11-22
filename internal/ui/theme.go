@@ -441,6 +441,7 @@ func applyAppearance(a config.AppearanceSettings) {
 		glyphCell = max(glyphCell, ansi.StringWidth(value))
 	}
 	textColors := textColorNames(a)
+	cFg = baseFg
 	cFg = colorOr(firstStop(textColors["body"]), baseFg)
 	backgrounds := a.TextBackgrounds
 	tabBackground = firstStop(backgrounds["tab"])
@@ -620,6 +621,13 @@ func flatEdge(element, runes string) string {
 
 func tinted(element string, contextual color.Color) color.Color {
 	if c, ok := glyphColors[element]; ok {
+		return c
+	}
+	return contextual
+}
+
+func caretFg(contextual, bg color.Color) color.Color {
+	if c := tinted("caret", contextual); !sameColor(c, bg) {
 		return c
 	}
 	return contextual

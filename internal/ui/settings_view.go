@@ -215,7 +215,7 @@ func (m settingsModel) settingsLabelLine(label string, labelW int, value []span,
 
 	spans := make([]span, 0, 3+len(value))
 	spans = append(spans,
-		span{text: caret, fg: tinted("caret", labelFg), bg: bg, style: tSelection},
+		span{text: caret, fg: caretFg(labelFg, bg), bg: bg, style: tSelection},
 		span{text: truncPad(label, labelW, false), fg: labelFg, bg: bg, style: styleIf(on, tSelection)},
 		span{text: "  ", bg: bg},
 	)

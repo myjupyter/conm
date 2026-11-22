@@ -116,7 +116,7 @@ func (m initModel) initRowLine(i int) string {
 	clients := m.clientSpans(t, sel, bg)
 	spans := make([]span, 0, 4+len(clients))
 	spans = append(spans,
-		span{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		span{text: caretOf(sel), fg: caretFg(markC, bg), bg: bg},
 		span{text: cell(gDotOn), fg: markFg(sel, elDotOn, markC), bg: bg},
 		span{text: " " + truncPad(t.String(), wInitType, false), fg: fg, bg: bg},
 	)

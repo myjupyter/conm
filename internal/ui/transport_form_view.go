@@ -103,7 +103,7 @@ func (m transportFormModel) transportFieldRow(at int) string {
 	box := m.transportInputBox(i, active, bg)
 	spans := make([]span, 0, 3+len(box))
 	spans = append(spans,
-		span{text: caret, fg: caretColor(active), bg: bg, style: tSelection},
+		span{text: caret, fg: caretColor(active, bg), bg: bg, style: tSelection},
 		span{text: cell(gutter) + " ", fg: gc, bg: bg},
 		span{text: truncPad(label, formLabelW, false), fg: labelFg, bg: bg, style: styleIf(active, tSelection)},
 	)

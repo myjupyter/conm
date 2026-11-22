@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/myjupyter/conm/internal/config"
 )
@@ -484,6 +485,65 @@ func TestSubheadingRole(t *testing.T) {
 				is.Equal(accentColors["pink"], tSubheading.fg)
 				is.Nil(tHeading.fg)
 			}
+		})
+	}
+}
+
+func TestAppearanceRegressions(t *testing.T) {
+	base := config.AppearanceSettings{
+		Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
+		BorderColor: "default", GlyphColor: "default", TextColor: "default",
+	}
+	t.Cleanup(func() { applyAppearance(base) })
+
+	tests := []struct {
+		name   string
+		before func(*config.AppearanceSettings)
+		after  func(*config.AppearanceSettings)
+		check  func(t *testing.T)
+	}{
+		{
+			name:   "emoji glyphs keep the table row inside the frame",
+			before: func(*config.AppearanceSettings) {},
+			after:  func(a *config.AppearanceSettings) { a.Glyphs = "emoji" },
+			check: func(t *testing.T) {
+				t.Helper()
+				require.Equal(t, 2, glyphCell)
+				got := 2 * glyphCell
+				for _, c := range config.DefaultColumns {
+					got += layoutWidth(config.DefaultColumns, c, 0) + 1
+				}
+				assert.Equal(t, tableInner, got)
+			},
+		},
+		{
+			name:   "body back to fg drops the previous colour",
+			before: func(a *config.AppearanceSettings) { a.TextColors = map[string]string{"body": "#ff0000"} },
+			after:  func(a *config.AppearanceSettings) { a.TextColors = map[string]string{"body": "fg"} },
+			check: func(t *testing.T) {
+				t.Helper()
+				assert.True(t, sameColor(baseFg, cFg))
+			},
+		},
+		{
+			name:   "accent glyphs keep the caret visible on an accent row",
+			before: func(*config.AppearanceSettings) {},
+			after:  func(a *config.AppearanceSettings) { a.GlyphColor = "accent" },
+			check: func(t *testing.T) {
+				t.Helper()
+				assert.False(t, sameColor(caretFg(cInvFg, cAccent), cAccent))
+				assert.True(t, sameColor(cAccent, caretFg(cInvFg, nil)))
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			before, after := base, base
+			tt.before(&before)
+			tt.after(&after)
+			applyAppearance(before)
+			applyAppearance(after)
+			tt.check(t)
 		})
 	}
 }

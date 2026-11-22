@@ -147,7 +147,8 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     - A glyph's colour is `tinted(element, contextual)` at the one place the screen chooses
       the contextual colour — `statusGlyph`, the gutters, `markFg`, `frameFieldError`, the
       hint arrow, the search cursor, the import mark. A highlighted row keeps `cInvFg`, except
-      the caret (`caretOf`, `tinted("caret", …)`), which only ever sits on that row.
+      the caret (`caretOf`, `caretFg`), which only ever sits on that row: `caretFg` tints it
+      unless the tint equals the row's background, then keeps the contextual colour.
     - No glyph palette touches the status icons, `dot_fail` or `field_bad` (`theme_test.go`
       checks it); an explicit per-element colour does.
   - **Gradients.** `colorStops` splits a colour value on `>`; `firstStop` is what a flat
@@ -203,7 +204,8 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
   - `applyConm` sets `keyMap`, the appearance and `typeSettings` (each type's row, for its
     columns and colour); `typeColor` reads the row's `color` — a type name is that type's `builtinTypeColor`,
     `tab` the tab background or the accent, anything else that colour; every entry point that draws calls it
-    (or `applyAppearance`, for `doctor` and `export`) before its first line.
+    (or `applyAppearance`, for `doctor` and `export`; `applyStoredConm` reads `conm.toml` for the
+    workspace entry points) before its first line.
 - **`ui/form_loop.go` — running a form to completion.** `formStatus` (message plus
   `statusKind`), `formResult[T]` (what one run produced, plus its raw values) and
   `formLoop[T]` (open → save → on failure open again). A screen supplies only `open` and
@@ -275,9 +277,10 @@ the type's `columns` from `conm.toml`, or the defaults `ConnType.DefaultColumns(
 `NAME · USERNAME · HOST · PORT · DBNAME · PING` for a database kind and the same without DBNAME
 for any other (ssh); TAGS is offered but off until listed. `headerLine` and `rowLine` walk that
 list in order; `layoutWidth` gives every column its fixed width and the flexible one — HOST, or
-NAME when HOST is hidden — what the default columns' widths leave after the other shown columns,
-so a row always fills `tableInner` exactly.
-`TestLayoutWidthKeepsTheRowWidth` checks it.
+NAME when HOST is hidden — what the default columns' widths leave after the other shown columns
+and the caret and mark cells wider than one column (`glyphCell`), so a row always fills
+`tableInner` exactly.
+`TestLayoutWidthKeepsTheRowWidth` and `TestAppearanceRegressions` check it.
 
 ## The three/four-file screen split
 

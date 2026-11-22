@@ -174,7 +174,7 @@ func (m formModel) fieldRow(i int) string {
 	labelW := formLabelW
 
 	spans := make([]span, 0, 4+len(box))
-	spans = append(spans, span{text: caret, fg: caretColor(active), bg: bg, style: tSelection})
+	spans = append(spans, span{text: caret, fg: caretColor(active, bg), bg: bg, style: tSelection})
 	if pair {
 		labelW -= railW
 		spans = append(spans, span{text: railGlyph(first) + " ", fg: railColor(active, pairActive), bg: bg})
@@ -398,9 +398,9 @@ func caretBlank() string {
 	return " " + blankCell() + " "
 }
 
-func caretColor(active bool) color.Color {
+func caretColor(active bool, bg color.Color) color.Color {
 	if active {
-		return tinted("caret", cInvFg)
+		return caretFg(cInvFg, bg)
 	}
 	return cAccent
 }

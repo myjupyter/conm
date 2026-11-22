@@ -142,7 +142,7 @@ func layoutWidth(columns []string, column string, extra int) int {
 	if column != flexible {
 		return columnWidths[column]
 	}
-	width := extra - 1
+	width := extra - 1 - 2*(glyphCell-1)
 	for _, c := range config.DefaultColumns {
 		width += columnWidths[c] + 1
 	}
@@ -199,7 +199,7 @@ func (m Model) rowLine(i int) string {
 	}
 
 	spans := []span{
-		{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		{text: caretOf(sel), fg: caretFg(markC, bg), bg: bg},
 		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
 	}
 	for _, column := range m.columns() {

@@ -107,7 +107,7 @@ func (m workspaceModel) workspaceRowLine(i int) string {
 	}
 
 	return frameLine(m.inner(), []span{
-		{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		{text: caretOf(sel), fg: caretFg(markC, bg), bg: bg},
 		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
 		{text: " " + truncPad(name, m.nameWidth(), false), fg: fg, bg: bg},
 		{text: " " + truncPad(note, wWsStatus, false), fg: soft, bg: bg},
