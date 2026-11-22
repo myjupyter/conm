@@ -3,6 +3,7 @@ package ui
 import (
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
 
@@ -148,4 +149,77 @@ func TestFrameMeasuresWideGlyphs(t *testing.T) {
 			assert.Equal(t, w+2, ansi.StringWidth(plain))
 		})
 	}
+}
+
+func TestColorPalettesAreComplete(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		names    []string
+		palettes map[string]map[string]string
+		elements []string
+	}{
+		{name: "border", names: config.BorderPalettes, palettes: borderPalettes, elements: config.BorderElements},
+		{name: "glyphs", names: config.GlyphPalettes, palettes: glyphPalettes, elements: config.GlyphColorElements},
+		{name: "text", names: config.TextPalettes, palettes: textPalettes, elements: config.TextElements},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			is := assert.New(t)
+			is.Len(tt.palettes, len(tt.names))
+			for _, name := range tt.names {
+				is.Len(tt.palettes[name], len(tt.elements), name)
+				for _, element := range tt.elements {
+					is.True(config.IsColor(tt.palettes[name][element]), name+" "+element)
+				}
+			}
+		})
+	}
+}
+
+func TestNamedColorResolvesEveryName(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range config.ColorNames {
+		if name == config.AutoColor {
+			assert.Nil(t, namedColor(name))
+			continue
+		}
+		assert.NotNil(t, namedColor(name), name)
+	}
+	assert.NotNil(t, namedColor("#123456"))
+}
+
+func TestGlyphColorsKeepStatusColours(t *testing.T) {
+	t.Parallel()
+
+	for _, palette := range config.GlyphPalettes {
+		for _, element := range []string{"status_ok", "status_warn", "status_error", "status_pending", "dot_fail", "field_bad"} {
+			assert.Equal(t, config.AutoColor, glyphPalettes[palette][element], palette+" "+element)
+		}
+	}
+}
+
+func TestApplyAppearanceColoursTextRoles(t *testing.T) {
+	t.Cleanup(func() {
+		applyAppearance(config.AppearanceSettings{
+			Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
+			BorderColor: "default", GlyphColor: "default", TextColor: "default",
+		})
+	})
+
+	applyAppearance(config.AppearanceSettings{
+		Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
+		BorderColor: "default", GlyphColor: "default", TextColor: "accent",
+		TextColors: map[string]string{"note": "#123456"},
+	})
+
+	is := assert.New(t)
+	is.Equal(cAccent, tTitle.fg)
+	is.Equal(lipgloss.Color("#123456"), tNote.fg)
+	is.Nil(tValue.fg)
+	is.True(tTitle.bold)
 }

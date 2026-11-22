@@ -133,16 +133,12 @@ func (m secretModel) secretRowLine(i int) string {
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
 
-	caret := blankCell()
-	if sel {
-		caret = cell(gCaret)
-	}
-	mark := gDotOff
+	mark, markEl := gDotOff, elDotOff
 	switch {
 	case !s.IsValid():
-		mark = gDotFail
+		mark, markEl = gDotFail, elDotFail
 	case used > 0:
-		mark = gDotOn
+		mark, markEl = gDotOn, elDotOn
 	}
 
 	usedText := "unused"
@@ -156,7 +152,8 @@ func (m secretModel) secretRowLine(i int) string {
 	}
 
 	return frameLine(m.inner(), []span{
-		{text: caret + cell(mark), fg: markC, bg: bg},
+		{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
 		{text: " " + truncPad(s.ID(), wSecID, false), fg: fg, bg: bg},
 		{text: " " + truncPad(s.Location(), wSecLoc, false), fg: soft, bg: bg},
 		{text: " " + truncPad(usedText, wSecUsed, false), fg: usedFg, bg: bg},

@@ -126,7 +126,10 @@ func savedAppearance(t *testing.T, cmd tea.Cmd) config.AppearanceSettings {
 	return msg.conm.Appearance
 }
 
-var plainAppearance = config.AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode", Text: "default"}
+var plainAppearance = config.AppearanceSettings{
+	Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
+	BorderColor: "default", GlyphColor: "default", TextColor: "default",
+}
 
 func withAppearance(override func(*config.AppearanceSettings)) config.AppearanceSettings {
 	a := plainAppearance.Clone()
@@ -392,7 +395,7 @@ func TestSettingsModel_sectionNote(t *testing.T) {
 			name:    "one glyph customised",
 			current: withAppearance(func(a *config.AppearanceSettings) { a.GlyphRunes = map[string]string{"caret": "»"} }),
 			row:     "glyphs set",
-			want:    "1 element customised",
+			want:    "1 change to the preset",
 		},
 		{
 			name: "two border elements customised",
@@ -400,7 +403,16 @@ func TestSettingsModel_sectionNote(t *testing.T) {
 				a.BorderRunes = map[string]string{"top_left": "╭", "left": "┃"}
 			}),
 			row:  "border style",
-			want: "2 elements customised",
+			want: "2 changes to the preset",
+		},
+		{
+			name: "rune and colour changes add up",
+			current: withAppearance(func(a *config.AppearanceSettings) {
+				a.GlyphRunes = map[string]string{"caret": "»"}
+				a.GlyphColors = map[string]string{"caret": "pink", "dot_on": "#ff0000"}
+			}),
+			row:  "glyphs set",
+			want: "3 changes to the preset",
 		},
 		{
 			name:    "border locked by ascii glyphs",
@@ -423,6 +435,10 @@ func TestSettingsRenderStaysAligned(t *testing.T) {
 		withAppearance(func(a *config.AppearanceSettings) { a.Glyphs, a.Border = "emoji", "block" }),
 		withAppearance(func(a *config.AppearanceSettings) { a.Border, a.Text = "hidden", "emphasis" }),
 		withAppearance(func(a *config.AppearanceSettings) { a.Glyphs = config.ASCIIGlyphs }),
+		withAppearance(func(a *config.AppearanceSettings) {
+			a.Glyphs, a.BorderColor, a.GlyphColor = "emoji", "duotone", "bright"
+			a.BorderColors = map[string]string{"left": "#ff0000"}
+		}),
 	}
 	t.Cleanup(func() { applyAppearance(plainAppearance) })
 
@@ -454,5 +470,110 @@ func TestSettingsRenderStaysAligned(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestSettingsModel_colorRows(t *testing.T) {
+	tests := []struct {
+		name    string
+		current config.AppearanceSettings
+		row     string
+		act     func(settingsModel) (tea.Model, tea.Cmd)
+		want    config.AppearanceSettings
+	}{
+		{
+			name:    "border palette steps forward",
+			current: plainAppearance,
+			row:     "border palette",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.BorderColor = "accent" }),
+		},
+		{
+			name:    "glyph palette wraps backward",
+			current: plainAppearance,
+			row:     "glyphs palette",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(-1) },
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.GlyphColor = "muted" }),
+		},
+		{
+			name:    "text palette steps forward",
+			current: plainAppearance,
+			row:     "text palette",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.TextColor = "accent" }),
+		},
+		{
+			name:    "a border element colour steps off auto",
+			current: plainAppearance,
+			row:     "border top colour",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.BorderColors = map[string]string{"top": "accent"} }),
+		},
+		{
+			name:    "a text role colour steps off auto",
+			current: plainAppearance,
+			row:     "text note colour",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.TextColors = map[string]string{"note": "accent"} }),
+		},
+		{
+			name:    "a glyph colour is typed as hex",
+			current: plainAppearance,
+			row:     "glyphs caret colour",
+			act: func(m settingsModel) (tea.Model, tea.Cmd) {
+				m = m.startAppearanceInput()
+				m = m.typeAppearance("ff0088")
+				return m.saveAppearanceDraft()
+			},
+			want: withAppearance(func(a *config.AppearanceSettings) { a.GlyphColors = map[string]string{"caret": "#ff0088"} }),
+		},
+		{
+			name: "a colour override is reset",
+			current: withAppearance(func(a *config.AppearanceSettings) {
+				a.GlyphColors = map[string]string{"dot_on": "pink", "caret": "teal"}
+			}),
+			row:  "glyphs dot on colour",
+			act:  func(m settingsModel) (tea.Model, tea.Cmd) { return m.resetElement() },
+			want: withAppearance(func(a *config.AppearanceSettings) { a.GlyphColors = map[string]string{"caret": "teal"} }),
+		},
+		{
+			name:    "the ascii lock leaves border colours free",
+			current: withAppearance(func(a *config.AppearanceSettings) { a.Glyphs = config.ASCIIGlyphs }),
+			row:     "border left colour",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
+			want: withAppearance(func(a *config.AppearanceSettings) {
+				a.Glyphs = config.ASCIIGlyphs
+				a.BorderColors = map[string]string{"left": "accent"}
+			}),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := newAppearanceFixture(t, tt.current, tt.row)
+
+			_, cmd := tt.act(m)
+
+			assert.Equal(t, tt.want, savedAppearance(t, cmd))
+		})
+	}
+}
+
+func TestAppearanceRowsHaveColourRows(t *testing.T) {
+	tests := []struct {
+		row       string
+		wantColor bool
+	}{
+		{row: "text title", wantColor: true},
+		{row: "border bottom right", wantColor: true},
+		{row: "glyphs status ok", wantColor: true},
+		{row: "glyphs ellipsis"},
+		{row: "glyphs input mask"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.row, func(t *testing.T) {
+			i := appearanceRowAt(t, tt.row)
+			hasColor := i+1 < len(appearanceRows) && appearanceRows[i+1].name() == tt.row+" colour"
+			assert.Equal(t, tt.wantColor, hasColor)
+		})
 	}
 }

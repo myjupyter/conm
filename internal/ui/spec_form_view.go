@@ -4,8 +4,6 @@ import (
 	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/x/ansi"
-
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -108,13 +106,7 @@ func (m specFormModel[T]) fieldRow(i int) string {
 }
 
 func (m specFormModel[T]) inputBox(i int, active bool, bg color.Color) []span {
-	borderFg := cBorder
-	if active {
-		borderFg = cInvFg
-	}
-	if m.attempted && m.fieldError(i) != "" {
-		borderFg = cRed
-	}
+	edges := edgesFor(active, m.attempted && m.fieldError(i) != "")
 
 	disp, ghost := m.display(i, active)
 	if active && m.insert {
@@ -128,9 +120,9 @@ func (m specFormModel[T]) inputBox(i int, active bool, bg color.Color) []span {
 		valFg = cInvFg
 	}
 	return []span{
-		{text: gLineLeft, fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: edges.left, bg: bg},
 		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
-		{text: gLineRight, fg: borderFg, bg: bg},
+		{text: gLineRight, fg: edges.right, bg: bg},
 	}
 }
 
@@ -164,11 +156,11 @@ func (m specFormModel[T]) gutter(i int, active bool) (string, color.Color) {
 	var c color.Color
 	switch {
 	case m.attempted && m.fieldError(i) != "":
-		g, c = gFieldBad, cRed
+		g, c = gFieldBad, tinted("field_bad", cRed)
 	case m.vals[f.Key] != "":
-		g, c = gDotOn, cOK
+		g, c = gDotOn, tinted(elDotOn, cOK)
 	default:
-		g, c = gDotOff, cFaint
+		g, c = gDotOff, tinted(elDotOff, cFaint)
 	}
 	if active {
 		c = cInvFg
@@ -177,17 +169,10 @@ func (m specFormModel[T]) gutter(i int, active bool) (string, color.Color) {
 }
 
 func (m specFormModel[T]) messageRow(i int) string {
-	text := ""
-	if m.attempted {
-		if e := m.fieldError(i); e != "" {
-			text = gFieldBad + " " + e
-		}
+	if !m.attempted {
+		return frameFieldError(m.size.formInner(), "", nil)
 	}
-	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return frameLine(m.size.formInner(), []span{
-		{text: prefix, fg: cDim},
-		{text: truncPad(text, m.size.formInner()-ansi.StringWidth(prefix)-2, false), fg: cRed},
-	}, nil)
+	return frameFieldError(m.size.formInner(), m.fieldError(i), nil)
 }
 
 func (m specFormModel[T]) statusLine() string {

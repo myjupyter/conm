@@ -70,7 +70,7 @@ func importGlyph(status ImportStatus) string {
 	case ImportFailed:
 		return styledGlyph(kindErr)
 	default:
-		return lipgloss.NewStyle().Foreground(cPostgres).Render(gImportNew)
+		return lipgloss.NewStyle().Foreground(tinted("import_new", cPostgres)).Render(gImportNew)
 	}
 }
 

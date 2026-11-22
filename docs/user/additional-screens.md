@@ -77,9 +77,32 @@ with an invisible variation selector like `✔️` or `⚠️`, are one column i
 another; conm cannot tell, and such a glyph can push the right edge of a line out of place.
 The `emoji` set only uses emoji every terminal draws two columns wide.
 
+#### Colours
+
+The text, border and glyph sections each have a **palette** row under their style, and every
+text role, border piece and glyph has a **colour** row right under its own row, with a swatch
+showing the colour.
+
+The palettes:
+- **text**: `default` (every role keeps its usual colour), `accent` (titles, headings and keys
+  in the accent) or `muted` (softer headings, keys and values, dim notes);
+- **border**: `default` (the usual grey), `accent`, `soft`, `bright` or `duotone` (the accent
+  across the top, the bottom and the rules, grey at the sides);
+- **glyphs**: `default` (every glyph keeps the colour the screen gives it), `accent`, `bright`
+  or `muted` — for the caret, the dots, the arrows and the cursor.
+
+A colour row sets that one element: `auto` (what the palette and the screen decide), a named
+colour — `accent`, `fg`, `soft`, `dim`, `border`, `ok`, `warn`, `error` or any accent preset
+like `teal` — or your own `#rrggbb`. A glyph palette never recolours the status icons — a
+success stays green, a warning amber, a failure red — but a colour you set on one of them
+yourself does. The highlighted row keeps its own colours so it stays readable; only the caret,
+which only ever sits on that row, takes its colour there. The `…`, `—`, the password mask and
+the scroll arrows sit inside text and keep the text's colour, so they have no colour row.
+
 #### Changing one element
 
-Under the text style, the border style and the glyph set, every element has its own row:
+Under the text style, the border style and the glyph set, every element has its own row (and,
+as above, a colour row under it):
 - **text**: title, tab, heading, selection, key, value, note — each `plain` or a mix of
   `bold`, `italic`, `underline` and `faint` joined by `+`, like `bold+italic`;
 - **border**: each corner, the joins at either end of a rule, and the top, bottom, left and
@@ -98,6 +121,9 @@ border = 'rounded'
 accent = '#ff8800'
 glyphs = 'emoji'
 text = 'default'
+border_color = 'duotone'
+glyph_color = 'accent'
+text_color = 'default'
 
 [conm.appearance.border_runes]
 top = '═'
@@ -108,6 +134,15 @@ caret = '»'
 
 [conm.appearance.text_style]
 note = 'italic'
+
+[conm.appearance.border_colors]
+left = '#ff0000'
+
+[conm.appearance.glyph_colors]
+caret = 'pink'
+
+[conm.appearance.text_colors]
+note = 'dim'
 ```
 
 A name conm does not know falls back to the first one in its list; a value that does not fit

@@ -70,7 +70,7 @@ func (m infoModel) titleLine() string {
 
 	return frameLine(m.inner(), []span{
 		{text: "  ", fg: cDim},
-		{text: cell(gDotOn) + " ", fg: typeColor(kind)},
+		{text: cell(gDotOn) + " ", fg: tinted(elDotOn, typeColor(kind))},
 		{text: connLabel(cfg), fg: cFg, style: tTitle},
 		{text: "  [" + kind.String() + "]", fg: typeColor(kind)},
 	}, nil)
@@ -126,7 +126,7 @@ func infoRowLine(w int, r infoRow, chunk string, first, on bool) string {
 	}
 
 	spans := []span{
-		{text: caret, fg: labelFg, bg: bg, style: tSelection},
+		{text: caret, fg: tinted("caret", labelFg), bg: bg, style: tSelection},
 		{text: truncPad(label, wInfoLbl, false), fg: labelFg, bg: bg, style: styleIf(on, tSelection)},
 		{text: "  " + chunk, fg: fg, bg: bg},
 	}

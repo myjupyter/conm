@@ -108,20 +108,16 @@ func (m initModel) initRowLine(i int) string {
 		fg, markC, stateC = cFg, typeColor(t), cOK
 	}
 
-	caret := blankCell()
-	if sel {
-		caret = cell(gCaret)
-	}
-
 	state := "available"
 	if !available {
 		state = "no client"
 	}
 
 	clients := m.clientSpans(t, sel, bg)
-	spans := make([]span, 0, 3+len(clients))
+	spans := make([]span, 0, 4+len(clients))
 	spans = append(spans,
-		span{text: caret + cell(gDotOn), fg: markC, bg: bg},
+		span{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		span{text: cell(gDotOn), fg: markFg(sel, elDotOn, markC), bg: bg},
 		span{text: " " + truncPad(t.String(), wInitType, false), fg: fg, bg: bg},
 	)
 	spans = append(spans, clients...)

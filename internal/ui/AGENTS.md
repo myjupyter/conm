@@ -128,6 +128,23 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     (`frameBottom`), `gLineH` (`frameRule`, between sections), `gLineLeft` and `gLineRight`
     (both sides of `frameLine`, and of every input and select box). A preset with one line
     per axis is built by `box`; `frame` takes all eleven pieces, as `block` needs.
+  - **Colours of the border and the glyphs.** `borderPalettes` / `glyphPalettes` map a
+    palette to a colour name per element (built by `colors` and `tint`); `borderColorNames` /
+    `glyphColorNames` merge the palette with the user's overrides, and `applyAppearance`
+    resolves them through `namedColor` into `borderColors` (every element, `auto` = `cBorder`)
+    and `glyphColors` (only the elements not on `auto`). `textPalettes` / `textColorNames` do
+    the same for the text roles: the colour lands in `textStyle.fg`, which `span.render`
+    prefers over the span's own `fg`, so a role keeps its colour and its style together.
+    - Every frame piece is painted with `edge(element, runes)`; `frameTop` draws the last
+      `gLineTop` after the note itself, so `topNote` carries no line. An input or select box
+      takes its sides and arrows from `edgesFor(active, bad)`: red when bad, inverse when
+      active, else the frame's `left`/`right` colours and the tinted arrows.
+    - A glyph's colour is `tinted(element, contextual)` at the one place the screen chooses
+      the contextual colour — `statusGlyph`, the gutters, `markFg`, `frameFieldError`, the
+      hint arrow, the search cursor, the import mark. A highlighted row keeps `cInvFg`, except
+      the caret (`caretOf`, `tinted("caret", …)`), which only ever sits on that row.
+    - No glyph palette touches the status icons, `dot_fail` or `field_bad` (`theme_test.go`
+      checks it); an explicit per-element colour does.
   - **Text styles are roles, not bold flags.** `span.style` takes one of `tTitle`, `tTab`,
     `tHeading`, `tSelection` (with `styleIf` for "only when on"), `tKey`, `tValue`, `tNote`;
     `span.render` adds bold, italic, underline and faint from it. `span.bold` is left for what
@@ -384,8 +401,16 @@ through `formLoop`:
 - **Appearance.** Four sections from `appearanceRows`, scrolled like the keybindings: the
   accent; the text style and one row per text role; the border style and one row per border
   element; the glyph set and one row per glyph. An `elementGroup` holds what differs per
-  section: its presets, its overrides, how a value is typed and checked, and for text a fixed
-  list of style `choices` in place of the presets' values. Every row is a select box with a preview or note beside it, and every change is
+  section: its presets, its overrides, how a value is typed and checked, and for text and
+  colours a fixed list of `choices` in place of the presets' values.
+  - **Colours are rows of their own.** Each section's style row is followed by a `palette`
+    row, and every element by a `colour` row (`elementRows`; a glyph outside
+    `config.GlyphColorElements` gets none). A colour row is an ordinary element row over
+    `borderColorGroup` / `glyphColorGroup` / `textColorGroup` (`colorGroup`): it cycles
+    `config.ColorNames`, types hex, resets, and shows a swatch — or "set by the screen" for an
+    `auto` with no fixed colour (`elementGroup.auto`). `appearanceRow.display` is the indented
+    label drawn; `label` stays the full name the status line and tests use. A colour value is
+    drawn in its own colour (`selectBox.tint`).
   saved at once; the saved message runs `applyConm`, so the screen redraws in the new look.
   - A preset row (`options`, `field`) cycles its `config` name list. An element row
     (`group`, `element`) cycles the distinct runes the presets use for that element

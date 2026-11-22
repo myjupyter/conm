@@ -101,16 +101,14 @@ func (m workspaceModel) workspaceRowLine(i int) string {
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
 
-	caret, mark, note := blankCell(), gDotOff, ""
-	if sel {
-		caret = cell(gCaret)
-	}
+	mark, markEl, note := gDotOff, elDotOff, ""
 	if current {
-		mark, note = gDotOn, "current"
+		mark, markEl, note = gDotOn, elDotOn, "current"
 	}
 
 	return frameLine(m.inner(), []span{
-		{text: caret + cell(mark), fg: markC, bg: bg},
+		{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
 		{text: " " + truncPad(name, m.nameWidth(), false), fg: fg, bg: bg},
 		{text: " " + truncPad(note, wWsStatus, false), fg: soft, bg: bg},
 	}, bg)

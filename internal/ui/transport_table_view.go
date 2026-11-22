@@ -127,16 +127,12 @@ func (m transportModel) transportRowLine(i int) string {
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
 
-	caret := blankCell()
-	if sel {
-		caret = cell(gCaret)
-	}
-	mark := gDotOff
+	mark, markEl := gDotOff, elDotOff
 	switch {
 	case !t.IsValid():
-		mark = gDotFail
+		mark, markEl = gDotFail, elDotFail
 	case used > 0:
-		mark = gDotOn
+		mark, markEl = gDotOn, elDotOn
 	}
 
 	port := "auto"
@@ -155,7 +151,8 @@ func (m transportModel) transportRowLine(i int) string {
 	}
 
 	return frameLine(m.inner(), []span{
-		{text: caret + cell(mark), fg: markC, bg: bg},
+		{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
 		{text: " " + truncPad(t.Name, wTrName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(t.Kind, wTrKind, false), fg: soft, bg: bg},
 		{text: " " + truncPad(m.viaText(t), m.viaWidth(), false), fg: soft, bg: bg},

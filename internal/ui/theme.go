@@ -74,6 +74,11 @@ var borderVars = map[string]*string{
 var glyphCell int
 
 var (
+	borderColors map[string]color.Color
+	glyphColors  map[string]color.Color
+)
+
+var (
 	tTitle, tTab, tHeading, tSelection, tKey, tValue, tNote textStyle
 )
 
@@ -85,7 +90,7 @@ var textVars = map[string]*textStyle{
 var glyphVars = map[string]*string{
 	"status_idle": &gStatusIdle, "status_ok": &gStatusOK, "status_pending": &gStatusPending,
 	"status_warn": &gStatusWarn, "status_error": &gStatusErr, "import_new": &gImportNew,
-	"caret": &gCaret, "dot_on": &gDotOn, "dot_off": &gDotOff, "dot_fail": &gDotFail,
+	"caret": &gCaret, elDotOn: &gDotOn, elDotOff: &gDotOff, elDotFail: &gDotFail,
 	"field_bad": &gFieldBad, "input_cursor": &gInputCursor, "input_mask": &gInputMask,
 	"empty": &gEmpty, "ellipsis": &gEllipsis, "hint_arrow": &gHintArrow,
 	"scroll_up": &gScrollUp, "scroll_down": &gScrollDown,
@@ -93,11 +98,20 @@ var glyphVars = map[string]*string{
 }
 
 const (
-	defaultBorder = "single"
-	asciiBorder   = "ascii"
-	defaultGlyphs = "unicode"
-	defaultAccent = "green"
-	defaultText   = "default"
+	elDotOn     = "dot_on"
+	elDotOff    = "dot_off"
+	elDotFail   = "dot_fail"
+	colorAccent = config.AccentColor
+	colorSoft   = "soft"
+)
+
+const (
+	defaultBorder  = "single"
+	asciiBorder    = "ascii"
+	defaultGlyphs  = "unicode"
+	defaultAccent  = "green"
+	defaultText    = "default"
+	defaultPalette = "default"
 )
 
 func zip(elements []string, values ...string) map[string]string {
@@ -188,7 +202,49 @@ var textPresets = map[string]map[string]string{
 	defaultText:      styles("bold", "bold", "bold", "bold", "bold", "bold", config.PlainText),
 	config.PlainText: styles(config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText, config.PlainText),
 	"emphasis":       styles("bold+underline", "bold", "bold+underline", "bold", "bold", "bold", "italic"),
-	"soft":           styles("bold", config.PlainText, "bold", config.PlainText, config.PlainText, config.PlainText, "italic+faint"),
+	colorSoft:        styles("bold", config.PlainText, "bold", config.PlainText, config.PlainText, config.PlainText, "italic+faint"),
+}
+
+func colors(elements []string, value string, except map[string]string) map[string]string {
+	palette := make(map[string]string, len(elements))
+	for _, element := range elements {
+		palette[element] = value
+		if v, ok := except[element]; ok {
+			palette[element] = v
+		}
+	}
+	return palette
+}
+
+var glyphTinted = []string{"caret", elDotOn, "import_new", "input_cursor", "hint_arrow", "select_prev", "select_next"}
+
+func tint(value, dotOff string) map[string]string {
+	except := map[string]string{elDotOff: dotOff}
+	for _, element := range glyphTinted {
+		except[element] = value
+	}
+	return colors(config.GlyphColorElements, config.AutoColor, except)
+}
+
+var borderPalettes = map[string]map[string]string{
+	"default":   colors(config.BorderElements, config.AutoColor, nil),
+	colorAccent: colors(config.BorderElements, colorAccent, nil),
+	colorSoft:   colors(config.BorderElements, colorSoft, nil),
+	"bright":    colors(config.BorderElements, "fg", nil),
+	"duotone":   colors(config.BorderElements, colorAccent, map[string]string{"left": config.AutoColor, "right": config.AutoColor}),
+}
+
+var glyphPalettes = map[string]map[string]string{
+	"default":   colors(config.GlyphColorElements, config.AutoColor, nil),
+	colorAccent: tint(colorAccent, config.AutoColor),
+	"bright":    tint("fg", colorSoft),
+	"muted":     tint(colorSoft, "dim"),
+}
+
+var textPalettes = map[string]map[string]string{
+	defaultPalette: colors(config.TextElements, config.AutoColor, nil),
+	colorAccent:    colors(config.TextElements, config.AutoColor, map[string]string{"title": colorAccent, "heading": colorAccent, "key": colorAccent}),
+	"muted":        colors(config.TextElements, config.AutoColor, map[string]string{"heading": colorSoft, "key": colorSoft, "value": colorSoft, "note": "dim"}),
 }
 
 var accentColors = map[string]color.Color{
@@ -228,6 +284,43 @@ func glyphRunes(a config.AppearanceSettings) map[string]string {
 	return resolveRunes(glyphPresets, a.Glyphs, defaultGlyphs, a.GlyphRunes)
 }
 
+func borderColorNames(a config.AppearanceSettings) map[string]string {
+	return resolveRunes(borderPalettes, a.BorderColor, defaultPalette, a.BorderColors)
+}
+
+func glyphColorNames(a config.AppearanceSettings) map[string]string {
+	return resolveRunes(glyphPalettes, a.GlyphColor, defaultPalette, a.GlyphColors)
+}
+
+func textColorNames(a config.AppearanceSettings) map[string]string {
+	return resolveRunes(textPalettes, a.TextColor, defaultPalette, a.TextColors)
+}
+
+func namedColor(name string) color.Color {
+	switch name {
+	case colorAccent:
+		return cAccent
+	case "border":
+		return cBorder
+	case "dim":
+		return cDim
+	case colorSoft:
+		return cSoft
+	case "fg":
+		return cFg
+	case "ok":
+		return cOK
+	case "warn":
+		return cAmber
+	case "error":
+		return cRed
+	}
+	if config.IsHexColor(name) {
+		return lipgloss.Color(name)
+	}
+	return accentColors[name]
+}
+
 func textStyles(a config.AppearanceSettings) map[string]string {
 	return resolveRunes(textPresets, a.Text, defaultText, a.TextStyle)
 }
@@ -245,6 +338,7 @@ func resolveRunes(presets map[string]map[string]string, preset, fallback string,
 func init() {
 	applyAppearance(config.AppearanceSettings{
 		Border: defaultBorder, Accent: defaultAccent, Glyphs: defaultGlyphs, Text: defaultText,
+		BorderColor: defaultPalette, GlyphColor: defaultPalette, TextColor: defaultPalette,
 	})
 }
 
@@ -258,9 +352,36 @@ func applyAppearance(a config.AppearanceSettings) {
 		*glyphVars[element] = value
 		glyphCell = max(glyphCell, ansi.StringWidth(value))
 	}
+	textColors := textColorNames(a)
 	for element, value := range textStyles(a) {
-		*textVars[element] = parseTextStyle(value)
+		style := parseTextStyle(value)
+		style.fg = namedColor(textColors[element])
+		*textVars[element] = style
 	}
+	borderColors = make(map[string]color.Color, len(config.BorderElements))
+	for element, name := range borderColorNames(a) {
+		borderColors[element] = cBorder
+		if c := namedColor(name); c != nil {
+			borderColors[element] = c
+		}
+	}
+	glyphColors = make(map[string]color.Color, len(config.GlyphColorElements))
+	for element, name := range glyphColorNames(a) {
+		if c := namedColor(name); c != nil {
+			glyphColors[element] = c
+		}
+	}
+}
+
+func edge(element, runes string) string {
+	return lipgloss.NewStyle().Foreground(borderColors[element]).Render(runes)
+}
+
+func tinted(element string, contextual color.Color) color.Color {
+	if c, ok := glyphColors[element]; ok {
+		return c
+	}
+	return contextual
 }
 
 func cell(glyph string) string {
@@ -273,6 +394,7 @@ func blankCell() string {
 
 type textStyle struct {
 	bold, italic, underline, faint bool
+	fg                             color.Color
 }
 
 func parseTextStyle(value string) textStyle {

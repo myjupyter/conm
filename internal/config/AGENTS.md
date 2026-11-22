@@ -18,7 +18,7 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `meta.go` | `ConnMeta`, `WebLink` and their validators, `ValidateConnectionName`, `ValidateTags` |
 | `conm.go` | `Conm`, `ConnectionSettings`, `ConnType`, `ConnKind`, `ReadConm`/`CreateConm`, `withKnownTypes` |
 | `keybinding.go` | `KeybindingSettings` — the keybinding overrides stored in `conm.toml` |
-| `appearance.go` | `AppearanceSettings` — border, accent, glyph set and text style plus per-element overrides; `BorderStyles`, `AccentColors`, `GlyphSets`, `TextStyles` list the preset names, `BorderElements`, `GlyphElements`, `TextElements` the overridable elements |
+| `appearance.go` | `AppearanceSettings` — border, accent, glyph set, text style and the border and glyph colour palettes, plus per-element overrides; `BorderStyles`, `AccentColors`, `GlyphSets`, `TextStyles` list the preset names, `BorderElements`, `GlyphElements`, `TextElements` the overridable elements |
 | `postgres.go`, `mysql.go`, `mssql.go`, `clickhouse.go`, `redis.go`, `mongodb.go`, `ssh.go` | one connection type each: the struct, its `*ConfigWrapper`, its mode constants and validators; `postgres.go` also holds the limits and regexps the types share |
 | `secret.go`, `keyring.go` | `Secret`, `SecretParam`; `Keyring`, the one stored secret record, and its wrapper |
 | `transport.go` | `Transport`, `TransportKind`, its wrapper and validators |
@@ -166,6 +166,11 @@ repository and no tab on the secrets screen:
   instead be a `#rrggbb` colour (`IsHexColor`). `[conm.appearance.border_runes]`,
   `[conm.appearance.glyph_runes]` and `[conm.appearance.text_style]` map an element name to
   the value that replaces the preset's; each is omitted when empty.
+- `border_color` / `glyph_color` / `text_color` name a palette (`BorderPalettes`,
+  `GlyphPalettes`, `TextPalettes`) and `[conm.appearance.border_colors]` /
+  `[conm.appearance.glyph_colors]` / `[conm.appearance.text_colors]` override one element:
+  a colour is `auto`, a name from `ColorNames` or `#rrggbb` (`IsColor`). Glyph colours exist
+  only for `GlyphColorElements` — the glyphs drawn on their own, not inside text.
 - What an override may hold: a border rune is one grapheme one column wide (`IsBorderRune`);
   a glyph is one grapheme one or two columns wide (`IsGlyph`), so an emoji with a modifier
   counts as one — grapheme counting is `rivo/uniseg`; a text style is `plain` or distinct

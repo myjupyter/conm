@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/rivo/uniseg"
 
@@ -17,6 +18,7 @@ import (
 const (
 	appearanceWindow = 15
 	hexDraftMax      = len("#rrggbb")
+	swatch           = "    "
 )
 
 type appearanceInput int
@@ -45,6 +47,7 @@ type elementGroup struct {
 	input     appearanceInput
 	accepts   func(string) bool
 	choices   []string
+	auto      color.Color
 }
 
 func never(config.AppearanceSettings) bool { return false }
@@ -86,6 +89,35 @@ var textGroup = elementGroup{
 	},
 }
 
+func colorGroup(
+	order []string,
+	presets map[string]map[string]string,
+	preset func(config.AppearanceSettings) string,
+	overrides func(*config.AppearanceSettings) *map[string]string,
+	resolve func(config.AppearanceSettings) map[string]string,
+	auto color.Color,
+) elementGroup {
+	return elementGroup{
+		order: order, presets: presets, preset: preset, overrides: overrides, resolve: resolve,
+		locked: never, input: inputHex, accepts: config.IsColor, choices: config.ColorNames, auto: auto,
+	}
+}
+
+var (
+	borderColorGroup = colorGroup(config.BorderPalettes, borderPalettes,
+		func(a config.AppearanceSettings) string { return a.BorderColor },
+		func(a *config.AppearanceSettings) *map[string]string { return &a.BorderColors },
+		borderColorNames, cBorder)
+	glyphColorGroup = colorGroup(config.GlyphPalettes, glyphPalettes,
+		func(a config.AppearanceSettings) string { return a.GlyphColor },
+		func(a *config.AppearanceSettings) *map[string]string { return &a.GlyphColors },
+		glyphColorNames, nil)
+	textColorGroup = colorGroup(config.TextPalettes, textPalettes,
+		func(a config.AppearanceSettings) string { return a.TextColor },
+		func(a *config.AppearanceSettings) *map[string]string { return &a.TextColors },
+		textColorNames, nil)
+)
+
 func (g elementGroup) variants(element string) []string {
 	if g.choices != nil {
 		return g.choices
@@ -102,6 +134,7 @@ func (g elementGroup) variants(element string) []string {
 type appearanceRow struct {
 	section string
 	label   string
+	display string
 	input   appearanceInput
 
 	options []string
@@ -112,72 +145,145 @@ type appearanceRow struct {
 	element string
 }
 
+const (
+	paletteLabel = "palette"
+	colorLabel   = "colour"
+)
+
 var appearanceRows = buildAppearanceRows()
 
 func buildAppearanceRows() []appearanceRow {
 	rows := []appearanceRow{
 		{
-			section: "accent",
-			label:   "colour",
+			section: colorAccent,
+			label:   colorLabel,
 			input:   inputHex,
 			options: config.AccentColors,
 			field:   func(a *config.AppearanceSettings) *string { return &a.Accent },
-			preview: func(a config.AppearanceSettings) []span { return []span{{text: "    ", bg: accentColor(a.Accent)}} },
+			preview: func(a config.AppearanceSettings) []span { return []span{{text: swatch, bg: accentColor(a.Accent)}} },
 		},
 		{
 			section: "text",
 			label:   "style",
 			options: config.TextStyles,
 			field:   func(a *config.AppearanceSettings) *string { return &a.Text },
-			preview: func(a config.AppearanceSettings) []span {
-				t := textStyles(a)
-				return []span{
-					{text: "title", fg: cFg, style: parseTextStyle(t["title"])},
-					{text: " heading", fg: cFg, style: parseTextStyle(t["heading"])},
-					{text: " note", fg: cFaint, style: parseTextStyle(t["note"])},
-				}
-			},
-			group: &textGroup,
+			preview: textSample,
+			group:   &textGroup,
 		},
+		paletteRow("text", config.TextPalettes, func(a *config.AppearanceSettings) *string { return &a.TextColor }, textSample),
 	}
-	rows = append(rows, elementRows("text", &textGroup, config.TextElements)...)
-	rows = append(rows, appearanceRow{
-		section: "border",
-		label:   "style",
-		options: config.BorderStyles,
-		field:   func(a *config.AppearanceSettings) *string { return &a.Border },
-		preview: func(a config.AppearanceSettings) []span {
-			r := borderRunes(a)
-			return []span{{text: r["top_left"] + r["top"] + r["top"] + r["top_right"], fg: cSoft}}
+	rows = append(rows, elementRows("text", &textGroup, config.TextElements, &textColorGroup, config.TextElements)...)
+	rows = append(rows,
+		appearanceRow{
+			section: "border",
+			label:   "style",
+			options: config.BorderStyles,
+			field:   func(a *config.AppearanceSettings) *string { return &a.Border },
+			preview: borderSample,
+			group:   &borderGroup,
 		},
-		group: &borderGroup,
-	})
-	rows = append(rows, elementRows("border", &borderGroup, config.BorderElements)...)
-	rows = append(rows, appearanceRow{
-		section: "glyphs",
-		label:   "set",
-		options: config.GlyphSets,
-		field:   func(a *config.AppearanceSettings) *string { return &a.Glyphs },
-		preview: func(a config.AppearanceSettings) []span {
-			r := glyphRunes(a)
-			sample := []string{r["caret"], r["status_ok"], r["status_pending"], r["status_error"], r["dot_on"], r["ellipsis"]}
-			return []span{{text: strings.Join(sample, " "), fg: cSoft}}
+		paletteRow("border", config.BorderPalettes, func(a *config.AppearanceSettings) *string { return &a.BorderColor }, borderSample),
+	)
+	rows = append(rows, elementRows("border", &borderGroup, config.BorderElements, &borderColorGroup, config.BorderElements)...)
+	rows = append(rows,
+		appearanceRow{
+			section: "glyphs",
+			label:   "set",
+			options: config.GlyphSets,
+			field:   func(a *config.AppearanceSettings) *string { return &a.Glyphs },
+			preview: glyphSample,
+			group:   &glyphGroup,
 		},
-		group: &glyphGroup,
-	})
-	return append(rows, elementRows("glyphs", &glyphGroup, config.GlyphElements)...)
+		paletteRow("glyphs", config.GlyphPalettes, func(a *config.AppearanceSettings) *string { return &a.GlyphColor }, glyphSample),
+	)
+	return append(rows, elementRows("glyphs", &glyphGroup, config.GlyphElements, &glyphColorGroup, config.GlyphColorElements)...)
 }
 
-func elementRows(section string, group *elementGroup, elements []string) []appearanceRow {
-	rows := make([]appearanceRow, 0, len(elements))
+func paletteRow(section string, options []string, field func(*config.AppearanceSettings) *string, preview func(config.AppearanceSettings) []span) appearanceRow {
+	return appearanceRow{
+		section: section,
+		label:   paletteLabel,
+		display: "  " + paletteLabel,
+		input:   inputNone,
+		options: options,
+		field:   field,
+		preview: preview,
+	}
+}
+
+func textSample(a config.AppearanceSettings) []span {
+	styles, colors := textStyles(a), textColorNames(a)
+	sample := func(element, text string, auto color.Color) span {
+		style := parseTextStyle(styles[element])
+		style.fg = namedColor(colors[element])
+		return span{text: text, fg: auto, style: style}
+	}
+	return []span{
+		sample("title", "title", cFg),
+		{text: " "},
+		sample("heading", "heading", cFg),
+		{text: " "},
+		sample("key", "key", cFg),
+		{text: " "},
+		sample("note", "note", cFaint),
+	}
+}
+
+func borderSample(a config.AppearanceSettings) []span {
+	r, c := borderRunes(a), resolvedColors(borderColorNames(a), cBorder)
+	return []span{
+		{text: r["top_left"], fg: c["top_left"]},
+		{text: r["top"] + r["top"], fg: c["top"]},
+		{text: r["top_right"], fg: c["top_right"]},
+		{text: " "},
+		{text: r["left"], fg: c["left"]},
+		{text: "  "},
+		{text: r["right"], fg: c["right"]},
+	}
+}
+
+func glyphSample(a config.AppearanceSettings) []span {
+	r, c := glyphRunes(a), resolvedColors(glyphColorNames(a), cSoft)
+	sample := []string{"caret", "status_ok", "status_pending", "status_error", elDotOn, "select_next"}
+	spans := make([]span, 0, len(sample))
+	for _, element := range sample {
+		spans = append(spans, span{text: r[element] + " ", fg: c[element]})
+	}
+	return spans
+}
+
+func resolvedColors(names map[string]string, auto color.Color) map[string]color.Color {
+	colors := make(map[string]color.Color, len(names))
+	for element, name := range names {
+		colors[element] = auto
+		if c := namedColor(name); c != nil {
+			colors[element] = c
+		}
+	}
+	return colors
+}
+
+func elementRows(section string, group *elementGroup, elements []string, colors *elementGroup, colored []string) []appearanceRow {
+	rows := make([]appearanceRow, 0, 2*len(elements))
 	for _, element := range elements {
+		label := strings.ReplaceAll(element, "_", " ")
 		rows = append(rows, appearanceRow{
 			section: section,
-			label:   strings.ReplaceAll(element, "_", " "),
+			label:   label,
 			input:   group.input,
 			group:   group,
 			element: element,
 		})
+		if slices.Contains(colored, element) {
+			rows = append(rows, appearanceRow{
+				section: section,
+				label:   label + " " + colorLabel,
+				display: "  " + colorLabel,
+				input:   colors.input,
+				group:   colors,
+				element: element,
+			})
+		}
 	}
 	return rows
 }
@@ -231,7 +337,7 @@ func (r appearanceRow) set(a *config.AppearanceSettings, value string) {
 }
 
 func (r appearanceRow) accepts(draft string) bool {
-	if r.input == inputHex {
+	if r.group == nil {
 		return config.IsHexColor(draft)
 	}
 	return r.group.accepts(draft)
@@ -421,20 +527,27 @@ func (m settingsModel) appearanceLines() []string {
 
 func (m settingsModel) sectionNote(row appearanceRow) string {
 	a := m.conm.Appearance
-	switch {
-	case row.group == nil:
-		return ""
-	case row.group.locked(a):
+	if borderLocked(a) && row.group == &borderGroup {
 		return "drawn by the ascii glyphs"
 	}
 
-	switch n := len(*row.group.overrides(&a)); n {
+	var groups []*elementGroup
+	for _, r := range appearanceRows {
+		if r.section == row.section && r.element != "" && !slices.Contains(groups, r.group) {
+			groups = append(groups, r.group)
+		}
+	}
+	n := 0
+	for _, g := range groups {
+		n += len(*g.overrides(&a))
+	}
+	switch n {
 	case 0:
 		return ""
 	case 1:
-		return "1 element customised"
+		return "1 change to the preset"
 	default:
-		return strconv.Itoa(n) + " elements customised"
+		return strconv.Itoa(n) + " changes to the preset"
 	}
 }
 
@@ -449,14 +562,17 @@ func (m settingsModel) appearanceLine(row appearanceRow, on bool) string {
 	}
 
 	box := selectBox{value: value, at: slices.Index(choices, value) + 1, n: len(choices), active: on}
+	if row.input == inputHex {
+		box.tint = namedColor(value)
+	}
 	preview := m.appearancePreview(row, a)
 	switch {
 	case row.locked(a):
 		box.pos = "locked"
 	case on && m.appear.editing:
-		box.value, box.pos = m.appear.draft+gInputCursor, "type"
+		box.value, box.pos, box.tint = m.appear.draft+gInputCursor, "type", nil
 		if row.input == inputHex && config.IsHexColor(m.appear.draft) {
-			preview = []span{{text: "    ", bg: accentColor(m.appear.draft)}}
+			preview = []span{{text: swatch, bg: lipgloss.Color(m.appear.draft)}}
 		}
 	case !slices.Contains(choices, value):
 		box.pos = "custom"
@@ -466,12 +582,16 @@ func (m settingsModel) appearanceLine(row appearanceRow, on bool) string {
 	spans = append(spans, span{text: "  ", bg: bg})
 	for _, p := range preview {
 		if on && p.bg == nil {
-			p.fg, p.bg = cInvFg, bg
+			p.fg, p.bg, p.style.fg = cInvFg, bg, nil
 		}
 		spans = append(spans, p)
 	}
 
-	return m.settingsLabelLine(row.label, bindLabelW, spans, on)
+	label := row.label
+	if row.display != "" {
+		label = row.display
+	}
+	return m.settingsLabelLine(label, bindLabelW, spans, on)
 }
 
 func (m settingsModel) appearancePreview(row appearanceRow, a config.AppearanceSettings) []span {
@@ -480,11 +600,27 @@ func (m settingsModel) appearancePreview(row appearanceRow, a config.AppearanceS
 	}
 
 	var spans []span
-	if row.group == &textGroup {
-		spans = append(spans, span{text: "sample ", fg: cFg, style: parseTextStyle(row.value(a))})
+	switch {
+	case row.input == inputHex:
+		spans = append(spans, colorSwatch(row.group, row.value(a))...)
+	case row.group == &textGroup:
+		style := parseTextStyle(row.value(a))
+		style.fg = namedColor(textColorNames(a)[row.element])
+		spans = append(spans, span{text: "sample", fg: cFg, style: style}, span{text: " "})
 	}
 	if !row.locked(a) && row.overridden(a) {
 		spans = append(spans, span{text: "preset " + row.presetValue(a), fg: cMuted})
 	}
 	return spans
+}
+
+func colorSwatch(g *elementGroup, name string) []span {
+	c := namedColor(name)
+	if c == nil {
+		c = g.auto
+	}
+	if c == nil {
+		return []span{{text: "set by the screen ", fg: cMuted}}
+	}
+	return []span{{text: swatch, bg: c}, {text: " "}}
 }

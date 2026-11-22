@@ -13,8 +13,11 @@ import (
 )
 
 const (
-	ASCIIGlyphs = "ascii"
-	PlainText   = "plain"
+	ASCIIGlyphs   = "ascii"
+	PlainText     = "plain"
+	AutoColor     = "auto"
+	DefaultPreset = "default"
+	AccentColor   = "accent"
 )
 
 var (
@@ -23,7 +26,7 @@ var (
 	}
 	AccentColors = []string{"green", "lime", "teal", "blue", "purple", "pink", "red", "orange", "amber"}
 	GlyphSets    = []string{"unicode", "heavy", "geometric", "minimal", "emoji", "nerd", ASCIIGlyphs}
-	TextStyles   = []string{"default", PlainText, "emphasis", "soft"}
+	TextStyles   = []string{DefaultPreset, PlainText, "emphasis", "soft"}
 
 	BorderElements = []string{
 		"top_left", "top_right", "bottom_left", "bottom_right",
@@ -37,6 +40,16 @@ var (
 	}
 	TextElements   = []string{"title", "tab", "heading", "selection", "key", "value", "note"}
 	TextAttributes = []string{"bold", "italic", "underline", "faint"}
+
+	BorderPalettes     = []string{DefaultPreset, AccentColor, "soft", "bright", "duotone"}
+	GlyphPalettes      = []string{DefaultPreset, AccentColor, "bright", "muted"}
+	TextPalettes       = []string{DefaultPreset, AccentColor, "muted"}
+	GlyphColorElements = []string{
+		"status_idle", "status_ok", "status_pending", "status_warn", "status_error",
+		"import_new", "caret", "dot_on", "dot_off", "dot_fail", "field_bad",
+		"input_cursor", "hint_arrow", "select_prev", "select_next",
+	}
+	ColorNames = append([]string{AutoColor, AccentColor, "border", "dim", "soft", "fg", "ok", "warn", "error"}, AccentColors...)
 )
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -49,6 +62,17 @@ type AppearanceSettings struct {
 	GlyphRunes  map[string]string `toml:"glyph_runes,omitempty"`
 	Text        string            `toml:"text"`
 	TextStyle   map[string]string `toml:"text_style,omitempty"`
+
+	BorderColor  string            `toml:"border_color"`
+	BorderColors map[string]string `toml:"border_colors,omitempty"`
+	GlyphColor   string            `toml:"glyph_color"`
+	GlyphColors  map[string]string `toml:"glyph_colors,omitempty"`
+	TextColor    string            `toml:"text_color"`
+	TextColors   map[string]string `toml:"text_colors,omitempty"`
+}
+
+func IsColor(value string) bool {
+	return slices.Contains(ColorNames, value) || IsHexColor(value)
 }
 
 func IsHexColor(value string) bool {
@@ -81,6 +105,9 @@ func (a AppearanceSettings) Clone() AppearanceSettings {
 	a.BorderRunes = maps.Clone(a.BorderRunes)
 	a.GlyphRunes = maps.Clone(a.GlyphRunes)
 	a.TextStyle = maps.Clone(a.TextStyle)
+	a.BorderColors = maps.Clone(a.BorderColors)
+	a.GlyphColors = maps.Clone(a.GlyphColors)
+	a.TextColors = maps.Clone(a.TextColors)
 	return a
 }
 
@@ -95,6 +122,11 @@ var (
 	borderOverrides = overrideKind{"border", BorderElements, IsBorderRune, "is not one character one column wide"}
 	glyphOverrides  = overrideKind{"glyph", GlyphElements, IsGlyph, "is not one character one or two columns wide"}
 	textOverrides   = overrideKind{"text", TextElements, IsTextStyle, "is not plain or a +-joined list of " + strings.Join(TextAttributes, ", ")}
+
+	colorProblem         = "is neither a colour name nor #rrggbb"
+	borderColorOverrides = overrideKind{"border colour", BorderElements, IsColor, colorProblem}
+	glyphColorOverrides  = overrideKind{"glyph colour", GlyphColorElements, IsColor, colorProblem}
+	textColorOverrides   = overrideKind{"text colour", TextElements, IsColor, colorProblem}
 )
 
 func (a AppearanceSettings) Validate() error {
@@ -111,9 +143,21 @@ func (a AppearanceSettings) Validate() error {
 	if !slices.Contains(TextStyles, a.Text) {
 		errs = append(errs, fmt.Errorf("unknown text style %q", a.Text))
 	}
+	if !slices.Contains(BorderPalettes, a.BorderColor) {
+		errs = append(errs, fmt.Errorf("unknown border colour %q", a.BorderColor))
+	}
+	if !slices.Contains(GlyphPalettes, a.GlyphColor) {
+		errs = append(errs, fmt.Errorf("unknown glyph colour %q", a.GlyphColor))
+	}
+	if !slices.Contains(TextPalettes, a.TextColor) {
+		errs = append(errs, fmt.Errorf("unknown text colour %q", a.TextColor))
+	}
 	errs = append(errs, borderOverrides.validate(a.BorderRunes)...)
 	errs = append(errs, glyphOverrides.validate(a.GlyphRunes)...)
 	errs = append(errs, textOverrides.validate(a.TextStyle)...)
+	errs = append(errs, borderColorOverrides.validate(a.BorderColors)...)
+	errs = append(errs, glyphColorOverrides.validate(a.GlyphColors)...)
+	errs = append(errs, textColorOverrides.validate(a.TextColors)...)
 	return errors.Join(errs...)
 }
 
@@ -150,6 +194,12 @@ func (a *AppearanceSettings) fillDefaults() {
 	a.BorderRunes = borderOverrides.keepValid(a.BorderRunes)
 	a.GlyphRunes = glyphOverrides.keepValid(a.GlyphRunes)
 	a.TextStyle = textOverrides.keepValid(a.TextStyle)
+	a.BorderColor = knownOr(a.BorderColor, BorderPalettes)
+	a.GlyphColor = knownOr(a.GlyphColor, GlyphPalettes)
+	a.BorderColors = borderColorOverrides.keepValid(a.BorderColors)
+	a.GlyphColors = glyphColorOverrides.keepValid(a.GlyphColors)
+	a.TextColor = knownOr(a.TextColor, TextPalettes)
+	a.TextColors = textColorOverrides.keepValid(a.TextColors)
 }
 
 func knownOr(value string, options []string) string {

@@ -219,16 +219,10 @@ func railColor(active, pairActive bool) color.Color {
 func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 	f := m.fields[i]
 
-	borderFg := cBorder
-	if active {
-		borderFg = cInvFg
-	}
-	if m.attempted && m.fieldError(i) != "" {
-		borderFg = cRed
-	}
+	edges := edgesFor(active, m.attempted && m.fieldError(i) != "")
 
 	if isSelect(f) && m.applies(f) {
-		return m.selectBox(f, active, borderFg, bg)
+		return m.selectBox(f, active, edges, bg)
 	}
 	if isArray(f) {
 		return m.chipsBox(f, active, bg)
@@ -246,9 +240,9 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 		valFg = cInvFg
 	}
 	return []span{
-		{text: gLineLeft, fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: edges.left, bg: bg},
 		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
-		{text: gLineRight, fg: borderFg, bg: bg},
+		{text: gLineRight, fg: edges.right, bg: bg},
 	}
 }
 
@@ -282,11 +276,11 @@ func (m formModel) chipsBox(f spec.FormField, active bool, bg color.Color) []spa
 	return frameChips(m.size.formBox(), m.chips(f, active), active, bg)
 }
 
-func (m formModel) selectBox(f spec.FormField, active bool, borderFg, bg color.Color) []span {
-	return selectSpans(m.size.formBox(), m.vals[f.Key], m.options(f), m.isMissing(f), active, borderFg, bg)
+func (m formModel) selectBox(f spec.FormField, active bool, edges boxEdges, bg color.Color) []span {
+	return selectSpans(m.size.formBox(), m.vals[f.Key], m.options(f), m.isMissing(f), active, edges, bg)
 }
 
-func selectSpans(w int, value string, options []string, missing, active bool, borderFg, bg color.Color) []span {
+func selectSpans(w int, value string, options []string, missing, active bool, edges boxEdges, bg color.Color) []span {
 	pos := fmt.Sprintf("-/%d", len(options))
 	if !missing {
 		pos = fmt.Sprintf("%d/%d", max(slices.Index(options, value), 0)+1, len(options))
@@ -308,12 +302,14 @@ func selectSpans(w int, value string, options []string, missing, active bool, bo
 		valFg, posFg = cInvFg, cInvFg
 	}
 	return []span{
-		{text: prefix, fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: edges.left, bg: bg},
+		{text: strings.TrimPrefix(prefix, gLineLeft), fg: edges.prev, bg: bg},
 		{text: strings.Repeat(" ", left), bg: bg},
 		{text: value, fg: valFg, bg: bg, style: tValue},
 		{text: strings.Repeat(" ", right), bg: bg},
 		{text: pos + " ", fg: posFg, bg: bg},
-		{text: suffix, fg: borderFg, bg: bg},
+		{text: strings.TrimSuffix(suffix, gLineRight), fg: edges.next, bg: bg},
+		{text: gLineRight, fg: edges.right, bg: bg},
 	}
 }
 
@@ -361,15 +357,15 @@ func (m formModel) gutter(i int, active bool) (string, color.Color) {
 	var c color.Color
 	switch {
 	case m.attempted && m.fieldError(i) != "":
-		g, c = gFieldBad, cRed
+		g, c = gFieldBad, tinted("field_bad", cRed)
 	case m.isSecretField(i) && m.noSecret():
-		g, c = gDotOn, cOK
+		g, c = gDotOn, tinted(elDotOn, cOK)
 	case m.isSecretField(i) && m.isRef() && raw == "":
-		g, c = gDotOff, cFaint
+		g, c = gDotOff, tinted(elDotOff, cFaint)
 	case raw != "" || f.Kind == spec.SelectFieldKind || f.DefaultValue != "":
-		g, c = gDotOn, cOK
+		g, c = gDotOn, tinted(elDotOn, cOK)
 	default:
-		g, c = gDotOff, cFaint
+		g, c = gDotOff, tinted(elDotOff, cFaint)
 	}
 	if active {
 		c = cInvFg
@@ -378,21 +374,15 @@ func (m formModel) gutter(i int, active bool) (string, color.Color) {
 }
 
 func (m formModel) messageRow(i int) string {
-	text := ""
-	col := cRed
-	if m.attempted {
-		if e := m.fieldError(i); e != "" {
-			text = gFieldBad + " " + e
-		}
-	}
 	pair, _, pairActive := m.linkPair(i)
-	bg := m.rowBg(false, pair, pairActive)
+	return frameFieldError(m.size.formInner(), m.shownError(i), m.rowBg(false, pair, pairActive))
+}
 
-	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return frameLine(m.size.formInner(), []span{
-		{text: prefix, fg: cDim, bg: bg},
-		{text: truncPad(text, m.size.formInner()-ansi.StringWidth(prefix)-2, false), fg: col, bg: bg},
-	}, bg)
+func (m formModel) shownError(i int) string {
+	if !m.attempted {
+		return ""
+	}
+	return m.fieldError(i)
 }
 
 func (m formModel) pongLine() string {
@@ -410,7 +400,7 @@ func caretBlank() string {
 
 func caretColor(active bool) color.Color {
 	if active {
-		return cInvFg
+		return tinted("caret", cInvFg)
 	}
 	return cAccent
 }

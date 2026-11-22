@@ -8,7 +8,10 @@ import (
 )
 
 func defaultAppearance(override func(*AppearanceSettings)) AppearanceSettings {
-	a := AppearanceSettings{Border: "single", Accent: "green", Glyphs: "unicode", Text: "default"}
+	a := AppearanceSettings{
+		Border: "single", Accent: "green", Glyphs: "unicode", Text: "default",
+		BorderColor: "default", GlyphColor: "default", TextColor: "default",
+	}
 	if override != nil {
 		override(&a)
 	}
@@ -60,6 +63,19 @@ func TestReadConm_appearance(t *testing.T) {
 			}),
 		},
 		{
+			name: "colour palettes and overrides",
+			args: args{toml: "[conm.appearance]\nborder_color = \"duotone\"\nglyph_color = \"muted\"\n" +
+				"[conm.appearance.border_colors]\ntop = \"#ff0000\"\nleft = \"teal\"\nmiddle = \"red\"\n" +
+				"[conm.appearance.glyph_colors]\ncaret = \"accent\"\nstatus_ok = \"neon\"\nellipsis = \"red\"\n" +
+				"[conm.appearance.text_colors]\nnote = \"dim\"\nshadow = \"red\"\n"},
+			want: defaultAppearance(func(a *AppearanceSettings) {
+				a.BorderColor, a.GlyphColor = "duotone", "muted"
+				a.BorderColors = map[string]string{"top": "#ff0000", "left": "teal"}
+				a.GlyphColors = map[string]string{"caret": "accent"}
+				a.TextColors = map[string]string{"note": "dim"}
+			}),
+		},
+		{
 			name: "unknown values fall back to the default",
 			args: args{toml: "[conm.appearance]\nborder = \"wavy\"\naccent = \"blue\"\nglyphs = \"runes\"\ntext = \"loud\"\n"},
 			want: defaultAppearance(func(a *AppearanceSettings) { a.Accent = "blue" }),
@@ -97,6 +113,21 @@ func TestAppearanceSettings_Validate(t *testing.T) {
 			a.GlyphRunes = map[string]string{"caret": "»", "status_ok": "✅"}
 			a.TextStyle = map[string]string{"note": "italic", "title": "plain", "key": "bold+underline"}
 		}},
+		{name: "colours", override: func(a *AppearanceSettings) {
+			a.BorderColor, a.GlyphColor = "accent", "bright"
+			a.BorderColors = map[string]string{"top": "#123456", "rule": "dim"}
+			a.GlyphColors = map[string]string{"caret": "auto", "status_ok": "pink"}
+		}},
+		{name: "text colours", override: func(a *AppearanceSettings) {
+			a.TextColor = "accent"
+			a.TextColors = map[string]string{"title": "#abcdef", "note": "soft"}
+		}},
+		{name: "unknown text palette", override: func(a *AppearanceSettings) { a.TextColor = "neon" }, wantErr: true},
+		{name: "bad text colour", override: func(a *AppearanceSettings) { a.TextColors = map[string]string{"note": "dark"} }, wantErr: true},
+		{name: "unknown border palette", override: func(a *AppearanceSettings) { a.BorderColor = "neon" }, wantErr: true},
+		{name: "unknown glyph palette", override: func(a *AppearanceSettings) { a.GlyphColor = "neon" }, wantErr: true},
+		{name: "bad border colour", override: func(a *AppearanceSettings) { a.BorderColors = map[string]string{"top": "#12"} }, wantErr: true},
+		{name: "glyph colour for text-bound glyph", override: func(a *AppearanceSettings) { a.GlyphColors = map[string]string{"ellipsis": "red"} }, wantErr: true},
 		{name: "unknown border element", override: func(a *AppearanceSettings) { a.BorderRunes = map[string]string{"middle": "+"} }, wantErr: true},
 		{name: "wide border rune", override: func(a *AppearanceSettings) { a.BorderRunes = map[string]string{"left": "█好"} }, wantErr: true},
 		{name: "two-column border rune", override: func(a *AppearanceSettings) { a.BorderRunes = map[string]string{"left": "好"} }, wantErr: true},

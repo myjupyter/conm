@@ -164,20 +164,17 @@ func (m Model) rowLine(i int) string {
 		fg, soft, markC = cFg, cSoft, cFaint
 	}
 
-	caret := blankCell()
-	if sel {
-		caret = cell(gCaret)
-	}
-	mark := gDotOff
+	mark, markEl := gDotOff, elDotOff
 	switch {
 	case failed:
-		mark = gDotFail
+		mark, markEl = gDotFail, elDotFail
 	case alive:
-		mark = gDotOn
+		mark, markEl = gDotOn, elDotOn
 	}
 
 	spans := []span{
-		{text: caret + cell(mark), fg: markC, bg: bg},
+		{text: caretOf(sel), fg: tinted("caret", markC), bg: bg},
+		{text: cell(mark), fg: markFg(sel, markEl, markC), bg: bg},
 		{text: " " + truncPad(cfg.Meta().Name, wName, false), fg: fg, bg: bg},
 		{text: " " + truncPad(cfg.Username(), wUser, false), fg: soft, bg: bg},
 		{text: " " + truncPad(cfg.Host(), m.hostWidth(), false), fg: fg, bg: bg},

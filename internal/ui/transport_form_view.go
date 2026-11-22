@@ -4,8 +4,6 @@ import (
 	"image/color"
 	"strings"
 
-	"github.com/charmbracelet/x/ansi"
-
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/myjupyter/conm/internal/ui/spec"
@@ -116,16 +114,10 @@ func (m transportFormModel) transportFieldRow(at int) string {
 func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color) []span {
 	f := m.spec.Fields[i]
 
-	borderFg := cBorder
-	if active {
-		borderFg = cInvFg
-	}
-	if m.attempted && m.fieldError(i) != "" {
-		borderFg = cRed
-	}
+	edges := edgesFor(active, m.attempted && m.fieldError(i) != "")
 
 	if isSelect(f) {
-		return selectSpans(m.size.formBox(), m.vals[f.Key], m.options(f), m.isMissing(f), active, borderFg, bg)
+		return selectSpans(m.size.formBox(), m.vals[f.Key], m.options(f), m.isMissing(f), active, edges, bg)
 	}
 
 	disp, ghost := m.vals[f.Key], false
@@ -143,9 +135,9 @@ func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color
 		valFg = cInvFg
 	}
 	return []span{
-		{text: gLineLeft, fg: borderFg, bg: bg},
+		{text: gLineLeft, fg: edges.left, bg: bg},
 		{text: truncPad(disp, m.size.formBox()-2, false), fg: valFg, bg: bg},
-		{text: gLineRight, fg: borderFg, bg: bg},
+		{text: gLineRight, fg: edges.right, bg: bg},
 	}
 }
 
@@ -169,11 +161,11 @@ func (m transportFormModel) transportGutter(i int, active bool) (string, color.C
 	var c color.Color
 	switch {
 	case m.attempted && m.fieldError(i) != "":
-		g, c = gFieldBad, cRed
+		g, c = gFieldBad, tinted("field_bad", cRed)
 	case m.vals[f.Key] != "" || f.DefaultValue != "":
-		g, c = gDotOn, cOK
+		g, c = gDotOn, tinted(elDotOn, cOK)
 	default:
-		g, c = gDotOff, cFaint
+		g, c = gDotOff, tinted(elDotOff, cFaint)
 	}
 	if active {
 		c = cInvFg
@@ -182,15 +174,8 @@ func (m transportFormModel) transportGutter(i int, active bool) (string, color.C
 }
 
 func (m transportFormModel) transportMessageRow(i int) string {
-	text := ""
-	if m.attempted {
-		if e := m.fieldError(i); e != "" {
-			text = gFieldBad + " " + e
-		}
+	if !m.attempted {
+		return frameFieldError(m.size.formInner(), "", nil)
 	}
-	prefix := strings.Repeat(" ", 5+formLabelW+1)
-	return frameLine(m.size.formInner(), []span{
-		{text: prefix, fg: cDim},
-		{text: truncPad(text, m.size.formInner()-ansi.StringWidth(prefix)-2, false), fg: cRed},
-	}, nil)
+	return frameFieldError(m.size.formInner(), m.fieldError(i), nil)
 }
