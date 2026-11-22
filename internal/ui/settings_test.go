@@ -557,6 +557,13 @@ func TestSettingsModel_colorRows(t *testing.T) {
 			want: withAppearance(func(a *config.AppearanceSettings) { a.TextColors = map[string]string{"title": "#ff8800>accent"} }),
 		},
 		{
+			name:    "the input colour steps off auto",
+			current: plainAppearance,
+			row:     "text input colour",
+			act:     func(m settingsModel) (tea.Model, tea.Cmd) { return m.cycleAppearance(1) },
+			want:    withAppearance(func(a *config.AppearanceSettings) { a.TextColors = map[string]string{"input": "accent"} }),
+		},
+		{
 			name: "a colour override is reset",
 			current: withAppearance(func(a *config.AppearanceSettings) {
 				a.GlyphColors = map[string]string{"dot_on": "pink", "caret": "teal"}
@@ -616,6 +623,8 @@ func TestSettingsModel_appearanceSubheads(t *testing.T) {
 		{subhead: "TOP LEFT", rows: []string{"character", "colour"}},
 		{subhead: "STATUS OK", rows: []string{"glyph", "colour"}},
 		{subhead: "ELLIPSIS", rows: []string{"glyph"}},
+		{subhead: "BODY", rows: []string{"colour"}},
+		{subhead: "INPUT", rows: []string{"colour"}},
 	}
 	m := newAppearanceFixture(t, plainAppearance, "colour accent")
 	m.size.observe(tea.WindowSizeMsg{Width: 110, Height: 40})

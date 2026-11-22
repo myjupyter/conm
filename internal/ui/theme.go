@@ -13,19 +13,23 @@ import (
 )
 
 var (
-	cBorder     = lipgloss.Color("#3a362e")
-	cDim        = lipgloss.Color("#6d6759")
-	cMuted      = lipgloss.Color("#5f594c")
-	cFaint      = lipgloss.Color("#4d483e")
-	cSoft       = lipgloss.Color("#8b8474")
-	cFg         = lipgloss.Color("#ddd6c8")
-	cDead       = lipgloss.Color("#7d7668")
-	cAccent     color.Color
-	cOK         = lipgloss.Color("#63d18a")
-	cRed        = lipgloss.Color("#e5654a")
-	cAmber      = lipgloss.Color("#e3b34a")
-	cInvFg      = lipgloss.Color("#0f0f0d")
-	cValue      = lipgloss.Color("#c4bcac")
+	cBorder = lipgloss.Color("#3a362e")
+	cDim    = lipgloss.Color("#6d6759")
+	cMuted  = lipgloss.Color("#5f594c")
+	cFaint  = lipgloss.Color("#4d483e")
+	cSoft   = lipgloss.Color("#8b8474")
+	cFg     color.Color
+	cDead   = lipgloss.Color("#7d7668")
+	cAccent color.Color
+	cOK     = lipgloss.Color("#63d18a")
+	cRed    = lipgloss.Color("#e5654a")
+	cAmber  = lipgloss.Color("#e3b34a")
+	cInvFg  = lipgloss.Color("#0f0f0d")
+	cValue  = lipgloss.Color("#c4bcac")
+	cInput  color.Color
+
+	baseFg      = lipgloss.Color("#ddd6c8")
+	baseInput   = lipgloss.Color("#c4bcac")
 	cHeadBg     = lipgloss.Color("#1a1912")
 	cRail       = lipgloss.Color("#33302a")
 	cPairBg     = lipgloss.Color("#151a13")
@@ -259,11 +263,11 @@ var glyphPalettes = map[string]map[string]string{
 }
 
 var textPalettes = map[string]map[string]string{
-	defaultPalette: colors(config.TextElements, config.AutoColor, nil),
-	colorAccent:    colors(config.TextElements, config.AutoColor, map[string]string{roleTitle: colorAccent, roleHeading: colorAccent, "key": colorAccent}),
-	"muted":        colors(config.TextElements, config.AutoColor, map[string]string{roleHeading: colorSoft, "key": colorSoft, "value": colorSoft, "note": "dim"}),
-	"sunset":       colors(config.TextElements, config.AutoColor, map[string]string{roleTitle: "amber>pink", roleHeading: "amber>pink>purple", "tab": "amber>pink"}),
-	"ocean":        colors(config.TextElements, config.AutoColor, map[string]string{roleTitle: "teal>blue", roleHeading: "teal>blue>purple", "tab": "teal>blue"}),
+	defaultPalette: colors(config.TextColorElements, config.AutoColor, nil),
+	colorAccent:    colors(config.TextColorElements, config.AutoColor, map[string]string{roleTitle: colorAccent, roleHeading: colorAccent, "key": colorAccent}),
+	"muted":        colors(config.TextColorElements, config.AutoColor, map[string]string{roleHeading: colorSoft, "key": colorSoft, "value": colorSoft, "note": "dim"}),
+	"sunset":       colors(config.TextColorElements, config.AutoColor, map[string]string{roleTitle: "amber>pink", roleHeading: "amber>pink>purple", "tab": "amber>pink"}),
+	"ocean":        colors(config.TextColorElements, config.AutoColor, map[string]string{roleTitle: "teal>blue", roleHeading: "teal>blue>purple", "tab": "teal>blue"}),
 }
 
 var accentColors = map[string]color.Color{
@@ -327,6 +331,13 @@ func colorStops(value string) []color.Color {
 		}
 	}
 	return stops
+}
+
+func colorOr(c, fallback color.Color) color.Color {
+	if c == nil {
+		return fallback
+	}
+	return c
 }
 
 func firstStop(value string) color.Color {
@@ -394,6 +405,8 @@ func applyAppearance(a config.AppearanceSettings) {
 	}
 	gradientsOn = a.Gradients
 	textColors := textColorNames(a)
+	cFg = colorOr(firstStop(textColors["body"]), baseFg)
+	cInput = colorOr(firstStop(textColors["input"]), baseInput)
 	for element, value := range textStyles(a) {
 		*textVars[element] = roleStyle(value, textColors[element])
 	}

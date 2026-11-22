@@ -192,7 +192,7 @@ func buildAppearanceRows() []appearanceRow {
 		},
 		paletteRow("text", config.TextPalettes, func(a *config.AppearanceSettings) *string { return &a.TextColor }, textSample),
 	}
-	rows = append(rows, elementRows("text", "style", &textGroup, config.TextElements, &textColorGroup, config.TextElements)...)
+	rows = append(rows, elementRows("text", "style", &textGroup, config.TextElements, &textColorGroup, config.TextColorElements)...)
 	rows = append(rows,
 		appearanceRow{
 			section: "border",
@@ -295,18 +295,27 @@ func elementRows(section, valueLabel string, group *elementGroup, elements []str
 			element: element,
 		})
 		if slices.Contains(colored, element) {
-			rows = append(rows, appearanceRow{
-				section: section,
-				subhead: label,
-				label:   label + " " + colorLabel,
-				display: "  " + colorLabel,
-				input:   colors.input,
-				group:   colors,
-				element: element,
-			})
+			rows = append(rows, colorRow(section, label, colors, element))
+		}
+	}
+	for _, element := range colored {
+		if !slices.Contains(elements, element) {
+			rows = append(rows, colorRow(section, strings.ReplaceAll(element, "_", " "), colors, element))
 		}
 	}
 	return rows
+}
+
+func colorRow(section, label string, colors *elementGroup, element string) appearanceRow {
+	return appearanceRow{
+		section: section,
+		subhead: label,
+		label:   label + " " + colorLabel,
+		display: "  " + colorLabel,
+		input:   colors.input,
+		group:   colors,
+		element: element,
+	}
 }
 
 func (r appearanceRow) name() string {

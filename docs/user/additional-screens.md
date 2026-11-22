@@ -119,7 +119,9 @@ the switch off there.
 Under the text style, the border style and the glyph set, every element has its own row (and,
 as above, a colour row under it):
 - **text**: title, tab, heading, selection, key, value, note — each `plain` or a mix of
-  `bold`, `italic`, `underline` and `faint` joined by `+`, like `bold+italic`;
+  `bold`, `italic`, `underline` and `faint` joined by `+`, like `bold+italic` — and, with a
+  colour only, **body** (ordinary text: table cells, values, messages) and **input** (what you
+  type into a field or the search);
 - **border**: each corner, the joins at either end of a rule, and the top, bottom, left and
   right lines and the rule between sections — a border can be different on every side;
 - **glyphs**: each status icon, the cursor, the markers, the `<` `>` arrows of a selector.
@@ -160,6 +162,7 @@ caret = 'pink'
 
 [conm.appearance.text_colors]
 note = 'dim'
+input = '#e8e2d4'
 ```
 
 A name conm does not know falls back to the first one in its list; a value that does not fit

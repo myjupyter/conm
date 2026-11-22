@@ -306,7 +306,7 @@ func frameSearch(w int, query string, typing bool) string {
 	return frameLine(w, []span{
 		{text: "  ", fg: cDim},
 		{text: keyMap.Search.hint, fg: cAccent, style: tKey},
-		{text: string(shown), fg: cFg},
+		{text: string(shown), fg: cInput},
 		{text: cursor, fg: tinted("input_cursor", cAccent)},
 		{text: strings.Repeat(" ", room-len(shown)), fg: cDim},
 	}, nil)

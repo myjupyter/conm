@@ -127,7 +127,7 @@ func (m transportFormModel) transportInputBox(i int, active bool, bg color.Color
 	if active && m.insert {
 		disp += gInputCursor
 	}
-	valFg := cValue
+	valFg := cInput
 	if ghost {
 		valFg = cFaint
 	}

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"strings"
 	"testing"
 
@@ -164,7 +165,7 @@ func TestColorPalettesAreComplete(t *testing.T) {
 	}{
 		{name: "border", names: config.BorderPalettes, palettes: borderPalettes, elements: config.BorderElements, valid: config.IsColorOrGradient},
 		{name: "glyphs", names: config.GlyphPalettes, palettes: glyphPalettes, elements: config.GlyphColorElements, valid: config.IsColor},
-		{name: "text", names: config.TextPalettes, palettes: textPalettes, elements: config.TextElements, valid: config.IsColorOrGradient},
+		{name: "text", names: config.TextPalettes, palettes: textPalettes, elements: config.TextColorElements, valid: config.IsColorOrGradient},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -296,5 +297,38 @@ func TestSideGradientsRepaintOnlyTheSides(t *testing.T) {
 	is.NotEqual(got[1], got[2])
 	for i := range lines {
 		is.Equal(ansi.Strip(lines[i]), ansi.Strip(got[i]))
+	}
+}
+
+func TestBodyAndInputColours(t *testing.T) {
+	tests := []struct {
+		name      string
+		colors    map[string]string
+		wantBody  color.Color
+		wantInput color.Color
+	}{
+		{name: "auto keeps the base colours", wantBody: baseFg, wantInput: baseInput},
+		{
+			name:      "overrides replace them",
+			colors:    map[string]string{"body": "#112233", "input": "teal"},
+			wantBody:  lipgloss.Color("#112233"),
+			wantInput: accentColors["teal"],
+		},
+		{
+			name:      "a gradient draws its first stop",
+			colors:    map[string]string{"body": "#ff0000>#0000ff"},
+			wantBody:  lipgloss.Color("#ff0000"),
+			wantInput: baseInput,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			look := gradientLook(true)
+			look.BorderColors, look.TextColors = nil, tt.colors
+			withGradients(t, look)
+
+			assert.Equal(t, tt.wantBody, cFg)
+			assert.Equal(t, tt.wantInput, cInput)
+		})
 	}
 }

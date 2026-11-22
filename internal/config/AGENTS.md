@@ -168,7 +168,9 @@ repository and no tab on the secrets screen:
   the value that replaces the preset's; each is omitted when empty.
 - `border_color` / `glyph_color` / `text_color` name a palette (`BorderPalettes`,
   `GlyphPalettes`, `TextPalettes`) and `[conm.appearance.border_colors]` /
-  `[conm.appearance.glyph_colors]` / `[conm.appearance.text_colors]` override one element:
+  `[conm.appearance.glyph_colors]` / `[conm.appearance.text_colors]` override one element
+  (text colours cover `TextColorElements`: the styled roles plus `body` and `input`, which
+  have a colour and no style):
   a colour is `auto`, a name from `ColorNames` or `#rrggbb` (`IsColor`). Glyph colours exist
   only for `GlyphColorElements` — the glyphs drawn on their own, not inside text.
 - `gradients` switches gradients on. A border or text colour may be a gradient — two or more

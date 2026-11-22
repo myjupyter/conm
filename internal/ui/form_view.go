@@ -232,7 +232,7 @@ func (m formModel) inputBox(i int, active bool, bg color.Color) []span {
 	if active && m.insert {
 		disp += gInputCursor
 	}
-	valFg := cValue
+	valFg := cInput
 	if ghost {
 		valFg = cFaint
 	}

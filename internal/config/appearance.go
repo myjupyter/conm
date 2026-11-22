@@ -40,8 +40,9 @@ var (
 		"input_cursor", "input_mask", "empty", "ellipsis", "hint_arrow", "scroll_up", "scroll_down",
 		"select_prev", "select_next",
 	}
-	TextElements   = []string{"title", "tab", "heading", "selection", "key", "value", "note"}
-	TextAttributes = []string{"bold", "italic", "underline", "faint"}
+	TextElements      = []string{"title", "tab", "heading", "selection", "key", "value", "note"}
+	TextColorElements = append(slices.Clone(TextElements), "body", "input")
+	TextAttributes    = []string{"bold", "italic", "underline", "faint"}
 
 	BorderPalettes     = []string{DefaultPreset, AccentColor, "soft", "bright", "duotone", "sunset", "ocean"}
 	GlyphPalettes      = []string{DefaultPreset, AccentColor, "bright", "muted"}
@@ -147,7 +148,7 @@ var (
 	gradientProblem      = "is neither a colour name, #rrggbb nor a gradient like teal>pink"
 	borderColorOverrides = overrideKind{"border colour", BorderElements, IsColorOrGradient, gradientProblem}
 	glyphColorOverrides  = overrideKind{"glyph colour", GlyphColorElements, IsColor, colorProblem}
-	textColorOverrides   = overrideKind{"text colour", TextElements, IsColorOrGradient, gradientProblem}
+	textColorOverrides   = overrideKind{"text colour", TextColorElements, IsColorOrGradient, gradientProblem}
 )
 
 func (a AppearanceSettings) Validate() error {

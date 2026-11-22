@@ -135,6 +135,11 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     and `glyphColors` (only the elements not on `auto`). `textPalettes` / `textColorNames` do
     the same for the text roles: the colour lands in `textStyle.fg`, which `span.render`
     prefers over the span's own `fg`, so a role keeps its colour and its style together.
+    `body` and `input` have no style: their colour replaces `cFg` (ordinary text) and `cInput`
+    (a form field's value, the search query) in `applyAppearance`, from `baseFg` /
+    `baseInput` when `auto`, so every screen that draws in those colours follows. A gradient
+    there is drawn in its first stop. They get a colour row only (`elementRows` adds the
+    colour-only elements of `colored` after the others).
     - Every frame piece is painted with `edge(element, runes)`; `frameTop` draws the last
       `gLineTop` after the note itself, so `topNote` carries no line. An input or select box
       takes its sides and arrows from `edgesFor(active, bad)`: red when bad, inverse when
