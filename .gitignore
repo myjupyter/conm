@@ -1,3 +1,4 @@
 bin/
 design/
 dist/
+.claude/settings.local.json
