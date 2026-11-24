@@ -85,11 +85,7 @@ var glyphCell int
 
 var (
 	cSubheadBg      color.Color
-	subheadStops    []color.Color
 	tabBackground   color.Color
-	tabStops        []color.Color
-	headStops       []color.Color
-	accentStops     []color.Color
 	gradientsOn     bool
 	borderGradients map[string][]color.Color
 	borderColors    map[string]color.Color
@@ -294,10 +290,7 @@ var accentColors = map[string]color.Color{
 }
 
 func accentColor(value string) color.Color {
-	if stops := accentStopsOf(value); len(stops) > 0 {
-		return stops[0]
-	}
-	return accentColors[defaultAccent]
+	return colorOr(blended(accentStopsOf(value)), accentColors[defaultAccent])
 }
 
 func accentStopsOf(value string) []color.Color {
@@ -354,15 +347,24 @@ func colorStops(value string) []color.Color {
 	return stops
 }
 
-func gradientOf(value string) []color.Color {
-	if stops := colorStops(value); len(stops) > 1 && gradientsOn {
-		return stops
-	}
-	return nil
+type gradient struct {
+	color.Color
+	stops []color.Color
 }
 
-func tabBg(contextual color.Color) color.Color {
-	return colorOr(tabBackground, contextual)
+func blended(stops []color.Color) color.Color {
+	switch {
+	case len(stops) == 0:
+		return nil
+	case len(stops) > 1 && gradientsOn:
+		return &gradient{Color: stops[0], stops: stops}
+	default:
+		return stops[0]
+	}
+}
+
+func tabBg() color.Color {
+	return colorOr(tabBackground, cAccent)
 }
 
 func colorOr(c, fallback color.Color) color.Color {
@@ -426,12 +428,8 @@ func init() {
 }
 
 func applyAppearance(a config.AppearanceSettings) {
-	cAccent = accentColor(a.Accent)
-	accentStops = nil
 	gradientsOn = supportsTrueColor()
-	if stops := accentStopsOf(a.Accent); len(stops) > 1 && gradientsOn {
-		accentStops = stops
-	}
+	cAccent = accentColor(a.Accent)
 	for element, value := range borderRunes(a) {
 		*borderVars[element] = value
 	}
@@ -444,10 +442,9 @@ func applyAppearance(a config.AppearanceSettings) {
 	cFg = baseFg
 	cFg = colorOr(firstStop(textColors["body"]), baseFg)
 	backgrounds := a.TextBackgrounds
-	tabBackground = firstStop(backgrounds["tab"])
-	cHeadBg = colorOr(firstStop(backgrounds["heading"]), baseHeadBg)
-	tabStops, headStops = gradientOf(backgrounds["tab"]), gradientOf(backgrounds["heading"])
-	cSubheadBg, subheadStops = firstStop(backgrounds["subheading"]), gradientOf(backgrounds["subheading"])
+	tabBackground = blended(colorStops(backgrounds["tab"]))
+	cHeadBg = colorOr(blended(colorStops(backgrounds["heading"])), baseHeadBg)
+	cSubheadBg = blended(colorStops(backgrounds["subheading"]))
 	cInput = colorOr(firstStop(textColors["input"]), baseInput)
 	cColumn = colorOr(firstStop(textColors["column"]), cDim)
 	for element, value := range textStyles(a) {
@@ -538,41 +535,25 @@ func sameColor(a, b color.Color) bool {
 	return ar == br && ag == bg && ab == bb && aa == ba
 }
 
-func backgroundStops(c color.Color) []color.Color {
-	switch {
-	case c == nil:
-		return nil
-	case len(tabStops) > 1 && sameColor(c, tabBackground):
-		return tabStops
-	case len(headStops) > 1 && sameColor(c, cHeadBg):
-		return headStops
-	case len(subheadStops) > 1 && sameColor(c, cSubheadBg):
-		return subheadStops
-	case len(accentStops) > 1 && sameColor(c, cAccent):
-		return accentStops
-	}
-	return nil
-}
-
 func backgroundGradients(spans []span, lineBg color.Color, w int) []span {
-	lineStops := backgroundStops(lineBg)
+	lineGradient, onGradient := lineBg.(*gradient)
 	var line []color.Color
-	if lineStops != nil {
-		line = lipgloss.Blend1D(max(w, 2), lineStops...)
+	if onGradient {
+		line = lipgloss.Blend1D(max(w, 2), lineGradient.stops...)
 	}
 	out := make([]span, 0, len(spans))
 	col := 0
 	for _, s := range spans {
 		width := s.width()
-		stops := backgroundStops(s.bg)
-		if s.raw != "" || stops == nil || width == 0 {
+		bg, blends := s.bg.(*gradient)
+		if s.raw != "" || !blends || width == 0 {
 			out = append(out, s)
 			col += width
 			continue
 		}
 		own, at := line, col
-		if line == nil || !sameColor(s.bg, lineBg) {
-			own, at = lipgloss.Blend1D(max(width, 2), stops...), 0
+		if bg != lineGradient {
+			own, at = lipgloss.Blend1D(max(width, 2), bg.stops...), 0
 		}
 		for _, cell := range graphemes(s.text) {
 			c := s
@@ -696,7 +677,7 @@ func tabColor(t config.ConnType) color.Color {
 	}
 	switch value {
 	case config.AutoColor:
-		return colorOr(tabBackground, cAccent)
+		return tabBg()
 	default:
 		return colorOr(namedColor(value), builtinTypeColor(t))
 	}

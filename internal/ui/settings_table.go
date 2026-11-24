@@ -92,7 +92,7 @@ func (m settingsModel) handleTableKey(key string) (tea.Model, tea.Cmd, bool) {
 		return model, cmd, true
 	case keyMap.Settings.EditValue.matches(key) && row.isColor():
 		m.table.editing, m.table.draft = true, ""
-		m.setSettingsStatus("type a type, tab, a colour name or #rrggbb", kindIdle)
+		m.setSettingsStatus("type a type, a colour name or #rrggbb", kindIdle)
 		return m, nil, true
 	case keyMap.Settings.Reset.matches(key):
 		model, cmd := m.resetTableRow()

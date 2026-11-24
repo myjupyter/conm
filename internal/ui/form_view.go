@@ -118,7 +118,7 @@ func (m formModel) tabLine() string {
 	spans := []span{{text: "  ", fg: cDim}}
 	for si, s := range m.sections {
 		if si == m.section {
-			spans = append(spans, span{text: " " + s.Title + " ", fg: cInvFg, bg: tabBg(cAccent), style: tTab})
+			spans = append(spans, span{text: " " + s.Title + " ", fg: cInvFg, bg: tabBg(), style: tTab})
 		} else {
 			spans = append(spans, span{text: " " + s.Title + " ", fg: cSoft})
 		}

@@ -205,9 +205,9 @@ func frameTabBar(w int, titles []string, active int, focused bool, note string) 
 		s := span{text: " " + title + " ", fg: cDim}
 		switch {
 		case i == active && focused:
-			s = span{text: s.text, fg: cInvFg, bg: tabBg(cAccent), style: tTab}
+			s = span{text: s.text, fg: cInvFg, bg: tabBg(), style: tTab}
 		case i == active:
-			s = span{text: s.text, fg: tabBg(cAccent)}
+			s = span{text: s.text, fg: tabBg()}
 		}
 		spans = append(spans, s, span{text: " ", fg: cDim})
 		used += s.width() + 1

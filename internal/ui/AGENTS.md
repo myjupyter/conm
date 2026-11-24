@@ -167,15 +167,17 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     - `span.render` draws a role with `stops` one grapheme at a time (`gradientText`).
     - **Tab, heading and subheading backgrounds.** `cHeadBg` is set from
       `text_backgrounds.heading` (`baseHeadBg` when `auto`), `cSubheadBg` from
-      `text_backgrounds.subheading` (nil, no band, when `auto`); every active tab takes `tabBg(cAccent)` — the override, or the accent — except the
+      `text_backgrounds.subheading` (nil, no band, when `auto`); every active tab takes `tabBg()` — the override, or the accent — except the
       connections table's, which takes `tabColor` and follows the override only when the type's tab colour is `auto`.
-    - **The accent** resolves through `accentStopsOf`; `cAccent` is always its first stop, so
-      every foreground use stays flat. With `gradientsOn`, `accentStops` holds the rest, and
-      `frameLine` runs `backgroundGradients`: a span whose background has stops
-      (`backgroundStops`: the tab override, the heading band, the accent) is split into cells
-      and given the colour of its column — across the whole line when the line's own background
-      is that colour (a highlighted row, a heading band), across the span alone otherwise (a tab).
-      `sameColor` compares by RGBA, never with `==` on `color.Color`.
+    - **A background gradient is a colour.** With `gradientsOn`, `blended` returns a `*gradient`:
+      it reads as its first stop, so every foreground use stays flat, and carries its stops. The
+      accent (through `accentStopsOf`), the tab override and the heading and subheading bands
+      are built by it.
+      `frameLine` runs `backgroundGradients`: a span whose background is a `*gradient` is split
+      into cells and given the colour of its column — across the whole line when the line's own
+      background is that same pointer (a highlighted row, a heading band), across the span alone
+      otherwise (a tab). A gradient is never recognised by its colour value: a flat colour equal
+      to a first stop stays flat. `sameColor` compares by RGBA, never with `==` on `color.Color`.
   - **Text styles are roles, not bold flags.** `span.style` takes one of `tTitle`, `tTab`,
     `tHeading`, `tSubheading`, `tSelection` (with `styleIf` for "only when on"), `tKey`,
     `tValue`, `tNote`. `tSubheading` is `frameSubhead` and the group titles of the expanded key
