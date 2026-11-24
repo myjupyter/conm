@@ -70,9 +70,9 @@ func (m infoModel) titleLine() string {
 
 	return frameLine(m.inner(), []span{
 		{text: "  ", fg: cDim},
-		{text: cell(gDotOn) + " ", fg: tinted(elDotOn, typeColor(kind))},
+		{text: cell(gDotOn) + " ", fg: tinted(elDotOn, builtinTypeColor(kind))},
 		{text: connLabel(cfg), fg: cFg, style: tTitle},
-		{text: "  [" + kind.String() + "]", fg: typeColor(kind)},
+		{text: "  [" + kind.String() + "]", fg: builtinTypeColor(kind)},
 	}, nil)
 }
 

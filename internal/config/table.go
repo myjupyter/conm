@@ -13,7 +13,6 @@ const (
 	DatabaseColumn = "database"
 	PingColumn     = "ping"
 	TagsColumn     = "tags"
-	TabColor       = "tab"
 )
 
 var DefaultColumns = []string{NameColumn, UsernameColumn, HostColumn, PortColumn, DatabaseColumn, PingColumn}
@@ -38,16 +37,16 @@ func (s ConnectionSettings) VisibleColumns() []string {
 	return s.Columns
 }
 
-func (s ConnectionSettings) TypeColor() string {
-	if s.Color == "" {
+func (s ConnectionSettings) ResolvedTabColor() string {
+	if s.TabColor == "" {
 		return s.Type.String()
 	}
-	return s.Color
+	return s.TabColor
 }
 
-func IsTypeColor(value string) bool {
+func IsTabColor(value string) bool {
 	_, err := ParseConnType(value)
-	return err == nil || value == TabColor || (value != AutoColor && IsColor(value))
+	return err == nil || IsColor(value)
 }
 
 func (s ConnectionSettings) ValidateTable() error {
@@ -63,8 +62,8 @@ func (s ConnectionSettings) ValidateTable() error {
 	if s.Columns != nil && !slices.Contains(s.Columns, NameColumn) {
 		return fmt.Errorf("%s must show the %q column", s.Type, NameColumn)
 	}
-	if s.Color != "" && !IsTypeColor(s.Color) {
-		return fmt.Errorf("%s colour %q is neither a type, tab, a colour name nor #rrggbb", s.Type, s.Color)
+	if s.TabColor != "" && !IsTabColor(s.TabColor) {
+		return fmt.Errorf("%s tab colour %q is neither a type, a colour name nor #rrggbb", s.Type, s.TabColor)
 	}
 	return nil
 }
@@ -83,7 +82,7 @@ func (s *ConnectionSettings) completeTable() {
 		}
 		s.Columns = kept
 	}
-	if s.Color != "" && !IsTypeColor(s.Color) {
-		s.Color = ""
+	if s.TabColor != "" && !IsTabColor(s.TabColor) {
+		s.TabColor = ""
 	}
 }

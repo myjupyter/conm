@@ -52,8 +52,11 @@ to the preset.
 
 ## Table
 
-For each connection type: its **colour** — its own, `tab`, or any colour — and its **columns**:
-tick to show, move to reorder. NAME is always shown; TAGS is hidden until you tick it.
+For each connection type: its **tab colour** — its own, another type's, `auto` (the tab background,
+or the accent) or any colour — and its **columns**: tick to show, move to reorder. NAME is always
+shown; TAGS is hidden until you tick it.
+
+The tab colour paints the type's tab, active or not, and nothing else.
 
 ---
 

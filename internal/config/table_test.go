@@ -31,14 +31,14 @@ func TestReadConm_table(t *testing.T) {
 		},
 		{
 			name:        "order and colour are kept",
-			toml:        "[[conm.connection]]\ntype = \"postgres\"\ncolumns = [\"host\", \"name\", \"ping\"]\ncolor = \"tab\"\n",
+			toml:        "[[conm.connection]]\ntype = \"postgres\"\ncolumns = [\"host\", \"name\", \"ping\"]\ntab_color = \"auto\"\n",
 			connType:    PostgresConnType,
 			wantColumns: []string{"host", "name", "ping"},
-			wantColor:   "tab",
+			wantColor:   "auto",
 		},
 		{
 			name:        "unknown, repeated and unavailable columns are dropped, name is kept",
-			toml:        "[[conm.connection]]\ntype = \"ssh\"\ncolumns = [\"host\", \"host\", \"database\", \"shadow\"]\ncolor = \"neon\"\n",
+			toml:        "[[conm.connection]]\ntype = \"ssh\"\ncolumns = [\"host\", \"host\", \"database\", \"shadow\"]\ntab_color = \"neon\"\n",
 			connType:    SSHConnType,
 			wantColumns: []string{"name", "host"},
 			wantColor:   "ssh",
@@ -52,7 +52,7 @@ func TestReadConm_table(t *testing.T) {
 		},
 		{
 			name:        "another type's colour is kept",
-			toml:        "[[conm.connection]]\ntype = \"mysql\"\ncolor = \"redis\"\n",
+			toml:        "[[conm.connection]]\ntype = \"mysql\"\ntab_color = \"redis\"\n",
 			connType:    MySQLConnType,
 			wantColumns: []string{"name", "username", "host", "port", "database", "ping"},
 			wantColor:   "redis",
@@ -67,7 +67,7 @@ func TestReadConm_table(t *testing.T) {
 			conn, ok := got.Connection(tt.connType)
 			require.True(t, ok)
 			assert.Equal(t, tt.wantColumns, conn.VisibleColumns())
-			assert.Equal(t, tt.wantColor, conn.TypeColor())
+			assert.Equal(t, tt.wantColor, conn.ResolvedTabColor())
 		})
 	}
 }
@@ -81,15 +81,15 @@ func TestConnectionSettings_ValidateTable(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "defaults", s: ConnectionSettings{Type: PostgresConnType}},
-		{name: "reordered", s: ConnectionSettings{Type: PostgresConnType, Columns: []string{"ping", "name"}, Color: "#ff0000"}},
-		{name: "tab colour", s: ConnectionSettings{Type: RedisConnType, Color: "tab"}},
-		{name: "type colour", s: ConnectionSettings{Type: RedisConnType, Color: "postgres"}},
-		{name: "old type keyword", s: ConnectionSettings{Type: RedisConnType, Color: "type"}, wantErr: true},
+		{name: "reordered", s: ConnectionSettings{Type: PostgresConnType, Columns: []string{"ping", "name"}, TabColor: "#ff0000"}},
+		{name: "auto colour", s: ConnectionSettings{Type: RedisConnType, TabColor: "auto"}},
+		{name: "type colour", s: ConnectionSettings{Type: RedisConnType, TabColor: "postgres"}},
+		{name: "old tab keyword", s: ConnectionSettings{Type: RedisConnType, TabColor: "tab"}, wantErr: true},
+		{name: "old type keyword", s: ConnectionSettings{Type: RedisConnType, TabColor: "type"}, wantErr: true},
 		{name: "without name", s: ConnectionSettings{Type: PostgresConnType, Columns: []string{"host"}}, wantErr: true},
 		{name: "database on ssh", s: ConnectionSettings{Type: SSHConnType, Columns: []string{"name", "database"}}, wantErr: true},
 		{name: "twice", s: ConnectionSettings{Type: PostgresConnType, Columns: []string{"name", "name"}}, wantErr: true},
-		{name: "auto colour", s: ConnectionSettings{Type: PostgresConnType, Color: "auto"}, wantErr: true},
-		{name: "gradient colour", s: ConnectionSettings{Type: PostgresConnType, Color: "teal>pink"}, wantErr: true},
+		{name: "gradient colour", s: ConnectionSettings{Type: PostgresConnType, TabColor: "teal>pink"}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

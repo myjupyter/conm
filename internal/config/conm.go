@@ -33,10 +33,10 @@ type Conm struct {
 }
 
 type ConnectionSettings struct {
-	Type    ConnType `toml:"type"`
-	CLI     string   `toml:"cli"`
-	Columns []string `toml:"columns,omitempty"`
-	Color   string   `toml:"color,omitempty"`
+	Type     ConnType `toml:"type"`
+	CLI      string   `toml:"cli"`
+	Columns  []string `toml:"columns,omitempty"`
+	TabColor string   `toml:"tab_color,omitempty"`
 }
 
 func CreateConm(conf Conm) error {

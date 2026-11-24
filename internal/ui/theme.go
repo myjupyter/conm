@@ -689,13 +689,13 @@ func settingsOf(t config.ConnType) config.ConnectionSettings {
 	return config.ConnectionSettings{Type: t}
 }
 
-func typeColor(t config.ConnType) color.Color {
-	value := settingsOf(t).TypeColor()
+func tabColor(t config.ConnType) color.Color {
+	value := settingsOf(t).ResolvedTabColor()
 	if named, err := config.ParseConnType(value); err == nil {
 		return builtinTypeColor(named)
 	}
 	switch value {
-	case config.TabColor:
+	case config.AutoColor:
 		return colorOr(tabBackground, cAccent)
 	default:
 		return colorOr(namedColor(value), builtinTypeColor(t))

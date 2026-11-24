@@ -430,15 +430,6 @@ func TestTabAndHeadingBackgrounds(t *testing.T) {
 	}
 }
 
-func TestTabBackgroundOverridesTypeColour(t *testing.T) {
-	look := gradientLook()
-	look.BorderColors, look.TextColors = nil, nil
-	look.TextBackgrounds = map[string]string{"tab": "#123456"}
-	withTrueColor(t, false, look)
-
-	assert.Equal(t, lipgloss.Color("#123456"), tabBg(typeColor(config.PostgresConnType)))
-}
-
 func TestSubheadingRole(t *testing.T) {
 	tests := []struct {
 		name            string

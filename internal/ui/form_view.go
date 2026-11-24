@@ -111,7 +111,7 @@ func (m formModel) badgeLine() string {
 		}
 		title = "editing " + name
 	}
-	return frameBadge(m.size.formInner(), m.kind.String(), typeColor(m.kind), title)
+	return frameBadge(m.size.formInner(), m.kind.String(), builtinTypeColor(m.kind), title)
 }
 
 func (m formModel) tabLine() string {
