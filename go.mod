@@ -3,24 +3,24 @@ module github.com/myjupyter/conm
 go 1.27.4
 
 require (
-	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.1.1
+	charm.land/bubbles/v2 v2.2.2
+	charm.land/bubbletea/v2 v2.1.2
 	charm.land/lipgloss/v2 v2.1.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.51.0
 	github.com/adrg/xdg v0.5.3
 	github.com/charmbracelet/colorprofile v0.4.3
-	github.com/charmbracelet/x/ansi v0.11.9
-	github.com/go-sql-driver/mysql v1.10.1
+	github.com/charmbracelet/x/ansi v0.11.10
+	github.com/go-sql-driver/mysql v1.10.2
 	github.com/jackc/pgx/v5 v5.13.0
-	github.com/microsoft/go-mssqldb v1.11.2
+	github.com/microsoft/go-mssqldb v1.12.0
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/redis/go-redis/v9 v9.23.0
-	github.com/rivo/uniseg v0.4.7
+	github.com/rivo/uniseg v0.4.8-0.20261110175422-3a370411ca06
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/zalando/go-keyring v0.2.8
-	go.mongodb.org/mongo-driver/v2 v2.10.0
-	go.yaml.in/yaml/v3 v3.0.5
+	go.mongodb.org/mongo-driver/v2 v2.10.1
+	go.yaml.in/yaml/v3 v3.0.6
 )
 
 require (
@@ -47,7 +47,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
-	github.com/mattn/go-runewidth v0.0.30 // indirect
+	github.com/mattn/go-runewidth v0.0.31 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/paulmach/orb v0.14.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
