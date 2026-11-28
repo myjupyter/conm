@@ -27,8 +27,9 @@ type tableRow struct {
 
 func (r tableRow) isColor() bool { return r.column == "" }
 
-var typeColorChoices = slices.Concat(config.ConnTypeNames(), []string{config.TabColor},
-	slices.DeleteFunc(slices.Clone(config.ColorNames), func(name string) bool { return name == config.AutoColor }))
+const tabColorLabel = "tab colour"
+
+var tabColorChoices = slices.Concat(config.ConnTypeNames(), config.ColorNames)
 
 func (m settingsModel) tableRows() []tableRow {
 	var rows []tableRow
@@ -91,7 +92,7 @@ func (m settingsModel) handleTableKey(key string) (tea.Model, tea.Cmd, bool) {
 		return model, cmd, true
 	case keyMap.Settings.EditValue.matches(key) && row.isColor():
 		m.table.editing, m.table.draft = true, ""
-		m.setSettingsStatus("type a type, tab, a colour name or #rrggbb", kindIdle)
+		m.setSettingsStatus("type a type, a colour name or #rrggbb", kindIdle)
 		return m, nil, true
 	case keyMap.Settings.Reset.matches(key):
 		model, cmd := m.resetTableRow()
@@ -108,14 +109,14 @@ func (m settingsModel) stepTableRow(step int) (tea.Model, tea.Cmd) {
 	row := m.tableRow()
 	s := m.typeSettings(row.connType)
 	if row.isColor() {
-		n := len(typeColorChoices)
-		at := slices.Index(typeColorChoices, s.TypeColor())
+		n := len(tabColorChoices)
+		at := slices.Index(tabColorChoices, s.ResolvedTabColor())
 		if at < 0 && step < 0 {
 			at = 0
 		}
-		next := typeColorChoices[((at+step)%n+n)%n]
-		s.Color = ownColorCleared(row.connType, next)
-		return m, m.saveTableCmd(s, row.connType.String()+" colour → "+next)
+		next := tabColorChoices[((at+step)%n+n)%n]
+		s.TabColor = ownColorCleared(row.connType, next)
+		return m, m.saveTableCmd(s, row.connType.String()+" "+tabColorLabel+" → "+next)
 	}
 
 	columns := slices.Clone(s.VisibleColumns())
@@ -160,8 +161,8 @@ func (m settingsModel) resetTableRow() (tea.Model, tea.Cmd) {
 	row := m.tableRow()
 	s := m.typeSettings(row.connType)
 	if row.isColor() {
-		s.Color = ""
-		return m, m.saveTableCmd(s, row.connType.String()+" colour → "+row.connType.String())
+		s.TabColor = ""
+		return m, m.saveTableCmd(s, row.connType.String()+" "+tabColorLabel+" → "+row.connType.String())
 	}
 	s.Columns = nil
 	m.table.cursor = m.tableCursorFor(s, row.column)
@@ -194,15 +195,15 @@ func (m settingsModel) typeTableColor(text string) settingsModel {
 }
 
 func (m settingsModel) saveTableDraft() (tea.Model, tea.Cmd) {
-	if !config.IsTypeColor(m.table.draft) {
-		m.setSettingsStatus(strconv.Quote(m.table.draft)+" is neither a type, tab, a colour name nor #rrggbb", kindWarn)
+	if !config.IsTabColor(m.table.draft) {
+		m.setSettingsStatus(strconv.Quote(m.table.draft)+" is neither a type, a colour name nor #rrggbb", kindWarn)
 		return m, nil
 	}
 	row := m.tableRow()
 	s := m.typeSettings(row.connType)
-	s.Color = ownColorCleared(row.connType, m.table.draft)
+	s.TabColor = ownColorCleared(row.connType, m.table.draft)
 	m.table.editing = false
-	return m, m.saveTableCmd(s, row.connType.String()+" colour → "+m.table.draft)
+	return m, m.saveTableCmd(s, row.connType.String()+" "+tabColorLabel+" → "+m.table.draft)
 }
 
 func ownColorCleared(t config.ConnType, value string) string {

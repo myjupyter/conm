@@ -101,7 +101,7 @@ func TestSettingsModel_tableTab(t *testing.T) {
 		},
 		{
 			name:        "the colour steps back to the own type",
-			current:     config.ConnectionSettings{Color: "mysql"},
+			current:     config.ConnectionSettings{TabColor: "mysql"},
 			column:      "",
 			act:         func(m settingsModel) (tea.Model, tea.Cmd) { return m.stepTableRow(-1) },
 			wantColumns: []string{"name", "username", "host", "port", "database", "ping"},
@@ -110,7 +110,7 @@ func TestSettingsModel_tableTab(t *testing.T) {
 		},
 		{
 			name:    "a colour is typed",
-			current: config.ConnectionSettings{Color: "tab"},
+			current: config.ConnectionSettings{TabColor: "auto"},
 			column:  "",
 			act: func(m settingsModel) (tea.Model, tea.Cmd) {
 				m.table.editing = true
@@ -134,7 +134,7 @@ func TestSettingsModel_tableTab(t *testing.T) {
 
 			is := assert.New(t)
 			is.Equal(tt.wantColumns, saved.VisibleColumns())
-			is.Equal(tt.wantColor, saved.TypeColor())
+			is.Equal(tt.wantColor, saved.ResolvedTabColor())
 			is.Equal(tt.wantCursor, moved.tableRow().column)
 			is.Equal(config.PostgresConnType, moved.tableRow().connType)
 		})
@@ -210,7 +210,7 @@ func TestLayoutWidthKeepsTheRowWidth(t *testing.T) {
 	}
 }
 
-func TestTypeColorFollowsTheSetting(t *testing.T) {
+func TestTabColorFollowsTheSetting(t *testing.T) {
 	tests := []struct {
 		name  string
 		color string
@@ -218,15 +218,15 @@ func TestTypeColorFollowsTheSetting(t *testing.T) {
 		want  func() any
 	}{
 		{name: "type keeps the built-in colour", want: func() any { return cPostgres }},
-		{name: "tab follows the accent", color: "tab", want: func() any { return cAccent }},
-		{name: "tab follows the tab background", color: "tab", tab: "pink", want: func() any { return accentColors["pink"] }},
+		{name: "auto follows the accent", color: "auto", want: func() any { return cAccent }},
+		{name: "auto follows the tab background", color: "auto", tab: "pink", want: func() any { return accentColors["pink"] }},
 		{name: "a custom colour", color: "#123456", want: func() any { return namedColor("#123456") }},
 	}
 	t.Cleanup(func() { applyConm(config.Conm{}); applyAppearance(plainAppearance) })
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			conm := config.Conm{
-				Connections: []config.ConnectionSettings{{Type: config.PostgresConnType, Color: tt.color}},
+				Connections: []config.ConnectionSettings{{Type: config.PostgresConnType, TabColor: tt.color}},
 				Appearance:  plainAppearance.Clone(),
 			}
 			if tt.tab != "" {
@@ -234,7 +234,7 @@ func TestTypeColorFollowsTheSetting(t *testing.T) {
 			}
 			applyConm(conm)
 
-			assert.Equal(t, tt.want(), typeColor(config.PostgresConnType))
+			assert.Equal(t, tt.want(), tabColor(config.PostgresConnType))
 		})
 	}
 }

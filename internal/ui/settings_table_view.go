@@ -46,30 +46,30 @@ func (m settingsModel) tableLine(row tableRow, on bool) string {
 		bg = cAccent
 	}
 	if row.isColor() {
-		return m.settingsLabelLine(colorLabel, bindLabelW, m.typeColorSpans(row.connType, on, bg), on)
+		return m.settingsLabelLine(tabColorLabel, bindLabelW, m.tabColorSpans(row.connType, on, bg), on)
 	}
 	return m.settingsLabelLine("  "+row.column, bindLabelW, m.columnSpans(row, on, bg), on)
 }
 
-func (m settingsModel) typeColorSpans(t config.ConnType, on bool, bg color.Color) []span {
+func (m settingsModel) tabColorSpans(t config.ConnType, on bool, bg color.Color) []span {
 	s, _ := m.conm.Connection(t)
-	value := s.TypeColor()
+	value := s.ResolvedTabColor()
 	box := selectBox{
 		value:  value,
-		at:     slices.Index(typeColorChoices, value) + 1,
-		n:      len(typeColorChoices),
-		tint:   typeColor(t),
+		at:     slices.Index(tabColorChoices, value) + 1,
+		n:      len(tabColorChoices),
+		tint:   tabColor(t),
 		active: on,
 	}
 	switch {
 	case on && m.table.editing:
 		box.value, box.pos, box.tint = m.table.draft+gInputCursor, "type", nil
-	case !slices.Contains(typeColorChoices, value):
+	case !slices.Contains(tabColorChoices, value):
 		box.pos = "custom"
 	}
 
 	spans := frameSelectBox(formBoxW, box, bg)
-	return append(spans, span{text: "  ", bg: bg}, span{text: swatch, bg: typeColor(t)})
+	return append(spans, span{text: "  ", bg: bg}, span{text: swatch, bg: tabColor(t)})
 }
 
 func (m settingsModel) columnSpans(row tableRow, on bool, bg color.Color) []span {

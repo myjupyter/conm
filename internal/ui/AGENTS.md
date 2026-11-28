@@ -115,7 +115,7 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
   advice keyed by `network.ErrorCode`, owned by the UI because it spells the key to press
   from `keyMap`. Classifying an error belongs to `internal/network/AGENTS.md`.
 - **`ui/theme.go` — the look.** The palette (`c*`), the glyphs (`g*`: box-drawing runes,
-  status icons, row/field markers, input chrome, ellipsis) and `typeColor`. `frame.go`
+  status icons, row/field markers, input chrome, ellipsis) and `tabColor`. `frame.go`
   decides *how* a line is built, `theme.go` *what it looks like*: a view never uses a
   literal rune or `lipgloss.Color`, so a restyle never touches drawing code.
   - The glyphs and `cAccent` are variables set by `applyAppearance` from
@@ -167,15 +167,17 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     - `span.render` draws a role with `stops` one grapheme at a time (`gradientText`).
     - **Tab, heading and subheading backgrounds.** `cHeadBg` is set from
       `text_backgrounds.heading` (`baseHeadBg` when `auto`), `cSubheadBg` from
-      `text_backgrounds.subheading` (nil, no band, when `auto`); every active tab takes `tabBg(contextual)` — the override, or
-      what the screen used before: the accent, or `typeColor` on the connections table.
-    - **The accent** resolves through `accentStopsOf`; `cAccent` is always its first stop, so
-      every foreground use stays flat. With `gradientsOn`, `accentStops` holds the rest, and
-      `frameLine` runs `backgroundGradients`: a span whose background has stops
-      (`backgroundStops`: the tab override, the heading band, the accent) is split into cells
-      and given the colour of its column — across the whole line when the line's own background
-      is that colour (a highlighted row, a heading band), across the span alone otherwise (a tab).
-      `sameColor` compares by RGBA, never with `==` on `color.Color`.
+      `text_backgrounds.subheading` (nil, no band, when `auto`); every active tab takes `tabBg()` — the override, or the accent — except the
+      connections table's, which takes `tabColor` and follows the override only when the type's tab colour is `auto`.
+    - **A background gradient is a colour.** With `gradientsOn`, `blended` returns a `*gradient`:
+      it reads as its first stop, so every foreground use stays flat, and carries its stops. The
+      accent (through `accentStopsOf`), the tab override and the heading and subheading bands
+      are built by it.
+      `frameLine` runs `backgroundGradients`: a span whose background is a `*gradient` is split
+      into cells and given the colour of its column — across the whole line when the line's own
+      background is that same pointer (a highlighted row, a heading band), across the span alone
+      otherwise (a tab). A gradient is never recognised by its colour value: a flat colour equal
+      to a first stop stays flat. `sameColor` compares by RGBA, never with `==` on `color.Color`.
   - **Text styles are roles, not bold flags.** `span.style` takes one of `tTitle`, `tTab`,
     `tHeading`, `tSubheading`, `tSelection` (with `styleIf` for "only when on"), `tKey`,
     `tValue`, `tNote`. `tSubheading` is `frameSubhead` and the group titles of the expanded key
@@ -202,8 +204,10 @@ inline a private copy, a raw rune, a raw colour or a raw key string in a screen.
     `block`, `hidden` and `ascii` and checks every line has one width and every selector
     starts in one column.
   - `applyConm` sets `keyMap`, the appearance and `typeSettings` (each type's row, for its
-    columns and colour); `typeColor` reads the row's `color` — a type name is that type's `builtinTypeColor`,
-    `tab` the tab background or the accent, anything else that colour; every entry point that draws calls it
+    columns and tab colour); `tabColor` reads the row's `tab_color` — a type name is that type's `builtinTypeColor`,
+    `auto` the tab background or the accent, anything else that colour. It paints the type's tab on the
+    connections table and nothing else: the selected row is `cAccent`, and the form badge, the info
+    sheet's title and the type picker's mark are `builtinTypeColor`. Every entry point that draws calls `applyConm`
     (or `applyAppearance`, for `doctor` and `export`; `applyStoredConm` reads `conm.toml` for the
     workspace entry points) before its first line.
 - **`ui/form_loop.go` — running a form to completion.** `formStatus` (message plus
@@ -486,11 +490,11 @@ page's rows, reset to the top on every page switch.
   - A change copies the settings (`AppearanceSettings.Clone`) before it touches the
     override maps, so the screen's own `conm` is never mutated before the write succeeds.
 
-- **Table.** One section per type over its `config.ConnectionSettings` row: a `colour` row
-  (`typeColorChoices`: the type names, `tab`, the colour names; choosing the own type stores empty; typed with `EditValue`) and a checkbox
+- **Table.** One section per type over its `config.ConnectionSettings` row: a `tab colour` row
+  (`tabColorChoices`: the type names, then `config.ColorNames`; choosing the own type stores empty; typed with `EditValue`) and a checkbox
   row per column of `ConnType.Columns()`, listed shown-first in table order (`orderedColumns`).
   `Confirm` shows or hides a column (NAME is refused), `Cycle` swaps a shown column with its
-  neighbour, `Reset` clears the colour or the order; the cursor follows the column it moved
+  neighbour, `Reset` clears the tab colour or the order; the cursor follows the column it moved
   (`tableCursorFor`). `saveTableCmd` checks `ValidateTable` before it writes.
 
 Every write goes through `config.CreateConm` at once; there is no "save" step. The screen

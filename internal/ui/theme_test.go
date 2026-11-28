@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/myjupyter/conm/internal/config"
+	"github.com/myjupyter/conm/internal/ui/view"
 )
 
 func TestThemePresetsAreComplete(t *testing.T) {
@@ -372,7 +373,7 @@ func TestAccentGradient(t *testing.T) {
 			tabs := frameTabs(30, []string{"one", "two"}, 0, "")
 
 			is := assert.New(t)
-			is.Equal(accentColors["teal"], cAccent)
+			is.True(sameColor(accentColors["teal"], cAccent))
 			if tt.wantMany {
 				is.Greater(distinctBackgrounds(row), 10)
 				is.Greater(distinctBackgrounds(tabs), 2)
@@ -381,6 +382,51 @@ func TestAccentGradient(t *testing.T) {
 				is.Equal(1, distinctBackgrounds(tabs))
 			}
 			is.Equal(32, ansi.StringWidth(ansi.Strip(row)))
+		})
+	}
+}
+
+func TestGradientsStayOnTheirElement(t *testing.T) {
+	tabs := Model.tabsLine
+	row := func(m Model) string { return m.rowLine(0) }
+	tests := []struct {
+		name          string
+		accent        string
+		tabBackground string
+		tabColor      string
+		line          func(Model) string
+		wantMany      bool
+	}{
+		{name: "a flat accent row ignores a tab gradient from the accent", accent: "green", tabBackground: "accent>pink", line: row},
+		{name: "a flat accent row ignores a tab gradient from its colour", accent: "green", tabBackground: "green>pink", line: row},
+		{name: "a flat tab colour ignores a tab gradient from its colour", accent: "green", tabBackground: "teal>pink", tabColor: "teal", line: tabs},
+		{name: "a flat tab colour ignores an accent gradient from its colour", accent: "green>blue", tabColor: "green", line: tabs},
+		{name: "an auto tab follows the tab gradient", accent: "green", tabBackground: "teal>pink", tabColor: "auto", line: tabs, wantMany: true},
+		{name: "an auto tab follows the accent gradient", accent: "green>blue", tabColor: "auto", line: tabs, wantMany: true},
+		{name: "the selected row follows the accent gradient", accent: "green>blue", tabBackground: "green>pink", line: row, wantMany: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			look := gradientLook()
+			look.BorderColors, look.TextColors, look.Accent = nil, nil, tt.accent
+			if tt.tabBackground != "" {
+				look.TextBackgrounds = map[string]string{"tab": tt.tabBackground}
+			}
+			withTrueColor(t, true, look)
+			applyConm(config.Conm{
+				Connections: []config.ConnectionSettings{{Type: config.PostgresConnType, TabColor: tt.tabColor}},
+				Appearance:  look,
+			})
+			t.Cleanup(func() { applyConm(config.Conm{}); applyAppearance(plainAppearance) })
+			conns := view.NewConnections(stubConnections{confs: []config.Connection{config.Postgres{}}})
+
+			got := distinctBackgrounds(tt.line(New(conns, nil, nil)))
+
+			if tt.wantMany {
+				assert.Greater(t, got, 5)
+				return
+			}
+			assert.Equal(t, 1, got)
 		})
 	}
 }
@@ -418,8 +464,8 @@ func TestTabAndHeadingBackgrounds(t *testing.T) {
 			withTrueColor(t, tt.trueColor, look)
 
 			is := assert.New(t)
-			is.Equal(tt.wantTab, tabBg(cAccent))
-			is.Equal(tt.wantHead, cHeadBg)
+			is.Equal(tt.wantTab, tabBg())
+			is.True(sameColor(tt.wantHead, cHeadBg))
 			band := frameHead(30, "section", "")[1]
 			if tt.wantHeadColors > 1 {
 				is.Greater(distinctBackgrounds(band), tt.wantHeadColors)
@@ -428,15 +474,6 @@ func TestTabAndHeadingBackgrounds(t *testing.T) {
 			is.Equal(1, distinctBackgrounds(band))
 		})
 	}
-}
-
-func TestTabBackgroundOverridesTypeColour(t *testing.T) {
-	look := gradientLook()
-	look.BorderColors, look.TextColors = nil, nil
-	look.TextBackgrounds = map[string]string{"tab": "#123456"}
-	withTrueColor(t, false, look)
-
-	assert.Equal(t, lipgloss.Color("#123456"), tabBg(typeColor(config.PostgresConnType)))
 }
 
 func TestSubheadingRole(t *testing.T) {

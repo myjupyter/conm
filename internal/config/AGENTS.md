@@ -17,7 +17,7 @@ May import (internal): `utils/keys`, `utils/pathname`.
 | `distinct.go` | `Distinct` and `identity(...)`, the uniqueness key a record builds for itself |
 | `meta.go` | `ConnMeta`, `WebLink` and their validators, `ValidateConnectionName`, `ValidateTags` |
 | `conm.go` | `Conm`, `ConnectionSettings`, `ConnType`, `ConnKind`, `ReadConm`/`CreateConm`, `withKnownTypes` |
-| `table.go` | the table settings on `ConnectionSettings`: `TableColumns`, `DefaultColumns`, `ConnType.Columns`, `ConnType.DefaultColumns`, `VisibleColumns`, `TypeColor`, `ValidateTable` |
+| `table.go` | the table settings on `ConnectionSettings`: `TableColumns`, `DefaultColumns`, `ConnType.Columns`, `ConnType.DefaultColumns`, `VisibleColumns`, `ResolvedTabColor`, `IsTabColor`, `ValidateTable` |
 | `keybinding.go` | `KeybindingSettings` — the keybinding overrides stored in `conm.toml` |
 | `appearance.go` | `AppearanceSettings` — border, accent, glyph set, text style and the border and glyph colour palettes, plus per-element overrides; `BorderStyles`, `AccentColors`, `GlyphSets`, `TextStyles` list the preset names, `BorderElements`, `GlyphElements`, `TextElements` the overridable elements |
 | `postgres.go`, `mysql.go`, `mssql.go`, `clickhouse.go`, `redis.go`, `mongodb.go`, `ssh.go` | one connection type each: the struct, its `*ConfigWrapper`, its mode constants and validators; `postgres.go` also holds the limits and regexps the types share |
@@ -158,12 +158,12 @@ repository and no tab on the secrets screen:
 ## The settings row — `conm.toml`
 
 - `conm.toml` holds one `[[conm.connection]]` row per connection type —
-  `ConnectionSettings{Type, CLI, Columns, Color}`, the type written by name — plus the
+  `ConnectionSettings{Type, CLI, Columns, TabColor}`, the type written by name — plus the
   keybinding overrides and the appearance.
 - `Columns` is the ordered list of the table columns shown for the type (`TableColumns`;
   `ConnType.Columns()` drops `database` for a kind without one); nil means the default ones,
-  every column but `tags`, in default order (`DefaultColumns`, `VisibleColumns`). `Color` is a type name (empty means the row's own), `tab` or a colour
-  (`IsTypeColor`; read through `TypeColor()`, which names the own type when empty). `completeTable` drops unknown, repeated and unavailable columns,
+  every column but `tags`, in default order (`DefaultColumns`, `VisibleColumns`). `TabColor` is a type name (empty means the row's own), or a colour, `auto` included
+  (`IsTabColor`; read through `ResolvedTabColor()`, which names the own type when empty). `completeTable` drops unknown, repeated and unavailable columns,
   puts `name` back when missing and clears an unknown colour; `ValidateTable` refuses the same
   at the write point. The logic lives in `table.go`.
 - `Conm.complete` runs everything read through `withKnownTypes`: one row per type in

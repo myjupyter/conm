@@ -107,9 +107,9 @@ func (m Model) tabsLine() string {
 	for _, kind := range m.conns.Kinds() {
 		label := fmt.Sprintf(" %s %d ", kind, m.conns.CountOf(kind))
 		if kind == m.conns.Active() {
-			spans = append(spans, span{text: label, fg: cInvFg, bg: tabBg(typeColor(kind)), style: tTab})
+			spans = append(spans, span{text: label, fg: cInvFg, bg: tabColor(kind), style: tTab})
 		} else {
-			spans = append(spans, span{text: label, fg: typeColor(kind)})
+			spans = append(spans, span{text: label, fg: tabColor(kind)})
 		}
 		spans = append(spans, span{text: " ", fg: cDim})
 	}
@@ -181,7 +181,7 @@ func (m Model) rowLine(i int) string {
 	var bg, fg, soft, markC color.Color
 	switch {
 	case sel:
-		bg, fg, soft, markC = typeColor(m.conns.Active()), cInvFg, cInvFg, cInvFg
+		bg, fg, soft, markC = cAccent, cInvFg, cInvFg, cInvFg
 	case failed:
 		fg, soft, markC = cDead, cSoft, cRed
 	case alive:

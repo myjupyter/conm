@@ -105,7 +105,7 @@ func (m initModel) initRowLine(i int) string {
 	case !available:
 		fg, markC, stateC = cDead, cFaint, cDim
 	default:
-		fg, markC, stateC = cFg, typeColor(t), cOK
+		fg, markC, stateC = cFg, builtinTypeColor(t), cOK
 	}
 
 	state := "available"
